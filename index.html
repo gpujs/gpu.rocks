@@ -21,6 +21,11 @@
     <link href="font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
     <link href="http://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css">
     <link href="http://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+    
+    <!-- highlight.js -->
+    <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/styles/color-brewer.min.css">
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
 
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -62,7 +67,7 @@
             <div class="row">
                 <div class="col-lg-8 col-lg-offset-2">
 <h3>Matrix Multiplication</h3>
-<pre>var gpu = new GPU();
+<pre><code class="js" style="background: transparent;">var gpu = new GPU();
 
 var opt = {
     dimensions: [512, 512]
@@ -76,7 +81,7 @@ var mat_mult = gpu.createKernel(function(A, B) {
     return sum;
 }, opt);
 
-var C = mat_mult(A, B);</pre>
+var C = mat_mult(A, B);</code></pre>
 <div class="alert alert-info demo-mult hide" role="alert"></div>
 <a href="javascript:demoMult();" class="btn btn-primary">
     Benchmark
