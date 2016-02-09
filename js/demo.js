@@ -60,8 +60,8 @@ var mat_size = 512;
 var A = [];
 var B = [];
 for(var n = 0; n < mat_size*mat_size; n++) {
-	var randA = Math.random()*100.0;
-	var randB = Math.random()*100.0;
+	var randA = Math.random();
+	var randB = Math.random();
 	A.push(randA);
 	B.push(randB);
 }
