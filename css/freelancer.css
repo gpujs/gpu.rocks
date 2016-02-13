@@ -102,7 +102,7 @@ hr.star-primary:after {
 header {
     text-align: center;
     color: #fff;
-    background: #18bc9c;
+    background: #186384;
 }
 
 header .container {
@@ -223,6 +223,17 @@ section.success a.active {
     }
 }
 
+.main-logo {
+    width: 300px;
+    height: 300px;
+}
+
+.profile-photo {
+    -webkit-filter: grayscale(100%);
+    filter: grayscale(100%);
+    padding: 20px;
+}
+
 #portfolio .portfolio-item {
     right: 0;
     margin: 0 0 15px;
@@ -294,7 +305,7 @@ section.success a.active {
 .btn-outline:active,
 .btn-outline.active {
     border: solid 2px #fff;
-    color: #18bc9c;
+    color: #186384;
     background: #fff;
 }
 
