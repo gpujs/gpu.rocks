@@ -1,5 +1,22 @@
 var gpu = new GPU();
 
+function clone(obj) {
+	if(obj === null || typeof(obj) !== 'object' || 'isActiveClone' in obj)
+		return obj;
+
+	var temp = obj.constructor(); // changed
+
+	for(var key in obj) {
+		if(Object.prototype.hasOwnProperty.call(obj, key)) {
+			obj.isActiveClone = null;
+			temp[key] = clone(obj[key]);
+			delete obj.isActiveClone;
+		}
+	}
+
+	return temp;
+}
+
 /**
  * Figure out how long it takes for a method to execute.
  *
@@ -68,14 +85,11 @@ for(var n = 0; n < mat_size*mat_size; n++) {
 A = splitArray(A, mat_size);
 B = splitArray(B, mat_size);
 
-var vec_size = 200000;
+var vec_size = 1048576 * 2 * 2;
 var a = [];
-var b = [];
 for(var n = 0; n < vec_size; n++) {
-	var randA = Math.random()*100.0;
-	var randB = Math.random()*100.0;
+	var randA = Math.round(Math.random()*65534);
 	a.push(randA);
-	b.push(randB);
 }
 
 function benchmarkMult(mode) {
@@ -97,19 +111,35 @@ function benchmarkMult(mode) {
     return C;
 }
 
-function benchmarkVector(mode) {
-    var opt = {
-        dimensions: [vec_size],
-        mode: mode
-    };
+var reduce_maxes = {}
+reduce_maxes.cpu = gpu.createKernel(function(arr) {
+	var i = this.thread.x * 2;
+	return Math.max(arr[i], arr[i+1]);
+}, {
+	mode: 'cpu',
+});
 
-    var vec_add = gpu.createKernel(function(a, b) {
-        return a[this.thread.x] + b[this.thread.x];
-    }, opt);
+reduce_maxes.gpu = gpu.createKernel(function(arr) {
+	var i = this.thread.x * 2;
+	return Math.max(arr[i], arr[i+1]);
+}, {
+	mode: 'gpu',
+	hardcodeConstants: true,
+	outputToTexture: true
+});
 
-    var c = vec_add(a, b);
-    
-    return c;
+function benchmarkMax(mode) {
+	var reduce_max = reduce_maxes[mode];
+	
+	var arr = clone(a);
+	
+	for (var size=(vec_size); size!=1; size/=2) {
+		reduce_max.dimensions([size/2]);
+		arr = reduce_max(arr);
+		//console.log(arr.toString());
+	}
+	
+	return arr;
 }
 
 function demoMult() {
@@ -137,20 +167,20 @@ function demoMult() {
     }, 0);
 }
 
-function demoVector() {
-    $('.demo-vect').removeClass('hide');
-    $('.demo-vect').addClass('text-center');
-    $('.demo-vect').html('<i class="fa fa-cog fa-spin" style="font-size: 60px;"></i>');
+function demoMax() {
+    $('.demo-max').removeClass('hide');
+    $('.demo-max').addClass('text-center');
+    $('.demo-max').html('<i class="fa fa-cog fa-spin" style="font-size: 60px;"></i>');
     setTimeout(function() {
-        var gpuTime = bench(benchmarkVector, 1, ['gpu'], window);
-        var cpuTime = bench(benchmarkVector, 1, ['cpu'], window);
+        var gpuTime = bench(benchmarkMax, 1, ['gpu'], window);
+        var cpuTime = bench(benchmarkMax, 1, ['cpu'], window);
         var faster = '';
         if (cpuTime > gpuTime) {
             var times = cpuTime / gpuTime;
             faster = ' <em>(' + times.toFixed(2) + ' times faster!)</em>';
         }
         var html = '<p>CPU: ' + cpuTime +'ms</p><p>GPU: ' + gpuTime + 'ms' + faster + '</p>';
-        $('.demo-vect').removeClass('text-center');
-        $('.demo-vect').html(html);
+        $('.demo-max').removeClass('text-center');
+        $('.demo-max').html(html);
     }, 0);
 }
