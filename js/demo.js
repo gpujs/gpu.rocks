@@ -85,13 +85,6 @@ for(var n = 0; n < mat_size*mat_size; n++) {
 A = splitArray(A, mat_size);
 B = splitArray(B, mat_size);
 
-var vec_size = 1048576 * 2 * 2;
-var a = [];
-for(var n = 0; n < vec_size; n++) {
-	var randA = Math.round(Math.random()*65534);
-	a.push(randA);
-}
-
 function benchmarkMult(mode) {
     var opt = {
         dimensions: [mat_size, mat_size],
@@ -109,37 +102,6 @@ function benchmarkMult(mode) {
     var C = mat_mult(A, B);
     
     return C;
-}
-
-var reduce_maxes = {}
-reduce_maxes.cpu = gpu.createKernel(function(arr) {
-	var i = this.thread.x * 2;
-	return Math.max(arr[i], arr[i+1]);
-}, {
-	mode: 'cpu',
-});
-
-reduce_maxes.gpu = gpu.createKernel(function(arr) {
-	var i = this.thread.x * 2;
-	return Math.max(arr[i], arr[i+1]);
-}, {
-	mode: 'gpu',
-	hardcodeConstants: true,
-	outputToTexture: true
-});
-
-function benchmarkMax(mode) {
-	var reduce_max = reduce_maxes[mode];
-	
-	var arr = clone(a);
-	
-	for (var size=(vec_size); size!=1; size/=2) {
-		reduce_max.dimensions([size/2]);
-		arr = reduce_max(arr);
-		//console.log(arr.toString());
-	}
-	
-	return arr;
 }
 
 function demoMult() {
@@ -164,23 +126,5 @@ function demoMult() {
             $('.demo-mult').addClass('alert-danger');
             $('.demo-mult').html('There was an error running on the GPU.');
         }
-    }, 0);
-}
-
-function demoMax() {
-    $('.demo-max').removeClass('hide');
-    $('.demo-max').addClass('text-center');
-    $('.demo-max').html('<i class="fa fa-cog fa-spin" style="font-size: 60px;"></i>');
-    setTimeout(function() {
-        var gpuTime = bench(benchmarkMax, 1, ['gpu'], window);
-        var cpuTime = bench(benchmarkMax, 1, ['cpu'], window);
-        var faster = '';
-        if (cpuTime > gpuTime) {
-            var times = cpuTime / gpuTime;
-            faster = ' <em>(' + times.toFixed(2) + ' times faster!)</em>';
-        }
-        var html = '<p>CPU: ' + cpuTime +'ms</p><p>GPU: ' + gpuTime + 'ms' + faster + '</p>';
-        $('.demo-max').removeClass('text-center');
-        $('.demo-max').html(html);
     }, 0);
 }
