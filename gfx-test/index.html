@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Graphics Output Test</title>
+</head>
+<body>
+
+<pre>
+<code>
+var gpu = new GPU();
+var canvas = gpu.getCanvas();
+
+var render = gpu.createKernel(function() {
+    if (this.thread.x % 20 == this.thread.y % 20) {
+        return color(0,0,0);
+    } else {
+        return color(1,1,1);
+    }
+}).dimensions([512, 512]);
+
+render();
+
+document.getElementsByTagName('body')[0].appendChild(canvas);
+</code>
+
+Result:
+</pre>
+
+<script src="../js/gpu.min.js"></script>
+<script>
+var gpu = new GPU();
+var canvas = gpu.getCanvas();
+
+var render = gpu.createKernel(function() {
+    if (this.thread.x % 20 == this.thread.y % 20) {
+        return color(0,0,0);
+    } else {
+        return color(1,1,1);
+    }
+}).dimensions([512, 512]);
+
+render();
+
+document.getElementsByTagName('body')[0].appendChild(canvas);
+</script>
+</body>
+</html>
