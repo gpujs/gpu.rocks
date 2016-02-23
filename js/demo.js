@@ -85,19 +85,29 @@ for(var n = 0; n < mat_size*mat_size; n++) {
 A = splitArray(A, mat_size);
 B = splitArray(B, mat_size);
 
-function benchmarkMult(mode) {
-    var opt = {
+function createMult(mode) {
+	var opt = {
         dimensions: [mat_size, mat_size],
         mode: mode
     };
 
-    var mat_mult = gpu.createKernel(function(A, B) {
+    return gpu.createKernel(function(A, B) {
         var sum = 0;
         for (var i=0; i<512; i++) {
             sum += A[this.thread.y][i] * B[i][this.thread.x];
         }
         return sum;
     }, opt);
+}
+
+var mult = {};
+var compileTime = bench(function() {
+	mult.cpu = createMult('cpu');
+	mult.gpu = createMult('gpu');
+}, 1, [], window);
+
+function benchmarkMult(mode) {
+    var mat_mult = mult[mode];
 
     var C = mat_mult(A, B);
     
