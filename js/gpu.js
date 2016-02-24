@@ -1804,7 +1804,7 @@ var GPU = (function() {
 		this.programCache = {};
 		this.endianness = endianness();
 		
-		this.functionBuilder = new functionBuilder();
+		this.functionBuilder = new functionBuilder(this);
 		this.functionBuilder.polyfillStandardFunctions();
 	}
 	
@@ -1919,6 +1919,8 @@ var GPU = (function() {
 // Closure capture for the ast function, prevent collision with existing AST functions
 var functionNode_webgl = (function() {
 	
+	var gpu, jsFunctionString;
+	
 	///
 	/// Function: functionNode_webgl
 	///
@@ -1931,6 +1933,8 @@ var functionNode_webgl = (function() {
 	/// 	the converted webGL function string
 	///
 	function functionNode_webgl( inNode ) {
+		gpu = inNode.gpu;
+		jsFunctionString = inNode.jsFunctionString;
 		inNode.webglFunctionString_array = ast_generic( inNode.getJS_AST(), [], inNode );
 		inNode.webglFunctionString = inNode.webglFunctionString_array.join("").trim();
 		return inNode.webglFunctionString;
@@ -1967,6 +1971,8 @@ var functionNode_webgl = (function() {
 			}
 			
 			switch(ast.type) {
+				case "FunctionDeclaration":
+					return ast_FunctionDeclaration(ast, retArr, funcParam);
 				case "FunctionExpression":
 					return ast_FunctionExpression(ast, retArr, funcParam);
 				case "ReturnStatement":
@@ -2017,6 +2023,38 @@ var functionNode_webgl = (function() {
 		}
 	}
 	
+	/// Prases the abstract syntax tree, to its named function declartion
+	///
+	/// @param ast   the AST object to parse
+	/// @param retArr       return array string
+	/// @param funcParam    FunctionNode, that tracks compilation state
+	///
+	/// @returns  the appened retArr
+	function ast_FunctionDeclaration(ast, retArr, funcParam) {
+		// TODO: make this less hacky?
+		var lines = jsFunctionString.split(/\r?\n/);
+		
+		var start = ast.loc.start;
+		var end = ast.loc.end;
+		
+		var funcArr = [];
+		
+		funcArr.push(lines[start.line-1].slice(start.column));
+		for (var i=start.line; i<end.line-1; i++) {
+			funcArr.push(lines[i]);
+		}
+		funcArr.push(lines[end.line-1].slice(0,end.column));
+		
+		var funcStr = funcArr.join('\n');
+		
+		// TODO: fix this evil!
+		eval('var funcObj = ' + funcStr);
+		
+		gpu.addFunction(funcObj);
+		
+		return retArr;
+	}
+	
 	/// Prases the abstract syntax tree, to its named function
 	///
 	/// @param ast   the AST object to parse
@@ -2044,6 +2082,7 @@ var functionNode_webgl = (function() {
 			
 			retArr.push( funcParam.paramType[i] );
 			retArr.push(" ");
+			retArr.push("user_");
 			retArr.push( funcParam.paramNames[i] );
 		}
 		
@@ -2169,10 +2208,8 @@ var functionNode_webgl = (function() {
 			retArr.push('uOutputDim.y');
 		} else if (idtNode.name == "gpu_dimensionsZ") {
 			retArr.push('uOutputDim.z');
-		} else if(funcParam.isRootKernel) {
-			retArr.push("user_"+idtNode.name);
 		} else {
-			retArr.push(idtNode.name);
+			retArr.push("user_"+idtNode.name);
 		}
 
 		return retArr;
@@ -2507,12 +2544,15 @@ var functionNode = (function() {
 	/// [Constructor] Builds the function with the given JS function, and argument type array.
 	///
 	/// Parameters:
+	/// 	gpu             - {GPU}          The GPU instance
 	/// 	functionName    - {String}       Function name to assume, if its null, it attempts to extract from the function
 	/// 	jsFunction      - {JS Function}  JS Function to do conversion
 	/// 	paramTypeArray  - {[String,...]} Parameter type array, assumes all parameters are "float" if null
 	/// 	returnType      - {String}       The return type, assumes "float" if null
 	///
-	function functionNode( functionName, jsFunction, paramTypeArray, returnType ) {
+	function functionNode( gpu, functionName, jsFunction, paramTypeArray, returnType ) {
+		
+		this.gpu = gpu;
 		
 		//
 		// Internal vars setup
@@ -2729,8 +2769,9 @@ var functionBuilder = (function() {
 	///
 	/// [Constructor] Blank constructor, which initializes the properties
 	///
-	function functionBuilder() {
+	function functionBuilder(gpu) {
 		this.nodeMap = {};
+		this.gpu = gpu;
 	}
 	
 	///
@@ -2738,14 +2779,15 @@ var functionBuilder = (function() {
 	///
 	/// Creates the functionNode, and add it to the nodeMap
 	///
-	/// Parameters: 
+	/// Parameters:
+	/// 	gpu             - {GPU}          The GPU instance
 	/// 	functionName    - {String}       Function name to assume, if its null, it attempts to extract from the function
-	/// 	jsFunction      - {JS Function}  JS Function to do conversion   
+	/// 	jsFunction      - {JS Function}  JS Function to do conversion
 	/// 	paramTypeArray  - {[String,...]} Parameter type array, assumes all parameters are "float" if null
 	/// 	returnType      - {String}       The return type, assumes "float" if null
 	///
 	function addFunction( functionName, jsFunction, paramTypeArray, returnType ) {
-		this.addFunctionNode( new functionNode( functionName, jsFunction, paramTypeArray, returnType ) );
+		this.addFunctionNode( new functionNode( this.gpu, functionName, jsFunction, paramTypeArray, returnType ) );
 	}
 	functionBuilder.prototype.addFunction = addFunction;
 	
@@ -2754,7 +2796,7 @@ var functionBuilder = (function() {
 	///
 	/// Add the funciton node directly
 	///
-	/// Parameters: 
+	/// Parameters:
 	/// 	inNode    - {functionNode}       functionNode to add
 	///
 	function addFunctionNode( inNode ) {
@@ -2770,7 +2812,7 @@ var functionBuilder = (function() {
 	/// This allow for "uneeded" functions to be automatically optimized out.
 	/// Note that the 0-index, is the starting function trace.
 	///
-	/// Parameters: 
+	/// Parameters:
 	/// 	functionName  - {String}        Function name to trace from, default to "kernel"
 	/// 	retList       - {[String,...]}  Returning list of function names that is traced. Including itself.
 	///
@@ -2802,7 +2844,7 @@ var functionBuilder = (function() {
 	///
 	/// Function: webglString_fromFunctionNames
 	///
-	/// Parameters: 
+	/// Parameters:
 	/// 	functionList  - {[String,...]} List of function to build the webgl string.
 	///
 	/// Returns:
@@ -2823,7 +2865,7 @@ var functionBuilder = (function() {
 	///
 	/// Function: webglString
 	///
-	/// Parameters: 
+	/// Parameters:
 	/// 	functionName  - {String} Function name to trace from. If null, it returns the WHOLE builder stack
 	///
 	/// Returns:
@@ -2832,7 +2874,7 @@ var functionBuilder = (function() {
 	function webglString(functionName) {
 		if(functionName) {
 			return this.webglString_fromFunctionNames( this.traceFunctionCalls(functionName, []).reverse() );
-		} 
+		}
 		return this.webglString_fromFunctionNames(Object.keys(this.nodeMap));
 	}
 	functionBuilder.prototype.webglString = webglString;
@@ -3208,7 +3250,7 @@ var functionBuilder = (function() {
 		var builder = this.functionBuilder;
 		var endianness = this.endianness;
 		
-		var kernelNode = new functionNode("kernel", kernel);
+		var kernelNode = new functionNode(gpu, "kernel", kernel);
 		kernelNode.paramNames = [];
 		kernelNode.paramType = [];
 		kernelNode.isRootKernel = true;

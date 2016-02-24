@@ -17,14 +17,14 @@ var opt = {
     mode: 'gpu'
 };
 
-function square(x) {
-    return x*x;
-}
+var A = [0, 1, 2];
 
-gpu.addFunction(square);
-
-var render = gpu.createKernel(function() {
-    if (square(this.thread.x) % 20 == this.thread.y % 20) {
+var render = gpu.createKernel(function(A) {
+    function test(x) {
+        return x*x + A[0];
+    }
+    
+    if (test(this.thread.x) % 20 == Math.floor(Math.sin(this.thread.y))) {
         this.color(0,0,0);
     } else if (this.thread.x % 20 == (20-this.thread.y % 20)) {
         this.color(1,0,0);
@@ -37,7 +37,7 @@ var render = gpu.createKernel(function() {
     }
 }, opt);
 
-render();
+render(A);
 
 var canvas = render.getCanvas();
 document.getElementsByTagName('body')[0].appendChild(canvas);
@@ -57,14 +57,14 @@ var opt = {
     mode: 'gpu'
 };
 
-function square(x) {
-    return x*x;
-}
+var A = [0, 1, 2];
 
-gpu.addFunction(square);
-
-var render = gpu.createKernel(function() {
-    if (square(this.thread.x) % 20 == this.thread.y % 20) {
+var render = gpu.createKernel(function(A) {
+    function test(x) {
+        return x*x + A[0];
+    }
+    
+    if (test(this.thread.x) % 20 == Math.floor(Math.sin(this.thread.y))) {
         this.color(0,0,0);
     } else if (this.thread.x % 20 == (20-this.thread.y % 20)) {
         this.color(1,0,0);
@@ -77,7 +77,7 @@ var render = gpu.createKernel(function() {
     }
 }, opt);
 
-render();
+render(A);
 
 var canvas = render.getCanvas();
 document.getElementsByTagName('body')[0].appendChild(canvas);
