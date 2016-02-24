@@ -17,8 +17,14 @@ var opt = {
     mode: 'gpu'
 };
 
+function square(x) {
+    return x*x;
+}
+
+gpu.addFunction(square);
+
 var render = gpu.createKernel(function() {
-    if (this.thread.x % 20 == this.thread.y % 20) {
+    if (square(this.thread.x) % 20 == this.thread.y % 20) {
         this.color(0,0,0);
     } else if (this.thread.x % 20 == (20-this.thread.y % 20)) {
         this.color(1,0,0);
@@ -51,8 +57,14 @@ var opt = {
     mode: 'gpu'
 };
 
+function square(x) {
+    return x*x;
+}
+
+gpu.addFunction(square);
+
 var render = gpu.createKernel(function() {
-    if (this.thread.x % 20 == this.thread.y % 20) {
+    if (square(this.thread.x) % 20 == this.thread.y % 20) {
         this.color(0,0,0);
     } else if (this.thread.x % 20 == (20-this.thread.y % 20)) {
         this.color(1,0,0);
