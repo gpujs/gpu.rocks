@@ -9,8 +9,6 @@
 <pre>
 <code>
 var gpu = new GPU();
-var canvas = gpu.getCanvas();
-document.getElementsByTagName('body')[0].appendChild(canvas);
 
 var opt = {
     dimensions: [800, 600],
@@ -22,7 +20,7 @@ var opt = {
 var render = gpu.createKernel(function() {
     if (this.thread.x % 20 == this.thread.y % 20) {
         this.color(0,0,0);
-    } else if (this.thread.x % 20 == -this.thread.y % 20) {
+    } else if (this.thread.x % 20 == (20-this.thread.y % 20)) {
         this.color(1,0,0);
     } else if (this.thread.x % 20 == 0) {
         this.color(0,1,0);
@@ -34,6 +32,9 @@ var render = gpu.createKernel(function() {
 }, opt);
 
 render();
+
+var canvas = render.getCanvas();
+document.getElementsByTagName('body')[0].appendChild(canvas);
 </code>
 
 Result:
@@ -64,10 +65,10 @@ var render = gpu.createKernel(function() {
     }
 }, opt);
 
+render();
+
 var canvas = render.getCanvas();
 document.getElementsByTagName('body')[0].appendChild(canvas);
-
-render();
 </script>
 </body>
 </html>
