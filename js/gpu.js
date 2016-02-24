@@ -1765,8 +1765,6 @@ var GPUTexture = (function() {
 /// GPU.JS core class =D
 ///
 var GPU = (function() {
-	var gl, canvas;
-	
 	// https://gist.github.com/TooTallNate/4750953
 	function endianness() {
 		var b = new ArrayBuffer(4);
@@ -1779,9 +1777,12 @@ var GPU = (function() {
 	}
 	
 	function GPU(ctx) {
+		var gl, canvas, canvasCpu;
+		
 		canvas = undefined;
 		gl = ctx;
 		if (gl === undefined) {
+			canvasCpu = document.createElement('canvas');
 			canvas = document.createElement('canvas');
 			canvas.width = 2;
 			canvas.height = 2;
@@ -1799,6 +1800,7 @@ var GPU = (function() {
 		
 		this.gl = gl;
 		this.canvas = canvas;
+		this.canvasCpu = canvasCpu;
 		this.programCache = {};
 		this.endianness = endianness();
 		
@@ -1810,7 +1812,11 @@ var GPU = (function() {
 		return this.gl;
 	};
 	
-	GPU.prototype.getCanvas = function() {
+	GPU.prototype.getCanvas = function(mode) {
+		if (mode == "cpu") {
+			return this.canvasCpu;
+		}
+		
 		return this.canvas;
 	};
 
@@ -2934,8 +2940,18 @@ var functionBuilder = (function() {
 				}
 			}
 			
+			var canvas;
+			var canvasCtx;
+			var imageData;
+			var data;
 			if (opt.graphical) {
-				throw "CPU fallback for graphical output is not supported!";
+				canvas = gpu.getCanvas('cpu');
+				canvas.width = threadDim[0];
+				canvas.height = threadDim[1];
+				
+				canvasCtx = canvas.getContext("2d");
+				imageData = canvasCtx.createImageData(threadDim[0], threadDim[1]);
+				data = new Uint8ClampedArray(threadDim[0]*threadDim[1]*4);
 			}
 			
 			var ctx = {
@@ -2944,10 +2960,35 @@ var functionBuilder = (function() {
 					y: 0,
 					z: 0
 				},
-				dimensions: threadDim,
-				color: function(r, g, b, a) {
-					console.warn("color() does nothing on fallback mode");
+				dimensions: {
+					x: threadDim[0],
+					y: threadDim[1],
+					z: threadDim[2]
 				}
+			};
+			
+			ctx.color = function(r, g, b, a) {
+				if (a == undefined) {
+					a = 1.0;
+				}
+				
+				r = Math.floor(r * 255);
+				g = Math.floor(g * 255);
+				b = Math.floor(b * 255);
+				a = Math.floor(a * 255);
+				
+				var width = ctx.dimensions.x;
+				var height = ctx.dimensions.y;
+				
+				var x = ctx.thread.x;
+				var y = height - ctx.thread.y - 1;
+				
+				var index = x + y*width;
+				
+				data[index*4+0] = r;
+				data[index*4+1] = g;
+				data[index*4+2] = b;
+				data[index*4+3] = a;
 			};
 			
 			for (ctx.thread.z=0; ctx.thread.z<threadDim[2]; ctx.thread.z++) {
@@ -2957,7 +2998,12 @@ var functionBuilder = (function() {
 					}
 				}
 			}
-					
+			
+			if (opt.graphical) {
+				imageData.data.set(data);
+				canvasCtx.putImageData(imageData, 0, 0);
+			}
+			
 			if (opt.dimensions.length == 1) {
 				ret = ret[0][0];
 			} else if (opt.dimensions.length == 2) {
@@ -2969,6 +3015,16 @@ var functionBuilder = (function() {
 		
 		ret.dimensions = function(dim) {
 			opt.dimensions = dim;
+			return ret;
+		};
+		
+		ret.debug = function(flag) {
+			opt.debug = flag;
+			return ret;
+		};
+		
+		ret.graphical = function(flag) {
+			opt.graphical = flag;
 			return ret;
 		};
 		
@@ -2990,6 +3046,10 @@ var functionBuilder = (function() {
 		ret.mode = function(mode) {
 			opt.mode = mode;
 			return gpu.createKernel(kernel, opt);
+		};
+		
+		ret.getCanvas = function() {
+			return gpu.getCanvas('cpu');
 		};
 		
 		return ret;
@@ -3492,6 +3552,16 @@ var functionBuilder = (function() {
 			return ret;
 		};
 		
+		ret.debug = function(flag) {
+			opt.debug = flag;
+			return ret;
+		};
+		
+		ret.graphical = function(flag) {
+			opt.graphical = flag;
+			return ret;
+		};
+		
 		ret.wraparound = function(flag) {
 			opt.wraparound = flag;
 			return ret;
@@ -3510,6 +3580,10 @@ var functionBuilder = (function() {
 		ret.mode = function(mode) {
 			opt.mode = mode;
 			return gpu.createKernel(kernel, opt);
+		};
+		
+		ret.getCanvas = function() {
+			return gpu.getCanvas();
 		};
 		
 		return ret;
