@@ -1786,9 +1786,9 @@ var GPU = (function() {
 			canvas.width = 2;
 			canvas.height = 2;
 			var glOpt = {
-		        depth: false,
+				depth: false,
 				antialias: false
-		    };
+			};
 
 			gl = canvas.getContext("experimental-webgl", glOpt) || canvas.getContext("webgl", glOpt);
 		}
@@ -1814,7 +1814,7 @@ var GPU = (function() {
 		return this.canvas;
 	};
 
-	/// 
+	///
 	/// Function: createKernel
 	///
 	/// The core GPU.js function
@@ -1837,7 +1837,7 @@ var GPU = (function() {
 	///
 	/// Returns:
 	/// 	callable function to run
-	/// 
+	///
 	function createKernel(kernel, paramObj) {
 		//
 		// basic parameters safety checks
@@ -1883,8 +1883,8 @@ var GPU = (function() {
 	///
 	/// Adds additional functions, that the kernel may call.
 	///
-	/// Parameters: 
-	/// 	jsFunction      - {JS Function}  JS Function to do conversion   
+	/// Parameters:
+	/// 	jsFunction      - {JS Function}  JS Function to do conversion
 	/// 	paramTypeArray  - {[String,...]} Parameter type array, assumes all parameters are "float" if null
 	/// 	returnType      - {String}       The return type, assumes "float" if null
 	///
@@ -1917,11 +1917,11 @@ var functionNode_webgl = (function() {
 	/// Function: functionNode_webgl
 	///
 	/// [INTERNAL] Takes in a function node, and does all the AST voodoo required to generate its respective webGL code.
-	/// 
-	/// Parameter: 
+	///
+	/// Parameter:
 	/// 	inNode - {functionNode} The function node object
-	/// 
-	/// Returns: 
+	///
+	/// Returns:
 	/// 	the converted webGL function string
 	///
 	function functionNode_webgl( inNode ) {
@@ -1930,7 +1930,7 @@ var functionNode_webgl = (function() {
 		return inNode.webglFunctionString;
 	}
 	
-	/// the AST error, with its location. To throw 
+	/// the AST error, with its location. To throw
 	///
 	/// @TODO: add location support fpr the AST error
 	///
@@ -2021,7 +2021,7 @@ var functionNode_webgl = (function() {
 	function ast_FunctionExpression(ast, retArr, funcParam) {
 		
 		// Setup function return type and name
-		if(funcParam.isRootKernal) {
+		if(funcParam.isRootKernel) {
 			retArr.push("vec4");
 		} else {
 			retArr.push(funcParam.returnType);
@@ -2050,6 +2050,10 @@ var functionNode_webgl = (function() {
 			retArr.push("\n");
 		}
 		
+		if(funcParam.isRootKernel) {
+			retArr.push("\nreturn vec4(0.0);");
+		}
+		
 		// Function closing
 		retArr.push("}\n");
 		return retArr;
@@ -2063,7 +2067,7 @@ var functionNode_webgl = (function() {
 	///
 	/// @returns  the appened retArr
 	function ast_ReturnStatement(ast, retArr, funcParam) {
-		if( funcParam.isRootKernal ) {
+		if( funcParam.isRootKernel ) {
 			retArr.push("return encode32(");
 			ast_generic(ast.argument, retArr, funcParam);
 			retArr.push("); ");
@@ -2159,7 +2163,7 @@ var functionNode_webgl = (function() {
 			retArr.push('uOutputDim.y');
 		} else if (idtNode.name == "gpu_dimensionsZ") {
 			retArr.push('uOutputDim.z');
-		} else if(funcParam.isRootKernal) {
+		} else if(funcParam.isRootKernel) {
 			retArr.push("user_"+idtNode.name);
 		} else {
 			retArr.push(idtNode.name);
@@ -2255,8 +2259,11 @@ var functionNode_webgl = (function() {
 		ast_generic(ifNode.test, retArr, funcParam);
 		retArr.push(")");
 		ast_generic(ifNode.consequent, retArr, funcParam);
-		retArr.push("else");
-		ast_generic(ifNode.alternate, retArr, funcParam);
+		
+		if (ifNode.alternate) {
+			retArr.push("else ");
+			ast_generic(ifNode.alternate, retArr, funcParam);
+		}
 		return retArr;
 
 	}
@@ -2379,17 +2386,17 @@ var functionNode_webgl = (function() {
 			return ast.name;
 		} else if( ast.type == "ThisExpression" ) {
 			return "this";
-		} 
+		}
 		
 		if( ast.type == "MemberExpression" ) {
 			if( ast.object && ast.property ) {
 				return (
-					ast_MemberExpression_unroll( ast.object, funcParam ) + 
-					"." + 
+					ast_MemberExpression_unroll( ast.object, funcParam ) +
+					"." +
 					ast_MemberExpression_unroll( ast.property, funcParam )
 				);
 			}
-		}  
+		}
 		
 		// Failure, unknown expression
 		throw ast_errorOutput(
@@ -2398,8 +2405,9 @@ var functionNode_webgl = (function() {
 		);
 	}
 	
-	// The math prefix to use
+	// The prefixes to use
 	var jsMathPrefix = "Math.";
+	var localPrefix = "this.";
 	
 	/// Prases the abstract syntax tree, binary expression
 	///
@@ -2416,6 +2424,11 @@ var functionNode_webgl = (function() {
 			// Its a math operator, remove the prefix
 			if( funcName.indexOf(jsMathPrefix) === 0 ) {
 				funcName = funcName.slice( jsMathPrefix.length );
+			}
+			
+			// Its a local function, remove this
+			if( funcName.indexOf(localPrefix) === 0 ) {
+				funcName = funcName.slice( localPrefix.length );
 			}
 			
 			// Register the function into the called registry
@@ -2459,7 +2472,7 @@ var functionNode_webgl = (function() {
 /// Class: functionNode
 ///
 /// [INTERNAL] Represents a single function, inside JS, webGL, or openGL.
-/// 
+///
 /// This handles all the raw state, converted state, etc. Of a single function.
 ///
 /// Properties:
@@ -2468,7 +2481,7 @@ var functionNode_webgl = (function() {
 /// 	jsFunctionString     - {String}        jsFunction.toString()
 /// 	paramNames           - {[String,...]}  Parameter names of the function
 /// 	paramType            - {[String,...]}  Shader land parameter type assumption
-/// 	isRootKernal         - {Boolean}       Special indicator, for kernal function
+/// 	isRootKernel         - {Boolean}       Special indicator, for kernel function
 /// 	webglFunctionString  - {String}        webgl converted function string
 /// 	openglFunctionString - {String}        opengl converted function string
 /// 	calledFunctions      - {[String,...]}  List of all the functions called
@@ -2487,9 +2500,9 @@ var functionNode = (function() {
 	///
 	/// [Constructor] Builds the function with the given JS function, and argument type array.
 	///
-	/// Parameters: 
+	/// Parameters:
 	/// 	functionName    - {String}       Function name to assume, if its null, it attempts to extract from the function
-	/// 	jsFunction      - {JS Function}  JS Function to do conversion   
+	/// 	jsFunction      - {JS Function}  JS Function to do conversion
 	/// 	paramTypeArray  - {[String,...]} Parameter type array, assumes all parameters are "float" if null
 	/// 	returnType      - {String}       The return type, assumes "float" if null
 	///
@@ -2550,7 +2563,7 @@ var functionNode = (function() {
 	}
 	
 	//
-	// Utility functions 
+	// Utility functions
 	//----------------------------------------------------------------------------------------------------
 	
 	///
@@ -2563,7 +2576,7 @@ var functionNode = (function() {
 	/// Parameters:
 	/// 	funcObj - {JS Function} Object to validate if its a function
 	///
-	/// Returns: 
+	/// Returns:
 	/// 	{Boolean} TRUE if the object is a JS function
 	///
 	function isFunction( funcObj ) {
@@ -2580,7 +2593,7 @@ var functionNode = (function() {
 	/// Parameters:
 	/// 	funcStr - {String}  String of JS function to validate
 	///
-	/// Returns: 
+	/// Returns:
 	/// 	{Boolean} TRUE if the string passes basic validation
 	///
 	function validateStringIsFunction( funcStr ) {
@@ -2603,7 +2616,7 @@ var functionNode = (function() {
 	/// Parameters:
 	/// 	funcStr - {String}  String of JS function to validate
 	///
-	/// Returns: 
+	/// Returns:
 	/// 	{[String, ...]}  Array representing all the parameter names
 	///
 	function getParamNames(func) {
@@ -2627,13 +2640,13 @@ var functionNode = (function() {
 	///
 	/// Function: getJS_AST
 	///
-	/// Parses the class function JS, and returns its Abstract Syntax Tree object. 
+	/// Parses the class function JS, and returns its Abstract Syntax Tree object.
 	///
 	/// This is used internally to convert to shader code
 	///
 	/// Parameters:
 	/// 	inParser - {JISON Parser}  Parser to use, assumes in scope "parser" if null
-	/// 
+	///
 	/// Returns:
 	/// 	{AST Object} The function AST Object, note that result is cached under this.jsFunctionAST;
 	///
@@ -2662,7 +2675,7 @@ var functionNode = (function() {
 	
 	///
 	/// Function: getWebglString
-	/// 
+	///
 	/// Returns the converted webgl shader function equivalent of the JS function
 	///
 	/// Returns:
@@ -2679,12 +2692,12 @@ var functionNode = (function() {
 	
 	///
 	/// Function: setWebglString
-	/// 
+	///
 	/// Set the webglFunctionString value, overwriting it
 	///
 	/// Parameters:
 	/// 	shaderCode - {String}  Shader code string, representing the function
-	/// 
+	///
 	function setWebglFunctionString(shaderCode) {
 		this.webglFunctionString = shaderCode;
 	}
@@ -2921,13 +2934,20 @@ var functionBuilder = (function() {
 				}
 			}
 			
+			if (opt.graphical) {
+				throw "CPU fallback for graphical output is not supported!";
+			}
+			
 			var ctx = {
 				thread: {
 					x: 0,
 					y: 0,
 					z: 0
 				},
-				dimensions: threadDim
+				dimensions: threadDim,
+				color: function(r, g, b, a) {
+					console.warn("color() does nothing on fallback mode");
+				}
 			};
 			
 			for (ctx.thread.z=0; ctx.thread.z<threadDim[2]; ctx.thread.z++) {
@@ -2995,6 +3015,10 @@ var functionBuilder = (function() {
 	}
 
 	function dimToTexSize(gl, dimensions) {
+		if (dimensions.length == 2) {
+			return dimensions;
+		}
+		
 		var numTexels = dimensions[0];
 		for (var i=1; i<dimensions.length; i++) {
 			numTexels *= dimensions[i];
@@ -3124,11 +3148,11 @@ var functionBuilder = (function() {
 		var builder = this.functionBuilder;
 		var endianness = this.endianness;
 		
-		var kernalNode = new functionNode("kernel", kernel);
-		kernalNode.paramNames = [];
-		kernalNode.paramType = [];
-		kernalNode.isRootKernal = true;
-		builder.addFunctionNode(kernalNode);
+		var kernelNode = new functionNode("kernel", kernel);
+		kernelNode.paramNames = [];
+		kernelNode.paramType = [];
+		kernelNode.isRootKernel = true;
+		builder.addFunctionNode(kernelNode);
 		
 		var funcStr = kernel.toString();
 		if( !validateStringIsFunction(funcStr) ) {
@@ -3274,6 +3298,16 @@ var functionBuilder = (function() {
 					'	return get(tex, texSize, texDim, 0.0, 0.0, x);',
 					'}',
 					'',
+					'const bool outputToColor = ' + (opt.graphical? 'true' : 'false') + ';',
+					'vec4 actualColor;',
+					'void color(float r, float g, float b, float a) {',
+					'	actualColor = vec4(r,g,b,a);',
+					'}',
+					'',
+					'void color(float r, float g, float b) {',
+					'	color(r,g,b,1.0);',
+					'}',
+					'',
 					paramStr,
 					builder.webglString("kernel"),
 					//compileToGlsl(funcStr, {}),
@@ -3281,7 +3315,12 @@ var functionBuilder = (function() {
 					'void main(void) {',
 					'	index = floor(vTexCoord.s * float(uTexSize.x)) + floor(vTexCoord.t * float(uTexSize.y)) * uTexSize[0];',
 					'	threadId = indexTo3D(index, uOutputDim);',
-					'	gl_FragColor = kernel();',
+					'	vec4 outputColor = kernel();',
+					'	if (outputToColor == true) {',
+					'		gl_FragColor = actualColor;',
+					'	} else {',
+					'		gl_FragColor = outputColor;',
+					'	}',
 					'}'
 				].join('\n');
 				
@@ -3303,6 +3342,10 @@ var functionBuilder = (function() {
 					console.error("An error occurred compiling the shaders: " + gl.getShaderInfoLog(fragShader));
 					console.log(fragShaderSrc);
 					throw "Error compiling fragment shader";
+				}
+				
+				if (opt.debug) {
+					console.log(fragShaderSrc);
 				}
 				
 				program = gl.createProgram();

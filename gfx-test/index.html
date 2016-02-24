@@ -10,18 +10,30 @@
 <code>
 var gpu = new GPU();
 var canvas = gpu.getCanvas();
+document.getElementsByTagName('body')[0].appendChild(canvas);
+
+var opt = {
+    dimensions: [800, 600],
+    debug: true,
+    graphical: true,
+    mode: 'gpu'
+};
 
 var render = gpu.createKernel(function() {
     if (this.thread.x % 20 == this.thread.y % 20) {
-        return color(0,0,0);
+        this.color(0,0,0);
+    } else if (this.thread.x % 20 == -this.thread.y % 20) {
+        this.color(1,0,0);
+    } else if (this.thread.x % 20 == 0) {
+        this.color(0,1,0);
+    } else if (this.thread.y % 20 == 0) {
+        this.color(0,0,1);
     } else {
-        return color(1,1,1);
+        this.color(1,1,1);
     }
-}).dimensions([512, 512]);
+}, opt);
 
 render();
-
-document.getElementsByTagName('body')[0].appendChild(canvas);
 </code>
 
 Result:
@@ -31,18 +43,30 @@ Result:
 <script>
 var gpu = new GPU();
 var canvas = gpu.getCanvas();
+document.getElementsByTagName('body')[0].appendChild(canvas);
+
+var opt = {
+    dimensions: [800, 600],
+    debug: true,
+    graphical: true,
+    mode: 'gpu'
+};
 
 var render = gpu.createKernel(function() {
     if (this.thread.x % 20 == this.thread.y % 20) {
-        return color(0,0,0);
+        this.color(0,0,0);
+    } else if (this.thread.x % 20 == -this.thread.y % 20) {
+        this.color(1,0,0);
+    } else if (this.thread.x % 20 == 0) {
+        this.color(0,1,0);
+    } else if (this.thread.y % 20 == 0) {
+        this.color(0,0,1);
     } else {
-        return color(1,1,1);
+        this.color(1,1,1);
     }
-}).dimensions([512, 512]);
+}, opt);
 
 render();
-
-document.getElementsByTagName('body')[0].appendChild(canvas);
 </script>
 </body>
 </html>
