@@ -1921,6 +1921,23 @@ var functionNode_webgl = (function() {
 	
 	var gpu, jsFunctionString;
 	
+	function isIdentifierKernelParam(paramName, ast, funcParam) {
+		return funcParam.paramNames.indexOf(paramName) != -1;
+	}
+	
+	function ensureIndentifierType(paramName, expectedType, ast, funcParam) {
+		var start = ast.loc.start;
+		
+		if (!isIdentifierKernelParam(paramName, funcParam) && expectedType != 'float') {
+			throw "Error unxpected identifier " + paramName + " on line " + start.line;
+		} else {
+			var actualType = funcParam.paramType[funcParam.paramNames.indexOf(paramName)];
+			if (actualType != expectedType) {
+				throw "Error unxpected identifier " + paramName + " on line " + start.line;
+			}
+		}
+	}
+	
 	///
 	/// Function: functionNode_webgl
 	///
@@ -1999,6 +2016,8 @@ var functionNode_webgl = (function() {
 					return ast_ContinueStatement(ast, retArr, funcParam);
 				case "ForStatement":
 					return ast_ForStatement(ast, retArr, funcParam);
+				case "WhileStatement":
+					return ast_WhileStatement(ast, retArr, funcParam);
 				case "VariableDeclaration":
 					return ast_VariableDeclaration(ast, retArr, funcParam);
 				case "VariableDeclarator":
@@ -2046,11 +2065,7 @@ var functionNode_webgl = (function() {
 		funcArr.push(lines[end.line-1].slice(0,end.column));
 		
 		var funcStr = funcArr.join('\n');
-		
-		// TODO: fix this evil!
-		eval('var funcObj = ' + funcStr);
-		
-		gpu.addFunction(funcObj);
+		gpu.addFunction(funcStr);
 		
 		return retArr;
 	}
@@ -2066,7 +2081,7 @@ var functionNode_webgl = (function() {
 		
 		// Setup function return type and name
 		if(funcParam.isRootKernel) {
-			retArr.push("vec4");
+			retArr.push("float");
 		} else {
 			retArr.push(funcParam.returnType);
 		}
@@ -2074,16 +2089,18 @@ var functionNode_webgl = (function() {
 		retArr.push(funcParam.functionName);
 		retArr.push("(");
 		
-		// Arguments handling
-		for( var i = 0; i < funcParam.paramNames.length; ++i ) {
-			if( i > 0 ) {
-				retArr.push(", ");
+		if(!funcParam.isRootKernel) {
+			// Arguments handling
+			for( var i = 0; i < funcParam.paramNames.length; ++i ) {
+				if( i > 0 ) {
+					retArr.push(", ");
+				}
+				
+				retArr.push( funcParam.paramType[i] );
+				retArr.push(" ");
+				retArr.push("user_");
+				retArr.push( funcParam.paramNames[i] );
 			}
-			
-			retArr.push( funcParam.paramType[i] );
-			retArr.push(" ");
-			retArr.push("user_");
-			retArr.push( funcParam.paramNames[i] );
 		}
 		
 		// Function opening
@@ -2096,7 +2113,7 @@ var functionNode_webgl = (function() {
 		}
 		
 		if(funcParam.isRootKernel) {
-			retArr.push("\nreturn vec4(0.0);");
+			retArr.push("\nreturn 0.0;");
 		}
 		
 		// Function closing
@@ -2112,15 +2129,9 @@ var functionNode_webgl = (function() {
 	///
 	/// @returns  the appened retArr
 	function ast_ReturnStatement(ast, retArr, funcParam) {
-		if( funcParam.isRootKernel ) {
-			retArr.push("return encode32(");
-			ast_generic(ast.argument, retArr, funcParam);
-			retArr.push("); ");
-		} else {
-			retArr.push("return ");
-			ast_generic(ast.argument, retArr, funcParam);
-			retArr.push(";");
-		}
+		retArr.push("return ");
+		ast_generic(ast.argument, retArr, funcParam);
+		retArr.push(";");
 		
 		//throw ast_errorOutput(
 		//	"Non main function return, is not supported : "+funcParam.currentFunctionNamespace,
@@ -2227,15 +2238,79 @@ var functionNode_webgl = (function() {
 				ast, funcParam
 			);
 		}
-		retArr.push("for (float ");
-		ast_generic(forNode.init, retArr, funcParam);
-		retArr.push(";");
-		ast_generic(forNode.test, retArr, funcParam);
-		retArr.push(";");
-		ast_generic(forNode.update, retArr, funcParam);
-		retArr.push(")");
-		ast_generic(forNode.body, retArr, funcParam);
+		
+		if (forNode.test && forNode.test.type == "BinaryExpression") {
+			console.log(forNode);
+			if (forNode.test.right.type == "Identifier") {
+				retArr.push("for (float ");
+				ast_generic(forNode.init, retArr, funcParam);
+				retArr.push(";");
+				ast_generic(forNode.test.left, retArr, funcParam);
+				retArr.push(forNode.test.operator);
+				retArr.push("LOOP_MAX");
+				retArr.push(";");
+				ast_generic(forNode.update, retArr, funcParam);
+				retArr.push(")");
+				
+				retArr.push("{\n");
+				retArr.push("if (");
+				ast_generic(forNode.test.left, retArr, funcParam);
+				retArr.push(forNode.test.operator);
+				ast_generic(forNode.test.right, retArr, funcParam);
+				retArr.push(") {\n");
+				for (var i = 0; i < forNode.body.body.length; i++) {
+					ast_generic(forNode.body.body[i], retArr, funcParam);
+				}
+				retArr.push("} else {\n");
+				retArr.push("break;\n");
+				retArr.push("}\n");
+				retArr.push("}\n");
+				
+				return retArr;
+			} else {
+				retArr.push("for (float ");
+				ast_generic(forNode.init, retArr, funcParam);
+				retArr.push(";");
+				ast_generic(forNode.test, retArr, funcParam);
+				retArr.push(";");
+				ast_generic(forNode.update, retArr, funcParam);
+				retArr.push(")");
+				ast_generic(forNode.body, retArr, funcParam);
+				return retArr;
+			}
+		}
+		
+		throw ast_errorOutput(
+			"Invalid for statment",
+			ast, funcParam
+		);
+	}
+	
+	/// Prases the abstract syntax tree, genericially to its respective function
+	///
+	/// @param ast   the AST object to parse
+	///
+	/// @returns  the prased openclgl string
+	function ast_WhileStatement(whileNode, retArr, funcParam) {
+		throw ast_errorOutput(
+			"While statements are not allowed",
+			ast, funcParam
+		);
+		
+		/*
+		if (whileNode.type != "WhileStatement") {
+			throw ast_errorOutput(
+				"Invalid while statment",
+				ast, funcParam
+			);
+		}
+		retArr.push("while (");
+		ast_generic(whileNode.test, retArr, funcParam);
+		retArr.push(") {\n");
+		ast_generic(whileNode.body, retArr, funcParam);
+		retArr.push("}\n");
 		return retArr;
+		*/
 	}
 
 	function ast_AssignmentExpression(assNode, retArr, funcParam) {
@@ -2544,11 +2619,11 @@ var functionNode = (function() {
 	/// [Constructor] Builds the function with the given JS function, and argument type array.
 	///
 	/// Parameters:
-	/// 	gpu             - {GPU}          The GPU instance
-	/// 	functionName    - {String}       Function name to assume, if its null, it attempts to extract from the function
-	/// 	jsFunction      - {JS Function}  JS Function to do conversion
-	/// 	paramTypeArray  - {[String,...]} Parameter type array, assumes all parameters are "float" if null
-	/// 	returnType      - {String}       The return type, assumes "float" if null
+	/// 	gpu             - {GPU}                   The GPU instance
+	/// 	functionName    - {String}                Function name to assume, if its null, it attempts to extract from the function
+	/// 	jsFunction      - {JS Function / String}  JS Function to do conversion
+	/// 	paramTypeArray  - {[String,...]}          Parameter type array, assumes all parameters are "float" if null
+	/// 	returnType      - {String}                The return type, assumes "float" if null
 	///
 	function functionNode( gpu, functionName, jsFunction, paramTypeArray, returnType ) {
 		
@@ -2563,22 +2638,32 @@ var functionNode = (function() {
 		this.writeVariables   = [];
 		
 		//
-		// Setup jsFunction and its string property + validate them
+		// Missing jsFunction object exception
 		//
-		this.jsFunction = jsFunction;
-		if( !isFunction(this.jsFunction) ) {
-			throw "jsFunction, is not a valid JS Function";
+		if( jsFunction == null ) {
+			throw "jsFunction, parameter is null";
 		}
 		
+		//
+		// Setup jsFunction and its string property + validate them
+		//
 		this.jsFunctionString = jsFunction.toString();
 		if( !validateStringIsFunction(this.jsFunctionString) ) {
-			throw "jsFunction, to string conversion falied";
+			console.error("jsFunction, to string conversion check falied: not a function?", this.jsFunctionString);
+			throw "jsFunction, to string conversion check falied: not a function?";
+		}
+		
+		if( !isFunction(jsFunction) ) {
+			//throw "jsFunction, is not a valid JS Function";
+			this.jsFunction = null;
+		} else {
+			this.jsFunction = jsFunction;
 		}
 		
 		//
 		// Setup the function name property
 		//
-		this.functionName = functionName || jsFunction.name;
+		this.functionName = functionName || (jsFunction && jsFunction.name) || FUNCTION_NAME.exec(this.jsFunctionString)[1];
 		if( !(this.functionName) ) {
 			throw "jsFunction, missing name argument or value";
 		}
@@ -2649,6 +2734,7 @@ var functionNode = (function() {
 		return false;
 	}
 	
+	var FUNCTION_NAME = /function ([^(]*)/;
 	var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 	var ARGUMENT_NAMES = /([^\s,]+)/g;
 	
@@ -2682,6 +2768,29 @@ var functionNode = (function() {
 	//
 	// Core function
 	//----------------------------------------------------------------------------------------------------
+	
+	///
+	/// Function: getJSFunction
+	///
+	/// Gets and return the stored JS Function.
+	/// Note: that this internally eval the function, if only the string was provided on construction
+	///
+	/// Returns:
+	/// 	{JS Function} The function object 
+	///
+	function getJSFunction() {
+		if( this.jsFunction ) {
+			return this.jsFunction;
+		}
+		
+		if( this.jsFunctionString ) {
+			this.jsFunction = eval( this.jsFunctionString );
+			return this.jsFunction;
+		}
+		
+		throw "Missin jsFunction, and jsFunctionString parameter";
+	}
+	functionNode.prototype.getJSFunction = getJSFunction;
 	
 	///
 	/// Function: getJS_AST
@@ -3250,12 +3359,6 @@ var functionBuilder = (function() {
 		var builder = this.functionBuilder;
 		var endianness = this.endianness;
 		
-		var kernelNode = new functionNode(gpu, "kernel", kernel);
-		kernelNode.paramNames = [];
-		kernelNode.paramType = [];
-		kernelNode.isRootKernel = true;
-		builder.addFunctionNode(kernelNode);
-		
 		var funcStr = kernel.toString();
 		if( !validateStringIsFunction(funcStr) ) {
 			throw "Unable to get body of kernel function";
@@ -3297,8 +3400,10 @@ var functionBuilder = (function() {
 			if (program === undefined) {
 				var paramStr = '';
 				
+				var paramType = [];
 				for (var i=0; i<paramNames.length; i++) {
 					var argType = getArgumentType(arguments[i]);
+					paramType.push(argType);
 					if (opt.hardcodeConstants) {
 						if (argType == "Array" || argType == "Texture") {
 							var paramDim = getDimensions(arguments[i], true);
@@ -3321,6 +3426,12 @@ var functionBuilder = (function() {
 					}
 				}
 				
+				var kernelNode = new functionNode(gpu, "kernel", kernel);
+				kernelNode.paramNames = paramNames;
+				kernelNode.paramType = paramType;
+				kernelNode.isRootKernel = true;
+				builder.addFunctionNode(kernelNode);
+				
 				var vertShaderSrc = [
 					'precision highp float;',
 					'precision highp int;',
@@ -3339,6 +3450,8 @@ var functionBuilder = (function() {
 				var fragShaderSrc = [
 					'precision highp float;',
 					'precision highp int;',
+					'',
+					'#define LOOP_MAX 100.0',
 					'',
 					opt.hardcodeConstants ? 'vec3 uOutputDim = vec3('+threadDim[0]+','+threadDim[1]+', '+ threadDim[2]+');' : 'uniform vec3 uOutputDim;',
 					opt.hardcodeConstants ? 'vec2 uTexSize = vec2('+texSize[0]+','+texSize[1]+');' : 'uniform vec2 uTexSize;',
@@ -3412,12 +3525,11 @@ var functionBuilder = (function() {
 					'',
 					paramStr,
 					builder.webglString("kernel"),
-					//compileToGlsl(funcStr, {}),
 					'',
 					'void main(void) {',
 					'	index = floor(vTexCoord.s * float(uTexSize.x)) + floor(vTexCoord.t * float(uTexSize.y)) * uTexSize[0];',
 					'	threadId = indexTo3D(index, uOutputDim);',
-					'	vec4 outputColor = kernel();',
+					'	vec4 outputColor = encode32(kernel());',
 					'	if (outputToColor == true) {',
 					'		gl_FragColor = actualColor;',
 					'	} else {',
@@ -3571,6 +3683,11 @@ var functionBuilder = (function() {
    				gl.bindFramebuffer(gl.FRAMEBUFFER, null);
    				
 				gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+				
+				if (opt.graphical) {
+					return;
+				}
+				
 				var bytes = new Uint8Array(texSize[0]*texSize[1]*4);
 				gl.readPixels(0, 0, texSize[0], texSize[1], gl.RGBA, gl.UNSIGNED_BYTE, bytes);
 				var result = Array.prototype.slice.call(new Float32Array(bytes.buffer));

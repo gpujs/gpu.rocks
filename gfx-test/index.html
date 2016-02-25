@@ -24,6 +24,11 @@ var render = gpu.createKernel(function(A) {
         return x*x + A[0];
     }
     
+    var x = 0;
+    while (x < 10) {
+        x++;
+    }
+    
     if (test(this.thread.x) % 20 == Math.floor(Math.sin(this.thread.y))) {
         this.color(0,0,0);
     } else if (this.thread.x % 20 == (20-this.thread.y % 20)) {
@@ -60,6 +65,12 @@ var opt = {
 var A = [0, 1, 2];
 
 var render = gpu.createKernel(function(A) {
+    var x = 10;
+    var y = 0;
+    for (var i=0; i<x; i++) {
+        y++;
+    }
+    
     function test(x) {
         return x*x + A[0];
     }
