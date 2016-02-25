@@ -1953,9 +1953,31 @@ var functionNode_webgl = (function() {
 		gpu = inNode.gpu;
 		jsFunctionString = inNode.jsFunctionString;
 		inNode.webglFunctionString_array = ast_generic( inNode.getJS_AST(), [], inNode );
-		inNode.webglFunctionString = inNode.webglFunctionString_array.join("").trim();
+		inNode.webglFunctionString = webgl_regex_optimize( 
+			inNode.webglFunctionString_array.join("").trim()
+		);
 		return inNode.webglFunctionString;
 	}
+	
+	var DECODE32_ENCODE32 = /decode32\(\s+encode32\(/g;
+	var ENCODE32_DECODE32 = /encode32\(\s+decode32\(/g;
+	
+	///
+	/// Function: webgl_regex_optimize
+	///
+	/// [INTERNAL] Takes the near final webgl function string, and do regex search and replacments.
+	/// For voodoo optimize out the following
+	///
+	/// - decode32(encode32(
+	/// - encode32(decode32(
+	///
+	function webgl_regex_optimize( inStr ) {
+		return inStr
+			.replace(DECODE32_ENCODE32, "((")
+			.replace(ENCODE32_DECODE32, "((")
+		;
+	}
+	
 	
 	/// the AST error, with its location. To throw
 	///
@@ -2291,25 +2313,24 @@ var functionNode_webgl = (function() {
 	///
 	/// @returns  the prased openclgl string
 	function ast_WhileStatement(whileNode, retArr, funcParam) {
-		throw ast_errorOutput(
-			"While statements are not allowed",
-			ast, funcParam
-		);
-		
-		/*
 		if (whileNode.type != "WhileStatement") {
 			throw ast_errorOutput(
 				"Invalid while statment",
 				ast, funcParam
 			);
 		}
-		retArr.push("while (");
+		
+		retArr.push("for (float i=0.0; i<LOOP_MAX; i++) {");
+		retArr.push("if (");
 		ast_generic(whileNode.test, retArr, funcParam);
 		retArr.push(") {\n");
 		ast_generic(whileNode.body, retArr, funcParam);
+		retArr.push("} else {\n");
+		retArr.push("break;\n");
 		retArr.push("}\n");
+		retArr.push("}\n");
+		
 		return retArr;
-		*/
 	}
 
 	function ast_AssignmentExpression(assNode, retArr, funcParam) {
