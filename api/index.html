@@ -37,6 +37,21 @@
         <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
         <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
     <![endif]-->
+    
+<style>
+*[id]:before {
+  display: block;
+  content: " ";
+  margin-top: -100px;
+  height: 100px;
+  visibility: hidden;
+}
+
+ul#sidebar li.active {
+    border-left: 4px solid #127fbc;
+    margin-left: -4px;
+}
+</style>
 
 </head>
 
@@ -71,13 +86,20 @@
     <section>
         <div class="container">
             <div class="row">
-                <div class="col-lg-12">
+<div class="col-md-3" id="leftCol" style="top:150px;">
+    <ul class="nav nav-stacked" id="sidebar">
+        <li><a href="#gpu">GPU</a></li>
+        <li><a href="#kernel">Kernel Function Object</a></li>
+        <li><a href="#texture">Texture Object</a></li>
+    </ul>
+</div>
+<div class="col-md-9">
 <div class="page-header">
     <h1>API Reference</h1>
     <hr />
 </div>
 
-<h3>GPU</h3>
+<h3 id="gpu">GPU</h3>
 
 <pre><code class="js" style="background: transparent;">var gpu = new GPU();
 </code></pre>
@@ -231,7 +253,7 @@ The values in the Texture Object as a JavaScript Array.
 
 <hr />
 
-<h3>Kernel Function Object</h3>
+<h3 id="kernel">Kernel Function Object</h3>
 
 <pre><code class="js" style="background: transparent;">var out = kernelObj([args]);
 </code></pre>
@@ -312,7 +334,7 @@ Gets the canvas for the kernel.
 
 <hr />
 
-<h3>Texture Object</h3>
+<h3 id="texture">Texture Object</h3>
 
 <pre><code class="js" style="background: transparent;">var arr = textureObj.toArray();
 </code></pre>
@@ -362,6 +384,21 @@ The values in the Texture Object as a JavaScript Array.
     <script src="../js/cbpAnimatedHeader.js"></script>
     
     <script src="../js/gpu.min.js"></script>
+<script>
+$('#sidebar').affix({
+  offset: {
+    top: 150
+  }
+});
+
+var $body   = $(document.body);
+var navHeight = $('.navbar').outerHeight(true) + 10;
+
+$body.scrollspy({
+	target: '#leftCol',
+	offset: navHeight
+});
+</script>
 </body>
 
 </html>
