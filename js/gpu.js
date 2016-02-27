@@ -1792,6 +1792,9 @@ var GPU = (function() {
 			};
 
 			gl = canvas.getContext("experimental-webgl", glOpt) || canvas.getContext("webgl", glOpt);
+		} else {
+			canvas = ctx.canvas;
+			canvasCpu = document.createElement('canvas');
 		}
 		
 		gl.getExtension('OES_texture_float');
@@ -1953,7 +1956,7 @@ var functionNode_webgl = (function() {
 		gpu = inNode.gpu;
 		jsFunctionString = inNode.jsFunctionString;
 		inNode.webglFunctionString_array = ast_generic( inNode.getJS_AST(), [], inNode );
-		inNode.webglFunctionString = webgl_regex_optimize( 
+		inNode.webglFunctionString = webgl_regex_optimize(
 			inNode.webglFunctionString_array.join("").trim()
 		);
 		return inNode.webglFunctionString;
@@ -2263,17 +2266,14 @@ var functionNode_webgl = (function() {
 		
 		if (forNode.test && forNode.test.type == "BinaryExpression") {
 			if (forNode.test.right.type != "Literal") {
-				retArr.push("for (float ");
-				ast_generic(forNode.init, retArr, funcParam);
-				retArr.push(";");
-				ast_generic(forNode.test.left, retArr, funcParam);
-				retArr.push(forNode.test.operator);
-				retArr.push("LOOP_MAX");
-				retArr.push(";");
-				ast_generic(forNode.update, retArr, funcParam);
-				retArr.push(")");
-				
 				retArr.push("{\n");
+				retArr.push("float ");
+				ast_generic(forNode.init, retArr, funcParam);
+				retArr.push(";\n");
+				retArr.push("for (float i=0.0; i<LOOP_MAX; i++, ");
+				ast_generic(forNode.update, retArr, funcParam);
+				retArr.push(") {\n");
+				
 				retArr.push("if (");
 				ast_generic(forNode.test.left, retArr, funcParam);
 				retArr.push(forNode.test.operator);
@@ -2284,6 +2284,8 @@ var functionNode_webgl = (function() {
 				}
 				retArr.push("} else {\n");
 				retArr.push("break;\n");
+				retArr.push("}\n");
+				
 				retArr.push("}\n");
 				retArr.push("}\n");
 				
