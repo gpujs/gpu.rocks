@@ -77,6 +77,11 @@
 <hr />
 </div>
 
+<h4>Undefined behavior</h4>
+<p>
+This document is an exhaustive list of supported syntax. For performance and technical limitations, if any syntax is not listed in this document, then the behavior is undefined. However, compiler errors will be provided as much as possible though the coverage is very limited at the moment.
+</p>
+
 <h4>Numeric Variable Declartion</h4>
 <p>
 All variables are created as Float32.
@@ -98,7 +103,7 @@ X / 3;
 x % 6;
 ((y + 2) - (3 * 5));</code></pre>
 
-<H4>Numeric Assignment</H4>
+<h4>Numeric Assignment</h4>
 <pre><code class="js" style="background: transparent;">var x = 1;
 y = y + 1;
 x += 5;
@@ -110,7 +115,7 @@ y++;
 z--;
 </code></pre>
 
-<H4>Special Context Constants</H4>
+<h4>Special Context Constants</h4>
 <p>
 Constants may not be changed.
 </p>
@@ -122,7 +127,7 @@ this.dimensions.y;
 this.dimensions.z;
 </code></pre>
 
-<H4>Argument Array Access</H4>
+<h4>Argument Array Access</h4>
 <p>
 Read-only access to arrays of type Float32. No writing to argument arrays.
 </p>
@@ -134,7 +139,7 @@ Read-only access to arrays of type Float32. No writing to argument arrays.
 }
 </code></pre>
 
-<H4>Single Output Array Write</H4>
+<h4>Single Output Array Write</h4>
 <p>
 Implicit write to <code>OUTPUT[this.thread.x][this.thread.y][this.thread.z]</code> of type Float32 using <code>return</code> statement.
 </p>
@@ -144,7 +149,7 @@ Implicit write to <code>OUTPUT[this.thread.x][this.thread.y][this.thread.z]</cod
 }
 </code></pre>
 
-<H4>If Statements</H4>
+<h4>If Statements</h4>
 <pre><code class="js" style="background: transparent;">if (x > 10) {
     // ... blah ...
 }
@@ -158,7 +163,7 @@ if (y &lt; 20 &amp;&amp; z &gt; -10) {
 }
 </code></pre>
 
-<H4>For Loops</H4>
+<h4>For Loops</h4>
 <p>
 <em>Warning: </em> Due to WebGL limitations, for loops should be of fixed length as much as possible. For loops are implicitly broken if run for too many iterations. The <code>break</code> statement will squash future iterations but <em>will not jump</em> to after the for loop (i.e. the loop will always iterate to completion even with no-ops).
 </p>
@@ -179,7 +184,7 @@ for (var i=0; i&lt;X[10]; i++) {
 }
 </code></pre>
 
-<H4>While Loops</H4>
+<h4>While Loops</h4>
 <p>
 <em>Warning: </em> Due to WebGL limitations, while loops are implicitly broken if run for too many iterations. The <code>break</code> statement will squash future iterations but <em>will not jump</em> to after the while loop (i.e. the loop will always iterate to an implicit number of maximum iterations even with no-ops).
 </p>
@@ -189,7 +194,7 @@ while (x &lt; 10) {
 }
 </code></pre>
 
-<H4>Internal Functions</H4>
+<h4>Internal Functions</h4>
 <p>
 Internal functions can only have Float32 as arguments and can only return Float32. However, internal functions have access to the array arguments of a kernel function. Internal functions can only nest a single time.
 </p>
@@ -202,7 +207,7 @@ Internal functions can only have Float32 as arguments and can only return Float3
 }
 </code></pre>
 
-<H4>Built-in Math Functions</H4>
+<h4>Built-in Math Functions</h4>
 <pre><code class="js" style="background: transparent;">Math.floor(x);
 Math.max(y, 100);
 Math.min(y, -100);
@@ -213,7 +218,7 @@ Math.round(x);
 Math.pow(x, 2);
 // ... blah ... </code></pre>
 
-<H4>Color function</H4>
+<h4>Color function</h4>
 <p>
 <em>Note: </em> Only when graphical mode is set. Only the last color call with be the resulting color in the image.
 </p>
