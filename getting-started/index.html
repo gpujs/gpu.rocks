@@ -182,7 +182,7 @@ For performance reasons, the return value for your function will no longer be an
 </p>
 
 <pre><code class="js" style="background: transparent;">var render = gpu.createKernel(function(X) {
-    this.color(0, 0, 0, 0);
+    this.color(0, 0, 0, 1);
 }).dimensions([20, 20]).graphical(true);
     
 render();

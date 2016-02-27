@@ -12,7 +12,7 @@
     <meta property="og:url" content="http://gpu.rocks/" />
     <meta property="og:image" content="http://gpu.rocks/img/ogimage.png" />
 
-    <title>Getting Started - gpu.js - GPU Accelerated JavaScript</title>
+    <title>Supported Syntax - gpu.js - GPU Accelerated JavaScript</title>
     <link rel="icon" href="../img/jelly.png">
 
     <!-- Bootstrap Core CSS - Uses Bootswatch Flatly Theme: http://bootswatch.com/flatly/ -->
@@ -77,9 +77,149 @@
 <hr />
 </div>
 
+<h4>Numeric Variable Declartion</h4>
 <p>
-To be added.
+All variables are created as Float32.
 </p>
+<pre><code class="js" style="background: transparent;">var x;</code></pre>
+
+<h4>Numeric Literals</h4>
+<p>
+All literals are treated as Float32.
+</p>
+<pre><code class="js" style="background: transparent;">2;
+1.0;</code></pre>
+
+<h4>Numeric Arithematic Operations</h4>
+<pre><code class="js" style="background: transparent;">x + 2;
+x - y;
+x * z;
+X / 3;
+x % 6;
+((y + 2) - (3 * 5));</code></pre>
+
+<H4>Numeric Assignment</H4>
+<pre><code class="js" style="background: transparent;">var x = 1;
+y = y + 1;
+x += 5;
+y -= 1;
+z *= 2;
+x /= 3;
+y %= 2;
+y++;
+z--;
+</code></pre>
+
+<H4>Special Context Constants</H4>
+<p>
+Constants may not be changed.
+</p>
+<pre><code class="js" style="background: transparent;">this.thread.x;
+this.thread.y;
+this.thread.z;
+this.dimensions.x;
+this.dimensions.y;
+this.dimensions.z;
+</code></pre>
+
+<H4>Argument Array Access</H4>
+<p>
+Read-only access to arrays of type Float32. No writing to argument arrays.
+</p>
+<pre><code class="js" style="background: transparent;">function kernel(A, B, C) {
+    // ... blah ...
+    x = A[0];
+    y = B[42][x];
+    z = C[3][2][1];
+}
+</code></pre>
+
+<H4>Single Output Array Write</H4>
+<p>
+Implicit write to <code>OUTPUT[this.thread.x][this.thread.y][this.thread.z]</code> of type Float32 using <code>return</code> statement.
+</p>
+<pre><code class="js" style="background: transparent;">function kernel() {
+    // ... blah ...
+    return x;
+}
+</code></pre>
+
+<H4>If Statements</H4>
+<pre><code class="js" style="background: transparent;">if (x > 10) {
+    // ... blah ...
+}
+
+if (y &lt; 20 &amp;&amp; z &gt; -10) {
+    // ... blah ...
+} else if (y &lt; 20) {
+    // ... blah ...
+} else {
+    // ... blah ...
+}
+</code></pre>
+
+<H4>For Loops</H4>
+<p>
+<em>Warning: </em> Due to WebGL limitations, for loops should be of fixed length as much as possible. For loops are implicitly broken if run for too many iterations. The <code>break</code> statement will squash future iterations but <em>will not jump</em> to after the for loop (i.e. the loop will always iterate to completion even with no-ops).
+</p>
+<pre><code class="js" style="background: transparent;">for (var i=0; i&lt;10; i++) {
+    // ... blah ...
+}
+
+for (var i=0; i&lt;200; i++) {
+    if (i < 10) {
+        // ... blah ...
+    } else {
+        break;
+    }
+}
+
+for (var i=0; i&lt;X[10]; i++) {
+    // ... blah ...
+}
+</code></pre>
+
+<H4>While Loops</H4>
+<p>
+<em>Warning: </em> Due to WebGL limitations, while loops are implicitly broken if run for too many iterations. The <code>break</code> statement will squash future iterations but <em>will not jump</em> to after the while loop (i.e. the loop will always iterate to an implicit number of maximum iterations even with no-ops).
+</p>
+<pre><code class="js" style="background: transparent;">var x = 0;
+while (x &lt; 10) {
+    x++;
+}
+</code></pre>
+
+<H4>Internal Functions</H4>
+<p>
+Internal functions can only have Float32 as arguments and can only return Float32. However, internal functions have access to the array arguments of a kernel function. Internal functions can only nest a single time.
+</p>
+<pre><code class="js" style="background: transparent;">function kernel(A, B, C) {
+    function internal(x, y) {
+        return A[x] + B[y] + C[x][y];
+    }
+    
+    return internal(this.thread.x, this.thread.y);
+}
+</code></pre>
+
+<H4>Built-in Math Functions</H4>
+<pre><code class="js" style="background: transparent;">Math.floor(x);
+Math.max(y, 100);
+Math.min(y, -100);
+Math.sin(z);
+Math.cos(x);
+Math.tan(x);
+Math.round(x);
+Math.pow(x, 2);
+// ... blah ... </code></pre>
+
+<H4>Color function</H4>
+<p>
+<em>Note: </em> Only when graphical mode is set. Only the last color call with be the resulting color in the image.
+</p>
+<pre><code class="js" style="background: transparent;">this.color(r, g, b);
+this.color(r, g, b, a);</code></pre>
+
                 </div>
             </div>
         </div>
