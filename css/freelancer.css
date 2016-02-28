@@ -389,3 +389,10 @@ dl dd {
 .navbar-inverse {
     border: 0;
 }
+
+.hacknroll {
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0) 100%), url('../img/hacknroll.jpg');
+    background-position: center;
+    background-size: 100% auto;
+    color: #fff;
+}
