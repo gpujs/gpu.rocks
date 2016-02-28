@@ -142,23 +142,27 @@ The options object for the kernel function. The following options are available:
         <td>An array containing the desired dimensions of the output.</td>
     </tr>
     <tr>
-        <td><code>debug</code></td>
+        <td><code>debug</code> (default: false)</td>
         <td>Set flag to true to print compile information in the JavaScript console.</td>
     </tr>
     <tr>
-        <td><code>graphical</code></td>
+        <td><code>graphical</code> (default: false)</td>
         <td>Set flag to true to produce an image in the <code>Canvas</code> object rather than returning numbers</td>
     </tr>
     <tr>
-        <td><code>hardcodeConstants</code></td>
+        <td><code>hardcodeConstants</code> (default: false)</td>
         <td>Set flag to true to hardcode numeric constants rather than copying to the WebGL uniform buffer. May or may not improve performance at the penalty of additional compilation on input of different size.</td>
     </tr>
     <tr>
-        <td><code>outputToTexture</code></td>
+        <td><code>outputToTexture</code> (default: false)</td>
         <td>Set flag to true to output to a gpu.js Texture Object that can be used as input to kernels. Eliminates the round-trip penalty of sending the output of a kernel into the input of another kernel. <em>Note:</em> Texture objects are only supported on GPU mode.</td>
     </tr>
     <tr>
-        <td><code>mode</code></td>
+        <td><code>loopMaxIterations</code> (default: 100)</td>
+        <td>WebGL requires <em>all</em> loops to be of fixed length. If you cannot statically determine the length of your for loops, you can generate shader code that makes your loops fixed length for you. However, you must specify the upper bound of your for loops. This upper bound cannot be too high, otherwise the shader will be killed by your browser for taking too long.</td>
+    </tr>
+    <tr>
+        <td><code>mode</code> (default: auto)</td>
         <td><code>"auto"</code>, <code>"gpu"</code> or <code>"cpu"</code>. <code>"auto"</code> will fallback to <code>"cpu"</code> if <code>"gpu"</code> fails. Otherwise an error is thrown upon failiure.</td>
     </tr>
     </table>
