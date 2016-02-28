@@ -144,6 +144,11 @@ The options object for the kernel function. The following options are available:
         <td>An array containing the desired dimensions of the output.</td>
     </tr>
     <tr>
+        <td><code>constants</code></td>
+        <td></td>
+        <td>An object containing key-value pairs to declare as constants to be used in the kernel. These constants will be available as <code>this.constants.&lt;name&gt;. These constants can also be used to declare the limits of a fixed-sized loop.</code></td>
+    </tr>
+    <tr>
         <td><code>debug</code></td>
         <td><code>false</code></td>
         <td>Set flag to true to print compile information in the JavaScript console.</td>
@@ -156,7 +161,7 @@ The options object for the kernel function. The following options are available:
     <tr>
         <td><code>hardcodeConstants</code></td>
         <td><code>false</code></td>
-        <td>Set flag to true to hardcode numeric constants rather than copying to the WebGL uniform buffer. May or may not improve performance at the penalty of additional compilation on input of different size.</td>
+        <td>Set flag to true to hardcode input array size and dimension constants rather than copying to the WebGL uniform buffer. May or may not improve performance at the penalty of additional compilation on input of different size.</td>
     </tr>
     <tr>
         <td><code>outputToTexture</code></td>

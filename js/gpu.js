@@ -1744,6 +1744,159 @@ if (typeof module !== 'undefined' && require.main === module) {
 }
 }
 
+///
+/// Class: GPUUtils
+///
+/// Various utility functions / snippets of code that GPU.JS uses internally.\
+/// This covers various snippets of code that is NOT gpu.js specific
+///
+/// Note that all moethods in this class is "static" by nature `GPUUtils.functionName()`
+///
+var GPUUtils = (function() {
+
+	var GPUUtils = {};
+
+	// system_endianness closure based memoizer
+	var endianness = null;
+
+	///
+	/// Function: system_endianness
+	///
+	/// Gets the system endianness, and cache it
+	///
+	/// Returns:
+	///	{String} "LE" or "BE" depending on system architecture
+	///
+	/// Credit: https://gist.github.com/TooTallNate/4750953
+	function systemEndianness() {
+		if( endianness !== null ) {
+			return endianness;
+		}
+
+		var b = new ArrayBuffer(4);
+		var a = new Uint32Array(b);
+		var c = new Uint8Array(b);
+		a[0] = 0xdeadbeef;
+		if (c[0] == 0xef) return endianness = 'LE';
+		if (c[0] == 0xde) return endianness = 'BE';
+		throw new Error('unknown endianness');
+	}
+	GPUUtils.systemEndianness = systemEndianness;
+
+	///
+	/// Function: isFunction
+	///
+	/// Return TRUE, on a JS function
+	///
+	/// Parameters:
+	/// 	funcObj - {JS Function} Object to validate if its a function
+	///
+	/// Returns:
+	/// 	{Boolean} TRUE if the object is a JS function
+	///
+	function isFunction( funcObj ) {
+		return typeof(funcObj) === 'function';
+	}
+	GPUUtils.isFunction = isFunction;
+
+	///
+	/// Function: isFunctionString
+	///
+	/// Return TRUE, on a valid JS function string
+	///
+	/// Note: This does just a VERY simply sanity check. And may give false positives.
+	///
+	/// Parameters:
+	/// 	funcStr - {String}  String of JS function to validate
+	///
+	/// Returns:
+	/// 	{Boolean} TRUE if the string passes basic validation
+	///
+	function isFunctionString( funcStr ) {
+		if( funcStr !== null ) {
+			return (funcStr.toString().slice(0, "function".length).toLowerCase() == "function");
+		}
+		return false;
+	}
+	GPUUtils.isFunctionString = isFunctionString;
+
+	// FUNCTION_NAME regex
+	var FUNCTION_NAME = /function ([^(]*)/;
+
+	///
+	/// Function: getFunctionName_fromString
+	///
+	/// Return the function name from a JS function string
+	///
+	/// Parameters:
+	/// 	funcStr - {String}  String of JS function to validate
+	///
+	/// Returns:
+	/// 	{String} Function name string (if found)
+	///
+	function getFunctionName_fromString( funcStr ) {
+		return FUNCTION_NAME.exec(funcStr)[1];
+	}
+	GPUUtils.getFunctionName_fromString = getFunctionName_fromString;
+
+	// STRIP COMMENTS regex
+	var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+
+	// ARGUMENT NAMES regex
+	var ARGUMENT_NAMES = /([^\s,]+)/g;
+
+	///
+	/// Function: getParamNames_fromString
+	///
+	/// Return list of parameter names extracted from the JS function string
+	///
+	/// Parameters:
+	/// 	funcStr - {String}  String of JS function to validate
+	///
+	/// Returns:
+	/// 	{[String, ...]}  Array representing all the parameter names
+	///
+	function getParamNames_fromString(func) {
+		var fnStr = func.toString().replace(STRIP_COMMENTS, '');
+		var result = fnStr.slice(fnStr.indexOf('(')+1, fnStr.indexOf(')')).match(ARGUMENT_NAMES);
+		if(result === null)
+			result = [];
+		return result;
+	}
+	GPUUtils.getParamNames_fromString = getParamNames_fromString;
+	
+	///
+	/// Function: clone
+	///
+	/// Returns a clone
+	///
+	/// Parameters:
+	/// 	obj - {Object}  Object to clone
+	///
+	/// Returns:
+	/// 	{Object}  Cloned object
+	///
+	function clone(obj) {
+		if(obj === null || typeof(obj) !== 'object' || 'isActiveClone' in obj)
+			return obj;
+
+		var temp = obj.constructor(); // changed
+
+		for(var key in obj) {
+			if(Object.prototype.hasOwnProperty.call(obj, key)) {
+				obj.isActiveClone = null;
+				temp[key] = clone(obj[key]);
+				delete obj.isActiveClone;
+			}
+		}
+
+		return temp;
+	}
+	GPUUtils.clone = clone;
+
+	return GPUUtils;
+})();
+
 var GPUTexture = (function() {
     function GPUTexture(gpu, texture, size, dimensions) {
         this.gpu = gpu;
@@ -1765,17 +1918,7 @@ var GPUTexture = (function() {
 /// GPU.JS core class =D
 ///
 var GPU = (function() {
-	// https://gist.github.com/TooTallNate/4750953
-	function endianness() {
-		var b = new ArrayBuffer(4);
-		var a = new Uint32Array(b);
-		var c = new Uint8Array(b);
-		a[0] = 0xdeadbeef;
-		if (c[0] == 0xef) return 'LE';
-		if (c[0] == 0xde) return 'BE';
-		throw new Error('unknown endianness');
-	}
-
+	
 	function GPU(ctx) {
 		var gl, canvas, canvasCpu;
 
@@ -1792,9 +1935,6 @@ var GPU = (function() {
 			};
 
 			gl = canvas.getContext("experimental-webgl", glOpt) || canvas.getContext("webgl", glOpt);
-		} else {
-			canvas = ctx.canvas;
-			canvasCpu = document.createElement('canvas');
 		}
 
 		gl.getExtension('OES_texture_float');
@@ -1805,7 +1945,7 @@ var GPU = (function() {
 		this.canvas = canvas;
 		this.canvasCpu = canvasCpu;
 		this.programCache = {};
-		this.endianness = endianness();
+		this.endianness = GPUUtils.systemEndianness();
 
 		this.functionBuilder = new functionBuilder(this);
 		this.functionBuilder.polyfillStandardFunctions();
@@ -1868,18 +2008,18 @@ var GPU = (function() {
 		var mode = paramObj.mode && paramObj.mode.toLowerCase();
 
 		if ( mode == "cpu" ) {
-			return this._backendFallback(kernel, paramObj);
+			return this._mode_cpu(kernel, paramObj);
 		}
 
 		//
 		// Attempts to do the glsl conversion
 		//
 		try {
-			return this._backendGLSL(kernel, paramObj);
+			return this._mode_gpu(kernel, paramObj);
 		} catch (e) {
 			if ( mode != "gpu") {
 				console.warning("Falling back to CPU!");
-				return this._backendFallback(kernel, paramObj);
+				return this._mode_cpu(kernel, paramObj);
 			} else {
 				throw e;
 			}
@@ -2463,6 +2603,11 @@ var functionNode_webgl = (function() {
 
 		return retArr;
 	}
+	
+	// The prefixes to use
+	var jsMathPrefix = "Math.";
+	var localPrefix = "this.";
+	var constantsPrefix = "this.constants.";
 
 	function ast_MemberExpression(mNode, retArr, funcParam) {
 		if(mNode.computed) {
@@ -2492,7 +2637,12 @@ var functionNode_webgl = (function() {
 			
 			// Unroll the member expression
 			var unrolled = ast_MemberExpression_unroll(mNode);
-			var unrolled_lc = unrolled.toLowerCase()
+			var unrolled_lc = unrolled.toLowerCase();
+			
+			// Its a constant, remove this.constants.
+			if( unrolled.indexOf(constantsPrefix) === 0 ) {
+				unrolled = 'constants_'+unrolled.slice( constantsPrefix.length );
+			}
 			
 			if (unrolled_lc == "this.thread.x") {
 				retArr.push('threadId.x');
@@ -2553,10 +2703,6 @@ var functionNode_webgl = (function() {
 			ast, funcParam
 		);
 	}
-	
-	// The prefixes to use
-	var jsMathPrefix = "Math.";
-	var localPrefix = "this.";
 	
 	/// Prases the abstract syntax tree, binary expression
 	///
@@ -2679,12 +2825,12 @@ var functionNode = (function() {
 		// Setup jsFunction and its string property + validate them
 		//
 		this.jsFunctionString = jsFunction.toString();
-		if( !validateStringIsFunction(this.jsFunctionString) ) {
+		if( !GPUUtils.isFunctionString(this.jsFunctionString) ) {
 			console.error("jsFunction, to string conversion check falied: not a function?", this.jsFunctionString);
 			throw "jsFunction, to string conversion check falied: not a function?";
 		}
 
-		if( !isFunction(jsFunction) ) {
+		if( !GPUUtils.isFunction(jsFunction) ) {
 			//throw "jsFunction, is not a valid JS Function";
 			this.jsFunction = null;
 		} else {
@@ -2694,7 +2840,10 @@ var functionNode = (function() {
 		//
 		// Setup the function name property
 		//
-		this.functionName = functionName || (jsFunction && jsFunction.name) || FUNCTION_NAME.exec(this.jsFunctionString)[1];
+		this.functionName = functionName ||
+			(jsFunction && jsFunction.name) ||
+			GPUUtils.getFunctionName_fromString(this.jsFunctionString);
+
 		if( !(this.functionName) ) {
 			throw "jsFunction, missing name argument or value";
 		}
@@ -2702,7 +2851,7 @@ var functionNode = (function() {
 		//
 		// Extract parameter name, and its argument types
 		//
-		this.paramNames = getParamNames(this.jsFunctionString);
+		this.paramNames = GPUUtils.getParamNames_fromString(this.jsFunctionString);
 		if( paramTypeArray != null ) {
 			if( paramTypeArray.length != this.paramNames.length ) {
 				throw "Invalid argument type array length, against function length -> ("+
@@ -2723,78 +2872,6 @@ var functionNode = (function() {
 		//
 		this.returnType = returnType || "float";
 	}
-
-	//
-	// Utility functions
-	//----------------------------------------------------------------------------------------------------
-
-	///
-	/// Function: isFunction
-	///
-	/// [static] Return TRUE, on a JS function
-	///
-	/// This is 'static' function, not a class function functionNode.isFunction(...)
-	///
-	/// Parameters:
-	/// 	funcObj - {JS Function} Object to validate if its a function
-	///
-	/// Returns:
-	/// 	{Boolean} TRUE if the object is a JS function
-	///
-	function isFunction( funcObj ) {
-		return typeof(funcObj) === 'function';
-	}
-
-	///
-	/// Function: validateStringIsFunction
-	///
-	/// [static] Return TRUE, on a valid JS function string
-	///
-	/// This is 'static' function, not a class function functionNode.validateStringIsFunction(...)
-	///
-	/// Parameters:
-	/// 	funcStr - {String}  String of JS function to validate
-	///
-	/// Returns:
-	/// 	{Boolean} TRUE if the string passes basic validation
-	///
-	function validateStringIsFunction( funcStr ) {
-		if( funcStr !== null ) {
-			return (funcStr.slice(0, "function".length).toLowerCase() == "function");
-		}
-		return false;
-	}
-
-	var FUNCTION_NAME = /function ([^(]*)/;
-	var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-	var ARGUMENT_NAMES = /([^\s,]+)/g;
-
-	///
-	/// Function: getParamNames
-	///
-	/// [static] Return list of parameter names extracted from the JS function string
-	///
-	/// This is 'static' function, not a class function: functionNode.getParamNames(...)
-	///
-	/// Parameters:
-	/// 	funcStr - {String}  String of JS function to validate
-	///
-	/// Returns:
-	/// 	{[String, ...]}  Array representing all the parameter names
-	///
-	function getParamNames(func) {
-		var fnStr = func.toString().replace(STRIP_COMMENTS, '');
-		var result = fnStr.slice(fnStr.indexOf('(')+1, fnStr.indexOf(')')).match(ARGUMENT_NAMES);
-		if(result === null)
-			result = [];
-		return result;
-	}
-
-	// Passing it to the class object, in case it is needed elsewhere
-	// Note, support for this is not guranteed across versions.
-	functionNode.isFunction = isFunction;
-	functionNode.validateStringIsFunction = validateStringIsFunction;
-	functionNode.getParamNames = getParamNames;
 
 	//
 	// Core function
@@ -3046,23 +3123,6 @@ var functionBuilder = (function() {
 })();
 
 (function (GPU) {
-	function clone(obj) {
-		if(obj === null || typeof(obj) !== 'object' || 'isActiveClone' in obj)
-			return obj;
-
-		var temp = obj.constructor(); // changed
-
-		for(var key in obj) {
-			if(Object.prototype.hasOwnProperty.call(obj, key)) {
-				obj.isActiveClone = null;
-				temp[key] = clone(obj[key]);
-				delete obj.isActiveClone;
-			}
-		}
-
-		return temp;
-	}
-	
 	function getArgumentType(arg) {
 		if (Array.isArray(arg)) {
 			return 'Array';
@@ -3081,15 +3141,15 @@ var functionBuilder = (function() {
 	/// @param opt             The parameter object
 	///
 	/// @returns callable function if converted, else returns null
-	GPU.prototype._backendFallback = function(kernel, opt) {
+	GPU.prototype._mode_cpu = function(kernel, opt) {
 		var gpu = this;
-		
+
 		function ret() {
 			if (!opt.dimensions || opt.dimensions.length === 0) {
 				if (arguments.length != 1) {
 					throw "Auto dimensions only supported for kernels with only one input";
 				}
-				
+
 				var argType = getArgumentType(arguments[0]);
 				if (argType == "Array") {
 					opt.dimensions = getDimensions(argType);
@@ -3099,7 +3159,7 @@ var functionBuilder = (function() {
 					throw "Auto dimensions not supported for input type: " + argType;
 				}
 			}
-			
+
 			var kernelArgs = [];
 			for (var i=0; i<arguments.length; i++) {
 				var argType = getArgumentType(arguments[i]);
@@ -3111,13 +3171,13 @@ var functionBuilder = (function() {
 					throw "Input type not supported: " + arguments[i];
 				}
 			}
-			
-			var threadDim = clone(opt.dimensions);
-			
+
+			var threadDim = GPUUtils.clone(opt.dimensions);
+
 			while (threadDim.length < 3) {
 				threadDim.push(1);
 			}
-			
+
 			var ret = new Array(threadDim[2]);
 			for (var i=0; i<threadDim[2]; i++) {
 				ret[i] = new Array(threadDim[1]);
@@ -3125,21 +3185,7 @@ var functionBuilder = (function() {
 					ret[i][j] = new Array(threadDim[0]);
 				}
 			}
-			
-			var canvas;
-			var canvasCtx;
-			var imageData;
-			var data;
-			if (opt.graphical) {
-				canvas = gpu.getCanvas('cpu');
-				canvas.width = threadDim[0];
-				canvas.height = threadDim[1];
-				
-				canvasCtx = canvas.getContext("2d");
-				imageData = canvasCtx.createImageData(threadDim[0], threadDim[1]);
-				data = new Uint8ClampedArray(threadDim[0]*threadDim[1]*4);
-			}
-			
+
 			var ctx = {
 				thread: {
 					x: 0,
@@ -3150,33 +3196,48 @@ var functionBuilder = (function() {
 					x: threadDim[0],
 					y: threadDim[1],
 					z: threadDim[2]
-				}
+				},
+				constants: opt.constants
 			};
-			
-			ctx.color = function(r, g, b, a) {
-				if (a == undefined) {
-					a = 1.0;
-				}
+
+			var canvas;
+			var canvasCtx;
+			var imageData;
+			var data;
+			if (opt.graphical) {
+				canvas = gpu.getCanvas('cpu');
+				canvas.width = threadDim[0];
+				canvas.height = threadDim[1];
+
+				canvasCtx = canvas.getContext("2d");
+				imageData = canvasCtx.createImageData(threadDim[0], threadDim[1]);
+				data = new Uint8ClampedArray(threadDim[0]*threadDim[1]*4);
 				
-				r = Math.floor(r * 255);
-				g = Math.floor(g * 255);
-				b = Math.floor(b * 255);
-				a = Math.floor(a * 255);
-				
-				var width = ctx.dimensions.x;
-				var height = ctx.dimensions.y;
-				
-				var x = ctx.thread.x;
-				var y = height - ctx.thread.y - 1;
-				
-				var index = x + y*width;
-				
-				data[index*4+0] = r;
-				data[index*4+1] = g;
-				data[index*4+2] = b;
-				data[index*4+3] = a;
-			};
-			
+				ctx.color = function(r, g, b, a) {
+					if (a == undefined) {
+						a = 1.0;
+					}
+
+					r = Math.floor(r * 255);
+					g = Math.floor(g * 255);
+					b = Math.floor(b * 255);
+					a = Math.floor(a * 255);
+
+					var width = ctx.dimensions.x;
+					var height = ctx.dimensions.y;
+
+					var x = ctx.thread.x;
+					var y = height - ctx.thread.y - 1;
+
+					var index = x + y*width;
+
+					data[index*4+0] = r;
+					data[index*4+1] = g;
+					data[index*4+2] = b;
+					data[index*4+3] = a;
+				};
+			}
+
 			for (ctx.thread.z=0; ctx.thread.z<threadDim[2]; ctx.thread.z++) {
 				for (ctx.thread.y=0; ctx.thread.y<threadDim[1]; ctx.thread.y++) {
 					for (ctx.thread.x=0; ctx.thread.x<threadDim[0]; ctx.thread.x++) {
@@ -3184,87 +3245,75 @@ var functionBuilder = (function() {
 					}
 				}
 			}
-			
+
 			if (opt.graphical) {
 				imageData.data.set(data);
 				canvasCtx.putImageData(imageData, 0, 0);
 			}
-			
+
 			if (opt.dimensions.length == 1) {
 				ret = ret[0][0];
 			} else if (opt.dimensions.length == 2) {
 				ret = ret[0];
 			}
-			
+
 			return ret;
 		}
-		
+
 		ret.dimensions = function(dim) {
 			opt.dimensions = dim;
 			return ret;
 		};
-		
+
 		ret.debug = function(flag) {
 			opt.debug = flag;
 			return ret;
 		};
-		
+
 		ret.graphical = function(flag) {
 			opt.graphical = flag;
 			return ret;
 		};
-		
+
 		ret.loopMaxIterations = function(max) {
 			opt.loopMaxIterations = max;
 			return ret;
 		};
 		
+		ret.constants = function(constants) {
+			opt.constants = constants;
+			return ret;
+		};
+
 		ret.wraparound = function() {
 			opt.wraparound = false;
 			return ret;
 		};
-		
+
 		ret.hardcodeConstants = function() {
 			opt.hardcodeConstants = false;
 			return ret;
 		};
-		
+
 		ret.outputToTexture = function() {
 			opt.outputToTexture = false;
 			return ret;
 		};
-		
+
 		ret.mode = function(mode) {
 			opt.mode = mode;
 			return gpu.createKernel(kernel, opt);
 		};
-		
+
 		ret.getCanvas = function() {
 			return gpu.getCanvas('cpu');
 		};
-		
+
 		return ret;
 	};
 })(GPU);
 
 (function(GPU) {
-	function clone(obj) {
-		if(obj === null || typeof(obj) !== 'object' || 'isActiveClone' in obj)
-			return obj;
-
-		var temp = obj.constructor(); // changed
-
-		for(var key in obj) {
-			if(Object.prototype.hasOwnProperty.call(obj, key)) {
-				obj.isActiveClone = null;
-				temp[key] = clone(obj[key]);
-				delete obj.isActiveClone;
-			}
-		}
-
-		return temp;
-	}
-
 	function dimToTexSize(gl, dimensions) {
 		if (dimensions.length == 2) {
 			return dimensions;
@@ -3296,15 +3345,6 @@ var functionBuilder = (function() {
 		}
 		return false;
 	}
-	var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-	var ARGUMENT_NAMES = /([^\s,]+)/g;
-	function getParamNames(func) {
-		var fnStr = func.toString().replace(STRIP_COMMENTS, '');
-		var result = fnStr.slice(fnStr.indexOf('(')+1, fnStr.indexOf(')')).match(ARGUMENT_NAMES);
-		if(result === null)
-			result = [];
-		return result;
-	}
 
 	function getDimensions(x, pad) {
 		var ret;
@@ -3323,7 +3363,7 @@ var functionBuilder = (function() {
 		}
 
 		if (pad) {
-			ret = clone(ret);
+			ret = GPUUtils.clone(ret);
 			while (ret.length < 3) {
 				ret.push(1);
 			}
@@ -3391,7 +3431,7 @@ var functionBuilder = (function() {
 		return key;
 	}
 
-	GPU.prototype._backendGLSL = function(kernel, opt) {
+	GPU.prototype._mode_gpu = function(kernel, opt) {
 		var gpu = this;
 		var gl = this.gl;
 		var canvas = this.canvas;
@@ -3404,7 +3444,7 @@ var functionBuilder = (function() {
 			throw "Unable to get body of kernel function";
 		}
 
-		var paramNames = getParamNames(funcStr);
+		var paramNames = GPUUtils.getParamNames_fromString(funcStr);
 
 		var programCache = [];
 
@@ -3429,7 +3469,7 @@ var functionBuilder = (function() {
 			canvas.height = texSize[1];
 			gl.viewport(0, 0, texSize[0], texSize[1]);
 
-			var threadDim = clone(opt.dimensions);
+			var threadDim = GPUUtils.clone(opt.dimensions);
 			while (threadDim.length < 3) {
 				threadDim.push(1);
 			}
@@ -3438,6 +3478,14 @@ var functionBuilder = (function() {
 			var program = programCache[programCacheKey];
 
 			if (program === undefined) {
+				var constantsStr = '';
+				if (opt.constants) {
+					for (var name in opt.constants) {
+						var value = opt.constants[name];
+						constantsStr += 'const float constants_' + name + '=' + parseInt(value) + '.0;\n';
+					}
+				}
+				
 				var paramStr = '';
 
 				var paramType = [];
@@ -3564,6 +3612,7 @@ var functionBuilder = (function() {
 					'}',
 					'',
 					paramStr,
+					constantsStr,
 					builder.webglString("kernel", opt),
 					'',
 					'void main(void) {',
@@ -3760,9 +3809,14 @@ var functionBuilder = (function() {
 			opt.graphical = flag;
 			return ret;
 		};
-		
+
 		ret.loopMaxIterations = function(max) {
 			opt.loopMaxIterations = max;
+			return ret;
+		};
+		
+		ret.constants = function(constants) {
+			opt.constants = constants;
 			return ret;
 		};
 
