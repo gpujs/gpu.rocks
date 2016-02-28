@@ -3428,6 +3428,11 @@ var functionBuilder = (function() {
 			specialFlags += "Hardcode";
 			specialFlags += '['+outputDim[0]+','+outputDim[1]+','+outputDim[2]+']';
 		}
+		
+		if (opt.constants) {
+			specialFlags += "Constants";
+			specialFlags += JSON.stringify(opt.constants);
+		}
 
 		if (specialFlags) {
 			key = key + '-' + specialFlags;
