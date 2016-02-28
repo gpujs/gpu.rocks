@@ -1775,10 +1775,10 @@ var GPU = (function() {
 		if (c[0] == 0xde) return 'BE';
 		throw new Error('unknown endianness');
 	}
-	
+
 	function GPU(ctx) {
 		var gl, canvas, canvasCpu;
-		
+
 		canvas = undefined;
 		gl = ctx;
 		if (gl === undefined) {
@@ -1796,30 +1796,30 @@ var GPU = (function() {
 			canvas = ctx.canvas;
 			canvasCpu = document.createElement('canvas');
 		}
-		
+
 		gl.getExtension('OES_texture_float');
 		gl.getExtension('OES_texture_float_linear');
 		gl.getExtension('OES_element_index_uint');
-		
+
 		this.gl = gl;
 		this.canvas = canvas;
 		this.canvasCpu = canvasCpu;
 		this.programCache = {};
 		this.endianness = endianness();
-		
+
 		this.functionBuilder = new functionBuilder(this);
 		this.functionBuilder.polyfillStandardFunctions();
 	}
-	
+
 	GPU.prototype.getGl = function() {
 		return this.gl;
 	};
-	
+
 	GPU.prototype.getCanvas = function(mode) {
 		if (mode == "cpu") {
 			return this.canvasCpu;
 		}
-		
+
 		return this.canvas;
 	};
 
@@ -1860,17 +1860,17 @@ var GPU = (function() {
 		if( paramObj === undefined ) {
 			paramObj = {};
 		}
-		
+
 		//
 		// Get theconfig, fallbacks to default value if not set
 		//
 		paramObj.dimensions = paramObj.dimensions || [];
-		mode = paramObj.mode && paramObj.mode.toLowerCase();
-		
+		var mode = paramObj.mode && paramObj.mode.toLowerCase();
+
 		if ( mode == "cpu" ) {
 			return this._backendFallback(kernel, paramObj);
 		}
-		
+
 		//
 		// Attempts to do the glsl conversion
 		//
@@ -1886,7 +1886,7 @@ var GPU = (function() {
 		}
 	};
 	GPU.prototype.createKernel = createKernel;
-	
+
 	///
 	/// Function: addFunction
 	///
@@ -1905,14 +1905,14 @@ var GPU = (function() {
 		return this;
 	}
 	GPU.prototype.addFunction = addFunction;
-	
-	
-	
+
+
+
 	GPU.prototype.textureToArray = function(texture) {
 		var copy = this.createKernel(function(x) {
 			return x[this.thread.z][this.thread.y][this.thread.x];
 		});
-		
+
 		return copy(texture);
 	};
 
@@ -1922,7 +1922,7 @@ var GPU = (function() {
 // Closure capture for the ast function, prevent collision with existing AST functions
 var functionNode_webgl = (function() {
 	
-	var gpu, jsFunctionString;
+	var gpu, opt, jsFunctionString;
 	
 	function isIdentifierKernelParam(paramName, ast, funcParam) {
 		return funcParam.paramNames.indexOf(paramName) != -1;
@@ -1952,8 +1952,9 @@ var functionNode_webgl = (function() {
 	/// Returns:
 	/// 	the converted webGL function string
 	///
-	function functionNode_webgl( inNode ) {
+	function functionNode_webgl( inNode, _opt ) {
 		gpu = inNode.gpu;
+		opt = _opt;
 		jsFunctionString = inNode.jsFunctionString;
 		inNode.webglFunctionString_array = ast_generic( inNode.getJS_AST(), [], inNode );
 		inNode.webglFunctionString = webgl_regex_optimize(
@@ -2265,15 +2266,25 @@ var functionNode_webgl = (function() {
 		}
 		
 		if (forNode.test && forNode.test.type == "BinaryExpression") {
-			if (forNode.test.right.type != "Literal") {
-				retArr.push("{\n");
-				retArr.push("float ");
-				ast_generic(forNode.init, retArr, funcParam);
-				retArr.push(";\n");
-				retArr.push("for (float i=0.0; i<LOOP_MAX; i++, ");
-				ast_generic(forNode.update, retArr, funcParam);
-				retArr.push(") {\n");
+			if (forNode.test.right.type == "Identifier"
+				&& forNode.test.operator == "<") {
 				
+				if (opt.loopMaxIterations === undefined) {
+					console.warn("Warning: loopMaxIterations is not set! Using default of 100 which may result in unintended behavior.");
+					console.warn("Set loopMaxIterations or use a for loop of fixed length to silence this message.");
+				}
+				
+				retArr.push("for (float ");
+				ast_generic(forNode.init, retArr, funcParam);
+				retArr.push(";");
+				ast_generic(forNode.test.left, retArr, funcParam);
+				retArr.push(forNode.test.operator);
+				retArr.push("LOOP_MAX");
+				retArr.push(";");
+				ast_generic(forNode.update, retArr, funcParam);
+				retArr.push(")");
+				
+				retArr.push("{\n");
 				retArr.push("if (");
 				ast_generic(forNode.test.left, retArr, funcParam);
 				retArr.push(forNode.test.operator);
@@ -2284,8 +2295,6 @@ var functionNode_webgl = (function() {
 				}
 				retArr.push("} else {\n");
 				retArr.push("break;\n");
-				retArr.push("}\n");
-				
 				retArr.push("}\n");
 				retArr.push("}\n");
 				
@@ -2630,11 +2639,11 @@ var functionNode_webgl = (function() {
 /// 	writeVariables       - {[String,...]}  List of variables write operations occur
 ///
 var functionNode = (function() {
-	
+
 	//
 	// Constructor
 	//----------------------------------------------------------------------------------------------------
-	
+
 	///
 	/// Function: functionNode
 	///
@@ -2648,9 +2657,9 @@ var functionNode = (function() {
 	/// 	returnType      - {String}                The return type, assumes "float" if null
 	///
 	function functionNode( gpu, functionName, jsFunction, paramTypeArray, returnType ) {
-		
+
 		this.gpu = gpu;
-		
+
 		//
 		// Internal vars setup
 		//
@@ -2658,14 +2667,14 @@ var functionNode = (function() {
 		this.initVariables    = [];
 		this.readVariables    = [];
 		this.writeVariables   = [];
-		
+
 		//
 		// Missing jsFunction object exception
 		//
 		if( jsFunction == null ) {
 			throw "jsFunction, parameter is null";
 		}
-		
+
 		//
 		// Setup jsFunction and its string property + validate them
 		//
@@ -2674,14 +2683,14 @@ var functionNode = (function() {
 			console.error("jsFunction, to string conversion check falied: not a function?", this.jsFunctionString);
 			throw "jsFunction, to string conversion check falied: not a function?";
 		}
-		
+
 		if( !isFunction(jsFunction) ) {
 			//throw "jsFunction, is not a valid JS Function";
 			this.jsFunction = null;
 		} else {
 			this.jsFunction = jsFunction;
 		}
-		
+
 		//
 		// Setup the function name property
 		//
@@ -2689,7 +2698,7 @@ var functionNode = (function() {
 		if( !(this.functionName) ) {
 			throw "jsFunction, missing name argument or value";
 		}
-		
+
 		//
 		// Extract parameter name, and its argument types
 		//
@@ -2708,23 +2717,23 @@ var functionNode = (function() {
 				this.paramType.push("float");
 			}
 		}
-		
+
 		//
 		// Return type handling
 		//
 		this.returnType = returnType || "float";
 	}
-	
+
 	//
 	// Utility functions
 	//----------------------------------------------------------------------------------------------------
-	
+
 	///
 	/// Function: isFunction
 	///
 	/// [static] Return TRUE, on a JS function
 	///
-	/// This is 'static' function, not a class function (functionNode.prototype)
+	/// This is 'static' function, not a class function functionNode.isFunction(...)
 	///
 	/// Parameters:
 	/// 	funcObj - {JS Function} Object to validate if its a function
@@ -2735,13 +2744,13 @@ var functionNode = (function() {
 	function isFunction( funcObj ) {
 		return typeof(funcObj) === 'function';
 	}
-	
+
 	///
 	/// Function: validateStringIsFunction
 	///
 	/// [static] Return TRUE, on a valid JS function string
 	///
-	/// This is 'static' function, not a class function (functionNode.prototype)
+	/// This is 'static' function, not a class function functionNode.validateStringIsFunction(...)
 	///
 	/// Parameters:
 	/// 	funcStr - {String}  String of JS function to validate
@@ -2755,17 +2764,17 @@ var functionNode = (function() {
 		}
 		return false;
 	}
-	
+
 	var FUNCTION_NAME = /function ([^(]*)/;
 	var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
 	var ARGUMENT_NAMES = /([^\s,]+)/g;
-	
+
 	///
 	/// Function: getParamNames
 	///
 	/// [static] Return list of parameter names extracted from the JS function string
 	///
-	/// This is 'static' function, not a class function (functionNode.prototype)
+	/// This is 'static' function, not a class function: functionNode.getParamNames(...)
 	///
 	/// Parameters:
 	/// 	funcStr - {String}  String of JS function to validate
@@ -2786,11 +2795,11 @@ var functionNode = (function() {
 	functionNode.isFunction = isFunction;
 	functionNode.validateStringIsFunction = validateStringIsFunction;
 	functionNode.getParamNames = getParamNames;
-	
+
 	//
 	// Core function
 	//----------------------------------------------------------------------------------------------------
-	
+
 	///
 	/// Function: getJSFunction
 	///
@@ -2798,22 +2807,22 @@ var functionNode = (function() {
 	/// Note: that this internally eval the function, if only the string was provided on construction
 	///
 	/// Returns:
-	/// 	{JS Function} The function object 
+	/// 	{JS Function} The function object
 	///
 	function getJSFunction() {
 		if( this.jsFunction ) {
 			return this.jsFunction;
 		}
-		
+
 		if( this.jsFunctionString ) {
 			this.jsFunction = eval( this.jsFunctionString );
 			return this.jsFunction;
 		}
-		
+
 		throw "Missin jsFunction, and jsFunctionString parameter";
 	}
 	functionNode.prototype.getJSFunction = getJSFunction;
-	
+
 	///
 	/// Function: getJS_AST
 	///
@@ -2831,25 +2840,25 @@ var functionNode = (function() {
 		if( this.jsFunctionAST ) {
 			return this.jsFunctionAST;
 		}
-		
+
 		inParser = inParser || parser;
 		if( inParser == null ) {
 			throw "Missing JS to AST parser";
 		}
-		
+
 		var prasedObj = parser.parse( "var "+this.functionName+" = "+this.jsFunctionString+";" );
 		if( prasedObj === null ) {
 			throw "Failed to parse JS code via JISON";
 		}
-			
+
 		// take out the function object, outside the var declarations
 		var funcAST = prasedObj.body[0].declarations[0].init;
 		this.jsFunctionAST = funcAST;
-		
+
 		return funcAST;
 	}
 	functionNode.prototype.getJS_AST = getJS_AST;
-	
+
 	///
 	/// Function: getWebglString
 	///
@@ -2858,15 +2867,15 @@ var functionNode = (function() {
 	/// Returns:
 	/// 	{String} webgl function string, result is cached under this.webglFunctionString
 	///
-	function getWebglFunctionString() {
+	function getWebglFunctionString(opt) {
 		if( this.webglFunctionString ) {
 			return this.webglFunctionString;
 		}
-		
-		return this.webglFunctionString = functionNode_webgl(this);
+
+		return this.webglFunctionString = functionNode_webgl(this, opt);
 	}
 	functionNode.prototype.getWebglFunctionString = getWebglFunctionString;
-	
+
 	///
 	/// Function: setWebglString
 	///
@@ -2879,7 +2888,7 @@ var functionNode = (function() {
 		this.webglFunctionString = shaderCode;
 	}
 	functionNode.prototype.setWebglFunctionString = setWebglFunctionString;
-	
+
 	return functionNode;
 })();
 
@@ -2949,7 +2958,7 @@ var functionBuilder = (function() {
 	///
 	/// Returns:
 	/// 	{[String,...]}  Returning list of function names that is traced. Including itself.
-	function traceFunctionCalls( functionName, retList ) {
+	function traceFunctionCalls( functionName, retList, opt ) {
 		functionName = functionName || "kernel";
 		retList = retList || [];
 		
@@ -2961,9 +2970,9 @@ var functionBuilder = (function() {
 			} else {
 				retList.push(functionName);
 				
-				fNode.getWebglFunctionString(); //ensure JS trace is done
+				fNode.getWebglFunctionString(opt); //ensure JS trace is done
 				for(var i=0; i<fNode.calledFunctions.length; ++i) {
-					this.traceFunctionCalls( fNode.calledFunctions[i], retList );
+					this.traceFunctionCalls( fNode.calledFunctions[i], retList, opt );
 				}
 			}
 		}
@@ -2981,12 +2990,12 @@ var functionBuilder = (function() {
 	/// Returns:
 	/// 	{String} The full webgl string, of all the various functions. Trace optimized if functionName given
 	///
-	function webglString_fromFunctionNames(functionList) {
+	function webglString_fromFunctionNames(functionList, opt) {
 		var ret = [];
 		for(var i=0; i<functionList.length; ++i) {
 			var node = this.nodeMap[functionList[i]];
 			if(node) {
-				ret.push( this.nodeMap[functionList[i]].getWebglFunctionString() );
+				ret.push( this.nodeMap[functionList[i]].getWebglFunctionString(opt) );
 			}
 		}
 		return ret.join("\n");
@@ -3002,11 +3011,15 @@ var functionBuilder = (function() {
 	/// Returns:
 	/// 	{String} The full webgl string, of all the various functions. Trace optimized if functionName given
 	///
-	function webglString(functionName) {
-		if(functionName) {
-			return this.webglString_fromFunctionNames( this.traceFunctionCalls(functionName, []).reverse() );
+	function webglString(functionName, opt) {
+		if (opt == undefined) {
+			opt = {};
 		}
-		return this.webglString_fromFunctionNames(Object.keys(this.nodeMap));
+		
+		if(functionName) {
+			return this.webglString_fromFunctionNames( this.traceFunctionCalls(functionName, [], opt).reverse(), opt );
+		}
+		return this.webglString_fromFunctionNames( Object.keys(this.nodeMap), opt );
 	}
 	functionBuilder.prototype.webglString = webglString;
 	
@@ -3201,6 +3214,11 @@ var functionBuilder = (function() {
 			return ret;
 		};
 		
+		ret.loopMaxIterations = function(max) {
+			opt.loopMaxIterations = max;
+			return ret;
+		};
+		
 		ret.wraparound = function() {
 			opt.wraparound = false;
 			return ret;
@@ -3251,12 +3269,12 @@ var functionBuilder = (function() {
 		if (dimensions.length == 2) {
 			return dimensions;
 		}
-		
+
 		var numTexels = dimensions[0];
 		for (var i=1; i<dimensions.length; i++) {
 			numTexels *= dimensions[i];
 		}
-		
+
 		// TODO: find out why this is broken in Safari
 		/*
 		var maxSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
@@ -3267,7 +3285,7 @@ var functionBuilder = (function() {
 			return [maxSize, height];
 		}
 		*/
-	
+
 		var w = Math.ceil(Math.sqrt(numTexels));
 		return [w, w];
 	}
@@ -3303,14 +3321,14 @@ var functionBuilder = (function() {
 		} else {
 			throw "Unknown dimensions of " + x;
 		}
-		
+
 		if (pad) {
 			ret = clone(ret);
 			while (ret.length < 3) {
 				ret.push(1);
 			}
 		}
-		
+
 		return ret;
 	}
 
@@ -3329,7 +3347,7 @@ var functionBuilder = (function() {
 		}
 		return tmp;
 	}
-	
+
 	function getArgumentType(arg) {
 		if (Array.isArray(arg)) {
 			return 'Array';
@@ -3341,7 +3359,7 @@ var functionBuilder = (function() {
 			return 'Unknown';
 		}
 	}
-	
+
 	function getProgramCacheKey(args, opt, outputDim) {
 		var key = '';
 		for (var i=0; i<args.length; i++) {
@@ -3355,21 +3373,21 @@ var functionBuilder = (function() {
 				}
 			}
 		}
-		
+
 		var specialFlags = '';
 		if (opt.wraparound) {
 			specialFlags += "Wraparound";
 		}
-		
+
 		if (opt.hardcodeConstants) {
 			specialFlags += "Hardcode";
 			specialFlags += '['+outputDim[0]+','+outputDim[1]+','+outputDim[2]+']';
 		}
-		
+
 		if (specialFlags) {
 			key = key + '-' + specialFlags;
 		}
-		
+
 		return key;
 	}
 
@@ -3377,25 +3395,25 @@ var functionBuilder = (function() {
 		var gpu = this;
 		var gl = this.gl;
 		var canvas = this.canvas;
-		
+
 		var builder = this.functionBuilder;
 		var endianness = this.endianness;
-		
+
 		var funcStr = kernel.toString();
 		if( !validateStringIsFunction(funcStr) ) {
 			throw "Unable to get body of kernel function";
 		}
-		
+
 		var paramNames = getParamNames(funcStr);
-		
+
 		var programCache = [];
-		
+
 		function ret() {
 			if (!opt.dimensions || opt.dimensions.length === 0) {
 				if (arguments.length != 1) {
 					throw "Auto dimensions only supported for kernels with only one input";
 				}
-				
+
 				var argType = getArgumentType(arguments[0]);
 				if (argType == "Array") {
 					opt.dimensions = getDimensions(argType);
@@ -3405,23 +3423,23 @@ var functionBuilder = (function() {
 					throw "Auto dimensions not supported for input type: " + argType;
 				}
 			}
-			
+
 			var texSize = dimToTexSize(gl, opt.dimensions);
 			canvas.width = texSize[0];
 			canvas.height = texSize[1];
 			gl.viewport(0, 0, texSize[0], texSize[1]);
-			
+
 			var threadDim = clone(opt.dimensions);
 			while (threadDim.length < 3) {
 				threadDim.push(1);
 			}
-			
+
 			var programCacheKey = getProgramCacheKey(arguments, opt, opt.dimensions);
 			var program = programCache[programCacheKey];
-			
+
 			if (program === undefined) {
 				var paramStr = '';
-				
+
 				var paramType = [];
 				for (var i=0; i<paramNames.length; i++) {
 					var argType = getArgumentType(arguments[i]);
@@ -3430,7 +3448,7 @@ var functionBuilder = (function() {
 						if (argType == "Array" || argType == "Texture") {
 							var paramDim = getDimensions(arguments[i], true);
 							var paramSize = dimToTexSize(gl, paramDim);
-							
+
 							paramStr += 'uniform sampler2D user_' + paramNames[i] + ';\n';
 							paramStr += 'vec2 user_' + paramNames[i] + 'Size = vec2(' + paramSize[0] + ',' + paramSize[1] + ');\n';
 							paramStr += 'vec3 user_' + paramNames[i] + 'Dim = vec3(' + paramDim[0] + ', ' + paramDim[1] + ', ' + paramDim[2] + ');\n';
@@ -3447,13 +3465,13 @@ var functionBuilder = (function() {
 						}
 					}
 				}
-				
+
 				var kernelNode = new functionNode(gpu, "kernel", kernel);
 				kernelNode.paramNames = paramNames;
 				kernelNode.paramType = paramType;
 				kernelNode.isRootKernel = true;
 				builder.addFunctionNode(kernelNode);
-				
+
 				var vertShaderSrc = [
 					'precision highp float;',
 					'precision highp int;',
@@ -3468,12 +3486,12 @@ var functionBuilder = (function() {
 					'   vTexCoord = aTexCoord;',
 					'}'
 				].join('\n');
-				
+
 				var fragShaderSrc = [
 					'precision highp float;',
 					'precision highp int;',
 					'',
-					'#define LOOP_MAX 100.0',
+					'#define LOOP_MAX '+ (opt.loopMaxIterations ? parseInt(opt.loopMaxIterations)+'.0' : '100.0'),
 					'',
 					opt.hardcodeConstants ? 'vec3 uOutputDim = vec3('+threadDim[0]+','+threadDim[1]+', '+ threadDim[2]+');' : 'uniform vec3 uOutputDim;',
 					opt.hardcodeConstants ? 'vec2 uTexSize = vec2('+texSize[0]+','+texSize[1]+');' : 'uniform vec2 uTexSize;',
@@ -3546,7 +3564,7 @@ var functionBuilder = (function() {
 					'}',
 					'',
 					paramStr,
-					builder.webglString("kernel"),
+					builder.webglString("kernel", opt),
 					'',
 					'void main(void) {',
 					'	index = floor(vTexCoord.s * float(uTexSize.x)) + floor(vTexCoord.t * float(uTexSize.y)) * uTexSize[0];',
@@ -3559,16 +3577,16 @@ var functionBuilder = (function() {
 					'	}',
 					'}'
 				].join('\n');
-				
+
 				var vertShader = gl.createShader(gl.VERTEX_SHADER);
 				var fragShader = gl.createShader(gl.FRAGMENT_SHADER);
-				
+
 				gl.shaderSource(vertShader, vertShaderSrc);
 				gl.shaderSource(fragShader, fragShaderSrc);
-				
+
 				gl.compileShader(vertShader);
 				gl.compileShader(fragShader);
-				
+
 				if (!gl.getShaderParameter(vertShader, gl.COMPILE_STATUS)) {
 					console.error("An error occurred compiling the shaders: " + gl.getShaderInfoLog(vertShader));
 					console.log(vertShaderSrc);
@@ -3579,21 +3597,21 @@ var functionBuilder = (function() {
 					console.log(fragShaderSrc);
 					throw "Error compiling fragment shader";
 				}
-				
+
 				if (opt.debug) {
 					console.log(fragShaderSrc);
 				}
-				
+
 				program = gl.createProgram();
 				gl.attachShader(program, vertShader);
 				gl.attachShader(program, fragShader);
 				gl.linkProgram(program);
-				
+
 				programCache[programCacheKey] = program;
 			}
-			
+
 			gl.useProgram(program);
-			
+
 			var vertices = new Float32Array([
 				-1, -1,
 				1, -1,
@@ -3610,21 +3628,21 @@ var functionBuilder = (function() {
 			gl.bufferData(gl.ARRAY_BUFFER, vertices.byteLength + texCoords.byteLength, gl.STATIC_DRAW);
 			gl.bufferSubData(gl.ARRAY_BUFFER, 0, vertices);
 			gl.bufferSubData(gl.ARRAY_BUFFER, texCoordOffset, texCoords);
-			
+
 			var aPosLoc = gl.getAttribLocation(program, "aPos");
 			gl.enableVertexAttribArray(aPosLoc);
 			gl.vertexAttribPointer(aPosLoc, 2, gl.FLOAT, gl.FALSE, 0, 0);
 			var aTexCoordLoc = gl.getAttribLocation(program, "aTexCoord");
 			gl.enableVertexAttribArray(aTexCoordLoc);
 			gl.vertexAttribPointer(aTexCoordLoc, 2, gl.FLOAT, gl.FALSE, 0, texCoordOffset);
-			
+
 			if (!opt.hardcodeConstants) {
 				var uOutputDimLoc = gl.getUniformLocation(program, "uOutputDim");
 				gl.uniform3fv(uOutputDimLoc, threadDim);
 				var uTexSizeLoc = gl.getUniformLocation(program, "uTexSize");
 				gl.uniform2fv(uTexSizeLoc, texSize);
 			}
-			
+
 			var textures = [];
 			var textureCount = 0;
 			for (textureCount=0; textureCount<paramNames.length; textureCount++) {
@@ -3632,7 +3650,7 @@ var functionBuilder = (function() {
 				if (Array.isArray(arguments[textureCount])) {
 					paramDim = getDimensions(arguments[textureCount], true);
 					paramSize = dimToTexSize(gl, paramDim);
-					
+
 					texture = gl.createTexture();
 					gl.activeTexture(gl["TEXTURE"+textureCount]);
 					gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -3640,20 +3658,20 @@ var functionBuilder = (function() {
 					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-					
+
 					var paramArray = flatten(arguments[textureCount]);
 					while (paramArray.length < paramSize[0] * paramSize[1]) {
 						paramArray.push(0);
 					}
 					var argBuffer = new Uint8Array((new Float32Array(paramArray)).buffer);
 					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, argBuffer);
-					
+
 					textures[textureCount] = texture;
-					
+
 					var paramLoc = gl.getUniformLocation(program, "user_" + paramNames[textureCount]);
 					var paramSizeLoc = gl.getUniformLocation(program, "user_" + paramNames[textureCount] + "Size");
 					var paramDimLoc = gl.getUniformLocation(program, "user_" + paramNames[textureCount] + "Dim");
-					
+
 					if (!opt.hardcodeConstants) {
 						gl.uniform3fv(paramDimLoc, paramDim);
 						gl.uniform2fv(paramSizeLoc, paramSize);
@@ -3667,14 +3685,14 @@ var functionBuilder = (function() {
 					paramSize = arguments[textureCount].size;
 					texture = arguments[textureCount].texture;
 					textures[textureCount] = texture;
-					
+
 					gl.activeTexture(gl["TEXTURE"+textureCount]);
 					gl.bindTexture(gl.TEXTURE_2D, texture);
-					
+
 					var paramLoc = gl.getUniformLocation(program, "user_" + paramNames[textureCount]);
 					var paramSizeLoc = gl.getUniformLocation(program, "user_" + paramNames[textureCount] + "Size");
 					var paramDimLoc = gl.getUniformLocation(program, "user_" + paramNames[textureCount] + "Dim");
-					
+
 					gl.uniform3fv(paramDimLoc, paramDim);
 					gl.uniform2fv(paramSizeLoc, paramSize);
 					gl.uniform1i(paramLoc, textureCount);
@@ -3682,7 +3700,7 @@ var functionBuilder = (function() {
 					throw "Input type not supported: " + arguments[textureCount];
 				}
 			}
-			
+
 			if (opt.outputToTexture) {
 				var outputTexture = gl.createTexture();
 				gl.activeTexture(gl["TEXTURE"+textureCount]);
@@ -3692,7 +3710,7 @@ var functionBuilder = (function() {
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texSize[0], texSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-				
+
 				var framebuffer = gl.createFramebuffer();
 				framebuffer.width = texSize[0];
 				framebuffer.height = texSize[1];
@@ -3703,18 +3721,18 @@ var functionBuilder = (function() {
 			} else {
 				gl.bindRenderbuffer(gl.RENDERBUFFER, null);
    				gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-   				
+
 				gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-				
+
 				if (opt.graphical) {
 					return;
 				}
-				
+
 				var bytes = new Uint8Array(texSize[0]*texSize[1]*4);
 				gl.readPixels(0, 0, texSize[0], texSize[1], gl.RGBA, gl.UNSIGNED_BYTE, bytes);
 				var result = Array.prototype.slice.call(new Float32Array(bytes.buffer));
 				result.length = threadDim[0] * threadDim[1] * threadDim[2];
-				
+
 				if (opt.dimensions.length == 1) {
 					return result;
 				} else if (opt.dimensions.length == 2) {
@@ -3727,46 +3745,51 @@ var functionBuilder = (function() {
 				}
 			}
 		}
-		
+
 		ret.dimensions = function(dim) {
 			opt.dimensions = dim;
 			return ret;
 		};
-		
+
 		ret.debug = function(flag) {
 			opt.debug = flag;
 			return ret;
 		};
-		
+
 		ret.graphical = function(flag) {
 			opt.graphical = flag;
 			return ret;
 		};
 		
+		ret.loopMaxIterations = function(max) {
+			opt.loopMaxIterations = max;
+			return ret;
+		};
+
 		ret.wraparound = function(flag) {
 			opt.wraparound = flag;
 			return ret;
 		};
-		
+
 		ret.hardcodeConstants = function(flag) {
 			opt.hardcodeConstants = flag;
 			return ret;
 		};
-		
+
 		ret.outputToTexture = function(outputToTexture) {
 			opt.outputToTexture = outputToTexture;
 			return ret;
 		};
-		
+
 		ret.mode = function(mode) {
 			opt.mode = mode;
 			return gpu.createKernel(kernel, opt);
 		};
-		
+
 		ret.getCanvas = function() {
 			return gpu.getCanvas();
 		};
-		
+
 		return ret;
 	};
 
