@@ -2339,6 +2339,8 @@ var functionNode_webgl = (function() {
 		return retArr;
 	}
 	
+	var epsilon = 0.00001;
+	
 	/// Prases the abstract syntax tree, binary expression
 	///
 	/// @param ast          the AST object to parse
@@ -2353,12 +2355,18 @@ var functionNode_webgl = (function() {
 			retArr.push(",");
 			ast_generic(ast.right, retArr, funcParam);
 			retArr.push(")");
+		} else if (ast.operator == "==" || ast.operator == "===") {
+			retArr.push("abs((");
+			ast_generic(ast.left, retArr, funcParam);
+			retArr.push(") - (");
+			ast_generic(ast.right, retArr, funcParam);
+			retArr.push(")) < " + epsilon);
 		} else {
 			ast_generic(ast.left, retArr, funcParam);
 			retArr.push(ast.operator);
 			ast_generic(ast.right, retArr, funcParam);
 		}
-
+		
 		return retArr;
 	}
 	
@@ -2573,9 +2581,17 @@ var functionNode_webgl = (function() {
 	}
 
 	function ast_LogicalExpression(logNode, retArr, funcParam) {
-		ast_generic(logNode.left, retArr, funcParam);
-		ast_generic(logNode.operator, retArr, funcParam);
-		ast_generic(logNode.right, retArr, funcParam);
+		if (logNode.operator == "==" || logNode.operator == "===") {
+			retArr.push("abs((");
+			ast_generic(logNode.left, retArr, funcParam);
+			retArr.push(") - (");
+			ast_generic(logNode.right, retArr, funcParam);
+			retArr.push(")) < " + epsilon);
+		} else {
+			ast_generic(logNode.left, retArr, funcParam);
+			ast_generic(logNode.operator, retArr, funcParam);
+			ast_generic(logNode.right, retArr, funcParam);
+		}
 		return retArr;
 	}
 
@@ -3595,7 +3611,7 @@ var functionBuilder = (function() {
 					'}',
 					'',
 					'float get(sampler2D tex, vec2 texSize, vec3 texDim, float z, float y, float x) {',
-					'	vec3 xyz = vec3(x, y, z);',
+					'	vec3 xyz = vec3(floor(x), floor(y), floor(z));',
 					(opt.wraparound ? '	xyz = mod(xyz, texDim);' : ''),
 					'	float index = (xyz.z * texDim.x * texDim.y) + (xyz.y * texDim.x) + xyz.x;',
 					'	float t = (floor(index / texSize.x) + 0.5) / texSize.y;',
