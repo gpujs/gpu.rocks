@@ -395,4 +395,5 @@ dl dd {
     background-position: center;
     background-size: 100% auto;
     color: #fff;
+    background-repeat: no-repeat;
 }
