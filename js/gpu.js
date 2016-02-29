@@ -3336,10 +3336,6 @@ var functionBuilder = (function() {
 
 (function(GPU) {
 	function dimToTexSize(gl, dimensions) {
-		if (dimensions.length == 2) {
-			return dimensions;
-		}
-
 		var numTexels = dimensions[0];
 		for (var i=1; i<dimensions.length; i++) {
 			numTexels *= dimensions[i];
@@ -3491,6 +3487,15 @@ var functionBuilder = (function() {
 			}
 
 			var texSize = dimToTexSize(gl, opt.dimensions);
+			
+			if (opt.graphical) {
+				if (opt.dimensions.length != 2) {
+					throw "Output must have 2 dimensions on graphical mode";
+				}
+				
+				texSize = GPUUtils.clone(opt.dimensions);
+			}
+			
 			canvas.width = texSize[0];
 			canvas.height = texSize[1];
 			gl.viewport(0, 0, texSize[0], texSize[1]);
