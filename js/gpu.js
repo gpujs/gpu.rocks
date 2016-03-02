@@ -3604,7 +3604,7 @@ var functionBuilder = (function() {
 					'}',
 					'',
 					'int integerMod(int x, int y) {',
-					'	return x - y * int(float(x)/float(y));',
+					'	return int(integerMod(float(x), float(y))+0.5);',
 					'}',
 					'',
 					'/* Begin: http://stackoverflow.com/questions/7059962/how-do-i-convert-a-vec4-rgba-value-to-a-float */',
