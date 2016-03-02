@@ -3575,6 +3575,7 @@ var functionBuilder = (function() {
 				var vertShaderSrc = [
 					'precision highp float;',
 					'precision highp int;',
+					'precision highp sampler2D;',
 					'',
 					'attribute vec2 aPos;',
 					'attribute vec2 aTexCoord;',
@@ -3621,10 +3622,9 @@ var functionBuilder = (function() {
 					'	} else {',
 					'		exponent = int(exponentF) - 127;',
 					'	}',
-					'	float mantissa = F / exp2(float(exponent)) - 1.0;',
-					'	int mantissa_part1 = integerMod(int(mantissa * exp2(float(23))), 256);',
-					'	int mantissa_part2 = integerMod(int(mantissa * exp2(float(15))), 256);',
-					'	int mantissa_part3 = integerMod(int(mantissa * exp2(float(7))), 128);',
+					'	int mantissa_part1 = integerMod(int(F * exp2(float(23-exponent))), 256);',
+					'	int mantissa_part2 = integerMod(int(F * exp2(float(15-exponent))), 256);',
+					'	int mantissa_part3 = integerMod(int(F * exp2(float(7-exponent))), 128);',
 					'	exponent += 127;',
 					'	int a = 128 * sign + (exponent)/2;',
 					'	int b = 128 * integerMod(exponent, 2) + mantissa_part3;',
@@ -3873,6 +3873,10 @@ var functionBuilder = (function() {
 
 				var bytes = new Uint8Array(texSize[0]*texSize[1]*4);
 				gl.readPixels(0, 0, texSize[0], texSize[1], gl.RGBA, gl.UNSIGNED_BYTE, bytes);
+				if (opt.debug) {
+					console.log("Bytes: ", bytes);
+					window.lolbytes = bytes;
+				}
 				var result = Array.prototype.slice.call(new Float32Array(bytes.buffer));
 				result.length = threadDim[0] * threadDim[1] * threadDim[2];
 
