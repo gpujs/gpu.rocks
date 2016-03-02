@@ -2251,7 +2251,7 @@ var functionNode_webgl = (function() {
 		
 		// Setup function return type and name
 		if(funcParam.isRootKernel) {
-			retArr.push("float");
+			retArr.push("void");
 		} else {
 			retArr.push(funcParam.returnType);
 		}
@@ -2282,10 +2282,6 @@ var functionNode_webgl = (function() {
 			retArr.push("\n");
 		}
 		
-		if(funcParam.isRootKernel) {
-			retArr.push("\nreturn 0.0;");
-		}
-		
 		// Function closing
 		retArr.push("}\n");
 		return retArr;
@@ -2299,9 +2295,16 @@ var functionNode_webgl = (function() {
 	///
 	/// @returns  the appened retArr
 	function ast_ReturnStatement(ast, retArr, funcParam) {
-		retArr.push("return ");
-		ast_generic(ast.argument, retArr, funcParam);
-		retArr.push(";");
+		if(funcParam.isRootKernel) {
+			retArr.push("kernelResult = ");
+			ast_generic(ast.argument, retArr, funcParam);
+			retArr.push(";");
+			retArr.push("return;");
+		} else {
+			retArr.push("return ");
+			ast_generic(ast.argument, retArr, funcParam);
+			retArr.push(";");
+		}
 		
 		//throw ast_errorOutput(
 		//	"Non main function return, is not supported : "+funcParam.currentFunctionNamespace,
@@ -3625,25 +3628,34 @@ var functionBuilder = (function() {
 					opt.hardcodeConstants ? 'vec2 uTexSize = vec2('+texSize[0]+','+texSize[1]+');' : 'uniform vec2 uTexSize;',
 					'varying vec2 vTexCoord;',
 					'',
-					'float actuallyMod(float x, float y) {',
-					'	return x - y * floor(x/y);',
+					'float integerMod(float x, float y) {',
+					'	float res = x - y * floor(x/y);',
+					'	if (res > y - 0.5) res = 0.0;',
+					'	return res;',
+					'}',
+					'',
+					'int integerMod(int x, int y) {',
+					'	return x - y * int(float(x)/float(y));',
 					'}',
 					'',
 					opt.offsetRangeHack ? '#define OFFSET_HACK' : '',
 					'#ifndef OFFSET_HACK',
 					'/* Begin: http://stackoverflow.com/questions/7059962/how-do-i-convert-a-vec4-rgba-value-to-a-float */',
 					'highp vec4 encode32(highp float f) {',
-					'	highp float e =5.0;',
-					'	highp float F = abs(f); ',
-					'	highp float sign = step(0.0,-f);',
-					'	highp float exponent = floor(log2(F)); ',
-					'	highp float mantissa = (exp2(- exponent) * F);',
-					'	exponent = floor(log2(F) + 127.0) + floor(log2(mantissa));',
-					'	highp vec4 rgba;',
-					'	rgba.a = 128.0 * sign + floor(exponent*exp2(-1.0));',
-					'	rgba.b = 128.0 * actuallyMod(exponent,2.0) + actuallyMod(floor(mantissa*128.0),128.0);',
-					'	rgba.g = floor(actuallyMod(floor(mantissa*exp2(23.0 -8.0)),exp2(8.0)));',
-					'	rgba.r = floor(exp2(23.0)*actuallyMod(mantissa,exp2(-15.0)));',
+					'	highp float F = abs(f);',
+					'	int sign = f < 0.0 ? 1 : 0;',
+					'	float log2F = log2(F);',
+					'	int exponent = log2F < 0.0 ? int(log2F)-1 : int(log2F);',
+					'	float mantissa = F / exp2(float(exponent)) - 1.0;',
+					'	int mantissa_part1 = integerMod(int(mantissa * exp2(float(23))), 256);',
+					'	int mantissa_part2 = integerMod(int(mantissa * exp2(float(15))), 256);',
+					'	int mantissa_part3 = integerMod(int(mantissa * exp2(float(7))), 128);',
+					'	exponent += 127;',
+					'	int a = 128 * sign + (exponent)/2;',
+					'	int b = 128 * integerMod(exponent, 2) + mantissa_part3;',
+					'	int g = mantissa_part2;',
+					'	int r = mantissa_part1;',
+					'	vec4 rgba = vec4(float(r), float(g), float(b), float(a));',
 					(endianness == 'LE' ? '' : '	rgba.rgba = rgba.abgr;'),
 					'	return rgba / 255.0;',
 					'}',
@@ -3657,14 +3669,18 @@ var functionBuilder = (function() {
 					'	int a = int(rgba.a+0.5);',
 					'	int sign = a > 127 ? -1 : 1;',
 					'	int exponent = 2 * (a > 127 ? a - 128 : a) + (b > 127 ? 1 : 0);',
-					'	if (exponent == 0) return float(sign) * 0.0;',
-					'	exponent -= 127;',
-					'	float f = exp2(float(exponent));',
-					'	f += float(b > 127 ? b - 128 : b) * exp2(float(exponent-7));',
-					'	f += float(g) * exp2(float(exponent-15));',
-					'	f += float(r) * exp2(float(exponent-23));',
-					'	f *= float(sign);',
-					'	return f;',
+					'	float res;',
+					'	if (exponent == 0) {',
+					'		res = float(sign) * 0.0;',
+					'	} else {',
+					'		exponent -= 127;',
+					'		res = exp2(float(exponent));',
+					'		res += float(b > 127 ? b - 128 : b) * exp2(float(exponent-7));',
+					'		res += float(g) * exp2(float(exponent-15));',
+					'		res += float(r) * exp2(float(exponent-23));',
+					'		res *= float(sign);',
+					'	}',
+					'	return res;',
 					'}',
 					'/* End: http://stackoverflow.com/questions/7059962/how-do-i-convert-a-vec4-rgba-value-to-a-float */',
 					'#else',
@@ -3703,7 +3719,7 @@ var functionBuilder = (function() {
 					'	float z = floor(idx / (texDim.x * texDim.y));',
 					'	idx -= z * texDim.x * texDim.y;',
 					'	float y = floor(idx / texDim.x);',
-					'	float x = actuallyMod(idx, texDim.x);',
+					'	float x = integerMod(idx, texDim.x);',
 					'	return vec3(x, y, z);',
 					'}',
 					'',
@@ -3712,7 +3728,7 @@ var functionBuilder = (function() {
 					(opt.wraparound ? '	xyz = mod(xyz, texDim);' : ''),
 					'	float index = (xyz.z * texDim.x * texDim.y) + (xyz.y * texDim.x) + xyz.x;',
 					'	float t = floor(index / texSize.x);',
-					'	float s = actuallyMod(index, texSize.x);',
+					'	float s = integerMod(index, texSize.x);',
 					'	if (s > texSize.x - 0.00001) s = 0.0;',
 					'	s += 0.5;',
 					'	t += 0.5;',
@@ -3739,6 +3755,7 @@ var functionBuilder = (function() {
 					'	color(r,g,b,1.0);',
 					'}',
 					'',
+					'float kernelResult = 0.0;',
 					paramStr,
 					constantsStr,
 					builder.webglString("kernel", opt),
@@ -3746,11 +3763,11 @@ var functionBuilder = (function() {
 					'void main(void) {',
 					'	index = floor(vTexCoord.s * float(uTexSize.x)) + floor(vTexCoord.t * float(uTexSize.y)) * uTexSize.x;',
 					'	threadId = indexTo3D(index, uOutputDim);',
-					'	vec4 outputColor = encode32(kernel());',
+					'	kernel();',
 					'	if (outputToColor == true) {',
 					'		gl_FragColor = actualColor;',
 					'	} else {',
-					'		gl_FragColor = outputColor;',
+					'		gl_FragColor = encode32(kernelResult);',
 					'	}',
 					'}'
 				].join('\n');

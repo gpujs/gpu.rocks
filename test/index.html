@@ -8,12 +8,12 @@
 
 <script src="../js/gpu.js"></script>
 <script>
-var testLimit = 65535;
+var testLimit = 100;
 
 var gpu = new GPU();
 var test = gpu.createKernel(function(X) {
     return X[this.thread.x];
-}).dimensions([testLimit]);
+}, {debug:true}).dimensions([testLimit]);
 
 var arr = [];
 for (var i=0; i<testLimit; i++) {
