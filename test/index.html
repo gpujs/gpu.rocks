@@ -67,6 +67,32 @@ if (pass) {
     console.log("FAIL");
 }
 
+var arr = [];
+for (var i=0; i<testLimit; i++) {
+    arr.push(i/(testLimit*100));
+}
+
+var res = test(arr);
+
+console.log("Floating point test part 2:");
+
+var epsilon = 0.000001;
+var pass = true;
+for (var i=0; i<testLimit; i++) {
+    if (Math.abs(arr[i]-res[i]) > epsilon) {
+        console.warn("Expected " + arr[i] + ", got " + res[i]);
+        pass = false;
+    }
+}
+
+console.log(test(arr));
+
+if (pass) {
+    console.log("PASS");
+} else {
+    console.log("FAIL");
+}
+
 </script>
 </body>
 </html>
