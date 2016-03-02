@@ -8,7 +8,7 @@
 
 <script src="../js/gpu.js"></script>
 <script>
-var testLimit = 100;
+var testLimit = 10000;
 
 var gpu = new GPU();
 var test = gpu.createKernel(function(X) {
@@ -43,7 +43,7 @@ if (pass) {
 
 var arr = [];
 for (var i=0; i<testLimit; i++) {
-    arr.push(i/testLimit);
+    arr.push(2*i/testLimit);
 }
 
 var res = test(arr);
