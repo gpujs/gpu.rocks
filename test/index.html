@@ -8,7 +8,7 @@
 
 <script src="../js/gpu.js"></script>
 <script>
-var testLimit = 10000;
+var testLimit = 16777216/2;
 var epsilon = 0.001;
 
 var gpu = new GPU();
@@ -30,6 +30,33 @@ for (var i=0; i<testLimit; i++) {
     if (Math.abs(arr[i]-res[i]) > epsilon) {
         console.warn("Expected " + arr[i] + ", got " + res[i]);
         pass = false;
+        break;
+    }
+}
+
+console.log(test(arr));
+
+if (pass) {
+    console.log("PASS");
+} else {
+    console.log("FAIL");
+}
+
+var arr = [];
+for (var i=0; i<testLimit; i++) {
+    arr.push(-i);
+}
+
+var res = test(arr);
+
+console.log("Integer test:");
+
+var pass = true;
+for (var i=0; i<testLimit; i++) {
+    if (Math.abs(arr[i]-res[i]) > epsilon) {
+        console.warn("Expected " + arr[i] + ", got " + res[i]);
+        pass = false;
+        break;
     }
 }
 
@@ -53,8 +80,12 @@ console.log("Floating point test:");
 var pass = true;
 for (var i=0; i<testLimit; i++) {
     if (Math.abs(arr[i]-res[i]) > epsilon) {
+        console.log(2*i/testLimit);
+        console.log(i);
+        console.log(testLimit);
         console.warn("Expected " + arr[i] + ", got " + res[i]);
         pass = false;
+        break;
     }
 }
 
@@ -80,6 +111,7 @@ for (var i=0; i<testLimit; i++) {
     if (Math.abs(arr[i]-res[i]) > epsilon) {
         console.warn("Expected " + arr[i] + ", got " + res[i]);
         pass = false;
+        break;
     }
 }
 
@@ -91,30 +123,54 @@ if (pass) {
     console.log("FAIL");
 }
 
-var arr = [];
-for (var i=0; i<testLimit; i++) {
-    arr.push(Math.random() * 10000);
+function getRandomArbitrary(min, max) {
+  return Math.random() * (max - min) + min;
 }
 
-var res = test(arr);
-
-console.log("Random number test:");
-
-var pass = true;
-for (var i=0; i<testLimit; i++) {
-    if (Math.abs(arr[i]-res[i]) > epsilon) {
-        console.warn("Expected " + arr[i] + ", got " + res[i]);
-        pass = false;
+var totalAvgError = 0;
+var avgError = 0;
+var runCount = 0;
+function randomTest() {
+    var arr = [];
+    testLimit = 10;
+    test.dimensions([testLimit]);
+    for (var i=0; i<testLimit; i++) {
+        arr.push(getRandomArbitrary(-16777216, 16777216));
     }
+    
+    var res = test(arr);
+
+    console.log("Random number test:");
+
+    var pass = true;
+    var error;
+    for (var i=0; i<testLimit; i++) {
+        error = 100 * Math.abs(Math.abs(arr[i]-res[i]) / arr[i]);
+        if (error > 0.00001) {
+            console.warn("Expected " + arr[i] + ", got " + res[i]);
+            pass = false;
+        }
+        avgError += error;
+    }
+    avgError /= testLimit;
+    totalAvgError *= runCount;
+    totalAvgError += avgError;
+    runCount++;
+    totalAvgError /= runCount;
+
+    console.log(test(arr));
+
+    if (pass) {
+        console.log("PASS");
+    } else {
+        console.log("FAIL");
+    }
+    console.log("Average error: " + totalAvgError.toFixed(20) + "%");
+    
+    //if (pass) setTimeout(randomTest, 500);
 }
 
-console.log(test(arr));
-
-if (pass) {
-    console.log("PASS");
-} else {
-    console.log("FAIL");
-}
+randomTest();
 
 </script>
 </body>
