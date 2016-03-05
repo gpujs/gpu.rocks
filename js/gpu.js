@@ -3614,8 +3614,6 @@ var functionBuilder = (function() {
 					'		res += integerMod(rgba.b, 128.0) * exp2(exponent-7.0);',
 					'		res += rgba.g * exp2(exponent-15.0);',
 					'		res += rgba.r * exp2(exponent-23.0);',
-					'		//highp float mantissa_part1 = integerMod(res * exp2(23.0-exponent), 256.0);',
-					'		//res -= ceil(mantissa_part1 - rgba.r) * exp2(exponent-23.0);',
 					'		res *= sign;',
 					'	}',
 					'	return res;',
@@ -3789,16 +3787,8 @@ var functionBuilder = (function() {
 						paramArray.push(0);
 					}
 					
-					/*
 					var argBuffer = new Uint8Array((new Float32Array(paramArray)).buffer);
 					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, argBuffer);
-					*/
-					paramArray = [].concat.apply([], paramArray.map(function(x) {
-						return [x,x,x,x];
-					}));
-					var argBuffer = new Float32Array(paramArray);
-					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.FLOAT, argBuffer);
-
 					textures[textureCount] = texture;
 
 					var paramLoc = gl.getUniformLocation(program, "user_" + paramNames[textureCount]);
