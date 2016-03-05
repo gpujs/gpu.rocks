@@ -3293,18 +3293,24 @@ var functionBuilder = (function() {
 			return ret;
 		};
 
-		ret.wraparound = function() {
-			opt.wraparound = false;
+		ret.wraparound = function(flag) {
+			console.warn("Wraparound mode is not supported and undocumented.");
+			opt.wraparound = flag;
 			return ret;
 		};
 
-		ret.hardcodeConstants = function() {
-			opt.hardcodeConstants = false;
+		ret.hardcodeConstants = function(flag) {
+			opt.hardcodeConstants = flag;
 			return ret;
 		};
 
-		ret.outputToTexture = function() {
-			opt.outputToTexture = false;
+		ret.outputToTexture = function(flag) {
+			opt.outputToTexture = flag;
+			return ret;
+		};
+		
+		ret.floatTextures = function(flag) {
+			opt.floatTextures = flag;
 			return ret;
 		};
 
@@ -3322,27 +3328,15 @@ var functionBuilder = (function() {
 })(GPU);
 
 (function(GPU) {
-	function dimToTexSize(gpu, dimensions, output) {
+	function dimToTexSize(opt, dimensions, output) {
 		var numTexels = dimensions[0];
 		for (var i=1; i<dimensions.length; i++) {
 			numTexels *= dimensions[i];
 		}
 		
-		if (gpu.OES_texture_float && !output) {
+		if (opt.floatTextures && !output) {
 			numTexels = Math.ceil(numTexels / 4);
 		}
-
-		// TODO: find out why this is broken in Safari
-		/*
-		var gl = gpu.getGl();
-		var maxSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-		if (numTexels < maxSize) {
-			return [numTexels, 1];
-		} else {
-			var height = Math.ceil(numTexels / maxSize);
-			return [maxSize, height];
-		}
-		*/
 
 		var w = Math.ceil(Math.sqrt(numTexels));
 		return [w, w];
@@ -3481,6 +3475,10 @@ var functionBuilder = (function() {
 		var programCache = [];
 
 		function ret() {
+			if (opt.floatTextures && !gpu.OES_texture_float) {
+				throw "Float textures are not supported on this browser";
+			}
+			
 			if (!opt.dimensions || opt.dimensions.length === 0) {
 				if (arguments.length != 1) {
 					throw "Auto dimensions only supported for kernels with only one input";
@@ -3663,19 +3661,19 @@ var functionBuilder = (function() {
 					'	highp vec3 xyz = vec3(floor(x + 0.5), floor(y + 0.5), floor(z + 0.5));',
 					(opt.wraparound ? '	xyz = mod(xyz, texDim);' : ''),
 					'	highp float index = floor((xyz.z * texDim.x * texDim.y) + (xyz.y * texDim.x) + xyz.x + 0.5);',
-					(gpu.OES_texture_float ? '	int channel = int(integerMod(index, 4.0));' : ''),
-					(gpu.OES_texture_float ? '	index = float(int(index)/4);' : ''),
+					(opt.floatTextures ? '	int channel = int(integerMod(index, 4.0));' : ''),
+					(opt.floatTextures ? '	index = float(int(index)/4);' : ''),
 					'	highp float w = floor(texSize.x + 0.5);',
 					'	highp float s = integerMod(index, w);',
 					'	highp float t = float(int(index) / int(w));',
 					'	s += 0.5;',
 					'	t += 0.5;',
-					(gpu.OES_texture_float ? '	index = float(int(index)/4);' : ''),
+					(opt.floatTextures ? '	index = float(int(index)/4);' : ''),
 					'	highp vec4 texel = texture2D(tex, vec2(s / texSize.x, t / texSize.y));',
-					(gpu.OES_texture_float ? '	if (channel == 0) return texel.r;' : ''),
-					(gpu.OES_texture_float ? '	if (channel == 1) return texel.g;' : ''),
-					(gpu.OES_texture_float ? '	if (channel == 2) return texel.b;' : ''),
-					(gpu.OES_texture_float ? '	if (channel == 3) return texel.a;' : ''),
+					(opt.floatTextures ? '	if (channel == 0) return texel.r;' : ''),
+					(opt.floatTextures ? '	if (channel == 1) return texel.g;' : ''),
+					(opt.floatTextures ? '	if (channel == 2) return texel.b;' : ''),
+					(opt.floatTextures ? '	if (channel == 3) return texel.a;' : ''),
 					'	return decode32(texel);',
 					'}',
 					'',
@@ -3797,7 +3795,7 @@ var functionBuilder = (function() {
 
 					var paramArray = flatten(arguments[textureCount]);
 					var paramLength = paramSize[0] * paramSize[1];
-					if (gpu.OES_texture_float) {
+					if (opt.floatTextures) {
 						paramLength *= 4;
 					}
 					while (paramArray.length < paramLength) {
@@ -3805,7 +3803,7 @@ var functionBuilder = (function() {
 					}
 					
 					var argBuffer;
-					if (gpu.OES_texture_float) {
+					if (opt.floatTextures) {
 						argBuffer = new Float32Array(paramArray);
 						gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.FLOAT, argBuffer);
 					} else {
@@ -3918,6 +3916,7 @@ var functionBuilder = (function() {
 		};
 
 		ret.wraparound = function(flag) {
+			console.warn("Wraparound mode is not supported and undocumented.");
 			opt.wraparound = flag;
 			return ret;
 		};
@@ -3927,8 +3926,13 @@ var functionBuilder = (function() {
 			return ret;
 		};
 
-		ret.outputToTexture = function(outputToTexture) {
-			opt.outputToTexture = outputToTexture;
+		ret.outputToTexture = function(flag) {
+			opt.outputToTexture = flag;
+			return ret;
+		};
+		
+		ret.floatTextures = function(flag) {
+			opt.floatTextures = flag;
 			return ret;
 		};
 
