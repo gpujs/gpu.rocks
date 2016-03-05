@@ -1937,9 +1937,9 @@ var GPU = (function() {
 			gl = canvas.getContext("experimental-webgl", glOpt) || canvas.getContext("webgl", glOpt);
 		}
 
-		gl.getExtension('OES_texture_float');
-		gl.getExtension('OES_texture_float_linear');
-		gl.getExtension('OES_element_index_uint');
+		this.OES_texture_float = gl.getExtension('OES_texture_float');
+		this.OES_texture_float_linear = gl.getExtension('OES_texture_float_linear');
+		this.OES_texture_index_uint = gl.getExtension('OES_element_index_uint');
 
 		this.gl = gl;
 		this.canvas = canvas;
@@ -3322,14 +3322,19 @@ var functionBuilder = (function() {
 })(GPU);
 
 (function(GPU) {
-	function dimToTexSize(gl, dimensions) {
+	function dimToTexSize(gpu, dimensions, output) {
 		var numTexels = dimensions[0];
 		for (var i=1; i<dimensions.length; i++) {
 			numTexels *= dimensions[i];
 		}
+		
+		if (gpu.OES_texture_float && !output) {
+			numTexels = Math.ceil(numTexels / 4);
+		}
 
 		// TODO: find out why this is broken in Safari
 		/*
+		var gl = gpu.getGl();
 		var maxSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
 		if (numTexels < maxSize) {
 			return [numTexels, 1];
@@ -3491,7 +3496,7 @@ var functionBuilder = (function() {
 				}
 			}
 
-			var texSize = dimToTexSize(gl, opt.dimensions);
+			var texSize = dimToTexSize(gpu, opt.dimensions, true);
 			
 			if (opt.graphical) {
 				if (opt.dimensions.length != 2) {
@@ -3531,7 +3536,7 @@ var functionBuilder = (function() {
 					if (opt.hardcodeConstants) {
 						if (argType == "Array" || argType == "Texture") {
 							var paramDim = getDimensions(arguments[i], true);
-							var paramSize = dimToTexSize(gl, paramDim);
+							var paramSize = dimToTexSize(gpu, paramDim);
 
 							paramStr += 'uniform highp sampler2D user_' + paramNames[i] + ';\n';
 							paramStr += 'highp vec2 user_' + paramNames[i] + 'Size = vec2(' + paramSize[0] + '.0, ' + paramSize[1] + '.0);\n';
@@ -3658,12 +3663,20 @@ var functionBuilder = (function() {
 					'	highp vec3 xyz = vec3(floor(x + 0.5), floor(y + 0.5), floor(z + 0.5));',
 					(opt.wraparound ? '	xyz = mod(xyz, texDim);' : ''),
 					'	highp float index = floor((xyz.z * texDim.x * texDim.y) + (xyz.y * texDim.x) + xyz.x + 0.5);',
+					(gpu.OES_texture_float ? '	int channel = int(integerMod(index, 4.0));' : ''),
+					(gpu.OES_texture_float ? '	index = float(int(index)/4);' : ''),
 					'	highp float w = floor(texSize.x + 0.5);',
 					'	highp float s = integerMod(index, w);',
 					'	highp float t = float(int(index) / int(w));',
 					'	s += 0.5;',
 					'	t += 0.5;',
-					'	return decode32(texture2D(tex, vec2(s / texSize.x, t / texSize.y)));',
+					(gpu.OES_texture_float ? '	index = float(int(index)/4);' : ''),
+					'	highp vec4 texel = texture2D(tex, vec2(s / texSize.x, t / texSize.y));',
+					(gpu.OES_texture_float ? '	if (channel == 0) return texel.r;' : ''),
+					(gpu.OES_texture_float ? '	if (channel == 1) return texel.g;' : ''),
+					(gpu.OES_texture_float ? '	if (channel == 2) return texel.b;' : ''),
+					(gpu.OES_texture_float ? '	if (channel == 3) return texel.a;' : ''),
+					'	return decode32(texel);',
 					'}',
 					'',
 					'highp float get(highp sampler2D tex, highp vec2 texSize, highp vec3 texDim, highp float y, highp float x) {',
@@ -3772,7 +3785,7 @@ var functionBuilder = (function() {
 				var paramDim, paramSize, texture;
 				if (Array.isArray(arguments[textureCount])) {
 					paramDim = getDimensions(arguments[textureCount], true);
-					paramSize = dimToTexSize(gl, paramDim);
+					paramSize = dimToTexSize(gpu, paramDim);
 
 					texture = gl.createTexture();
 					gl.activeTexture(gl["TEXTURE"+textureCount]);
@@ -3783,12 +3796,22 @@ var functionBuilder = (function() {
 					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
 					var paramArray = flatten(arguments[textureCount]);
-					while (paramArray.length < paramSize[0] * paramSize[1]) {
+					var paramLength = paramSize[0] * paramSize[1];
+					if (gpu.OES_texture_float) {
+						paramLength *= 4;
+					}
+					while (paramArray.length < paramLength) {
 						paramArray.push(0);
 					}
 					
-					var argBuffer = new Uint8Array((new Float32Array(paramArray)).buffer);
-					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, argBuffer);
+					var argBuffer;
+					if (gpu.OES_texture_float) {
+						argBuffer = new Float32Array(paramArray);
+						gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.FLOAT, argBuffer);
+					} else {
+						argBuffer = new Uint8Array((new Float32Array(paramArray)).buffer);
+						gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, argBuffer);
+					}
 					textures[textureCount] = texture;
 
 					var paramLoc = gl.getUniformLocation(program, "user_" + paramNames[textureCount]);
