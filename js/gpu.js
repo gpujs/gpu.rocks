@@ -2342,8 +2342,6 @@ var functionNode_webgl = (function() {
 		return retArr;
 	}
 	
-	var epsilon = 0.00001;
-	
 	/// Prases the abstract syntax tree, binary expression
 	///
 	/// @param ast          the AST object to parse
@@ -2358,12 +2356,6 @@ var functionNode_webgl = (function() {
 			retArr.push(",");
 			ast_generic(ast.right, retArr, funcParam);
 			retArr.push(")");
-		} else if (ast.operator == "==" || ast.operator == "===") {
-			retArr.push("abs((");
-			ast_generic(ast.left, retArr, funcParam);
-			retArr.push(") - (");
-			ast_generic(ast.right, retArr, funcParam);
-			retArr.push(")) < " + epsilon);
 		} else {
 			ast_generic(ast.left, retArr, funcParam);
 			retArr.push(ast.operator);
@@ -2584,17 +2576,9 @@ var functionNode_webgl = (function() {
 	}
 
 	function ast_LogicalExpression(logNode, retArr, funcParam) {
-		if (logNode.operator == "==" || logNode.operator == "===") {
-			retArr.push("abs((");
-			ast_generic(logNode.left, retArr, funcParam);
-			retArr.push(") - (");
-			ast_generic(logNode.right, retArr, funcParam);
-			retArr.push(")) < " + epsilon);
-		} else {
-			ast_generic(logNode.left, retArr, funcParam);
-			ast_generic(logNode.operator, retArr, funcParam);
-			ast_generic(logNode.right, retArr, funcParam);
-		}
+		ast_generic(logNode.left, retArr, funcParam);
+		retArr.push(logNode.operator);
+		ast_generic(logNode.right, retArr, funcParam);
 		return retArr;
 	}
 
@@ -3619,7 +3603,6 @@ var functionBuilder = (function() {
 					'highp float decode32(highp vec4 rgba) {',
 					(endianness == 'LE' ? '' : '	rgba.rgba = rgba.abgr;'),
 					'	rgba *= 255.0;',
-					'	rgba = floor(rgba+0.5);',
 					'	highp float sign = rgba.a > 127.0 ? -1.0 : 1.0;',
 					'	highp float exponent = 2.0 * integerMod(rgba.a, 128.0) + (rgba.b > 127.0 ? 1.0 : 0.0);',
 					'	highp float res;',
@@ -3631,6 +3614,8 @@ var functionBuilder = (function() {
 					'		res += integerMod(rgba.b, 128.0) * exp2(exponent-7.0);',
 					'		res += rgba.g * exp2(exponent-15.0);',
 					'		res += rgba.r * exp2(exponent-23.0);',
+					'		//highp float mantissa_part1 = integerMod(res * exp2(23.0-exponent), 256.0);',
+					'		//res -= ceil(mantissa_part1 - rgba.r) * exp2(exponent-23.0);',
 					'		res *= sign;',
 					'	}',
 					'	return res;',
@@ -3804,8 +3789,15 @@ var functionBuilder = (function() {
 						paramArray.push(0);
 					}
 					
+					/*
 					var argBuffer = new Uint8Array((new Float32Array(paramArray)).buffer);
 					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, argBuffer);
+					*/
+					paramArray = [].concat.apply([], paramArray.map(function(x) {
+						return [x,x,x,x];
+					}));
+					var argBuffer = new Float32Array(paramArray);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.FLOAT, argBuffer);
 
 					textures[textureCount] = texture;
 
