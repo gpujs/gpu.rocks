@@ -3635,7 +3635,7 @@ var functionBuilder = (function() {
 					'	highp float mantissa_part3 = integerMod(F * exp2(7.0-exponent), 128.0);',
 					'	exponent += 127.0;',
 					'	vec4 rgba;',
-					'	rgba.a = 128.0 * sign + floor(exponent/2.0);',
+					'	rgba.a = 128.0 * sign + float(int(exponent+0.5)/2;',
 					'	rgba.b = 128.0 * integerMod(exponent, 2.0) + mantissa_part3;',
 					'	rgba.g = mantissa_part2;',
 					'	rgba.r = mantissa_part1;',
