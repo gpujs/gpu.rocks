@@ -3590,7 +3590,7 @@ var functionBuilder = (function() {
 					'varying highp vec2 vTexCoord;',
 					'',
 					'highp float integerMod(highp float x, highp float y) {',
-					'	highp float res = floor(mod(x, y));',
+					'	highp float res = floor(mod(x, y)+0.5);',
 					'	if (res > floor(y) - 1.0) res = 0.0;',
 					'	return res;',
 					'}',
