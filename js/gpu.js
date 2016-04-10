@@ -1,11 +1,11 @@
 ///
 /// gpu.js
-/// https://github.com/gpujs/gpu.js#readme
+/// http://gpu.rocks/
 ///
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Sun Apr 10 2016 16:42:54 GMT+0800 (SGT)
+/// @date    Sun Apr 10 2016 21:22:26 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -2193,16 +2193,16 @@ var GPUTexture = (function() {
 var GPUCore = (function() {
 
 	function GPUCore() {
-		var gl, canvas;
-
-		canvas = undefined;
-		if (gl === undefined) {
-			canvas = GPUUtils.init_canvas();
-			gl = GPUUtils.init_webgl(canvas);
-		}
-
-		this.webgl = gl;
-		this.canvas = canvas;
+		// var gl, canvas;
+		// 
+		// canvas = undefined;
+		// if (gl === undefined) {
+		// 	canvas = GPUUtils.init_canvas();
+		// 	gl = GPUUtils.init_webgl(canvas);
+		// }
+		// 
+		// this.webgl = gl;
+		// this.canvas = canvas;
 		this.programCache = {};
 		this.endianness = GPUUtils.systemEndianness();
 
@@ -2340,9 +2340,13 @@ var GPUCore = (function() {
 				gpu._kernelParamObj
 			);
 		};
-
-		ret.getCanvas = function() {
-			return gpu.getCanvas();
+		
+		ret.getCanvas = function(mode) {
+			return ret.canvas;
+		};
+		
+		ret.getWebgl = function(mode) {
+			return ret.webgl;
 		};
 		
 		return ret;
@@ -2510,26 +2514,54 @@ var GPU = (function() {
 	///
 	/// Function: getWebgl
 	///
-	/// Returns the internal gpu webgl instance only if it has been initiated
+	/// [DEPRECIATED] Returns the internal gpu webgl instance only if it has been initiated
 	///
 	/// Retuns:
 	/// 	{WebGL object} that the instance use
 	///
 	function getWebgl() {
-		return this.webgl;
+		// if( this.webgl == null ) {
+		// 	this.webgl = GPUUtils.init_webgl( getCanvas("gpu") );
+		// }
+		if( this.webgl ) {
+			return this.webgl;
+		}
+		throw "only call getWebgl after createKernel(gpu)"
 	};
 	GPU.prototype.getWebgl = getWebgl;
 	
 	///
 	/// Function: getCanvas
 	///
-	/// Returns the internal canvas instance only if it has been initiated
+	/// [DEPRECIATED] Returns the internal canvas instance only if it has been initiated
 	///
 	/// Retuns:
 	/// 	{Canvas object} that the instance use
 	///
 	function getCanvas(mode) {
-		return this.canvas;
+		// if(mode == "gpu") {
+		// 	if(this._canvas_gpu == null) {
+		// 		this._canvas_gpu = GPUUtils.init_canvas();
+		// 	}
+		// 	return this._canvas_gpu;
+		// } else if(mode == "cpu") {
+		// 	if(this._canvas_cpu == null) {
+		// 		this._canvas_cpu = GPUUtils.init_canvas();
+		// 	}
+		// 	return this._canvas_cpu;
+		// } else {
+		// 	if( this._canvas_gpu || this._canvas_cpu ) {
+		// 		return (this._canvas_gpu || this._canvas_cpu );
+		// 	}
+		// 	// if( this._canvas_gpu || this._canvas_cpu ) {
+		// 	// 	
+		// 	// }
+		// 	throw "Missing valid mode parameter in getCanvas("+mode+")"
+		// }
+		if( this.canvas ) {
+			return this.canvas;
+		}
+		throw "only call getCanvas after createKernel()"
 	};
 	GPU.prototype.getCanvas = getCanvas;
 	
@@ -3659,6 +3691,9 @@ var functionBuilder = (function() {
 	/// @returns callable function if converted, else returns null
 	GPU.prototype._mode_cpu = function(kernel, opt) {
 		var gpu = this;
+		
+		var canvas = gpu.canvas = GPUUtils.init_canvas();
+		//var gl = gpu.webgl = GPUUtils.init_webgl(canvas);
 
 		function ret() {
 			if (!opt.dimensions || opt.dimensions.length === 0) {
@@ -3684,7 +3719,7 @@ var functionBuilder = (function() {
 				} else if (argType == "Texture") {
 					kernelArgs[i] = arguments[i].toArray();
 				} else {
-					throw "Input type not supported: " + arguments[i];
+					throw "Input type not supported (CPU): " + arguments[i];
 				}
 			}
 
@@ -3775,6 +3810,8 @@ var functionBuilder = (function() {
 
 			return ret;
 		}
+		
+		ret.canvas = canvas;
 		
 		return gpu.setupExecutorExtendedFunctions(ret, opt);
 	};
@@ -3893,8 +3930,9 @@ var functionBuilder = (function() {
 
 	GPU.prototype._mode_gpu = function(kernel, opt) {
 		var gpu = this;
-		var gl = this.webgl;
-		var canvas = this.canvas;
+		
+		var canvas = gpu.canvas = GPUUtils.init_canvas();
+		var gl = gpu.webgl = GPUUtils.init_webgl(canvas);
 
 		var builder = this.functionBuilder;
 		var endianness = this.endianness;
@@ -3964,7 +4002,7 @@ var functionBuilder = (function() {
 				var constantsStr = '';
 				if (opt.constants) {
 					for (var name in opt.constants) {
-						var value = opt.constants[name];
+						var value = parseFloat(opt.constants[name]);
 						
 						if (Number.isInteger(value)) {
 							constantsStr += 'const float constants_' + name + '=' + parseInt(value) + '.0;\n';
@@ -4296,7 +4334,7 @@ var functionBuilder = (function() {
 					gl.uniform2fv(paramSizeLoc, paramSize);
 					gl.uniform1i(paramLoc, textureCount);
 				} else {
-					throw "Input type not supported: " + arguments[textureCount];
+					throw "Input type not supported (GPU): " + arguments[textureCount];
 				}
 			}
 
@@ -4344,6 +4382,9 @@ var functionBuilder = (function() {
 				}
 			}
 		}
+		
+		ret.canvas = canvas;
+		ret.webgl = gl;
 		
 		return gpu.setupExecutorExtendedFunctions(ret, opt);
 	};
