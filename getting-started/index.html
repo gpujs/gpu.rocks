@@ -181,7 +181,7 @@ Sometimes, you want to produce a <code>canvas</code> image instead of doing nume
 For performance reasons, the return value for your function will no longer be anything useful. Instead, to display the image, retrieve the <code>canvas</code> DOM node and insert it into your page.
 </p>
 
-<pre><code class="js" style="background: transparent;">var render = gpu.createKernel(function(X) {
+<pre><code class="js" style="background: transparent;">var render = gpu.createKernel(function() {
     this.color(0, 0, 0, 1);
 }).dimensions([20, 20]).graphical(true);
     
