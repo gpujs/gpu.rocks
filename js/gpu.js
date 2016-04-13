@@ -5,7 +5,7 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Wed Apr 13 2016 21:33:03 GMT+0800 (SGT)
+/// @date    Wed Apr 13 2016 21:50:19 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -3885,6 +3885,7 @@ var functionBuilder = (function() {
 			}
 		} else {
 			return arr;
+			return GPUUtils.clone(arr);
 		}
 	}
 
@@ -4309,8 +4310,7 @@ var functionBuilder = (function() {
 						gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, argBuffer);
 					}
 					textures[textureCount] = texture;
-					console.log(paramArray);
-					console.log(argBuffer);
+					
 					var paramLoc = getUniformLocation("user_" + paramNames[textureCount]);
 					var paramSizeLoc = getUniformLocation("user_" + paramNames[textureCount] + "Size");
 					var paramDimLoc = getUniformLocation("user_" + paramNames[textureCount] + "Dim");
