@@ -5,7 +5,7 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Wed Apr 13 2016 21:50:19 GMT+0800 (SGT)
+/// @date    Wed Apr 13 2016 22:00:25 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -2887,6 +2887,14 @@ var functionNode_webgl = (function() {
 			retArr.push(",");
 			ast_generic(ast.right, retArr, funcParam);
 			retArr.push(")");
+		} else if (ast.operator == "===") {
+			ast_generic(ast.left, retArr, funcParam);
+			retArr.push("==");
+			ast_generic(ast.right, retArr, funcParam);
+		} else if (ast.operator == "!==") {
+			ast_generic(ast.left, retArr, funcParam);
+			retArr.push("!=");
+			ast_generic(ast.right, retArr, funcParam);
 		} else {
 			ast_generic(ast.left, retArr, funcParam);
 			retArr.push(ast.operator);
@@ -3028,7 +3036,7 @@ var functionNode_webgl = (function() {
 		
 		return retArr;
 	}
-
+	
 	function ast_AssignmentExpression(assNode, retArr, funcParam) {
 		if(assNode.operator == "%=") {
 			ast_generic(assNode.left, retArr, funcParam);
@@ -3114,12 +3122,12 @@ var functionNode_webgl = (function() {
 
 	}
 
-	function ast_Break(brNode, retArr, funcParam) {
+	function ast_BreakStatement(brNode, retArr, funcParam) {
 		retArr.push("break;\n");
 		return retArr;
 	}
 
-	function ast_Continue(crNode, retArr, funcParam) {
+	function ast_ContinueStatemnt(crNode, retArr, funcParam) {
 		retArr.push("continue;\n");
 		return retArr;
 	}
@@ -3884,7 +3892,6 @@ var functionBuilder = (function() {
 				return [].concat.apply([], arr);
 			}
 		} else {
-			return arr;
 			return GPUUtils.clone(arr);
 		}
 	}
