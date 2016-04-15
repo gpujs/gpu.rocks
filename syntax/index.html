@@ -129,7 +129,7 @@ this.dimensions.z;
 
 <h4>Argument Array Access</h4>
 <p>
-Read-only access to arrays of type Float32. No writing to argument arrays.
+Read-only access to arrays of type Float32. No writing to argument arrays. Array indices are ordered <code>X[z][y][x]</code>.
 </p>
 <pre><code class="js" style="background: transparent;">function kernel(A, B, C) {
     // ... blah ...
@@ -141,7 +141,7 @@ Read-only access to arrays of type Float32. No writing to argument arrays.
 
 <h4>Single Output Array Write</h4>
 <p>
-Implicit write to <code>OUTPUT[this.thread.x][this.thread.y][this.thread.z]</code> of type Float32 using <code>return</code> statement.
+Implicit write to <code>OUTPUT[this.thread.z][this.thread.y][this.thread.x]</code> of type Float32 using <code>return</code> statement.
 </p>
 <pre><code class="js" style="background: transparent;">function kernel() {
     // ... blah ...
