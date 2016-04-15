@@ -5,7 +5,7 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Wed Apr 13 2016 22:00:25 GMT+0800 (SGT)
+/// @date    Fri Apr 15 2016 10:49:04 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -3764,7 +3764,6 @@ var functionBuilder = (function() {
 			var imageData;
 			var data;
 			if (opt.graphical) {
-				canvas = gpu.getCanvas('cpu');
 				canvas.width = threadDim[0];
 				canvas.height = threadDim[1];
 
