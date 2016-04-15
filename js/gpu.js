@@ -5,7 +5,7 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Fri Apr 15 2016 10:49:04 GMT+0800 (SGT)
+/// @date    Fri Apr 15 2016 14:15:17 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -3759,7 +3759,6 @@ var functionBuilder = (function() {
 				constants: opt.constants
 			};
 
-			var canvas;
 			var canvasCtx;
 			var imageData;
 			var data;
