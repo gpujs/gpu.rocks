@@ -196,7 +196,7 @@ while (x &lt; 10) {
 
 <h4>Internal Functions</h4>
 <p>
-Internal functions can only have Float32 as arguments and can only return Float32. However, internal functions have access to the array arguments of a kernel function. Internal functions can only nest a single time.
+Internal functions can only have Float32 as arguments and can only return Float32. However, internal functions have access to the array arguments of a kernel function. Internal functions can only nest a single time (i.e. can only be placed inside the kernel function but not inside other internal functions. Not to be confused with "nested calls").
 </p>
 <pre><code class="js" style="background: transparent;">function kernel(A, B, C) {
     function internal(x, y) {
