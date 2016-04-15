@@ -5,7 +5,7 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Fri Apr 15 2016 14:15:17 GMT+0800 (SGT)
+/// @date    Fri Apr 15 2016 15:54:12 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -2624,12 +2624,16 @@ var functionNode_webgl = (function() {
 	///
 	function functionNode_webgl( inNode, _opt ) {
 		gpu = inNode.gpu;
-		opt = _opt || opt;
-		if (opt && opt.debug) {
+		opt = _opt || {};
+		if (opt.debug) {
 			console.log(inNode);
 		}
 		jsFunctionString = inNode.jsFunctionString;
-		inNode.webglFunctionString_array = ast_generic( inNode.getJS_AST(), [], inNode );
+		if (opt.prototypeOnly) {
+			return ast_FunctionPrototype( inNode.getJS_AST(), [], inNode ).join("").trim();
+		} else {
+			inNode.webglFunctionString_array = ast_generic( inNode.getJS_AST(), [], inNode );
+		}
 		inNode.webglFunctionString = webgl_regex_optimize(
 			inNode.webglFunctionString_array.join("").trim()
 		);
@@ -2765,6 +2769,41 @@ var functionNode_webgl = (function() {
 		
 		var funcStr = funcArr.join('\n');
 		gpu.addFunction(funcStr);
+		
+		return retArr;
+	}
+	
+	/// Prases the abstract syntax tree, to its named function prototype
+	///
+	/// @param ast   the AST object to parse
+	/// @param retArr       return array string
+	/// @param funcParam    FunctionNode, that tracks compilation state
+	///
+	/// @returns  the appened retArr
+	function ast_FunctionPrototype(ast, retArr, funcParam) {
+		// Setup function return type and name
+		if(funcParam.isRootKernel) {
+			return retArr;
+		}
+		
+		retArr.push(funcParam.returnType);
+		retArr.push(" ");
+		retArr.push(funcParam.functionName);
+		retArr.push("(");
+		
+		// Arguments handling
+		for( var i = 0; i < funcParam.paramNames.length; ++i ) {
+			if( i > 0 ) {
+				retArr.push(", ");
+			}
+			
+			retArr.push( funcParam.paramType[i] );
+			retArr.push(" ");
+			retArr.push("user_");
+			retArr.push( funcParam.paramNames[i] );
+		}
+		
+		retArr.push(");\n");
 		
 		return retArr;
 	}
@@ -3504,7 +3543,7 @@ var functionNode = (function() {
 	functionNode.prototype.getJS_AST = getJS_AST;
 
 	///
-	/// Function: getWebglString
+	/// Function: getWebglFunctionString
 	///
 	/// Returns the converted webgl shader function equivalent of the JS function
 	///
@@ -3519,6 +3558,26 @@ var functionNode = (function() {
 		return this.webglFunctionString = functionNode_webgl(this, opt);
 	}
 	functionNode.prototype.getWebglFunctionString = getWebglFunctionString;
+	
+	///
+	/// Function: getWebglFunctionPrototypeString
+	///
+	/// Returns the converted webgl shader function equivalent of the JS function
+	///
+	/// Returns:
+	/// 	{String} webgl function string, result is cached under this.getWebglFunctionPrototypeString
+	///
+	function getWebglFunctionPrototypeString(opt) {
+		opt = opt || {};
+		if( this.webglFunctionPrototypeString ) {
+			return this.webglFunctionPrototypeString;
+		}
+		return this.webglFunctionPrototypeString = functionNode_webgl(this, {
+			prototypeOnly:true,
+			isRootKernel: opt.isRootKernel
+		});
+	}
+	functionNode.prototype.getWebglFunctionPrototypeString = getWebglFunctionPrototypeString;
 
 	///
 	/// Function: setWebglString
@@ -3646,6 +3705,18 @@ var functionBuilder = (function() {
 	}
 	functionBuilder.prototype.webglString_fromFunctionNames = webglString_fromFunctionNames;
 	
+	function webglPrototypeString_fromFunctionNames(functionList, opt) {
+		var ret = [];
+		for(var i=0; i<functionList.length; ++i) {
+			var node = this.nodeMap[functionList[i]];
+			if(node) {
+				ret.push( this.nodeMap[functionList[i]].getWebglFunctionPrototypeString(opt) );
+			}
+		}
+		return ret.join("\n");
+	}
+	functionBuilder.prototype.webglPrototypeString_fromFunctionNames = webglPrototypeString_fromFunctionNames;
+	
 	///
 	/// Function: webglString
 	///
@@ -3666,6 +3737,27 @@ var functionBuilder = (function() {
 		return this.webglString_fromFunctionNames( Object.keys(this.nodeMap), opt );
 	}
 	functionBuilder.prototype.webglString = webglString;
+	
+	///
+	/// Function: webglPrototypeString
+	///
+	/// Parameters:
+	/// 	functionName  - {String} Function name to trace from. If null, it returns the WHOLE builder stack
+	///
+	/// Returns:
+	/// 	{String} The full webgl string, of all the various functions. Trace optimized if functionName given
+	///
+	function webglPrototypeString(functionName, opt) {
+		if (opt == undefined) {
+			opt = {};
+		}
+		
+		if(functionName) {
+			return this.webglPrototypeString_fromFunctionNames( this.traceFunctionCalls(functionName, [], opt).reverse(), opt );
+		}
+		return this.webglPrototypeString_fromFunctionNames( Object.keys(this.nodeMap), opt );
+	}
+	functionBuilder.prototype.webglPrototypeString = webglPrototypeString;
 	
 	//---------------------------------------------------------
 	//
@@ -4200,6 +4292,7 @@ var functionBuilder = (function() {
 					'highp float kernelResult = 0.0;',
 					paramStr,
 					constantsStr,
+					builder.webglPrototypeString("kernel", opt),
 					builder.webglString("kernel", opt),
 					'',
 					'void main(void) {',
