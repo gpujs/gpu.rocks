@@ -397,3 +397,12 @@ dl dd {
     color: #fff;
     background-repeat: no-repeat;
 }
+
+.alert a,
+.alert a:hover,
+.alert a:focus,
+.alert a:active,
+.alert a.active {
+    color: #fff;
+    text-decoration: underline;
+}

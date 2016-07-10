@@ -1,67 +1,5 @@
 var gpu = new GPU();
 
-function clone(obj) {
-	if(obj === null || typeof(obj) !== 'object' || 'isActiveClone' in obj)
-		return obj;
-
-	var temp = obj.constructor(); // changed
-
-	for(var key in obj) {
-		if(Object.prototype.hasOwnProperty.call(obj, key)) {
-			obj.isActiveClone = null;
-			temp[key] = clone(obj[key]);
-			delete obj.isActiveClone;
-		}
-	}
-
-	return temp;
-}
-
-/**
- * Figure out how long it takes for a method to execute.
- *
- * @param {Function} method to test
- * @param {number} iterations number of executions.
- * @param {Array} args to pass in.
- * @param {T} context the context to call the method in.
- * @return {number} the time it took, in milliseconds to execute.
- */
-var bench = function (method, iterations, args, context) {
-
-	var time = 0;
-	var timer = function (action) {
-		var d = Date.now();
-		if (time < 1 || action === 'start') {
-			time = d;
-			return 0;
-		} else if (action === 'stop') {
-			var t = d - time;
-			time = 0;
-			return t;
-		} else {
-			return d - time;
-		}
-	};
-
-	var result = [];
-	var i = 0;
-	timer('start');
-	while (i < iterations) {
-		result.push(method.apply(context, args));
-		i++;
-	}
-
-	var execTime = timer('stop');
-
-	if ( typeof console === "object") {
-		console.log("Mean execution time was: ", execTime / iterations);
-		console.log("Sum execution time was: ", execTime);
-		console.log("Result of the method call was:", result[0]);
-	}
-
-	return execTime / iterations;
-};
-
 function splitArray(array, part) {
 	var tmp = [];
 	for(var i = 0; i < array.length; i += part) {
@@ -100,41 +38,71 @@ function createMult(mode) {
     }, opt);
 }
 
-var mult = {};
-var compileTime = bench(function() {
-	mult.cpu = createMult('cpu');
-	mult.gpu = createMult('gpu');
-}, 1, [], window);
+var mult = {
+	cpu: createMult('cpu'),
+	gpu: createMult('gpu')
+};
 
-function benchmarkMult(mode) {
-    var mat_mult = mult[mode];
+var benchmarkOpt = {};
+
+var suite = new Benchmark.Suite;
+
+suite.add('mat_mult_cpu', function() {
+	var mode = 'cpu';
+	var mat_mult = mult[mode];
 
     var C = mat_mult(A, B);
     
     return C;
-}
+}, benchmarkOpt);
+
+suite.add('mat_mult_gpu', function() {
+	var mode = 'gpu';
+	var mat_mult = mult[mode];
+
+    var C = mat_mult(A, B);
+    
+    return C;
+}, benchmarkOpt);
+
+suite.on('complete', function(event) {
+	
+	var stats = {};
+	
+	stats.cpu = this.filter(function(benchmark) {
+		return benchmark.name == 'mat_mult_cpu';
+	}).map('stats')[0];
+	
+	stats.gpu = this.filter(function(benchmark) {
+		return benchmark.name == 'mat_mult_gpu';
+	}).map('stats')[0];
+	
+	console.dir(stats);
+	
+	var faster = '';
+	if (stats.cpu.mean > stats.gpu.mean) {
+		var times = stats.cpu.mean / stats.gpu.mean;
+		faster = ' <em>(' + times.toFixed(2) + ' times faster!)</em>';
+	}
+	var html = '';
+	html += '<p>CPU: ' + stats.cpu.mean.toFixed(3) +'s \xb1' + stats.cpu.rme.toFixed(1) + '%</p>'
+	html += '<p>GPU: ' + stats.gpu.mean.toFixed(3) + 's \xb1' + stats.gpu.rme.toFixed(1) + '%' + faster + '</p>';
+	html += '<small><em>Benchmarks provided by <a href="https://github.com/bestiejs/benchmark.js">benchmark.js</a></em></small>';
+	$('.demo-mult').removeClass('text-center');
+	$('.demo-mult').html(html);
+});
+
+suite.on('error', function(event) {
+	$('.demo-mult').removeClass('text-center');
+	$('.demo-mult').removeClass('alert-info');
+	$('.demo-mult').addClass('alert-danger');
+	$('.demo-mult').html('There was an error running on the GPU.');
+});
 
 function demoMult() {
     $('.demo-mult').removeClass('hide');
     $('.demo-mult').addClass('text-center');
     $('.demo-mult').html('<i class="fa fa-cog fa-spin" style="font-size: 60px;"></i>');
-    setTimeout(function() {
-        try {
-            var gpuTime = bench(benchmarkMult, 1, ['gpu'], window);
-            var cpuTime = bench(benchmarkMult, 1, ['cpu'], window);
-            var faster = '';
-            if (cpuTime > gpuTime) {
-                var times = cpuTime / gpuTime;
-                faster = ' <em>(' + times.toFixed(2) + ' times faster!)</em>';
-            }
-            var html = '<p>CPU: ' + cpuTime +'ms</p><p>GPU: ' + gpuTime + 'ms' + faster + '</p>';
-            $('.demo-mult').removeClass('text-center');
-            $('.demo-mult').html(html);
-        } catch (e) {
-            $('.demo-mult').removeClass('text-center');
-            $('.demo-mult').removeClass('alert-info');
-            $('.demo-mult').addClass('alert-danger');
-            $('.demo-mult').html('There was an error running on the GPU.');
-        }
-    }, 0);
+	
+	suite.run({ 'async': true });
 }
