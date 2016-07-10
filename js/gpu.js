@@ -5,7 +5,7 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Mon Jul 04 2016 00:47:07 GMT+0800 (SGT)
+/// @date    Sun Jul 10 2016 10:31:37 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -4242,6 +4242,7 @@ var functionBuilder = (function() {
 					'	rgba.b = integerMod(rgba.b, 128.0);',
 					'	rgba.a = exponent*0.5 + 63.5;',
 					'	rgba.ba += vec2(integerMod(exponent+127.0, 2.0), sign) * 128.0;',
+					'	rgba = floor(rgba);',
 					'	rgba *= 0.003921569; // 1/255',
 					(endianness == 'LE' ? '' : '	rgba.rgba = rgba.abgr;'),
 					'	return rgba;',
