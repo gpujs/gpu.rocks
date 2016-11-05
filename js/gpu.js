@@ -5,7 +5,7 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Sun Jul 10 2016 10:31:37 GMT+0800 (SGT)
+/// @date    Sat Nov 05 2016 22:03:27 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -1999,7 +1999,7 @@ var GPUUtils = (function() {
 	/// 	{Boolean} TRUE if the object is a DOM canvas
 	///
 	function isCanvas( canvasObj ) {
-		return ( 
+		return (
 			canvasObj != null &&
 			canvasObj.nodeName &&
 			canvasObj.getContext &&
@@ -2081,7 +2081,7 @@ var GPUUtils = (function() {
 	/// 	{Boolean} TRUE if the object is a webgl context object
 	///
 	function isWebgl( webglObj ) {
-		return ( 
+		return (
 			webglObj != null &&
 			webglObj.getExtension
 		);
@@ -2108,6 +2108,7 @@ var GPUUtils = (function() {
 	
 	// Default webgl options to use
 	var init_webgl_defaultOptions = {
+		alpha: false,
 		depth: false,
 		antialias: false
 	}
@@ -2138,7 +2139,7 @@ var GPUUtils = (function() {
 		
 		// Create a new canvas DOM
 		var webgl = (
-			canvasObj.getContext("experimental-webgl", init_webgl_defaultOptions) || 
+			canvasObj.getContext("experimental-webgl", init_webgl_defaultOptions) ||
 			canvasObj.getContext("webgl", init_webgl_defaultOptions)
 		);
 		
@@ -2151,9 +2152,9 @@ var GPUUtils = (function() {
 		}
 		
 		// Get the extension that is needed
-		webgl.getExtension('OES_texture_float');
-		webgl.getExtension('OES_texture_float_linear');
-		webgl.getExtension('OES_element_index_uint');
+		GPUUtils.OES_texture_float = webgl.getExtension('OES_texture_float');
+		GPUUtils.OES_texture_float_linear = webgl.getExtension('OES_texture_float_linear');
+		GPUUtils.OES_element_index_uint = webgl.getExtension('OES_element_index_uint');
 
 		// Returns the canvas
 		return webgl;
@@ -2194,13 +2195,13 @@ var GPUCore = (function() {
 
 	function GPUCore() {
 		// var gl, canvas;
-		// 
+		//
 		// canvas = undefined;
 		// if (gl === undefined) {
 		// 	canvas = GPUUtils.init_canvas();
 		// 	gl = GPUUtils.init_webgl(canvas);
 		// }
-		// 
+		//
 		// this.webgl = gl;
 		// this.canvas = canvas;
 		this.programCache = {};
@@ -2332,11 +2333,16 @@ var GPUCore = (function() {
 			opt.floatTextures = flag;
 			return ret;
 		};
+		
+		ret.floatOutput = function(flag) {
+			opt.floatOutput = flag;
+			return ret;
+		};
 
 		ret.mode = function(mode) {
 			opt.mode = mode;
 			return gpu.createKernel(
-				gpu._kernelFunction, 
+				gpu._kernelFunction,
 				gpu._kernelParamObj
 			);
 		};
@@ -2419,7 +2425,7 @@ var GPU = (function() {
 		//
 		var ret = this.getSynchronousModeExecutor();
 		// Allow class refence from function
-		ret.gpujs = this; 
+		ret.gpujs = this;
 		// Execute callback
 		ret.exec = ret.execute = GPUUtils.functionBinder( this.execute, this );
 		
@@ -2436,7 +2442,7 @@ var GPU = (function() {
 	/// Get and returns the kernel function previously set by `createKernel`
 	///
 	/// Returns:
-	/// 	{JS Function}  The calling input function  
+	/// 	{JS Function}  The calling input function
 	///
 	function getKernelFunction() {
 		return this._kernelFunction;
@@ -2449,7 +2455,7 @@ var GPU = (function() {
 	/// Get and returns the kernel parameter object previously set by `createKernel`
 	///
 	/// Returns:
-	/// 	{JS Function}  The calling input function  
+	/// 	{JS Function}  The calling input function
 	///
 	function getKernelParamObj() {
 		return this._kernelParamObj;
@@ -2514,7 +2520,7 @@ var GPU = (function() {
 	///
 	/// Function: getWebgl
 	///
-	/// [DEPRECIATED] Returns the internal gpu webgl instance only if it has been initiated
+	/// [DEPRECATED] Returns the internal gpu webgl instance only if it has been initiated
 	///
 	/// Retuns:
 	/// 	{WebGL object} that the instance use
@@ -2533,7 +2539,7 @@ var GPU = (function() {
 	///
 	/// Function: getCanvas
 	///
-	/// [DEPRECIATED] Returns the internal canvas instance only if it has been initiated
+	/// [DEPRECATED] Returns the internal canvas instance only if it has been initiated
 	///
 	/// Retuns:
 	/// 	{Canvas object} that the instance use
@@ -2554,7 +2560,7 @@ var GPU = (function() {
 		// 		return (this._canvas_gpu || this._canvas_cpu );
 		// 	}
 		// 	// if( this._canvas_gpu || this._canvas_cpu ) {
-		// 	// 	
+		// 	//
 		// 	// }
 		// 	throw "Missing valid mode parameter in getCanvas("+mode+")"
 		// }
@@ -3922,7 +3928,7 @@ var functionBuilder = (function() {
 			numTexels *= dimensions[i];
 		}
 		
-		if (opt.floatTextures && !output) {
+		if (opt.floatTextures && (!output || opt.floatOutput)) {
 			numTexels = Math.ceil(numTexels / 4);
 		}
 
@@ -4050,8 +4056,10 @@ var functionBuilder = (function() {
 		var programUniformLocationCache = [];
 		
 		function ret() {
-			if (opt.floatTextures && !gpu.OES_texture_float) {
+			if (opt.floatTextures === true && !GPUUtils.OES_texture_float) {
 				throw "Float textures are not supported on this browser";
+			} else if (opt.floatTextures === undefined && GPUUtils.OES_texture_float) {
+				opt.floatTextures = true;
 			}
 			
 			if (!opt.dimensions || opt.dimensions.length === 0) {
@@ -4069,14 +4077,20 @@ var functionBuilder = (function() {
 				}
 			}
 
-			var texSize = dimToTexSize(gpu, opt.dimensions, true);
-			
+			var texSize = dimToTexSize(opt, opt.dimensions, true);
+						
 			if (opt.graphical) {
 				if (opt.dimensions.length != 2) {
 					throw "Output must have 2 dimensions on graphical mode";
 				}
 				
+				if (opt.floatOutput) {
+					throw "Cannot use graphical mode and float output at the same time";
+				}
+				
 				texSize = GPUUtils.clone(opt.dimensions);
+			} else if (opt.floatOutput === undefined && GPUUtils.OES_texture_float) {
+				opt.floatOutput = true;
 			}
 			
 			canvas.width = texSize[0];
@@ -4304,12 +4318,20 @@ var functionBuilder = (function() {
 					'',
 					'void main(void) {',
 					'	index = floor(vTexCoord.s * float(uTexSize.x)) + floor(vTexCoord.t * float(uTexSize.y)) * uTexSize.x;',
+					(opt.floatOutput ? 'index *= 4.0;' : ''),
 					'	threadId = indexTo3D(index, uOutputDim);',
 					'	kernel();',
 					'	if (outputToColor == true) {',
 					'		gl_FragColor = actualColor;',
 					'	} else {',
-					'		gl_FragColor = encode32(kernelResult);',
+					(opt.floatOutput ? '' : 'gl_FragColor = encode32(kernelResult);'),
+					(opt.floatOutput ? 'gl_FragColor.r = kernelResult;' : ''),
+					(opt.floatOutput ? 'index += 1.0; threadId = indexTo3D(index, uOutputDim); kernel();' : ''),
+					(opt.floatOutput ? 'gl_FragColor.g = kernelResult;' : ''),
+					(opt.floatOutput ? 'index += 1.0; threadId = indexTo3D(index, uOutputDim); kernel();' : ''),
+					(opt.floatOutput ? 'gl_FragColor.b = kernelResult;' : ''),
+					(opt.floatOutput ? 'index += 1.0; threadId = indexTo3D(index, uOutputDim); kernel();' : ''),
+					(opt.floatOutput ? 'gl_FragColor.a = kernelResult;' : ''),
 					'	}',
 					'}'
 				].join('\n');
@@ -4324,17 +4346,20 @@ var functionBuilder = (function() {
 				gl.compileShader(fragShader);
 
 				if (!gl.getShaderParameter(vertShader, gl.COMPILE_STATUS)) {
-					console.error("An error occurred compiling the shaders: " + gl.getShaderInfoLog(vertShader));
 					console.log(vertShaderSrc);
+					console.error("An error occurred compiling the shaders: " + gl.getShaderInfoLog(vertShader));
 					throw "Error compiling vertex shader";
 				}
 				if (!gl.getShaderParameter(fragShader, gl.COMPILE_STATUS)) {
-					console.error("An error occurred compiling the shaders: " + gl.getShaderInfoLog(fragShader));
 					console.log(fragShaderSrc);
+					console.error("An error occurred compiling the shaders: " + gl.getShaderInfoLog(fragShader));
 					throw "Error compiling fragment shader";
 				}
 
 				if (opt.debug) {
+					console.log('Options:');
+					console.dir(opt);
+					console.log('GLSL Shader Output:');
 					console.log(fragShaderSrc);
 				}
 
@@ -4387,7 +4412,7 @@ var functionBuilder = (function() {
 				var argType = GPUUtils.getArgumentType(arguments[textureCount]);
 				if (argType == "Array") {
 					paramDim = getDimensions(arguments[textureCount], true);
-					paramSize = dimToTexSize(gpu, paramDim);
+					paramSize = dimToTexSize(opt, paramDim);
 
 					texture = gl.createTexture();
 					gl.activeTexture(gl["TEXTURE"+textureCount]);
@@ -4448,38 +4473,46 @@ var functionBuilder = (function() {
 					throw "Input type not supported (GPU): " + arguments[textureCount];
 				}
 			}
+			
+			var outputTexture = gl.createTexture();
+			gl.activeTexture(gl["TEXTURE"+textureCount]);
+			gl.bindTexture(gl.TEXTURE_2D, outputTexture);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+			if (opt.floatOutput) {
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texSize[0], texSize[1], 0, gl.RGBA, gl.FLOAT, null);
+			} else {
+				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texSize[0], texSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+			}
+
+			var framebuffer = gl.createFramebuffer();
+			framebuffer.width = texSize[0];
+			framebuffer.height = texSize[1];
+			gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, outputTexture, 0);
+			
+			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
 			if (opt.outputToTexture) {
-				var outputTexture = gl.createTexture();
-				gl.activeTexture(gl["TEXTURE"+textureCount]);
-				gl.bindTexture(gl.TEXTURE_2D, outputTexture);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texSize[0], texSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-				var framebuffer = gl.createFramebuffer();
-				framebuffer.width = texSize[0];
-				framebuffer.height = texSize[1];
-				gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-				gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, outputTexture, 0);
-				gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 				return new GPUTexture(gpu, outputTexture, texSize, opt.dimensions);
 			} else {
-				gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-   				gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-				gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
 				if (opt.graphical) {
 					return;
 				}
 
-				var bytes = new Uint8Array(texSize[0]*texSize[1]*4);
-				gl.readPixels(0, 0, texSize[0], texSize[1], gl.RGBA, gl.UNSIGNED_BYTE, bytes);
-				var result = Array.prototype.slice.call(new Float32Array(bytes.buffer));
-				result.length = threadDim[0] * threadDim[1] * threadDim[2];
+				var result;
+				if (opt.floatOutput) {
+					result = new Float32Array(texSize[0]*texSize[1]*4);
+					gl.readPixels(0, 0, texSize[0], texSize[1], gl.RGBA, gl.FLOAT, result);
+				} else {
+					var bytes = new Uint8Array(texSize[0]*texSize[1]*4);
+					gl.readPixels(0, 0, texSize[0], texSize[1], gl.RGBA, gl.UNSIGNED_BYTE, bytes);
+					result = Float32Array.prototype.slice.call(new Float32Array(bytes.buffer));
+				}
+				
+				result = result.subarray(0, threadDim[0] * threadDim[1] * threadDim[2]);
 
 				if (opt.dimensions.length == 1) {
 					return result;
