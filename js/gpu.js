@@ -5,7 +5,7 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Sun Dec 25 2016 17:24:35 GMT+0800 (SGT)
+/// @date    Sun Dec 25 2016 19:02:45 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -1956,6 +1956,23 @@ var GPUUtils = (function() {
 	GPUUtils.functionBinder = functionBinder;
 	
 	///
+	/// Function: isArray
+	///
+	/// Checks if is an array or Array-like object
+	///
+	/// Parameters:
+	/// 	arg   - {Object} The argument object to check if is array
+	///
+	/// Returns:
+	/// 	{Boolean}  true if is array or Array-like object
+	///
+	function isArray(arr) {
+		var tag = Object.prototype.toString.call(arr);
+		return tag.indexOf('Array]', tag.length - 6) !== -1;
+	}
+	GPUUtils.isArray = isArray;
+	
+	///
 	/// Function: getArgumentType
 	///
 	/// Evaluate the argument type, to apply respective logic for it
@@ -1967,7 +1984,7 @@ var GPUUtils = (function() {
 	/// 	{String}  Argument type Array/Number/Texture/Unknown
 	///
 	function getArgumentType(arg) {
-		if (Array.isArray(arg)) {
+		if (GPUUtils.isArray(arg)) {
 			return 'Array';
 		} else if (typeof arg == "number") {
 			return 'Number';
@@ -4032,10 +4049,10 @@ var functionBuilder = (function() {
 
 	function getDimensions(x, pad) {
 		var ret;
-		if (Array.isArray(x)) {
+		if (GPUUtils.isArray(x)) {
 			var dim = [];
 			var temp = x;
-			while (Array.isArray(temp)) {
+			while (GPUUtils.isArray(temp)) {
 				dim.push(temp.length);
 				temp = temp[0];
 			}
@@ -4074,15 +4091,15 @@ var functionBuilder = (function() {
 		return ret;
 	}
 
-	function flatten(arr, padding) {
-		if (Array.isArray(arr[0])) {
-			if (Array.isArray(arr[0][0])) {
+	function flatten(arr) {
+		if (GPUUtils.isArray(arr[0])) {
+			if (GPUUtils.isArray(arr[0][0])) {
 				return [].concat.apply([], [].concat.apply([], arr));
 			} else {
 				return [].concat.apply([], arr);
 			}
 		} else {
-			return GPUUtils.clone(arr);
+			return arr;
 		}
 	}
 
@@ -4526,14 +4543,13 @@ var functionBuilder = (function() {
 					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
-					var paramArray = flatten(arguments[textureCount]);
 					var paramLength = paramSize[0] * paramSize[1];
 					if (opt.floatTextures) {
 						paramLength *= 4;
 					}
-					while (paramArray.length < paramLength) {
-						paramArray.push(0);
-					}
+					
+					var paramArray = new Float32Array(paramLength);
+					paramArray.set(flatten(arguments[textureCount]))
 					
 					var argBuffer;
 					if (opt.floatTextures) {
