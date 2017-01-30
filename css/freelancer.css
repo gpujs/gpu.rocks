@@ -59,7 +59,7 @@ hr.star-primary:after {
 }
 
 hr.star-light-footer:after {
-    content: "\f004";
+    content: "\f005";
     display: inline-block;
     position: relative;
     top: -.8em;
