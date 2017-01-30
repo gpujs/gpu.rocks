@@ -5,12 +5,12 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Sun Dec 25 2016 19:02:45 GMT+0800 (SGT)
+/// @date    Mon Jan 30 2017 11:55:09 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
 ///
-/// Copyright (c) 2016 Fazli Sapuan, Matthew Saw, Eugene Cheah and Julia Low
+/// Copyright (c) 2017 Fazli Sapuan, Matthew Saw and Eugene Cheah
 ///
 /// Permission is hereby granted, free of charge, to any person obtaining a copy
 /// of this software and associated documentation files (the "Software"), to deal
@@ -2219,11 +2219,15 @@ var GPUTexture = (function() {
         this.size = size;
         this.dimensions = dimensions;
     }
-    
+
     GPUTexture.prototype.toArray = function() {
         return this.gpu.textureToArray(this);
     };
-    
+
+    GPUTexture.prototype.delete = function() {
+        return this.gpu.deleteTexture(this);
+    };
+
     return GPUTexture;
 })();
 
@@ -2258,10 +2262,10 @@ var GPUCore = (function() {
 		this.functionBuilder = new functionBuilder(this);
 		this.functionBuilder.polyfillStandardFunctions();
 	}
-	
+
 	// Legacy method to get webgl : Preseved for backwards compatibility
 	GPUCore.prototype.getGl = function() {
-		return this.webgl;
+		return this._webgl;
 	};
 
 	GPUCore.prototype.textureToArray = function(texture) {
@@ -2271,7 +2275,12 @@ var GPUCore = (function() {
 
 		return copy(texture);
 	};
-	
+
+	GPUCore.prototype.deleteTexture = function(texture) {
+		var gl = this._webgl;
+		gl.deleteTexture(texture.texture);
+	}
+
 	///
 	/// Get and returns the Synchronous executor, of a class and kernel
 	/// Which returns the result directly after passing the arguments.
@@ -2280,9 +2289,9 @@ var GPUCore = (function() {
 		var kernel = this._kernelFunction;
 		var paramObj = this._kernelParamObj;
 		paramObj.dimensions = paramObj.dimensions || [];
-		
+
 		var mode = this.computeMode;
-		
+
 		//
 		// CPU mode
 		//
@@ -2306,7 +2315,7 @@ var GPUCore = (function() {
 		}
 	}
 	GPUCore.prototype.getSynchronousModeExecutor = getSynchronousModeExecutor;
-	
+
 	///
 	/// Get and returns the ASYNCRONUS executor, of a class and kernel
 	/// This returns a Promise object from an argument set.
@@ -2317,8 +2326,8 @@ var GPUCore = (function() {
 		return null;
 	}
 	GPUCore.prototype.getPromiseModeExecutor = getPromiseModeExecutor;
-	
-	
+
+
 	///
 	/// Prepare the synchrnous mode executor,
 	/// With additional functionalities attached (standard)
@@ -2332,10 +2341,10 @@ var GPUCore = (function() {
 	///
 	function setupExecutorExtendedFunctions(ret, opt) {
 		var gpu = this;
-		
+
 		// Allow original class object reference from kernel
 		ret.gpujs = gpu;
-		
+
 		ret.dimensions = function(dim) {
 			opt.dimensions = dim;
 			return ret;
@@ -2355,7 +2364,7 @@ var GPUCore = (function() {
 			opt.loopMaxIterations = max;
 			return ret;
 		};
-		
+
 		ret.constants = function(constants) {
 			opt.constants = constants;
 			return ret;
@@ -2376,12 +2385,12 @@ var GPUCore = (function() {
 			opt.outputToTexture = flag;
 			return ret;
 		};
-		
+
 		ret.floatTextures = function(flag) {
 			opt.floatTextures = flag;
 			return ret;
 		};
-		
+
 		ret.floatOutput = function(flag) {
 			opt.floatOutput = flag;
 			return ret;
@@ -2394,19 +2403,19 @@ var GPUCore = (function() {
 				gpu._kernelParamObj
 			);
 		};
-		
+
 		ret.getCanvas = function(mode) {
 			return ret.canvas;
 		};
-		
+
 		ret.getWebgl = function(mode) {
 			return ret.webgl;
 		};
-		
+
 		return ret;
 	}
 	GPUCore.prototype.setupExecutorExtendedFunctions = setupExecutorExtendedFunctions;
-	
+
 	return GPUCore;
 })();
 
@@ -4038,7 +4047,7 @@ var functionBuilder = (function() {
 		for (var i=1; i<dimensions.length; i++) {
 			numTexels *= dimensions[i];
 		}
-		
+
 		if (opt.floatTextures && (!output || opt.floatOutput)) {
 			numTexels = Math.ceil(numTexels / 4);
 		}
@@ -4072,28 +4081,35 @@ var functionBuilder = (function() {
 
 		return ret;
 	}
-	
+
 	function pad(arr, padding) {
 		function zeros(n) {
 			return Array.apply(null, Array(n)).map(Number.prototype.valueOf,0);
 		}
-		
+
 		var len = arr.length + padding * 2;
-		
+
 		var ret = arr.map(function(x) {
 			return [].concat(zeros(padding), x, zeros(padding));
 		});
-		
+
 		for (var i=0; i<padding; i++) {
 			ret = [].concat([zeros(len)], ret, [zeros(len)]);
 		}
-		
+
 		return ret;
 	}
 
 	function flatten(arr) {
 		if (GPUUtils.isArray(arr[0])) {
 			if (GPUUtils.isArray(arr[0][0])) {
+				// Annoyingly typed arrays do not have concat so we turn them into arrays first
+				if (!Array.isArray(arr[0][0])) {
+					return [].concat.apply([], [].concat.apply([], arr).map(function(x) {
+						return Array.prototype.slice.call(x);
+					}));
+				}
+
 				return [].concat.apply([], [].concat.apply([], arr));
 			} else {
 				return [].concat.apply([], arr);
@@ -4134,7 +4150,7 @@ var functionBuilder = (function() {
 			specialFlags += "Hardcode";
 			specialFlags += '['+outputDim[0]+','+outputDim[1]+','+outputDim[2]+']';
 		}
-		
+
 		if (opt.constants) {
 			specialFlags += "Constants";
 			specialFlags += JSON.stringify(opt.constants);
@@ -4149,12 +4165,12 @@ var functionBuilder = (function() {
 
 	GPU.prototype._mode_gpu = function(kernel, opt) {
 		var gpu = this;
-		
+
 		var canvas = this._canvas;
 		if (!canvas) {
 			canvas = this._canvas = GPUUtils.init_canvas();
 		}
-		
+
 		var gl = this._webgl;
 		if (!gl) {
 			gl = this._webgl = GPUUtils.init_webgl(canvas);
@@ -4170,9 +4186,23 @@ var functionBuilder = (function() {
 
 		var paramNames = GPUUtils.getParamNames_fromString(funcStr);
 
-		var programCache = [];
-		var programUniformLocationCache = [];
-		
+		var programCache = {};
+		var programUniformLocationCache = {};
+		var bufferCache = {};
+		var textureCache = {};
+		var framebufferCache = {};
+
+		var vertices = new Float32Array([
+			-1, -1,
+			1, -1,
+			-1, 1,
+			1, 1]);
+		var texCoords = new Float32Array([
+			0.0, 0.0,
+			1.0, 0.0,
+			0.0, 1.0,
+			1.0, 1.0]);
+
 		function ret() {
 			if (opt.floatTextures === true && !GPUUtils.OES_texture_float) {
 				throw "Float textures are not supported on this browser";
@@ -4182,7 +4212,7 @@ var functionBuilder = (function() {
 				opt.floatTextures = true;
 				opt.floatOutput = GPUUtils.test_floatReadPixels(gpu) && !opt.graphical;
 			}
-			
+
 			if (!opt.dimensions || opt.dimensions.length === 0) {
 				if (arguments.length != 1) {
 					throw "Auto dimensions only supported for kernels with only one input";
@@ -4199,21 +4229,21 @@ var functionBuilder = (function() {
 			}
 
 			var texSize = dimToTexSize(opt, opt.dimensions, true);
-						
+
 			if (opt.graphical) {
 				if (opt.dimensions.length != 2) {
 					throw "Output must have 2 dimensions on graphical mode";
 				}
-				
+
 				if (opt.floatOutput) {
 					throw "Cannot use graphical mode and float output at the same time";
 				}
-				
+
 				texSize = GPUUtils.clone(opt.dimensions);
 			} else if (opt.floatOutput === undefined && GPUUtils.OES_texture_float) {
 				opt.floatOutput = true;
 			}
-			
+
 			canvas.width = texSize[0];
 			canvas.height = texSize[1];
 			gl.viewport(0, 0, texSize[0], texSize[1]);
@@ -4225,7 +4255,7 @@ var functionBuilder = (function() {
 
 			var programCacheKey = getProgramCacheKey(arguments, opt, opt.dimensions);
 			var program = programCache[programCacheKey];
-			
+
 			function getUniformLocation(name) {
 				var location = programUniformLocationCache[programCacheKey][name];
 				if (!location) {
@@ -4240,7 +4270,7 @@ var functionBuilder = (function() {
 				if (opt.constants) {
 					for (var name in opt.constants) {
 						var value = parseFloat(opt.constants[name]);
-						
+
 						if (Number.isInteger(value)) {
 							constantsStr += 'const float constants_' + name + '=' + parseInt(value) + '.0;\n';
 						} else {
@@ -4248,7 +4278,7 @@ var functionBuilder = (function() {
 						}
 					}
 				}
-				
+
 				var paramStr = '';
 
 				var paramType = [];
@@ -4495,20 +4525,17 @@ var functionBuilder = (function() {
 
 			gl.useProgram(program);
 
-			var vertices = new Float32Array([
-				-1, -1,
-				1, -1,
-				-1, 1,
-				1, 1]);
-			var texCoords = new Float32Array([
-				0.0, 0.0,
-				1.0, 0.0,
-				0.0, 1.0,
-				1.0, 1.0]);
 			var texCoordOffset = vertices.byteLength;
-			var buffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-			gl.bufferData(gl.ARRAY_BUFFER, vertices.byteLength + texCoords.byteLength, gl.STATIC_DRAW);
+			var buffer = bufferCache[programCacheKey];
+			if (!buffer) {
+				buffer = gl.createBuffer();
+				bufferCache[programCacheKey] = buffer;
+
+				gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+				gl.bufferData(gl.ARRAY_BUFFER, vertices.byteLength + texCoords.byteLength, gl.STATIC_DRAW);
+			} else {
+				gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+			}
 			gl.bufferSubData(gl.ARRAY_BUFFER, 0, vertices);
 			gl.bufferSubData(gl.ARRAY_BUFFER, texCoordOffset, texCoords);
 
@@ -4526,7 +4553,9 @@ var functionBuilder = (function() {
 				gl.uniform2fv(uTexSizeLoc, texSize);
 			}
 
-			var textures = [];
+			if (!textureCache[programCacheKey]) {
+				textureCache[programCacheKey] = [];
+			}
 			var textureCount = 0;
 			for (textureCount=0; textureCount<paramNames.length; textureCount++) {
 				var paramDim, paramSize, texture;
@@ -4535,7 +4564,13 @@ var functionBuilder = (function() {
 					paramDim = getDimensions(arguments[textureCount], true);
 					paramSize = dimToTexSize(opt, paramDim);
 
-					texture = gl.createTexture();
+					if (textureCache[programCacheKey][textureCount]) {
+						texture = textureCache[programCacheKey][textureCount];
+					} else {
+						texture = gl.createTexture();
+						textureCache[programCacheKey][textureCount] = texture;
+					}
+
 					gl.activeTexture(gl["TEXTURE"+textureCount]);
 					gl.bindTexture(gl.TEXTURE_2D, texture);
 					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -4547,10 +4582,10 @@ var functionBuilder = (function() {
 					if (opt.floatTextures) {
 						paramLength *= 4;
 					}
-					
+
 					var paramArray = new Float32Array(paramLength);
 					paramArray.set(flatten(arguments[textureCount]))
-					
+
 					var argBuffer;
 					if (opt.floatTextures) {
 						argBuffer = new Float32Array(paramArray);
@@ -4559,8 +4594,7 @@ var functionBuilder = (function() {
 						argBuffer = new Uint8Array((new Float32Array(paramArray)).buffer);
 						gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, paramSize[0], paramSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, argBuffer);
 					}
-					textures[textureCount] = texture;
-					
+
 					var paramLoc = getUniformLocation("user_" + paramNames[textureCount]);
 					var paramSizeLoc = getUniformLocation("user_" + paramNames[textureCount] + "Size");
 					var paramDimLoc = getUniformLocation("user_" + paramNames[textureCount] + "Dim");
@@ -4577,7 +4611,6 @@ var functionBuilder = (function() {
 					paramDim = getDimensions(arguments[textureCount], true);
 					paramSize = arguments[textureCount].size;
 					texture = arguments[textureCount].texture;
-					textures[textureCount] = texture;
 
 					gl.activeTexture(gl["TEXTURE"+textureCount]);
 					gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -4593,8 +4626,12 @@ var functionBuilder = (function() {
 					throw "Input type not supported (GPU): " + arguments[textureCount];
 				}
 			}
-			
-			var outputTexture = gl.createTexture();
+
+			var outputTexture = textureCache[programCacheKey][textureCount];
+			if (!outputTexture) {
+				outputTexture = gl.createTexture();
+				textureCache[programCacheKey][textureCount] = outputTexture;
+			}
 			gl.activeTexture(gl["TEXTURE"+textureCount]);
 			gl.bindTexture(gl.TEXTURE_2D, outputTexture);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -4606,7 +4643,7 @@ var functionBuilder = (function() {
 			} else {
 				gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texSize[0], texSize[1], 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 			}
-			
+
 			if (opt.graphical) {
 				gl.bindRenderbuffer(gl.RENDERBUFFER, null);
    				gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -4614,15 +4651,22 @@ var functionBuilder = (function() {
 				return;
 			}
 
-			var framebuffer = gl.createFramebuffer();
+			var framebuffer = framebufferCache[programCacheKey];
+			if (!framebuffer) {
+				framebuffer = gl.createFramebuffer();
+				framebufferCache[programCacheKey] = framebuffer;
+			}
 			framebuffer.width = texSize[0];
 			framebuffer.height = texSize[1];
 			gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, outputTexture, 0);
-			
+
 			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
 			if (opt.outputToTexture) {
+				// Don't retain a handle on the output texture, we might need to render on the same texture later
+				delete textureCache[programCacheKey][textureCount];
+
 				return new GPUTexture(gpu, outputTexture, texSize, opt.dimensions);
 			} else {
 				var result;
@@ -4634,7 +4678,7 @@ var functionBuilder = (function() {
 					gl.readPixels(0, 0, texSize[0], texSize[1], gl.RGBA, gl.UNSIGNED_BYTE, bytes);
 					result = Float32Array.prototype.slice.call(new Float32Array(bytes.buffer));
 				}
-				
+
 				result = result.subarray(0, threadDim[0] * threadDim[1] * threadDim[2]);
 
 				if (opt.dimensions.length == 1) {
@@ -4649,10 +4693,10 @@ var functionBuilder = (function() {
 				}
 			}
 		}
-		
+
 		ret.canvas = canvas;
 		ret.webgl = gl;
-		
+
 		return gpu.setupExecutorExtendedFunctions(ret, opt);
 	};
 
