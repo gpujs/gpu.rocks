@@ -5,7 +5,7 @@
 /// GPU Accelerated JavaScript
 ///
 /// @version 0.0.0
-/// @date    Mon Jan 30 2017 12:00:46 GMT+0800 (SGT)
+/// @date    Tue Feb 28 2017 11:41:57 GMT+0800 (SGT)
 ///
 /// @license MIT
 /// The MIT License
@@ -1760,7 +1760,7 @@ var GPUUtils = (function() {
 	//  System values support (currently only endianness)
 	//
 	//-----------------------------------------------------------------------------
-	
+
 	// systemEndianness closure based memoizer
 	var endianness = null;
 
@@ -1875,7 +1875,7 @@ var GPUUtils = (function() {
 		return result;
 	}
 	GPUUtils.getParamNames_fromString = getParamNames_fromString;
-	
+
 	//-----------------------------------------------------------------------------
 	//
 	//  Object / function cloning and manipulation
@@ -1910,7 +1910,7 @@ var GPUUtils = (function() {
 		return temp;
 	}
 	GPUUtils.clone = clone;
-	
+
 	///
 	/// Function: newPromise
 	///
@@ -1930,7 +1930,7 @@ var GPUUtils = (function() {
 		return (new imple(executor));
 	}
 	GPUUtils.newPromise = newPromise;
-	
+
 	///
 	/// Function: functionBinder
 	///
@@ -1947,14 +1947,14 @@ var GPUUtils = (function() {
 		if( inFunc.bind ) {
 			return inFunc.bind(thisObj);
 		}
-		
+
 		return function() {
 			var args = (arguments.length === 1 ? [arguments[0]] : Array.apply(null, arguments));
 			return inFunc.apply( thisObj, args );
 		}
 	}
 	GPUUtils.functionBinder = functionBinder;
-	
+
 	///
 	/// Function: isArray
 	///
@@ -1971,7 +1971,7 @@ var GPUUtils = (function() {
 		return tag.indexOf('Array]', tag.length - 6) !== -1;
 	}
 	GPUUtils.isArray = isArray;
-	
+
 	///
 	/// Function: getArgumentType
 	///
@@ -1995,7 +1995,7 @@ var GPUUtils = (function() {
 		}
 	}
 	GPUUtils.getArgumentType = getArgumentType;
-	
+
 	//-----------------------------------------------------------------------------
 	//
 	//  Canvas validation and support
@@ -2024,7 +2024,7 @@ var GPUUtils = (function() {
 		);
 	}
 	GPUUtils.isCanvas = isCanvas;
-	
+
 	// browserSupport_canvas closure based memoizer
 	var browserSupport_canvas_memoizer = null;
 	///
@@ -2042,7 +2042,7 @@ var GPUUtils = (function() {
 		return browserSupport_canvas_memoizer = isCanvas(document.createElement('canvas'));
 	}
 	GPUUtils.browserSupport_canvas = browserSupport_canvas;
-	
+
 	///
 	/// Function: init_canvas
 	///
@@ -2057,10 +2057,10 @@ var GPUUtils = (function() {
 		if( browserSupport_canvas_memoizer === false ) {
 			return null;
 		}
-		
+
 		// Create a new canvas DOM
 		var canvas = document.createElement('canvas');
-		
+
 		// First time setup, does the browser support check memoizer
 		if( browserSupport_canvas_memoizer === null ) {
 			browserSupport_canvas_memoizer = isCanvas(canvas);
@@ -2068,16 +2068,16 @@ var GPUUtils = (function() {
 				return null;
 			}
 		}
-		
+
 		// Default width and height, to fix webgl issue in safari
 		canvas.width = 2;
 		canvas.height = 2;
-		
+
 		// Returns the canvas
 		return canvas;
 	}
 	GPUUtils.init_canvas = init_canvas;
-	
+
 	//-----------------------------------------------------------------------------
 	//
 	//  Webgl validation and support
@@ -2098,13 +2098,13 @@ var GPUUtils = (function() {
 	/// 	{Boolean} TRUE if the object is a webgl context object
 	///
 	function isWebgl( webglObj ) {
-		return (
+		return !!(
 			webglObj != null &&
 			webglObj.getExtension
 		);
 	}
 	GPUUtils.isWebgl = isWebgl;
-	
+
 	// browserSupport_canvas closure based memoizer
 	var browserSupport_webgl_memoizer = null;
 	///
@@ -2122,14 +2122,14 @@ var GPUUtils = (function() {
 		return browserSupport_webgl_memoizer = isWebgl(init_webgl(init_canvas()));
 	}
 	GPUUtils.browserSupport_webgl = browserSupport_webgl;
-	
+
 	// Default webgl options to use
 	var init_webgl_defaultOptions = {
 		alpha: false,
 		depth: false,
 		antialias: false
 	}
-	
+
 	///
 	/// Function: init_webgl
 	///
@@ -2143,23 +2143,23 @@ var GPUUtils = (function() {
 	/// 	{Canvas DOM object} Canvas dom object if supported by browser, else null
 	///
 	function init_webgl(canvasObj) {
-		
+
 		// Fail fast for invalid canvas object
 		if( !isCanvas(canvasObj) ) {
 			throw new Error("Invalid canvas object - "+canvasObj);
 		}
-		
+
 		// Fail fast if browser previously detected no support
 		if( browserSupport_canvas_memoizer === false || browserSupport_webgl_memoizer === false ) {
 			return null;
 		}
-		
+
 		// Create a new canvas DOM
 		var webgl = (
 			canvasObj.getContext("experimental-webgl", init_webgl_defaultOptions) ||
 			canvasObj.getContext("webgl", init_webgl_defaultOptions)
 		);
-		
+
 		// First time setup, does the browser support check memoizer
 		if( browserSupport_webgl_memoizer === null ) {
 			browserSupport_webgl_memoizer = isWebgl(webgl);
@@ -2167,7 +2167,7 @@ var GPUUtils = (function() {
 				return null;
 			}
 		}
-		
+
 		// Get the extension that is needed
 		GPUUtils.OES_texture_float = webgl.getExtension('OES_texture_float');
 		GPUUtils.OES_texture_float_linear = webgl.getExtension('OES_texture_float_linear');
@@ -2177,7 +2177,7 @@ var GPUUtils = (function() {
 		return webgl;
 	}
 	GPUUtils.init_webgl = init_webgl;
-	
+
 	// test_readPixels closure based memoizer
 	var test_floatReadPixels_memoizer = null;
 	///
@@ -2195,7 +2195,7 @@ var GPUUtils = (function() {
 		if (test_floatReadPixels_memoizer !== null) {
 			return test_floatReadPixels_memoizer
 		}
-		
+
 		var x = gpu.createKernel(function() {
 			return 1;
 		}, {
@@ -2204,11 +2204,13 @@ var GPUUtils = (function() {
 			'floatOutput': true,
 			'floatOutputForce': true
 		}).dimensions([2])();
-		
-		return x[0] == 1;
+
+		test_floatReadPixels_memoizer = x[0] == 1;
+
+		return test_floatReadPixels_memoizer;
 	}
 	GPUUtils.test_floatReadPixels = test_floatReadPixels;
-	
+
 	return GPUUtils;
 })();
 
