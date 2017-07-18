@@ -100,14 +100,16 @@ suite.on('complete', function(event) {
 	html += '<p>GPU: ' + stats.gpu.mean.toFixed(3) + 's \xb1' + stats.gpu.rme.toFixed(1) + '%' + faster + '</p>';
 	html += '<small><em>Benchmarks provided by <a href="https://github.com/bestiejs/benchmark.js">benchmark.js</a></em></small>';
 	$('.demo-mult').removeClass('text-center');
-	$('.demo-mult').html(html);
+	if (stats.gpu.rme != 0) {
+		$('.demo-mult').html(html);
+	}
 });
 
 suite.on('error', function(event) {
 	$('.demo-mult').removeClass('text-center');
 	$('.demo-mult').removeClass('alert-info');
 	$('.demo-mult').addClass('alert-danger');
-	$('.demo-mult').html('There was an error running on the GPU.');
+	$('.demo-mult').html('There was an error running on the GPU.<br><br>If you see this, its a bug. Please file it with your hardware, OS and browser information. It will greatly help us in our efforts.<br><a href="https://github.com/gpujs/gpu.js/issues" class="btn btn-outline">Report</a>');
 });
 
 function demoMult() {
