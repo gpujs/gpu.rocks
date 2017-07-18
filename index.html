@@ -58,11 +58,11 @@
                     </div>
                 </div>
                 <div class="col-lg-8 col-lg-offset-2 text-center">
-                    <a href="js/gpu.min.js?nocache" download="gpu.js" class="btn btn-lg btn-outline">
-                        <i class="fa fa-download"></i> Download (v0.0-Alpha)
+                    <a href="js/dist/develop/gpu.js.zip" download="gpu.js.zip" class="btn btn-lg btn-outline">
+                        <i class="fa fa-download"></i> Download (develop branch)
                     </a>
-                    <a href="getting-started/" class="btn btn-lg btn-outline">
-                        Documentation
+                    <a href="https://github.com/gpujs/gpu.js" class="btn btn-lg btn-outline">
+                        <i class="fa fa-github"></i> Github Repo
                     </a>
                 </div>
             </div>
@@ -105,23 +105,23 @@
             <div class="row">
                 <div class="col-lg-8 col-lg-offset-2">
 <h3>Matrix Multiplication</h3>
-<pre><code class="js" style="background: transparent;">var gpu = new GPU();
+<pre><code class="js" style="background: transparent;">const gpu = new GPU();
 
 // Create the GPU accelerated function from a kernel
 // function that computes a single element in the
 // 512 x 512 matrix (2D array). The kernel function
 // is run in a parallel manner in the GPU resulting
 // in very fast computations! (...sometimes)
-var mat_mult = gpu.createKernel(function(A, B) {
+const matMult = gpu.createKernel(function(a, b) {
     var sum = 0;
-    for (var i=0; i&lt;512; i++) {
-        sum += A[this.thread.y][i] * B[i][this.thread.x];
+    for (var i = 0; i < 512; i++) {
+        sum += a[this.thread.y][i] * b[i][this.thread.x];
     }
     return sum;
-}).dimensions([512, 512]);
+}).setDimensions([512, 512]);
 
 // Perform matrix multiplication on 2 matrices of size 512 x 512
-var C = mat_mult(A, B);</code></pre>
+const c = matMult(a, b);</code></pre>
 <div class="alert alert-info demo-mult hide" role="alert"></div>
 <a href="javascript:demoMult();" class="btn btn-primary">
     <i class="fa fa-play"></i> Run Benchmark
@@ -129,30 +129,28 @@ var C = mat_mult(A, B);</code></pre>
             </div>
         </div>
     </section>
+    
     <hr />
+    
     <section>
         <div class="container">
             <div class="row">
                 <div class="col-lg-12 text-center">
-                    <h2>Syntax Support</h2>
+                    <h2>Older Releases</h2>
                     <hr class="star-primary" />
                 </div>
             </div>
             <div class="row">
                 <div class="col-lg-8 col-lg-offset-2">
+                    <div class="page-header">
+                        <h1>v0.0-alpha "Hackathon"<br /><small>Tue Feb 28 2017</small></h1>
+                    </div>
                     <p>
-                        gpu.js relies on the assumption that the kernel function is using only a subset of legal JavaScript syntax:
+                        This is the legacy version for backward compatiblity with the demos made using the "hackathon" API.
                     </p>
-                    <ul>
-                        <li>1D, 2D, 3D array of numbers or just numbers as kernel input</li>
-                        <li>1D, 2D, 3D array of numbers as kernel output</li>
-                        <li>Number variables</li>
-                        <li>Arithematic operations (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>)</li>
-                        <li>Javascript Math operations (<code>Math.floor()</code> and etc.)</li>
-                        <li><code>for</code></code> loops <em>(of fixed sizes only!)</em></li>
-                        <li><code>if</code> and <code>else</code> statements</li>
-                        <li>No variables captured by a closure</li>
-                    </ul>
+                    <a href="js/dist/v0.0/gpu.min.js" download="gpu.js" class="btn btn-lg btn-primary">
+                        <i class="fa fa-download"></i> Download
+                    </a>
                 </div>
             </div>
         </div>
@@ -175,32 +173,6 @@ var C = mat_mult(A, B);</code></pre>
 
     <!-- Footer -->
     <footer class="text-center">
-        <div class="footer-above">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <h2>Made By</h2>
-                        <hr class="star-light-footer" />
-                        <div class="container">
-                            <div class="row">
-                                <div class="footer-col col-md-4">
-                                    <img class="profile-photo img-circle" src="img/team/matthew.jpg" alt="">
-                                    <p>Matthew Saw</p>
-                                </div>
-                                <div class="footer-col col-md-4">
-                                    <img class="profile-photo img-circle" src="img/team/fazli.jpg" alt="">
-                                    <p>Fazli Sapuan</p>
-                                </div>
-                                <div class="footer-col col-md-4">
-                                    <img class="profile-photo img-circle" src="img/team/eugene.jpg" alt="">
-                                    <p>Cheah Eugene</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
         <div class="footer-below">
             <div class="container">
                 <div class="row">
@@ -233,7 +205,8 @@ var C = mat_mult(A, B);</code></pre>
     <script src="js/platform.js"></script>
     <script src="js/benchmark.js"></script>
     
-    <script src="js/gpu.min.js?nocache"></script>
+    <script src="js/gpu-core.min.js"></script>
+    <script src="js/gpu.min.js"></script>
     <script src="js/demo.js"></script>
 </body>
 

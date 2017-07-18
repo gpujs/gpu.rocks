@@ -1,4 +1,9 @@
-var gpu = new GPU();
+var cpu = new GPU({
+	'mode': 'cpu'
+});
+var gpu = new GPU({
+	'mode': 'gpu'
+});
 
 function splitArray(array, part) {
 	var tmp = [];
@@ -24,12 +29,18 @@ A = splitArray(A, mat_size);
 B = splitArray(B, mat_size);
 
 function createMult(mode) {
+	var cpu_or_gpu;
+	if (mode === 'cpu') {
+		cpu_or_gpu = cpu;
+	} else {
+		cpu_or_gpu = gpu;
+	}
+	
 	var opt = {
-        dimensions: [mat_size, mat_size],
-        mode: mode
+        dimensions: [mat_size, mat_size]
     };
 
-    return gpu.createKernel(function(A, B) {
+    return cpu_or_gpu.createKernel(function(A, B) {
         var sum = 0;
         for (var i=0; i<512; i++) {
             sum += A[this.thread.y][i] * B[i][this.thread.x];
