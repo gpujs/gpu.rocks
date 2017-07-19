@@ -28,30 +28,23 @@ for(var n = 0; n < mat_size*mat_size; n++) {
 A = splitArray(A, mat_size);
 B = splitArray(B, mat_size);
 
-function createMult(mode) {
-	var cpu_or_gpu;
-	if (mode === 'cpu') {
-		cpu_or_gpu = cpu;
-	} else {
-		cpu_or_gpu = gpu;
-	}
-	
+function createMultFromGPU(gpu) {
 	var opt = {
-        dimensions: [mat_size, mat_size]
-    };
+		dimensions: [mat_size, mat_size]
+	};
 
-    return cpu_or_gpu.createKernel(function(A, B) {
-        var sum = 0;
-        for (var i=0; i<512; i++) {
-            sum += A[this.thread.y][i] * B[i][this.thread.x];
-        }
-        return sum;
-    }, opt);
+	return gpu.createKernel(function(A, B) {
+		var sum = 0;
+		for (var i=0; i<512; i++) {
+			sum += A[this.thread.y][i] * B[i][this.thread.x];
+		}
+		return sum;
+	}, opt);
 }
 
 var mult = {
-	cpu: createMult('cpu'),
-	gpu: createMult('gpu')
+	cpu: createMultFromGPU(cpu),
+	gpu: createMultFromGPU(gpu)
 };
 
 var benchmarkOpt = {};
@@ -62,34 +55,34 @@ suite.add('mat_mult_cpu', function() {
 	var mode = 'cpu';
 	var mat_mult = mult[mode];
 
-    var C = mat_mult(A, B);
-    
-    return C;
+	var C = mat_mult(A, B);
+
+	return C;
 }, benchmarkOpt);
 
 suite.add('mat_mult_gpu', function() {
 	var mode = 'gpu';
 	var mat_mult = mult[mode];
 
-    var C = mat_mult(A, B);
-    
-    return C;
+	var C = mat_mult(A, B);
+
+	return C;
 }, benchmarkOpt);
 
 suite.on('complete', function(event) {
-	
+
 	var stats = {};
-	
+
 	stats.cpu = this.filter(function(benchmark) {
 		return benchmark.name == 'mat_mult_cpu';
 	}).map('stats')[0];
-	
+
 	stats.gpu = this.filter(function(benchmark) {
 		return benchmark.name == 'mat_mult_gpu';
 	}).map('stats')[0];
-	
+
 	console.dir(stats);
-	
+
 	var faster = '';
 	if (stats.cpu.mean > stats.gpu.mean) {
 		var times = stats.cpu.mean / stats.gpu.mean;
@@ -113,9 +106,9 @@ suite.on('error', function(event) {
 });
 
 function demoMult() {
-    $('.demo-mult').removeClass('hide');
-    $('.demo-mult').addClass('text-center');
-    $('.demo-mult').html('<i class="fa fa-cog fa-spin" style="font-size: 60px;"></i>');
-	
+	$('.demo-mult').removeClass('hide');
+	$('.demo-mult').addClass('text-center');
+	$('.demo-mult').html('<i class="fa fa-cog fa-spin" style="font-size: 60px;"></i>');
+
 	suite.run({ 'async': true });
 }
