@@ -145,6 +145,8 @@
     
     code[index] = codeDim;
     $jsCode.text(code.join("\n"));
+    hljs.highlightBlock($jsCode[0]);
+    
   }
 
 
