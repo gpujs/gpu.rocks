@@ -124,12 +124,13 @@ const matMult = gpu.createKernel(function(a, b) {
 const c = matMult(a, b);</code></pre>
 <div class="alert alert-info demo-mult hide" role="alert"></div>
 <div class="">
-    <div class="panel panel-success">
-        <div class="panel-body text-center" style="background:#5cb85c; color:white">
-            <span class="input-group-addon">
-                <input type="checkbox" id ="outputMode">
-                <label for="outputMode">Set Output to Texture</label>
-            </span>
+    <div class="panel">
+         <div class="panel-body text-center bg-danger outputMode" style="color:white; transition: all 0.5s ease;"> 
+            <!-- <span class="input-group-addon"> -->
+                <!-- <input type="checkbox" id ="outputMode"> -->
+                <!-- <label for="outputMode">Set Output to Texture</label> -->
+            <!-- </span> -->
+            <em>Set Output to Texture</em>
         </div>
     </div>
 </div>

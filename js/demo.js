@@ -120,27 +120,40 @@ function demoMult() {
 	});
 }
 
-const outputMode = document.getElementById('outputMode');
-const demoCode = document.querySelector('code');
+let outputMode, demoCode;
 
-outputMode.onchange = function () {
+window.onload = () => {
+	outputMode = $('.outputMode');
+	demoCode = $('code');
+	outputMode.click(toggleOutputMode);
+}
+
+function toggleOutputMode() {
+	const danger = 'bg-danger';
+	const success = 'bg-success';
+	const opts = {
+		easing: 'easeInSine',
+	}
+
 	function searchSetDimensions(line) {
 		return line.match(/setDimensions/g);
 	}
 
-	let code = demoCode.innerText.split("\n");
+	let code = demoCode.text().split("\n");
 	let codeDim = code.find(searchSetDimensions);
 	const index = code.findIndex(searchSetDimensions);
 
-	if (outputMode.checked) {
+	if (outputMode.hasClass(danger)) {
 		outputAsTexture = true;
+		outputMode.removeClass(danger, opts).addClass(success, opts);
 		codeDim = `${codeDim.split(/;/g)[0]}.setOutputToTexture(true);`;
 		code[index] = codeDim;
 	} else {
 		outputAsTexture = false;
+		outputMode.removeClass(success, opts).addClass(danger, opts);
 		codeDim = `${codeDim.split(/.setOutput/)[0]};`;
 		code[index] = codeDim;
 	}
-	
-	demoCode.innerText = code.join("\n");
+
+	demoCode.text(code.join("\n"));
 }
