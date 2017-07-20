@@ -123,6 +123,13 @@ const matMult = gpu.createKernel(function(a, b) {
 // Perform matrix multiplication on 2 matrices of size 512 x 512
 const c = matMult(a, b);</code></pre>
 <div class="alert alert-info demo-mult hide" role="alert"></div>
+<div class="">
+    <div class="panel">
+         <div class="panel-body text-center bg-danger outputMode" style="color:white; transition: all 0.5s ease;"> 
+            <em>Set Output to Texture (This is where the MAGIC happens!)</em>
+        </div>
+    </div>
+</div>
 <a href="javascript:demoMult();" class="btn btn-primary">
     <i class="fa fa-play"></i> Run Benchmark
 </a>
