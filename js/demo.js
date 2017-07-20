@@ -1,13 +1,14 @@
-var cpu = new GPU({
+const cpu = new GPU({
 	'mode': 'cpu'
 });
-var gpu = new GPU({
+
+const gpu = new GPU({
 	'mode': 'gpu'
 });
 
 function splitArray(array, part) {
-	var tmp = [];
-	for(var i = 0; i < array.length; i += part) {
+	const tmp = [];
+	for (let i = 0; i < array.length; i += part) {
 		tmp.push(array.slice(i, i + part));
 	}
 	return tmp;
@@ -16,30 +17,32 @@ function splitArray(array, part) {
 //
 // Startup code
 //
-var mat_size = 512;
-var A = [];
-var B = [];
-for(var n = 0; n < mat_size*mat_size; n++) {
-	var randA = Math.random();
-	var randB = Math.random();
+const matSize = 3;
+let A = [];
+let B = [];
+
+for (let n = 0; n < matSize * matSize; n++) {
+	const randA = Math.random();
+	const randB = Math.random();
 	A.push(randA);
 	B.push(randB);
 }
-A = splitArray(A, mat_size);
-B = splitArray(B, mat_size);
+
+A = splitArray(A, matSize);
+B = splitArray(B, matSize);
 
 function createMultFromGPU(gpu) {
-	var opt = {
-		dimensions: [mat_size, mat_size]
+	const opt = {
+		dimensions: [matSize, matSize]
 	};
 
-	return gpu.createKernel(function(A, B) {
+	return gpu.createKernel(function (A, B) {
 		var sum = 0;
-		for (var i=0; i<512; i++) {
+		for (var i = 0; i < 3; i++) {
 			sum += A[this.thread.y][i] * B[i][this.thread.x];
 		}
 		return sum;
-	}, opt);
+	}, opt).setOutputToTexture(false);
 }
 
 var mult = {
@@ -47,58 +50,58 @@ var mult = {
 	gpu: createMultFromGPU(gpu)
 };
 
-var benchmarkOpt = {};
+const benchmarkOpt = {};
 
-var suite = new Benchmark.Suite;
+const suite = new Benchmark.Suite;
 
-suite.add('mat_mult_cpu', function() {
-	var mode = 'cpu';
-	var mat_mult = mult[mode];
-
-	var C = mat_mult(A, B);
-
-	return C;
-}, benchmarkOpt);
-
-suite.add('mat_mult_gpu', function() {
-	var mode = 'gpu';
-	var mat_mult = mult[mode];
-
-	var C = mat_mult(A, B);
+suite.add('matMultcpu', function () {
+	const mode = 'cpu';
+	const matMult = mult[mode];
+	const C = matMult(A, B);
 
 	return C;
 }, benchmarkOpt);
 
-suite.on('complete', function(event) {
+suite.add('matMultgpu', function () {
+	const mode = 'gpu';
+	const matMult = mult[mode];
+	const C = matMult(A, B);
 
-	var stats = {};
+	return C;
+}, benchmarkOpt);
 
-	stats.cpu = this.filter(function(benchmark) {
-		return benchmark.name == 'mat_mult_cpu';
+suite.on('complete', function (event) {
+
+	const stats = {};
+
+	stats.cpu = this.filter(function (benchmark) {
+		return benchmark.name == 'matMultcpu';
 	}).map('stats')[0];
 
-	stats.gpu = this.filter(function(benchmark) {
-		return benchmark.name == 'mat_mult_gpu';
+	stats.gpu = this.filter(function (benchmark) {
+		return benchmark.name == 'matMultgpu';
 	}).map('stats')[0];
 
 	console.dir(stats);
 
-	var faster = '';
+	let faster = '';
 	if (stats.cpu.mean > stats.gpu.mean) {
-		var times = stats.cpu.mean / stats.gpu.mean;
-		faster = ' <em>(' + times.toFixed(2) + ' times faster!)</em>';
+		const times = stats.cpu.mean / stats.gpu.mean;
+		faster = `<em>( + ${times.toFixed(2)} times faster!)</em>`;
 	}
-	var html = '';
-	html += '<p>CPU: ' + stats.cpu.mean.toFixed(3) +'s \xb1' + stats.cpu.rme.toFixed(1) + '%</p>'
-	html += '<p>GPU: ' + stats.gpu.mean.toFixed(3) + 's \xb1' + stats.gpu.rme.toFixed(1) + '%' + faster + '</p>';
+	
+	let html = '';
+	html += `<p>CPU: ${stats.cpu.mean.toFixed(3)}s \xb1 ${stats.cpu.rme.toFixed(1)} %</p>`;
+	html += `<p>GPU: ${stats.gpu.mean.toFixed(3)}s \xb1 ${stats.gpu.rme.toFixed(1)} % faster</p>`;
 	html += '<small><em>Benchmarks provided by <a href="https://github.com/bestiejs/benchmark.js">benchmark.js</a></em></small>';
+	
 	$('.demo-mult').removeClass('text-center');
 	if (stats.gpu.rme != 0) {
 		$('.demo-mult').html(html);
 	}
 });
 
-suite.on('error', function(event) {
+suite.on('error', function (event) {
 	$('.demo-mult').removeClass('text-center');
 	$('.demo-mult').removeClass('alert-info');
 	$('.demo-mult').addClass('alert-danger');
@@ -110,5 +113,7 @@ function demoMult() {
 	$('.demo-mult').addClass('text-center');
 	$('.demo-mult').html('<i class="fa fa-cog fa-spin" style="font-size: 60px;"></i>');
 
-	suite.run({ 'async': true });
+	suite.run({
+		'async': true
+	});
 }
