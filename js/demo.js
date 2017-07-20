@@ -91,12 +91,12 @@ suite.on('complete', function (event) {
 		console.log(times)
 		faster = `<em>(${times.toFixed(2)} times faster!)</em>`;
 	}
-	
+
 	let html = '';
 	html += `<p>CPU: ${stats.cpu.mean.toFixed(3)}s \xb1 ${stats.cpu.rme.toFixed(1)} %</p>`;
 	html += `<p>GPU: ${stats.gpu.mean.toFixed(3)}s \xb1 ${stats.gpu.rme.toFixed(1)} % ${faster}</p>`;
 	html += '<small><em>Benchmarks provided by <a href="https://github.com/bestiejs/benchmark.js">benchmark.js</a></em></small>';
-	
+
 	$('.demo-mult').removeClass('text-center');
 	if (stats.gpu.rme != 0) {
 		$('.demo-mult').html(html);
@@ -123,23 +123,24 @@ function demoMult() {
 const outputMode = document.getElementById('outputMode');
 const demoCode = document.querySelector('code');
 
-outputMode.onchange = function(){
-	function searchSetDimensions(line){
+outputMode.onchange = function () {
+	function searchSetDimensions(line) {
 		return line.match(/setDimensions/g);
 	}
-		let code = demoCode.innerText.split("\n");
-		let codeDim = code.find(searchSetDimensions);
-		const index = code.findIndex(searchSetDimensions);
+
+	let code = demoCode.innerText.split("\n");
+	let codeDim = code.find(searchSetDimensions);
+	const index = code.findIndex(searchSetDimensions);
 
 	if (outputMode.checked) {
 		outputAsTexture = true;
 		codeDim = `${codeDim.split(/;/g)[0]}.setOutputToTexture(true);`;
 		code[index] = codeDim;
-		demoCode.innerText = code.join("\n");
 	} else {
 		outputAsTexture = false;
 		codeDim = `${codeDim.split(/.setOutput/)[0]};`;
 		code[index] = codeDim;
-		demoCode.innerText = code.join("\n");
 	}
+	
+	demoCode.innerText = code.join("\n");
 }
