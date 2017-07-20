@@ -5,7 +5,9 @@
   var $runBenchmark = $('#run-benchmark');
   var $textures = $('[name="texture"]');
   var $outputToTexture = $('#output-to-texture');
+  var $outputToNumber = $('#output-to-number');
   var $benchmarkStats = $('#benchmark-stats');
+  var $jsCode = $('.js');
 
   //
   // Startup code
@@ -116,6 +118,33 @@
       .html('<i class="fa fa-cog fa-spin" style="font-size: 60px;"></i>');
 
     suite.run({ async: true });
+  }
+
+  //
+  // Code Shenanigans
+  //
+
+  $outputToTexture.change(toggleCode);
+  $outputToNumber.change(toggleCode);
+  
+  function toggleCode() {
+
+    function searchSetDimensions(line) {
+      return line.match(/setDimensions/g);
+    }
+
+    var code = $jsCode.text().split("\n");
+    var codeDim = code.find(searchSetDimensions);
+    var index = code.findIndex(searchSetDimensions);
+
+    if ($outputToTexture.is(':checked')) {
+      codeDim = codeDim.split(/;/g)[0] + '.setOutputToTexture(true);';
+    } else {
+      codeDim = codeDim.split(/.setOutput/)[0] + ';';
+    }
+    
+    code[index] = codeDim;
+    $jsCode.text(code.join("\n"));
   }
 
 

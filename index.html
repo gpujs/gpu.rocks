@@ -106,7 +106,7 @@
                 <div class="col-lg-8 col-lg-offset-2">
                   <h3>Matrix Multiplication</h3>
                   <pre>
-                    <code class="js" style="background: transparent;">const gpu = new GPU();
+<code class="js" style="background: transparent;">const gpu = new GPU();
 // Create the GPU accelerated function from a kernel
 // function that computes a single element in the
 // 512 x 512 matrix (2D array). The kernel function
@@ -121,8 +121,7 @@ const multiplyMatrix = gpu.createKernel(function(a, b) {
 }).setDimensions([512, 512]);
 
 // Perform matrix multiplication on 2 matrices of size 512 x 512
-const c = multiplyMatrix(a, b);</code>
-                  </pre><br>
+const c = multiplyMatrix(a, b);</code></pre><br>
                   <h4>Texture Mode (GPU only)</h4>
                   <label><input id="output-to-number" type="radio" name="texture" checked="checked"> Disabled (default)</label><br>
                   <label><input id="output-to-texture" type="radio" name="texture" > Enabled (This is where the REAL POWER IS!)</label><br>
