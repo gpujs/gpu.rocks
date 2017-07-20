@@ -17,7 +17,8 @@ function splitArray(array, part) {
 //
 // Startup code
 //
-const matSize = 3;
+const matSize = 256;
+let outputAsTexture = false;
 let A = [];
 let B = [];
 
@@ -38,11 +39,11 @@ function createMultFromGPU(gpu) {
 
 	return gpu.createKernel(function (A, B) {
 		var sum = 0;
-		for (var i = 0; i < 3; i++) {
+		for (var i = 0; i < 256; i++) {
 			sum += A[this.thread.y][i] * B[i][this.thread.x];
 		}
 		return sum;
-	}, opt).setOutputToTexture(false);
+	}, opt).setOutputToTexture(outputAsTexture);
 }
 
 var mult = {
@@ -87,12 +88,13 @@ suite.on('complete', function (event) {
 	let faster = '';
 	if (stats.cpu.mean > stats.gpu.mean) {
 		const times = stats.cpu.mean / stats.gpu.mean;
-		faster = `<em>( + ${times.toFixed(2)} times faster!)</em>`;
+		console.log(times)
+		faster = `<em>(${times.toFixed(2)} times faster!)</em>`;
 	}
 	
 	let html = '';
 	html += `<p>CPU: ${stats.cpu.mean.toFixed(3)}s \xb1 ${stats.cpu.rme.toFixed(1)} %</p>`;
-	html += `<p>GPU: ${stats.gpu.mean.toFixed(3)}s \xb1 ${stats.gpu.rme.toFixed(1)} % faster</p>`;
+	html += `<p>GPU: ${stats.gpu.mean.toFixed(3)}s \xb1 ${stats.gpu.rme.toFixed(1)} % ${faster}</p>`;
 	html += '<small><em>Benchmarks provided by <a href="https://github.com/bestiejs/benchmark.js">benchmark.js</a></em></small>';
 	
 	$('.demo-mult').removeClass('text-center');
@@ -116,4 +118,14 @@ function demoMult() {
 	suite.run({
 		'async': true
 	});
+}
+
+const outputMode = document.getElementById('outputMode');
+
+outputMode.onchange = function(){
+	if (outputMode.checked) {
+		outputAsTexture = true;
+	} else {
+		outputAsTexture = false;	
+	}
 }
