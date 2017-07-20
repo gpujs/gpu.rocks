@@ -131,9 +131,6 @@ window.onload = () => {
 function toggleOutputMode() {
 	const danger = 'bg-danger';
 	const success = 'bg-success';
-	const opts = {
-		easing: 'easeInSine',
-	}
 
 	function searchSetDimensions(line) {
 		return line.match(/setDimensions/g);
@@ -145,12 +142,12 @@ function toggleOutputMode() {
 
 	if (outputMode.hasClass(danger)) {
 		outputAsTexture = true;
-		outputMode.removeClass(danger, opts).addClass(success, opts);
+		outputMode.removeClass(danger).addClass(success);
 		codeDim = `${codeDim.split(/;/g)[0]}.setOutputToTexture(true);`;
 		code[index] = codeDim;
 	} else {
 		outputAsTexture = false;
-		outputMode.removeClass(success, opts).addClass(danger, opts);
+		outputMode.removeClass(success).addClass(danger);
 		codeDim = `${codeDim.split(/.setOutput/)[0]};`;
 		code[index] = codeDim;
 	}
