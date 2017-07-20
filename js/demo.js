@@ -121,11 +121,25 @@ function demoMult() {
 }
 
 const outputMode = document.getElementById('outputMode');
+const demoCode = document.querySelector('code');
 
 outputMode.onchange = function(){
+	function searchSetDimensions(line){
+		return line.match(/setDimensions/g);
+	}
+		let code = demoCode.innerText.split("\n");
+		let codeDim = code.find(searchSetDimensions);
+		const index = code.findIndex(searchSetDimensions);
+
 	if (outputMode.checked) {
 		outputAsTexture = true;
+		codeDim = `${codeDim.split(/;/g)[0]}.setOutputToTexture(true);`;
+		code[index] = codeDim;
+		demoCode.innerText = code.join("\n");
 	} else {
-		outputAsTexture = false;	
+		outputAsTexture = false;
+		codeDim = `${codeDim.split(/.setOutput/)[0]};`;
+		code[index] = codeDim;
+		demoCode.innerText = code.join("\n");
 	}
 }
