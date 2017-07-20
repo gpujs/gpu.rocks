@@ -17,7 +17,7 @@ function splitArray(array, part) {
 //
 // Startup code
 //
-const matSize = 256;
+const matSize = 512;
 let outputAsTexture = false;
 let A = [];
 let B = [];
@@ -39,7 +39,7 @@ function createMultFromGPU(gpu) {
 
 	return gpu.createKernel(function (A, B) {
 		var sum = 0;
-		for (var i = 0; i < 256; i++) {
+		for (var i = 0; i < 512; i++) {
 			sum += A[this.thread.y][i] * B[i][this.thread.x];
 		}
 		return sum;
