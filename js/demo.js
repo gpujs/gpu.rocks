@@ -12,7 +12,7 @@
   //
   // Startup code
   //
-  var matrixSize = 512;
+  var matrixSize = 1;
   var allowChangeOutput = true;
   var a = new Array(matrixSize * matrixSize);
   var b = new Array(matrixSize * matrixSize);
@@ -40,7 +40,7 @@
 
     return gpu.createKernel(function(a, b) {
       var sum = 0;
-      for (var i=0; i<512; i++) {
+      for (var i = 0; i < 512; i++) {
         sum += a[this.thread.y][i] * b[i][this.thread.x];
       }
       return sum;
@@ -170,11 +170,11 @@
 
   function disableTextureChange() {
     allowChangeOutput = false;
-    $textures.attr('disabled', 'true');
+    $textures.prop('disabled', true);
   }
 
   function enableTextureChange() {
     allowChangeOutput = false;
-    $textures.attr('disabled', 'true');
+    $textures.prop('disabled', false);
   }
 })();
