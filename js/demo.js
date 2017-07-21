@@ -12,7 +12,7 @@
   //
   // Startup code
   //
-  var matrixSize = 1;
+  var matrixSize = 512;
   var allowChangeOutput = true;
   var a = new Array(matrixSize * matrixSize);
   var b = new Array(matrixSize * matrixSize);
