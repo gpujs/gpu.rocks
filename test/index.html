@@ -1,177 +1,188 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8">
     <title>Test Page</title>
 </head>
+
 <body>
 
-<script src="../js/gpu.js?nocache"></script>
-<script>
-var testLimit = 100;
-var epsilon = 0.001;
+    <script src="../js/dist/develop/gpu.js?nocache"></script>
+    <script src="../js/dist/develop/gpu-core.js?nocache"></script>
+    <script>
+        let testLimit = 100;
+        const epsilon = 0.001;
 
-var gpu = new GPU();
-var test = gpu.createKernel(function(X) {
-    return X[this.thread.x];
-}, {debug:true}).dimensions([testLimit]);
+        const gpu = new GPU();
+        const test = gpu.createKernel(function (X) {
+            return X[this.thread.x];
+        }, {
+            debug: false
+        }).setDimensions([testLimit]);
 
-var arr = [];
-for (var i=0; i<testLimit; i++) {
-    arr.push(i);
-}
-
-var res = test(arr);
-
-console.log("Integer test:");
-
-var pass = true;
-for (var i=0; i<testLimit; i++) {
-    if (Math.abs(arr[i]-res[i]) > epsilon) {
-        console.warn("Expected " + arr[i] + ", got " + res[i]);
-        pass = false;
-        break;
-    }
-}
-
-console.log(test(arr));
-
-if (pass) {
-    console.log("PASS");
-} else {
-    console.log("FAIL");
-}
-
-var arr = [];
-for (var i=0; i<testLimit; i++) {
-    arr.push(-i);
-}
-
-var res = test(arr);
-
-console.log("Integer test:");
-
-var pass = true;
-for (var i=0; i<testLimit; i++) {
-    if (Math.abs(arr[i]-res[i]) > epsilon) {
-        console.warn("Expected " + arr[i] + ", got " + res[i]);
-        pass = false;
-        break;
-    }
-}
-
-console.log(test(arr));
-
-if (pass) {
-    console.log("PASS");
-} else {
-    console.log("FAIL");
-}
-
-var arr = [];
-for (var i=0; i<testLimit; i++) {
-    arr.push(2*i/testLimit);
-}
-
-var res = test(arr);
-
-console.log("Floating point test:");
-
-var pass = true;
-for (var i=0; i<testLimit; i++) {
-    if (Math.abs(arr[i]-res[i]) > epsilon) {
-        console.log(2*i/testLimit);
-        console.log(i);
-        console.log(testLimit);
-        console.warn("Expected " + arr[i] + ", got " + res[i]);
-        pass = false;
-        break;
-    }
-}
-
-console.log(test(arr));
-
-if (pass) {
-    console.log("PASS");
-} else {
-    console.log("FAIL");
-}
-
-var arr = [];
-for (var i=0; i<testLimit; i++) {
-    arr.push(i/(testLimit*100));
-}
-
-var res = test(arr);
-
-console.log("Floating point test part 2:");
-
-var pass = true;
-for (var i=0; i<testLimit; i++) {
-    if (Math.abs(arr[i]-res[i]) > epsilon) {
-        console.warn("Expected " + arr[i] + ", got " + res[i]);
-        pass = false;
-        break;
-    }
-}
-
-console.log(test(arr));
-
-if (pass) {
-    console.log("PASS");
-} else {
-    console.log("FAIL");
-}
-
-function getRandomArbitrary(min, max) {
-  return Math.random() * (max - min) + min;
-}
-
-var totalAvgError = 0;
-var avgError = 0;
-var runCount = 0;
-function randomTest() {
-    var arr = [];
-    testLimit = 10;
-    test.dimensions([testLimit]);
-    for (var i=0; i<testLimit; i++) {
-        arr.push(getRandomArbitrary(-16777216, 16777216));
-    }
-    
-    var res = test(arr);
-
-    console.log("Random number test:");
-
-    var pass = true;
-    var error;
-    for (var i=0; i<testLimit; i++) {
-        error = 100 * Math.abs(Math.abs(arr[i]-res[i]) / arr[i]);
-        if (error > 0.00001) {
-            console.warn("Expected " + arr[i] + ", got " + res[i]);
-            pass = false;
+        let arr = [];
+        for (let i = 0; i < testLimit; i++) {
+            if (i === 0) {
+                arr.push(0);
+            } else {
+                arr.push(-i);
+            };
         }
-        avgError += error;
-    }
-    avgError /= testLimit;
-    totalAvgError *= runCount;
-    totalAvgError += avgError;
-    runCount++;
-    totalAvgError /= runCount;
 
-    console.log(test(arr));
+        let res = test(arr);
 
-    if (pass) {
-        console.log("PASS");
-    } else {
-        console.log("FAIL");
-    }
-    console.log("Average error: " + totalAvgError.toFixed(20) + "%");
-    
-    //if (pass) setTimeout(randomTest, 500);
-}
+        console.log("Negative integer test:");
 
-randomTest();
+        let pass = true;
+        for (let i = 0; i < testLimit; i++) {
+            if (Math.abs(arr[i] - res[i]) > epsilon) {
+                console.warn("Expected " + arr[i] + ", got " + res[i]);
+                pass = false;
+                break;
+            }
+        }
 
-</script>
+        console.log(test(arr));
+
+        if (pass) {
+            console.log("PASS");
+        } else {
+            console.log("FAIL");
+        }
+
+        arr = [];
+        for (let i = 0; i < testLimit; i++) {
+            arr.push(i);
+        }
+
+        res = test(arr);
+
+        console.log("Positive integer test:");
+
+        pass = true;
+        for (let i = 0; i < testLimit; i++) {
+            if (Math.abs(arr[i] - res[i]) > epsilon) {
+                console.warn("Expected " + arr[i] + ", got " + res[i]);
+                pass = false;
+                break;
+            }
+        }
+
+        console.log(test(arr));
+
+        if (pass) {
+            console.log("PASS");
+        } else {
+            console.log("FAIL");
+        }
+
+        arr = [];
+        for (let i = 0; i < testLimit; i++) {
+            arr.push(2 * i / testLimit);
+        }
+
+        res = test(arr);
+
+        console.log("Floating point test:");
+
+        pass = true;
+        for (let i = 0; i < testLimit; i++) {
+            if (Math.abs(arr[i] - res[i]) > epsilon) {
+                console.log(2 * i / testLimit);
+                console.log(i);
+                console.log(testLimit);
+                console.warn("Expected " + arr[i] + ", got " + res[i]);
+                pass = false;
+                break;
+            }
+        }
+
+        console.log(test(arr));
+
+        if (pass) {
+            console.log("PASS");
+        } else {
+            console.log("FAIL");
+        }
+
+        arr = [];
+        for (let i = 0; i < testLimit; i++) {
+            arr.push(i / (testLimit * 100));
+        }
+
+        res = test(arr);
+
+        console.log("Floating point test part 2:");
+
+        pass = true;
+        for (let i = 0; i < testLimit; i++) {
+            if (Math.abs(arr[i] - res[i]) > epsilon) {
+                console.warn("Expected " + arr[i] + ", got " + res[i]);
+                pass = false;
+                break;
+            }
+        }
+
+        console.log(test(arr));
+
+        if (pass) {
+            console.log("PASS");
+        } else {
+            console.log("FAIL");
+        }
+
+        function getRandomArbitrary(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        let totalAvgError = 0;
+        let avgError = 0;
+        let runCount = 0;
+
+        function randomTest() {
+            const arr = [];
+            testLimit = 10;
+            console.log(testLimit)
+            test.setDimensions([testLimit]);
+            for (let i = 0; i < testLimit; i++) {
+                arr.push(getRandomArbitrary(-16777216, 16777216));
+            }
+
+            const res = test(arr);
+
+            console.log("Random number test:");
+
+            let pass = true;
+            let error;
+            for (let i = 0; i < testLimit; i++) {
+                error = 100 * Math.abs(Math.abs(arr[i] - res[i]) / arr[i]);
+                if (error > 0.00001) {
+                    console.warn("Expected " + arr[i] + ", got " + res[i]);
+                    pass = false;
+                }
+                avgError += error;
+            }
+            avgError /= testLimit;
+            totalAvgError *= runCount;
+            totalAvgError += avgError;
+            runCount++;
+            totalAvgError /= runCount;
+
+            console.log(test(arr));
+
+            if (pass) {
+                console.log("PASS");
+            } else {
+                console.log("FAIL");
+            }
+            console.log("Average error: " + totalAvgError.toFixed(20) + "%");
+
+            //if (pass) setTimeout(randomTest, 500);
+        }
+
+        randomTest();
+    </script>
 </body>
+
 </html>
