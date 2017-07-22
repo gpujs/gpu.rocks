@@ -105,8 +105,7 @@
       <div class="row">
         <div class="col-lg-8 col-lg-offset-2">
           <h3>Matrix Multiplication</h3>
-          <pre>
-<code class="js" style="background: transparent;">const gpu = new GPU();
+          <pre><code class="js" style="background: transparent;">const gpu = new GPU();
 // Create the GPU accelerated function from a kernel
 // function that computes a single element in the
 // 512 x 512 matrix (2D array). The kernel function
@@ -160,16 +159,31 @@ const c = multiplyMatrix(a, b);</code></pre><br>
                 <strong>Hardware:</strong> Macbook Pro Retina 2012
               </li>
               <li>
+                <strong>Operating System:</strong> Mac OS X 10.12.5
+              </li>
+              <li>
                 <strong>Browser:</strong> Firefox 54.0.1 (64-Bit)
               </li>
             </ul>
-            <div id="benchmark-plot">
-              
-            </div>
+            <div id="benchmark-plot-mbp2012"></div>
+            <ul>
+              <li>
+                <strong>Hardware:</strong> i7-7700K + GTX1080
+              </li>
+              <li>
+                <strong>Operating System:</strong> Windows 10 (Build 15063.483)
+              </li>
+              <li>
+                <strong>Browser:</strong> Firefox 54.0.1 (32-Bit)
+              </li>
+            </ul>
+            <div id="benchmark-plot-gtx1080"></div>
           </div>
         </div>
       </div>
     </section>
+    
+    <hr />
     
     <section>
       <div class="container">
@@ -217,6 +231,7 @@ const c = multiplyMatrix(a, b);</code></pre><br>
           <div class="row">
             <div class="col-lg-12">
               Copyright &copy; 2017 gpu.js Team. Licensed under MIT.
+              <a class="github-button" href="https://github.com/gpujs/gpu.js" data-icon="octicon-star" data-show-count="true" aria-label="Star gpujs/gpu.js on GitHub">Star</a>
             </div>
           </div>
         </div>
@@ -248,6 +263,8 @@ const c = multiplyMatrix(a, b);</code></pre><br>
     <script src="js/gpu-core.min.js?ul1aP6Kcug"></script>
     <script src="js/gpu.min.js?1aebp6M9Sq"></script>
     <script src="js/demo.js?A8c4dQ5ZsP"></script>
+    
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
   </body>
   
   </html>
