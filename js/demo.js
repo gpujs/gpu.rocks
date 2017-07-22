@@ -148,7 +148,54 @@
     hljs.highlightBlock($jsCode[0]);
     
   }
-
+	
+	//
+	// Benchmark Chart
+	//
+	$.getJSON('js/benchmark.json', function(benchmark) {
+		var data = [
+			{
+				name: 'Upper Bound',
+				x: benchmark.x_series,
+				y: benchmark.y_series_upper,
+				type: 'scatter',
+				mode: 'lines',
+				marker: {color:'#444'},
+				line: {width:0},
+			},
+			{
+				name: 'Mean',
+				x: benchmark.x_series,
+				y: benchmark.y_series,
+				type: 'scatter',
+				mode: 'lines',
+				line: {color:'rgb(31, 119, 180)'},
+				fillcolor: 'rgba(68, 68, 68, 0.1)',
+				fill: 'tonexty'
+			},
+			{
+				name: 'Lower Bound',
+				x: benchmark.x_series,
+				y: benchmark.y_series_lower,
+				type: 'scatter',
+				mode: 'lines',
+				marker: {color:'#444'},
+				line: {width:0},
+				fillcolor: 'rgba(68, 68, 68, 0.1)',
+				fill: 'tonexty'
+			},
+		];
+		
+		var layout = {
+			yxais: {
+				type: 'log',
+				autorange: true
+			},
+			showlegend: false
+		};
+		
+		Plotly.newPlot('benchmark-plot', data, layout);
+	});
 
   //
   // Utilities
