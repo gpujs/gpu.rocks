@@ -152,8 +152,33 @@
 	//
 	// Benchmark Chart
 	//
-	loadJSON('benchmark-plot-mbp2012', 'js/benchmark-mbp2012.json')
-	loadJSON('benchmark-plot-gtx1080', 'js/benchmark-gtx1080.json')
+	var chartData = {
+		mbp2012: [],
+		gtx1080: [],
+	}
+	
+	var chartBrowsers = {
+		firefox: {
+			displayName: 'Firefox',
+			lineColor: 'rgb(237, 111, 33)',
+			shadowColor: 'rgba(237, 111, 33, 0.1)'
+		},
+		chrome: {
+			displayName: 'Chrome',
+			lineColor: 'rgb(10, 181, 59)',
+			shadowColor: 'rgba(10, 181, 59, 0.1)'
+		},
+		edge: {
+			displayName: 'Edge',
+			lineColor: 'rgb(31, 119, 180)',
+			shadowColor: 'rgba(31, 119, 180, 0.1)'
+		}
+	}
+	
+	loadJSON('mbp2012', 'firefox', 1);
+	loadJSON('gtx1080', 'firefox', 3);
+	loadJSON('gtx1080', 'chrome', 3);
+	loadJSON('gtx1080', 'edge', 3);
 
   //
   // Utilities
@@ -183,50 +208,63 @@
     $textures.prop('disabled', false);
   }
 	
-	function loadJSON(div, filename) {
+	function loadJSON(benchmarkName, browserName, numBenchmarks) {
+		var div = 'benchmark-plot-' + benchmarkName;
+		var filename = 'js/benchmark-' + benchmarkName + '-' + browserName + '.json';
+		var lineColor = chartBrowsers[browserName].lineColor;
+		var shadowColor = chartBrowsers[browserName].shadowColor;
+		var browserDisplayName = chartBrowsers[browserName].displayName;
+		
 		$.getJSON(filename, function(benchmark) {
 			var data = [
 				{
-					name: 'Upper Bound',
+					name: browserDisplayName + ' (Upper Bound)',
 					x: benchmark.x_series,
 					y: benchmark.y_series_upper,
 					type: 'scatter',
 					mode: 'lines',
-					marker: {color:'#444'},
+					marker: {color:'#444', },
 					line: {width:0},
 				},
 				{
-					name: 'Mean',
+					name: browserDisplayName + ' (Mean)',
 					x: benchmark.x_series,
 					y: benchmark.y_series,
 					type: 'scatter',
 					mode: 'lines',
-					line: {color:'rgb(31, 119, 180)'},
-					fillcolor: 'rgba(68, 68, 68, 0.1)',
+					line: {
+						color: lineColor
+					},
+					fillcolor: shadowColor,
 					fill: 'tonexty'
 				},
 				{
-					name: 'Lower Bound',
+					name: browserDisplayName + ' (Lower Bound)',
 					x: benchmark.x_series,
 					y: benchmark.y_series_lower,
 					type: 'scatter',
 					mode: 'lines',
 					marker: {color:'#444'},
 					line: {width:0},
-					fillcolor: 'rgba(68, 68, 68, 0.1)',
+					fillcolor: shadowColor,
 					fill: 'tonexty'
 				},
 			];
 			
-			var layout = {
-				yxais: {
-					type: 'log',
-					autorange: true
-				},
-				showlegend: false
-			};
+			chartData[benchmarkName] = chartData[benchmarkName].concat(data);
 			
-			Plotly.newPlot(div, data, layout);
+			if (chartData[benchmarkName].length === numBenchmarks * 3) {
+				var layout = {
+					yxais: {
+						type: 'log',
+						autorange: true,
+					},
+					showlegend: false,
+					hovermode: 'closest'
+				};
+				
+				Plotly.newPlot(div, chartData[benchmarkName], layout);
+			}
 		});
 	}
 })();
