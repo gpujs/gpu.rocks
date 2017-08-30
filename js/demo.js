@@ -34,7 +34,7 @@
   //
   function createMultiplyKernel(gpu) {
     var options = {
-      dimensions: [matrixSize, matrixSize],
+      output: [matrixSize, matrixSize],
       outputToTexture: $outputToTexture[0].checked
     };
 
@@ -85,7 +85,7 @@
         faster = ' <em>(' + times.toFixed(2) + ' times faster!)</em>';
 
         if (times > 10) {
-          faster += '<img style="width: 100%;" src="https://media.giphy.com/media/mYZFipl0aV0Tm/giphy.gif" />';
+          faster += '<img style="width: 100%;" src="https://media.giphy.com/media/aD7fneoMfS6Yw/giphy.gif" />';
         }
       }
       var html = '\

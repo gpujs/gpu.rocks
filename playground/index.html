@@ -32,7 +32,7 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.9.7/chartist.js"></script>
 		
 		<!-- gpu.js scripts -->
-		<script src="../js/gpu.js?t=0"></script>
+    <script src="https://cdn.rawgit.com/gpujs/gpu.js/b9e66c769232348e6fbf226fa1ed9e5269bb1941/bin/gpu.js"></script>
 		<script src="playground.js?t=0"></script>
 		<link rel="stylesheet" href="playground.css">
 	</head>
@@ -48,7 +48,7 @@
 				This page here, is meant to help "play" with various algorithms, random data sets, etc.<br/>
 				And benchmark their performance on your computer (CPU vs GPU) respective to the datasize.<br/>
 				<br/>
-				[SECURITY WARNING] : This playground here does an "evil" eval on the input funcitons. So obviously do not carlessly copy and paste things here.
+				[SECURITY WARNING] : This playground here does an "evil" eval on the input functions. So obviously do not carelessly copy and paste things here.
 				<br/><br/>
 				<a href="https://gpu.rocks">Our main site is found at https://gpu.rocks</a>
 				<br/><br/>
@@ -65,7 +65,7 @@
 				- Number of parameters : To pass to the final GPU.js function<br/>
 				- Sample size : Size for the sample display<br/>
 				- Random seed : Seed value, used by the random function<br/>
-				(Pesudo random is choosen to make testing and debugging the parameter function generator easier and consistent)<br/>
+				(Pseudo random is chosen to make testing and debugging the parameter function generator easier and consistent)<br/>
 				<br/>
 				Each parameter function are passed in 2 attributes<br/>
 				<br/>
@@ -122,7 +122,7 @@
 				<div class="col-sm-6 paramGroup sampleSet" id="paramGroupTemplate" style="display:none;">
 					<div class="paramGroupInner sampleSetInner form-group">
 						<label class="control-label" for="param_name">Parameter Name</label>  
-						<input type="text" name="param_name" class="param_name form-control" value="A">
+						<input type="text" name="param_name" class="param_name form-control" value="a">
 						<label class="control-label" for="param_function">Parameter Function</label>  
 						<textarea name="param_function" class="param_function"></textarea>
 						<label class="control-label" for="param_sample">Sample Output</label>  
