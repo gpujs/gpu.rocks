@@ -101,225 +101,234 @@
     <div class="container">
       <div class="row">
         <div class="col-lg-12 text-center">
-          <h2>Demo</h2>
+          <h2>Example</h2>
           <hr class="star-primary" />
         </div>
       </div>
       <div class="row">
         <div class="col-lg-8 col-lg-offset-2">
           <h3>Matrix Multiplication</h3>
-          <pre><code class="js" style="background: transparent;">const gpu = new GPU();
-// Create the GPU accelerated function from a kernel
-// function that computes a single element in the
-// 512 x 512 matrix (2D array). The kernel function
-// is run in a parallel manner in the GPU resulting
-// in very fast computations! (...sometimes)
+          <p>
+            Create the GPU accelerated function from a kernel
+            function that computes a single element in the
+            512 x 512 matrix (2D array). The kernel function
+            is run in a parallel manner in the GPU resulting
+            in very fast computations! (...sometimes)
+          </p>
+          <br>
+          <h4>Create a "kernel" <small>(a fancy word for a function that runs on your GPU)</small></h4>
+          <pre id="texture-mode-disabled"><code class="js" style="background: transparent;">const gpu = new GPU();
 const multiplyMatrix = gpu.createKernel(function(a, b) {
   var sum = 0;
   for (var i = 0; i < 512; i++) {
     sum += a[this.thread.y][i] * b[i][this.thread.x];
   }
   return sum;
-}).setOutput([512, 512]);
-
-// Perform matrix multiplication on 2 matrices of size 512 x 512
-const c = multiplyMatrix(a, b);</code></pre><br>
-              <h4>Texture Mode (GPU only)</h4>
-              <label><input id="output-to-number" type="radio" name="texture" checked="checked"> Disabled (default)</label><br>
-              <label><input id="output-to-texture" type="radio" name="texture" > Enabled (This is where the REAL POWER IS!)</label><br>
-              <div id="benchmark-stats" class="alert alert-info hide" role="alert"></div>
-              <a href="#" class="btn btn-primary" id="run-benchmark">
-                <i class="fa fa-play"></i> Run Benchmark
-              </a>
-              <!--
-              Congratulations, you found the "colorfully decorated egg":
-              We love all browsers and welcome them...
-              but try texture mode in the latest Firefox,
-              and try not to drop your coffee...
-            -->
-          </div>
+}).setOutput([512, 512]);</code></pre>
+          <pre id="texture-mode-enabled"><code class="js" style="background: transparent;">const gpu = new GPU();
+const multiplyMatrix = gpu.createKernel(function(a, b) {
+  var sum = 0;
+  for (var i = 0; i < 512; i++) {
+    sum += a[this.thread.y][i] * b[i][this.thread.x];
+  }
+  return sum;
+})
+  .setOutput([512, 512])
+  .setOutputToTexture(true);</code></pre>
+          <br>
+          <h4>Call kernel</h4>
+          <p>Performs matrix multiplication on 2 matrices of size 512 x 512</p>
+          <pre><code style="background: transparent;">const c = multiplyMatrix(a, b);</code></pre><br>
+          <h4 >Benchmark it!</h4>
+          <h5>Texture Mode (GPU only)</h5>
+          <label><input class="output-to" type="radio" name="texture" checked="checked" value="number"> Disabled (default)</label><br>
+          <label><input class="output-to" type="radio" name="texture" value="texture"> Enabled (This is where the REAL POWER IS!)</label><br>
+          <div id="benchmark-stats" class="alert alert-info hide" role="alert"></div>
+          <a href="#" class="btn btn-primary" id="run-benchmark">
+            <i class="fa fa-play"></i> Run Benchmark
+          </a>
         </div>
       </div>
-    </section>
-
-    <hr />
-    <section>
-      <div class="container">
-        <div class="row">
-          <div class="col-lg-12 text-center">
-            <h2>Syntax Support</h2>
-            <hr class="star-primary" />
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-lg-8 col-lg-offset-2">
-            <p>
-              gpu.js relies on the assumption that the kernel function is using only a subset of legal JavaScript syntax:
-            </p>
-            <ul>
-              <li>1D, 2D, 3D array of numbers or just numbers as kernel input</li>
-              <li>1D, 2D, 3D array of numbers as kernel output</li>
-              <li>Number variables</li>
-              <li>Custom and custom native <code>function</code>s</li>
-              <li>Arithmetic operations (<code>+</code>, <code>+=</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>)</li>
-              <li>Javascript Math functions (<code>Math.floor()</code> and etc.)</li>
-              <li>Loops</li>
-              <li><code>if</code> and <code>else</code> statements</li>
-              <li><code>const</code> and <code>let</code></li>
-              <li>No variables captured by a closure</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <hr />
-
-    <section>
-      <div class="container">
-        <div class="row">
-          <div class="col-lg-12 text-center">
-            <h2>Development Benchmarks</h2>
-            <hr class="star-primary" />
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-lg-8 col-lg-offset-2">
-            <p>
-              Here is a chart representing the performance of a 512x512 maltrix multiplication throughout our development (lower is better).
-            </p>
-            <ul>
-              <li>
-                <strong>Hardware:</strong> Macbook Pro Retina 2012
-              </li>
-              <li>
-                <strong>Operating System:</strong> Mac OS X 10.12.5
-              </li>
-              <li>
-                <strong>Browser:</strong> Firefox 54.0.1 (64-Bit)
-              </li>
-            </ul>
-            <div id="benchmark-plot-mbp2012"></div>
-            <ul>
-              <li>
-                <strong>Hardware:</strong> i7-7700K + GTX1080
-              </li>
-              <li>
-                <strong>Operating System:</strong> Windows 10 (Build 15063.483)
-              </li>
-              <li>
-                <strong>Browser:</strong>
-                <div>
-                  <span style="background-color: rgb(237, 111, 33); width: 15px; height: 14px; display: inline-block; border-radius: 7px;"></span> Firefox 54.0.1 (32-Bit)
-                </div>
-                <div>
-                  <span style="background-color: rgb(10, 181, 59); width: 15px; height: 14px; display: inline-block; border-radius: 7px;"></span> Chrome 59.0.3071.115 (64-Bit)
-                </div>
-                <div>
-                  <span style="background-color: rgb(31, 119, 180); width: 15px; height: 14px; display: inline-block; border-radius: 7px;"></span> Edge 40.15063.0.0 (64-Bit)
-                </div>
-              </li>
-            </ul>
-            <div id="benchmark-plot-gtx1080"></div>
-            <p>
-              <strong>Last Updated:</strong> 2017-07-23
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <hr />
-
-    <section>
-      <div class="container">
-        <div class="row">
-          <div class="col-lg-12 text-center">
-            <h2>Older Releases</h2>
-            <hr class="star-primary" />
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-lg-8 col-lg-offset-2">
-            <div class="page-header">
-              <h1>v0.0-alpha "Hackathon"<br /><small>Tue Feb 28 2017</small></h1>
-            </div>
-            <p>
-              This is the legacy version for backward compatiblity with the demos made using the "hackathon" API.
-            </p>
-            <a href="js/dist/v0.0/gpu.min.js" download="gpu.js" class="btn btn-lg btn-primary">
-              <i class="fa fa-download"></i> Download
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Awards Section -->
-    <section class="hacknroll" id="accolades">
-      <div class="container">
-        <div class="row">
-          <div class="col-lg-12 text-center">
-            <i class="fa fa-trophy" style="font-size: 100px;"></i>
-            <h3>2nd Place, Hack &amp; Roll 2016</h3>
-            <p>
-              Made under 24 hours for a NUS Hackers hackathon, out of 68 competing projects.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="text-center">
-      <div class="footer-below">
-        <div class="container">
-          <div class="row">
-            <div class="col-lg-12">
-              Copyright &copy; 2017 gpu.js Team. Licensed under MIT.
-              <a class="github-button" href="https://github.com/gpujs/gpu.js" data-icon="octicon-star" data-show-count="true" aria-label="Star gpujs/gpu.js on GitHub">Star</a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </footer>
-
-    <!-- Scroll to Top Button (Only visible on small and extra-small screen sizes) -->
-    <div class="scroll-top page-scroll visible-xs visible-sm">
-      <a class="btn btn-primary" href="#page-top">
-        <i class="fa fa-chevron-up"></i>
-      </a>
     </div>
+  </section>
 
-    <!-- jQuery -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+  <hr />
+  <section>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-12 text-center">
+          <h2>Syntax Support</h2>
+          <hr class="star-primary" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-lg-8 col-lg-offset-2">
+          <p>
+            gpu.js relies on the assumption that the kernel function is using only a subset of legal JavaScript syntax:
+          </p>
+          <ul>
+            <li>1D, 2D, 3D array of numbers or just numbers as kernel input</li>
+            <li>1D, 2D, 3D array of numbers as kernel output</li>
+            <li>Number variables</li>
+            <li>Custom and custom native <code>function</code>s</li>
+            <li>Arithmetic operations (<code>+</code>, <code>+=</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>)</li>
+            <li>Javascript Math functions (<code>Math.floor()</code> and etc.)</li>
+            <li>Loops</li>
+            <li><code>if</code> and <code>else</code> statements</li>
+            <li><code>const</code> and <code>let</code></li>
+            <li>No variables captured by a closure</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <!-- Bootstrap Core JavaScript -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/js/bootstrap.min.js"></script>
+  <hr />
 
-    <!-- Plugin JavaScript -->
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.3/jquery.easing.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/classie/1.0.1/classie.min.js"></script>
+  <section>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-12 text-center">
+          <h2>Development Benchmarks</h2>
+          <hr class="star-primary" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-lg-8 col-lg-offset-2">
+          <p>
+            Here is a chart representing the performance of a 512x512 maltrix multiplication throughout our development (lower is better).
+          </p>
+          <ul>
+            <li>
+              <strong>Hardware:</strong> Macbook Pro Retina 2012
+            </li>
+            <li>
+              <strong>Operating System:</strong> Mac OS X 10.12.5
+            </li>
+            <li>
+              <strong>Browser:</strong> Firefox 54.0.1 (64-Bit)
+            </li>
+          </ul>
+          <div id="benchmark-plot-mbp2012"></div>
+          <ul>
+            <li>
+              <strong>Hardware:</strong> i7-7700K + GTX1080
+            </li>
+            <li>
+              <strong>Operating System:</strong> Windows 10 (Build 15063.483)
+            </li>
+            <li>
+              <strong>Browser:</strong>
+              <div>
+                <span style="background-color: rgb(237, 111, 33); width: 15px; height: 14px; display: inline-block; border-radius: 7px;"></span> Firefox 54.0.1 (32-Bit)
+              </div>
+              <div>
+                <span style="background-color: rgb(10, 181, 59); width: 15px; height: 14px; display: inline-block; border-radius: 7px;"></span> Chrome 59.0.3071.115 (64-Bit)
+              </div>
+              <div>
+                <span style="background-color: rgb(31, 119, 180); width: 15px; height: 14px; display: inline-block; border-radius: 7px;"></span> Edge 40.15063.0.0 (64-Bit)
+              </div>
+            </li>
+          </ul>
+          <div id="benchmark-plot-gtx1080"></div>
+          <p>
+            <strong>Last Updated:</strong> 2017-07-23
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/platform/1.3.4/platform.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/benchmark/2.1.4/benchmark.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-1.2.0.min.js"></script>
+  <hr />
 
-    <script src="https://cdn.rawgit.com/gpujs/gpu.js/b9e66c769232348e6fbf226fa1ed9e5269bb1941/bin/gpu.js"></script>
-    <script src="js/demo.js"></script>
-    <script>
-      $('.tip').tooltip();
-      function copyToClipboard(text) {
-        var $temp = $('<input>');
-        $('body').append($temp);
-        $temp.val(text).select();
-        document.execCommand('copy');
-        $temp.remove();
-      }
-    </script>
+  <section>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-12 text-center">
+          <h2>Older Releases</h2>
+          <hr class="star-primary" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-lg-8 col-lg-offset-2">
+          <div class="page-header">
+            <h1>v0.0-alpha "Hackathon"<br /><small>Tue Feb 28 2017</small></h1>
+          </div>
+          <p>
+            This is the legacy version for backward compatiblity with the demos made using the "hackathon" API.
+          </p>
+          <a href="js/dist/v0.0/gpu.min.js" download="gpu.js" class="btn btn-lg btn-primary">
+            <i class="fa fa-download"></i> Download
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <script async defer src="https://buttons.github.io/buttons.js"></script>
-  </body>
+  <!-- Awards Section -->
+  <section class="hacknroll" id="accolades">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-12 text-center">
+          <i class="fa fa-trophy" style="font-size: 100px;"></i>
+          <h3>2nd Place, Hack &amp; Roll 2016</h3>
+          <p>
+            Made under 24 hours for a NUS Hackers hackathon, out of 68 competing projects.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  </html>
+  <!-- Footer -->
+  <footer class="text-center">
+    <div class="footer-below">
+      <div class="container">
+        <div class="row">
+          <div class="col-lg-12">
+            Copyright &copy; 2017 gpu.js Team. Licensed under MIT.
+            <a class="github-button" href="https://github.com/gpujs/gpu.js" data-icon="octicon-star" data-show-count="true" aria-label="Star gpujs/gpu.js on GitHub">Star</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scroll to Top Button (Only visible on small and extra-small screen sizes) -->
+  <div class="scroll-top page-scroll visible-xs visible-sm">
+    <a class="btn btn-primary" href="#page-top">
+      <i class="fa fa-chevron-up"></i>
+    </a>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+
+  <!-- Bootstrap Core JavaScript -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+  <!-- Plugin JavaScript -->
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.3/jquery.easing.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/classie/1.0.1/classie.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/platform/1.3.4/platform.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/benchmark/2.1.4/benchmark.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-1.2.0.min.js"></script>
+
+  <script src="https://cdn.rawgit.com/gpujs/gpu.js/b9e66c769232348e6fbf226fa1ed9e5269bb1941/bin/gpu.js"></script>
+  <script src="js/demo.js"></script>
+  <script>
+    $('.tip').tooltip();
+    function copyToClipboard(text) {
+      var $temp = $('<input>');
+      $('body').append($temp);
+      $temp.val(text).select();
+      document.execCommand('copy');
+      $temp.remove();
+    }
+  </script>
+
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+</body>
+</html>
