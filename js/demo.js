@@ -79,7 +79,6 @@
           return benchmark.name === 'multiplyMatrix.gpu';
         }).map('stats')[0]
       };
-      console.dir(stats);
 
       var faster = '';
       if (stats.cpu.mean > stats.gpu.mean) {
@@ -190,7 +189,7 @@
   }
 
   function enableTextureChange() {
-    allowChangeOutput = false;
+    allowChangeOutput = true;
     $textures.prop('disabled', false);
   }
 	
