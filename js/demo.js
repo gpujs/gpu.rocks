@@ -1,13 +1,15 @@
 (function() {
+  'use strict';
+
   //
   // Elements
   //
   var $runBenchmark = $('#run-benchmark');
   var $textures = $('[name="texture"]');
-  var $outputToTexture = $('#output-to-texture');
-  var $outputToNumber = $('#output-to-number');
+  var $outputTo = $('.output-to');
   var $benchmarkStats = $('#benchmark-stats');
-  var $jsCode = $('.js');
+  var $textureModeDisabled = $('#texture-mode-disabled');
+  var $textureModeEnabled = $('#texture-mode-enabled');
 
   //
   // Startup code
@@ -34,8 +36,8 @@
   //
   function createMultiplyKernel(gpu) {
     var options = {
-      dimensions: [matrixSize, matrixSize],
-      outputToTexture: $outputToTexture[0].checked
+      output: [matrixSize, matrixSize],
+      outputToTexture: $outputTo.filter(':checked').val() === 'texture'
     };
 
     return gpu.createKernel(function(a, b) {
@@ -85,7 +87,7 @@
         faster = ' <em>(' + times.toFixed(2) + ' times faster!)</em>';
 
         if (times > 10) {
-          faster += '<img style="width: 100%;" src="https://media.giphy.com/media/mYZFipl0aV0Tm/giphy.gif" />';
+          faster += '<img style="width: 100%;" src="https://media.giphy.com/media/aD7fneoMfS6Yw/giphy.gif" />';
         }
       }
       var html = '\
@@ -120,42 +122,26 @@
     suite.run({ async: true });
   }
 
-  //
-  // Code Shenanigans
-  //
+  $outputTo
+    .change(function() {
+      if (this.value === 'number') {
+        $textureModeDisabled.show();
+        $textureModeEnabled.hide();
+      } else {
+        $textureModeDisabled.hide();
+        $textureModeEnabled.show();
+      }
+    });
+  $outputTo.filter(':checked').change();
 
-  $outputToTexture.change(toggleCode);
-  $outputToNumber.change(toggleCode);
-  
-  function toggleCode() {
-
-    function searchSetDimensions(line) {
-      return line.match(/setDimensions/g);
-    }
-
-    var code = $jsCode.text().split("\n");
-    var codeDim = code.find(searchSetDimensions);
-    var index = code.findIndex(searchSetDimensions);
-
-    if ($outputToTexture.is(':checked')) {
-      codeDim = codeDim.split(/;/g)[0] + '.setOutputToTexture(true);';
-    } else {
-      codeDim = codeDim.split(/.setOutput/)[0] + ';';
-    }
-    
-    code[index] = codeDim;
-    $jsCode.text(code.join("\n"));
-    hljs.highlightBlock($jsCode[0]);
-    
-  }
 	
 	//
 	// Benchmark Chart
 	//
 	var chartData = {
 		mbp2012: [],
-		gtx1080: [],
-	}
+		gtx1080: []
+	};
 	
 	var chartBrowsers = {
 		firefox: {
@@ -173,7 +159,7 @@
 			lineColor: 'rgb(31, 119, 180)',
 			shadowColor: 'rgba(31, 119, 180, 0.1)'
 		}
-	}
+	};
 	
 	loadJSON('mbp2012', 'firefox', 1);
 	loadJSON('gtx1080', 'firefox', 3);
@@ -248,7 +234,7 @@
 					line: {width:0},
 					fillcolor: shadowColor,
 					fill: 'tonexty'
-				},
+				}
 			];
 			
 			chartData[benchmarkName] = chartData[benchmarkName].concat(data);
@@ -257,7 +243,7 @@
 				var layout = {
 					yxais: {
 						type: 'log',
-						autorange: true,
+						autorange: true
 					},
 					showlegend: false,
 					hovermode: 'closest'

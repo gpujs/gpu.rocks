@@ -13,8 +13,8 @@ $(function() {
 		$('.btn-number').click(function(e){
 			e.preventDefault();
 			
-			fieldName = $(this).attr('data-field');
-			type	  = $(this).attr('data-type');
+			var fieldName = $(this).attr('data-field');
+			var type	  = $(this).attr('data-type');
 			var input = $("input[name='"+fieldName+"']");
 			var currentVal = parseInt(input.val());
 			if (!isNaN(currentVal)) {
@@ -119,26 +119,26 @@ $(function() {
 	//-------------------------------------------
 	
 	/// Default parameter names : alphabectical
-	var paramDefaultNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');
+	var paramDefaultNames = "abcdefghijklmnopqrstuvwxyz".split('');
 	
 	/// Default parameter function
-	var paramDefaultFunction_A = ""+
-		"function(size,rand) {\n"+
-		"	return size;\n"+
-		"}";
+	var paramDefaultFunction_A = '\
+function(size, rand) {\n\
+  return size;\n\
+}';
 	
 	/// Default parameter function
-	var paramDefaultFunction = ""+
-		"function(size,rand) {\n"+
-		"	var ret = [];\n"+
-		"	for(var a=0; a<size; ++a){\n"+
-		"		ret[a] = [];\n"+
-		"		for(var i=0; i<size; ++i){\n"+
-		"			ret[a][i] = parseInt(rand()*100);\n"+
-		"		}\n"+
-		"	}\n"+
-		"	return ret;\n"+
-		"}";
+	var paramDefaultFunction = '\
+function(size, rand) {\n\
+  const ret = [];\n\
+  for(let a = 0; a < size; ++a){\n\
+    ret[a] = [];\n\
+    for(var i=0; i<size; ++i){\n\
+      ret[a][i] = parseInt(rand()*100);\n\
+    }\n\
+  }\n\
+  return ret;\n\
+}';
 	
 	/// Parameter code mirror objects
 	var CM_parameters = [];
@@ -375,14 +375,14 @@ $(function() {
 	var CM_kernel = null;
 	
 	/// Default parameter function
-	var kernelDefaultFunction = ""+
-		"function kernel(A,B,C) {\n"+
-		"	var sum = 0;\n"+
-		"	for (var i=0; i<A; i++) {\n"+
-		"		sum += B[this.thread.y][i] * C[i][this.thread.x];\n"+
-		"	}\n"+
-		"	return sum;\n"+
-		"}";
+	var kernelDefaultFunction = '\
+function kernel(a, b, c) {\n\
+  var sum = 0;\n\
+  for (var i=0; i<a; i++) {\n\
+    sum += b[this.thread.y][i] * c[i][this.thread.x];\n\
+  }\n\
+  return sum;\n\
+}';
 	
 	/// One time setup of the kernel editor
 	function setupKernelEditor() {
@@ -448,7 +448,7 @@ $(function() {
 		
 		var gpu = new GPU();
 		var ker = gpu.createKernel(rawFunction,{
-			dimensions : dimFunction(sampleSize)
+			output: dimFunction(sampleSize)
 		});
 		
 		var args = getKernelParameters(sampleSize, paramFunctions);
@@ -483,9 +483,9 @@ $(function() {
 		
 		var gpu = new GPU();
 		var kernel = gpu.createKernel(rawFunction,{
-			dimensions : dimFunction(sampleSize),
-			mode : mode,
-			loopMaxIterations : sampleSize + 1
+			output: dimFunction(sampleSize),
+			mode: mode,
+			loopMaxIterations: sampleSize + 1
 		});
 		
 		var args = getKernelParameters(sampleSize, paramFunctions);
