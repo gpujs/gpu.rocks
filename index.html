@@ -57,7 +57,10 @@
             <span class="skills">GPU Accelerated JavaScript</span>
           </div>
         </div>
-        <div class="col-lg-8 col-lg-offset-2 text-center">
+        <div class="col-lg-10 col-lg-offset-1 text-center">
+          <a href="https://github.com/gpujs/gpu.js#table-of-contents" class="btn btn-lg btn-outline">
+            <i class="fa fa-book"></i> Docs
+          </a>
           <a href="https://cdn.rawgit.com/gpujs/gpu.js/45103b7f154a12ec639990c6896b21a053eb6a6c/bin/gpu.js" class="btn btn-lg btn-outline">
             <i class="fa fa-download"></i> Download
           </a>
@@ -65,7 +68,7 @@
             <i class="fa fa-github"></i> Github Repo
           </a>
           <a title="click to copy" class="tip btn btn-lg btn-outline" onclick="copyToClipboard($(this).find('code').text());">
-            <i class="fa fa-terminal"></i> Install <code>npm i -s gpu.js</code>
+            <i class="fa fa-terminal"></i> Install <code>yarn add gpu.js</code>
           </a>
         </div>
       </div>
@@ -328,7 +331,6 @@ const multiplyMatrix = gpu.createKernel(function(a, b) {
       $temp.remove();
     }
   </script>
-
   <script async defer src="https://buttons.github.io/buttons.js"></script>
 </body>
 </html>
