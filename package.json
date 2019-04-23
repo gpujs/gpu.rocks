@@ -38,7 +38,7 @@
     "jquery.easing": "^1.4.1",
     "lodash": "^4.17.11",
     "material-icons": "^0.3.1",
-    "materializecss": "^1.0.11",
+    "materialize-css": "^1.0.0",
     "platform": "^1.3.5",
     "plotly": "^1.0.6"
   }
