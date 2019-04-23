@@ -62,7 +62,7 @@ module.exports = function(grunt) {
       },
       libs: {
         src: ["src/js/libs.js"],
-        dest: "dst/js/libs.js"
+        dest: "dist/js/libs.js"
       }
     },
 
