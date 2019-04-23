@@ -1,8 +1,4 @@
 module.exports = function(grunt) {
-  grunt.loadNpmTasks("grunt-browserify");
-  grunt.loadNpmTasks("grunt-contrib-uglify-es");
-  grunt.loadNpmTasks("grunt-browser-sync");
-  grunt.loadNpmTasks("grunt-contrib-watch");
   const sass = require('node-sass');
   require('load-grunt-tasks')(grunt);
 
@@ -19,7 +15,11 @@ module.exports = function(grunt) {
       },
       sass: {
         files: ["src/sass/*", "src/*", "Gruntfile.js"],
-        tasks: ["sass"]
+        tasks: ["sass:main"]
+      },
+      libs: {
+        files: ["src/**/libs.*"],
+        tasks: ["sass:libs", "browserify:libs", "uglify:libs"]
       }
     },
 
@@ -28,9 +28,25 @@ module.exports = function(grunt) {
         implementation: sass,
         sourceMap: true
       },
-      dist: {
+      main: {
         files: {
-          'dist/css/index.css': 'sass/index.scss'
+          'dist/css/index.css': 'src/sass/index.scss'
+        }
+      },
+      libs: {
+        files: {
+          'dist/css/libs.min.css': 'src/sass/libs.scss'
+        },
+        options: {
+          outputStyle: 'compressed'
+        }
+      },
+      prod: {
+        options: {
+          outputStyle: 'compressed'
+        },
+        files: {
+          'dist/css/index.min.css': 'src/sass/index.scss'
         }
       }
     },
@@ -43,6 +59,10 @@ module.exports = function(grunt) {
       prod: {
         src: ["src/index.js"],
         dest: "dist/js/brow.js"
+      },
+      libs: {
+        src: ["src/js/libs.js"],
+        dest: "dst/js/libs.js"
       }
     },
 
@@ -54,6 +74,10 @@ module.exports = function(grunt) {
       prod: {
         src: ["dist/js/brow.js"],
         dest: "dist/js/index.js"
+      },
+      libs: {
+        src: ["dist/js/libs.js"],
+        dest: "dist/js/libs.min.js"
       }
     },
 
@@ -69,8 +93,8 @@ module.exports = function(grunt) {
 
   /* Default (development): Watch files and build on change. */
   grunt.registerTask("default", ["serve"]);
-  grunt.registerTask("build", ["browserify:main", "uglify:main", "sass"]);
-  grunt.registerTask("serve", ["browserify:main", "sass", "browserSync", "watch"]);
-  grunt.registerTask("compile", ["browserify:main"]);
-  grunt.registerTask("production", ["browserify:prod", "uglify:prod", "sass"]);
+  grunt.registerTask("build", ["browserify:main", "browserify:libs", "uglify:main", "uglify:libs", "sass"]);
+  grunt.registerTask("serve", ["browserify:main", "browserify:libs", "uglify:libs", "sass:libs", "sass:main", "browserSync", "watch"]);
+  grunt.registerTask("compile", ["browserify:main", "browserify:libs", "uglify:libs", "sass:libs", "sass:main"]);
+  grunt.registerTask("production", ["browserify:prod", "browserify:libs", "uglify:prod", "uglify:libs", "sass:prod", "sass:libs"]);
 };
