@@ -20,6 +20,10 @@ module.exports = function(grunt) {
       libs: {
         files: ["src/**/libs.*"],
         tasks: ["sass:libs", "browserify:libs"]
+      },
+      html: {
+        files: ["index.html"],
+        tasks: [""]
       }
     },
 
