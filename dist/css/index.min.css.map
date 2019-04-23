@@ -1,6 +1,6 @@
 {
 	"version": 3,
-	"file": "index.css",
+	"file": "index.min.css",
 	"sources": [
 		"../../src/sass/index.scss"
 	],

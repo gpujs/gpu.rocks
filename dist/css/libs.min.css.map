@@ -1,0 +1,9 @@
+{
+	"version": 3,
+	"file": "libs.min.css",
+	"sources": [
+		"../../src/sass/libs.scss"
+	],
+	"names": [],
+	"mappings": "AAAA,OAAO,CAAP,oEAAO,CACP,OAAO,CAAP,iEAAO,CACP,OAAO,CAAP,uDAAO"
+}
