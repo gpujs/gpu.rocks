@@ -20,17 +20,20 @@
   "license": "ISC",
   "devDependencies": {
     "grunt": "^1.0.4",
+    "grunt-autoprefixer": "^3.0.4",
     "grunt-browser-sync": "^2.2.0",
     "grunt-browserify": "^5.3.0",
     "grunt-contrib-cssmin": "^3.0.0",
     "grunt-contrib-uglify-es": "^3.3.0",
     "grunt-contrib-watch": "^1.1.0",
+    "grunt-css-import": "^0.1.9",
     "grunt-sass": "^3.0.2",
     "load-grunt-tasks": "^4.0.0",
     "node-sass": "^4.11.0"
   },
   "dependencies": {
     "benchmark": "^2.1.4",
+    "font-awesome": "^4.7.0",
     "github-buttons": "^2.2.9",
     "gpu.js": "^2.0.0-rc.7",
     "highlight.js": "^9.15.6",

@@ -14,19 +14,25 @@ module.exports = function(grunt) {
         tasks: ["browserify:main"]
       },
       sass: {
-        files: ["src/sass/*", "src/*", "Gruntfile.js"],
+        files: ["src/sass/*.scss"],
         tasks: ["sass:main"]
       },
       libs: {
         files: ["src/**/libs.*"],
-        tasks: ["sass:libs", "browserify:libs", "uglify:libs"]
+        tasks: ["sass:libs", "browserify:libs"]
+      }
+    },
+
+    autoprefixer: {
+      main: {
+        'dist/css/libs.css': 'dist/css/libs.css',
+        'dist/css/index.css': 'dist/css/index.css'
       }
     },
 
     sass: {
       options: {
         implementation: sass,
-        sourceMap: true
       },
       main: {
         files: {
@@ -35,18 +41,33 @@ module.exports = function(grunt) {
       },
       libs: {
         files: {
-          'dist/css/libs.min.css': 'src/sass/libs.scss'
-        },
-        options: {
-          outputStyle: 'compressed'
+          'dist/css/libs.css': 'src/sass/libs.scss'
+        }
+      }
+    },
+
+    css_import: {
+      main: {
+        files: {
+          'dist/css/index.css': ['dist/css/index.css']
         }
       },
-      prod: {
-        options: {
-          outputStyle: 'compressed'
-        },
+      libs: {
         files: {
-          'dist/css/index.min.css': 'src/sass/index.scss'
+          'dist/css/libs.css': ['dist/css/libs.css']
+        }
+      }
+    },
+
+    cssmin: {
+      libs: {
+        files: {
+          'dist/css/libs.css': ['dist/css/libs.css']
+        }
+      },
+      main: {
+        files: {
+          'dist/css/index.css': ['dist/css/index.css']
         }
       }
     },
@@ -55,10 +76,6 @@ module.exports = function(grunt) {
       main: {
         src: ["src/index.js"],
         dest: "dist/js/index.js"
-      },
-      prod: {
-        src: ["src/index.js"],
-        dest: "dist/js/brow.js"
       },
       libs: {
         src: ["src/js/libs.js"],
@@ -69,15 +86,11 @@ module.exports = function(grunt) {
     uglify: {
       main: {
         src: ["dist/js/index.js"],
-        dest: "dist/js/index.min.js"
-      },
-      prod: {
-        src: ["dist/js/brow.js"],
         dest: "dist/js/index.js"
       },
       libs: {
         src: ["dist/js/libs.js"],
-        dest: "dist/js/libs.min.js"
+        dest: "dist/js/libs.js"
       }
     },
 
@@ -93,8 +106,7 @@ module.exports = function(grunt) {
 
   /* Default (development): Watch files and build on change. */
   grunt.registerTask("default", ["serve"]);
-  grunt.registerTask("build", ["browserify:main", "browserify:libs", "uglify:main", "uglify:libs", "sass"]);
-  grunt.registerTask("serve", ["browserify:main", "browserify:libs", "uglify:libs", "sass:libs", "sass:main", "browserSync", "watch"]);
-  grunt.registerTask("compile", ["browserify:main", "browserify:libs", "uglify:libs", "sass:libs", "sass:main"]);
-  grunt.registerTask("production", ["browserify:prod", "browserify:libs", "uglify:prod", "uglify:libs", "sass:prod", "sass:libs"]);
+  grunt.registerTask("serve", ["compile", "browserSync", "watch"]);
+  grunt.registerTask("compile", ["browserify", "sass", "autoprefixer"]);
+  grunt.registerTask("production", ["compile", "uglify", "css_import", "autoprefixer", "cssmin"]);
 };
