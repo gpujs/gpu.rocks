@@ -1,9 +1,13 @@
 import React from 'react'
 import Header from '../Header/Header'
+import Content from '../Content/Content'
 
 const Main = () => {
   return (
-    <Header />
+    <div>
+      <Header />
+      <Content />
+    </div>
   )
 }
 
