@@ -1,5 +1,5 @@
 import React from 'react'
-import Header from './Components/Header'
+import Header from './Components/Header/Header'
 import './scss/index.scss'
 import 'materialize-css'
 import '../node_modules/materialize-css/dist/css/materialize.css'
