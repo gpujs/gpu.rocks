@@ -4,6 +4,7 @@
 body {
   background-color: $background;
   min-height: 100vh;
+  scroll-behavior: smooth;
 }
 
 #root {

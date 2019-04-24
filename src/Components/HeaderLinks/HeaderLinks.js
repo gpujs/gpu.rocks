@@ -1,36 +1,32 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import LinkBtn from './LinkBtn'
-import { Container, Row, Column, NavItem } from 'react-materialize'
 
 const HeaderLinks = () => {
   return (
     <div>
-      <NavItem>
+      <li>
         <NavLink to="/docs" >
-          {/* <LinkBtn tooltipContent="Documentation" btnContent="Docs" /> */}
-          Yaay
+          Documentation
         </NavLink>
-      </NavItem>
+      </li>
 
-      <NavItem>
+      <li>
         <a href="https://raw.githubusercontent.com/gpujs/gpu.js/master/bin/gpu-browser.min.js">
-          {/* <LinkBtn tooltipContent="Browserified" btnContent="Download" /> */}
-          Yaay
+          Download
         </a>
-      </NavItem>
+      </li>
 
-      <NavItem>
+      <li>
         <a href="https://github.com/gpujs/gpu.js">
-          {/* <LinkBtn tooltipContent="OpenSource" btnContent="Github" /> */}
+          Github
         </a>
-      </NavItem>
+      </li>
 
-      <NavItem>
+      <li>
         <NavLink to="/install">
-          {/* <LinkBtn tooltipContent="Installation" btnContent="Install" /> */}
+          Installation
         </NavLink>
-      </NavItem>
+      </li>
     </div>
   )
 }
