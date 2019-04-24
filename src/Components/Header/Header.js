@@ -22,7 +22,7 @@ const Header = () => {
     opacity: 1,
     y: 0,
     height: 80,
-    from: { opacity: 0, y: -100, height: 0 },
+    from: { opacity: 0, y: -1000, height: 0 },
   })
 
   const {y} = useSpring({
@@ -33,7 +33,7 @@ const Header = () => {
     },
     y: 0,
     from: {
-      y: -100
+      y: 100
     }
   })
 

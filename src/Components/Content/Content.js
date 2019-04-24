@@ -1,25 +1,40 @@
-import React from 'react'
-import { Container, Row, Col } from 'react-materialize'
+import React, { Component } from 'react'
+import { Container } from 'react-materialize'
+import Benchmark from '../Benchmark/Benchmark'
+import Strength from '../Strength/Strength'
+import $ from 'jquery'
+import MaterialIcon from 'material-icons-react';
 
-import threads from '../../img/threads.png'
-import thread from '../../img/thread.png'
 import './Content.scss'
 
-const Content = () => {
- return (
-  <Container id="content">
-    <Row>
-      <Col m={12} l={6} className="center" style={{marginBottom: '3rem'}}>
-        <img src={threads} className="threads" alt="threads" />
-        <h6 className="blue-grey-text text-darken-2"><b>Perform massively parallel GPGPU computations using GPU.</b></h6>
-      </Col>
-      <Col m={12} l={6} className="center">
-        <img src={thread} className="thread" alt="thread" />
-        <h6 className="blue-grey-text text-darken-2"><b>Graceful pure JavaScript fallback when GPU is not available. </b></h6>
-      </Col>
-    </Row>
-  </Container>
- )
+class Content extends Component {
+  state = {
+    active: {
+      strength: false
+    }
+  }
+
+  componentDidMount() {
+    document.addEventListener('scroll', () => {
+      this.setState({
+        active: {
+          strength: ($('#strength')[0].getBoundingClientRect().top - $(':root').prop('scrollTop')) < 500,
+          benchmark: ($('#benchmark')[0].getBoundingClientRect().top - $(':root').prop('scrollTop')) < 200
+        }
+      })
+    })
+  }
+
+  render() {
+    return (
+      <Container id="content">
+        <Strength active={this.state.active.strength} />
+        <h2 className="center blue-text text-lighten-1"><MaterialIcon color="red" icon="chevron_right" size="medium" />Example<MaterialIcon icon="chevron_left" color="red" size="medium" /></h2>
+        <hr />
+        <Benchmark id="benchmark" active={this.state.active.benchmark} />
+      </Container>
+    )
+  }
 }
 
 export default Content
