@@ -1,12 +1,18 @@
 import React from 'react'
-import Header from './Components/Header/Header'
+import { BrowserRouter, Switch, Route } from 'react-router-dom'
+import Main from './Components/Main/Main'
+
 import './scss/index.scss'
 import 'materialize-css'
 import '../node_modules/materialize-css/dist/css/materialize.css'
 
 function App() {
   return (
-    <Header />
+    <BrowserRouter>
+      <Switch>
+        <Route exact path="/" component={Main} />
+      </Switch>
+    </BrowserRouter>
   )
 }
 

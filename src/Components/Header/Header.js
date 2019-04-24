@@ -2,6 +2,7 @@ import React from 'react'
 import { Row, Container } from 'react-materialize'
 import { animated, useTrail, useSpring } from 'react-spring'
 import logo from '../../img/jelly.png'
+import HeaderLinks from '../HeaderLinks/HeaderLinks'
 
 import './Header.scss'
 
@@ -48,6 +49,7 @@ const Header = () => {
             </animated.div>
           })}
         </Row>
+        <Row><HeaderLinks /></Row>
       </Container>
     </header>
   )
