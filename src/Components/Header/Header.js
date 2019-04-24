@@ -1,8 +1,9 @@
 import React from 'react'
 import { Row, Container } from 'react-materialize'
 import { animated, useTrail, useSpring } from 'react-spring'
+import Nav from '../Nav/Nav'
+
 import logo from '../../img/jelly.png'
-import HeaderLinks from '../HeaderLinks/HeaderLinks'
 
 import './Header.scss'
 
@@ -39,6 +40,7 @@ const Header = () => {
   return (
     <header id="header">
       <Container>
+        <Nav />
         <Row className="center responsive-img"><animated.img src={logo} style={{transform: y.interpolate(y => `translateY(${y}%)`)}} alt="logo" /></Row>
         <Row className="center" >
           {titleTrail.map(({y, height, ...styles}, i) => {
@@ -49,7 +51,6 @@ const Header = () => {
             </animated.div>
           })}
         </Row>
-        <Row><HeaderLinks /></Row>
       </Container>
     </header>
   )
