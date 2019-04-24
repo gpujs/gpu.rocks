@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "GPU.js",
+  "name": "GPU.js - GPU accelerated JavaScript",
   "icons": [
     {
       "src": "favicon.ico",
