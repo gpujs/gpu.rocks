@@ -3,6 +3,7 @@ import Code from '../Code/Code'
 import { animated, useSpring } from 'react-spring'
 import Heading from '../Heading/Heading'
 import { generateMatrices, createKernel, callKernel, getOutput } from './CodeExamples'
+import { NavLink } from 'react-router-dom'
 
 const Example = (props) => {
   const config = {
@@ -46,6 +47,8 @@ const Example = (props) => {
         <animated.div id="example-code4" style={{opacity: opacity4}}>
           <Code code={getOutput} />
         </animated.div>
+
+        <h6 className="center"><NavLink to="/benchmark">Click</NavLink> to benchmark this code <b>GPU</b> v/s <b>CPU</b> on your device.</h6>
       </section>
     </div>
   )
