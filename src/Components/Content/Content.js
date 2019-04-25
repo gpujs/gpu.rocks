@@ -18,7 +18,7 @@ class Content extends Component {
       const ids = {
         'strength': {
           id: 'strength',
-          thresh: 500
+          thresh: 700
         },
         'example': {
           id: 'example',
@@ -38,7 +38,7 @@ class Content extends Component {
         },
         egCode4: {
           id: 'example-code4',
-          thresh: 900
+          thresh: 850
         }
       }
       
