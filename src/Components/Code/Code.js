@@ -3,18 +3,17 @@ import SyntaxHighlighter from 'react-syntax-highlighter';
 import { monokai } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { Button } from 'react-materialize'
 import MaterialIcon from 'material-icons-react'
-import $ from 'jquery'
-
 import './Code.scss'
 
 const Code = (props) => {
 
   const copy = (text) => {
-    const $temp = $('<input style="display:none />')
-    $('body').append($temp)
-    $($temp).val(text).select()
-    document.execCommand('copy')
-    $($temp).remove()
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
   }
 
   return (
