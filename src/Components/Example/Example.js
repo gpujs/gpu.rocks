@@ -2,9 +2,7 @@ import React from 'react'
 import Code from '../Code/Code'
 import { animated, useSpring } from 'react-spring'
 import Heading from '../Heading/Heading'
-import exampleCode from './CodeExamples'
-import { Button } from 'react-materialize'
-import MaterialIcon from 'material-icons-react'
+import { generateMatrices } from './CodeExamples'
 
 const Example = (props) => {
   const config = {
@@ -28,16 +26,12 @@ const Example = (props) => {
 
         <h6><b>1)</b> Generate The Matrices</h6>
         <animated.div id="example-code" style={{opacity}}>
-          <Code>
-            {exampleCode.generateMatrices}
-          </Code>
+          <Code code={generateMatrices} />
         </animated.div>
 
         <h6><b>2)</b> Create The "Kernel"<i>(A fancy word for a function that runs on a GPU)</i></h6>
         <animated.div id="example-code" style={{opacity}}>
-          <Code>
-            {exampleCode.generateMatrices}
-          </Code>
+          <Code code={generateMatrices} />
         </animated.div>
       </section>
     </div>

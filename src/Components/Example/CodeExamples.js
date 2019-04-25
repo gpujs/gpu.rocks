@@ -1,4 +1,4 @@
-const generateMatrices = 
+export const generateMatrices = 
 `
   const generateMatrices = () => {
     const matrices = [[], []]
