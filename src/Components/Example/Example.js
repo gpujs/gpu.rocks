@@ -2,17 +2,19 @@ import React from 'react'
 import Code from '../Code/Code'
 import { animated, useSpring } from 'react-spring'
 import Heading from '../Heading/Heading'
-import { generateMatrices, createKernel } from './CodeExamples'
+import { generateMatrices, createKernel, callKernel, getOutput } from './CodeExamples'
 
 const Example = (props) => {
   const config = {
     duration: 400
   }
 
-  const {opacity1, opacity2} = useSpring({
+  const {opacity1, opacity2, opacity3, opacity4} = useSpring({
     config,
     opacity1: props.active.egCode1 ? 1 : 0,
     opacity2: props.active.egCode2 ? 1 : 0,
+    opacity3: props.active.egCode3 ? 1 : 0,
+    opacity4: props.active.egCode4 ? 1 : 0,
     from: {
       opacity: 0
     }
@@ -33,6 +35,16 @@ const Example = (props) => {
         <h6><b>2)</b> Create The "Kernel"<i>(A fancy word for a function that runs on a GPU)</i></h6>
         <animated.div id="example-code2" style={{opacity: opacity2}}>
           <Code code={createKernel} />
+        </animated.div>
+
+        <h6><b>3)</b> Call The Kernel With The Matrices as Parameter</h6>
+        <animated.div id="example-code3" style={{opacity: opacity3}}>
+          <Code code={callKernel} />
+        </animated.div>
+
+        <h6><b>4)</b> The Output Matrix</h6>
+        <animated.div id="example-code4" style={{opacity: opacity4}}>
+          <Code code={getOutput} />
         </animated.div>
       </section>
     </div>

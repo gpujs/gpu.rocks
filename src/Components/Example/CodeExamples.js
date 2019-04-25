@@ -10,7 +10,7 @@ export const generateMatrices =
         matrices[1][y].push(Math.random())
       }
     }
-    return matrices;
+    return matrices
   }
 
 `
@@ -24,13 +24,29 @@ export const createKernel =
       sum += a[this.thread.y][i] * b[i][this.thread.x];
     }
     return sum;
-  }).setOutput([512, 512]);
+  }).setOutput([512, 512])
+
+`
+
+export const callKernel = 
+`
+  const matrices = generateMatrices()
+  const out = multiplyMatrix(matrices[0], matrices[1])
+
+`
+
+export const getOutput = 
+`
+  console.log(out[y][x]) // Logs the element at the xth row and the yth column of the matrix
+  console.log(out[10][12]) // Logs the element at the 10th row and the 12th column of the output matrix
 
 `
 
 const exampleCode = {
   generateMatrices,
-  createKernel
+  createKernel,
+  callKernel,
+  getOutput
 }
 
 export default exampleCode
