@@ -4,7 +4,7 @@ import { Navbar } from 'react-materialize'
 
 const Nav = () => {
   return (
-    <Navbar brand={<a href="/#">GPU.js</a>} centerLogo={true} className="blue" >
+    <Navbar brand={<a href="/#" style={{marginLeft: '1rem'}}>GPU.js</a>} alignLinks="right" className="blue" >
       <HeaderLinks />
     </Navbar>
   )

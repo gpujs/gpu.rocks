@@ -33,6 +33,18 @@ const HeaderLinks = () => {
           Playground
         </NavLink>
       </li>
+
+      <li>
+        <NavLink to="/benchmark">
+          Benchmark
+        </NavLink>
+      </li>
+
+      <li>
+        <NavLink to="/examples">
+          Examples
+        </NavLink>
+      </li>
     </ul>
   )
 }
