@@ -2,6 +2,7 @@ import React from 'react'
 import Code from '../Code/Code'
 import { animated, useSpring } from 'react-spring'
 import Heading from '../Heading/Heading'
+import exampleCode from './CodeExamples'
 
 const Example = (props) => {
   const config = {
@@ -19,21 +20,24 @@ const Example = (props) => {
   return (
     <div>
       <Heading active={props.active.example} id="example">Example</Heading>
-      <animated.section id="example-code" style={{overflow: 'hidden', opacity}}>
-        <h5 className="center"><b>Matrix Multiplication</b></h5>
-        <Code>
-        {` 
-      const gpu = new GPU();
-      const multiplyMatrix = gpu.createKernel(function(a, b) {
-        var sum = 0;
-        for (var i = 0; i < 512; i++) {
-          sum += a[this.thread.y][i] * b[i][this.thread.x];
-        }
-        return sum;
-      }).setOutput([512, 512]);
-  `}
-        </Code>
-      </animated.section>
+      <section style={{overflow: 'hidden'}}>
+        <h4 className="center" style={{color: '#666'}}><b>Matrix Multiplication</b></h4>
+        <h5 className="center" style={{marginBottom: '4rem'}}>In this example, two <b>512x512</b> <b>matrices</b> (2d arrays) are  <i><a href="https://mathsisfun.com/algebra/matrix-multiplying.html">multiplied</a></i>. The computation for each of the elements in the resulting matrix is done in parallel on a GPU.</h5>
+
+        <h6><b>1)</b> Generate The Matrices</h6>
+        <animated.div id="example-code" style={{opacity}}>
+          <Code>
+            {exampleCode.generateMatrices}
+          </Code>
+        </animated.div>
+
+        <h6><b>2)</b> Create The "Kernel"<i>(A fancy word for a function that runs on a GPU)</i></h6>
+        <animated.div id="example-code" style={{opacity}}>
+          <Code>
+            {exampleCode.generateMatrices}
+          </Code>
+        </animated.div>
+      </section>
     </div>
   )
 }
