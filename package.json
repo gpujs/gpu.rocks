@@ -20,6 +20,7 @@
     "react-syntax-highlighter": "^10.2.1"
   },
   "scripts": {
+    "setup": "yarn install",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
