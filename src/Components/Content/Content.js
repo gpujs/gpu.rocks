@@ -3,6 +3,7 @@ import { Container } from 'react-materialize'
 import Example from '../Example/Example'
 import Strength from '../Strength/Strength'
 import getActiveElems from './getActiveElems'
+import Syntax from '../Syntax/Syntax'
 
 import './Content.scss'
 
@@ -38,6 +39,10 @@ class Content extends Component {
         },
         egCode4: {
           id: 'example-code4',
+          thresh: 800
+        },
+        syntax: {
+          id: 'syntax',
           thresh: 850
         }
       }
@@ -54,6 +59,7 @@ class Content extends Component {
         <Strength active={this.state.active.strength} />
         <hr />
         <Example active={this.state.active} />
+        <Syntax active={this.state.active} />
       </Container>
     )
   }
