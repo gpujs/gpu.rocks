@@ -24,8 +24,12 @@ class Content extends Component {
           id: 'example',
           thresh: 600
         },
-        egCode: {
-          id: 'example-code',
+        egCode1: {
+          id: 'example-code1',
+          thresh: 800
+        },
+        egCode2: {
+          id: 'example-code2',
           thresh: 800
         }
       }
