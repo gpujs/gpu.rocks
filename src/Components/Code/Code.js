@@ -22,7 +22,7 @@ const Code = (props) => {
 
   return (
     <div className="code">
-      <Tooltip content="Copy" placement="left" className="right" radius="10" padding="8" fadeDuration="400" >
+      <Tooltip content="Copy" placement="left" className="right" radius="10" padding="8" fadeDuration={400} >
         <Button floating waves="light" className="grey darken-3" style={{marginTop: '1rem', marginRight: '1rem'}} onClick={() => copy(props.code, () => M.toast({html: 'Code Copied', classes: 'rounded'}))}>
           <MaterialIcon icon="content_copy" size="small" color="white" />
         </Button>

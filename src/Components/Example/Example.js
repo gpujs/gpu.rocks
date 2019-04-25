@@ -32,12 +32,12 @@ const Example = (props) => {
           <Code code={generateMatrices} />
         </animated.div>
 
-        <h6><b>2)</b> Create The "Kernel"<i>(A fancy word for a function that runs on a GPU)</i></h6>
+        <h6><b>2)</b> Create The "<b>Kernel</b>"<i>(A fancy word for a function that runs on a GPU)</i></h6>
         <animated.div id="example-code2" style={{opacity: opacity2}}>
           <Code code={createKernel} />
         </animated.div>
 
-        <h6><b>3)</b> Call The Kernel With The Matrices as Parameter</h6>
+        <h6><b>3)</b> Call The Kernel With The Matrices as Parameters</h6>
         <animated.div id="example-code3" style={{opacity: opacity3}}>
           <Code code={callKernel} />
         </animated.div>
