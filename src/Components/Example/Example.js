@@ -3,6 +3,8 @@ import Code from '../Code/Code'
 import { animated, useSpring } from 'react-spring'
 import Heading from '../Heading/Heading'
 import exampleCode from './CodeExamples'
+import { Button } from 'react-materialize'
+import MaterialIcon from 'material-icons-react'
 
 const Example = (props) => {
   const config = {
