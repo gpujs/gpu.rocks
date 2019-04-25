@@ -23,7 +23,7 @@ const Example = (props) => {
       <Heading active={props.active.example} id="example">Example</Heading>
       <section style={{overflow: 'hidden'}}>
         <h4 className="center" style={{color: '#666'}}><b>Matrix Multiplication</b></h4>
-        <h5 className="center" style={{marginBottom: '4rem'}}>In this example, two <b>512x512</b> <b>matrices</b> (2d arrays) are  <i><a href="https://mathsisfun.com/algebra/matrix-multiplying.html">multiplied</a></i>. The computation for each of the elements in the resulting matrix is done in parallel on a GPU.</h5>
+        <h5 className="center" style={{marginBottom: '4rem'}}>In this example, two <b>512x512</b> <b>matrices</b> (2d arrays) are  <i><a href="https://mathsisfun.com/algebra/matrix-multiplying.html">multiplied</a></i>. The computation is done in parallel on the GPU..</h5>
 
         <h6><b>1)</b> Generate The Matrices</h6>
         <animated.div id="example-code1" style={{opacity: opacity1}}>
