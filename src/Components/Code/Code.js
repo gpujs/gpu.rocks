@@ -4,6 +4,7 @@ import { monokai } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { Button } from 'react-materialize'
 import MaterialIcon from 'material-icons-react'
 import M from 'materialize-css'
+import Tooltip from 'react-simple-tooltip'
 
 import './Code.scss'
 
@@ -21,7 +22,11 @@ const Code = (props) => {
 
   return (
     <div className="code">
-      <Button floating waves="light" className="right grey darken-3" style={{marginTop: '1rem', marginRight: '1rem'}} onClick={() => copy(props.code, () => M.toast({html: 'Code Copied', classes: 'rounded'}))}><MaterialIcon icon="content_copy" size="small" color="white" /></Button>
+      <Tooltip content="Copy" placement="left" className="right" radius="10" padding="8" fadeDuration="400" >
+        <Button floating waves="light" className="grey darken-3" style={{marginTop: '1rem', marginRight: '1rem'}} onClick={() => copy(props.code, () => M.toast({html: 'Code Copied', classes: 'rounded'}))}>
+          <MaterialIcon icon="content_copy" size="small" color="white" />
+        </Button>
+      </Tooltip>
       <SyntaxHighlighter language='javascript' style={monokai}>{props.code}</SyntaxHighlighter>
     </div>
   )
