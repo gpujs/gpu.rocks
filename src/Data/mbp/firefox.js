@@ -1,4 +1,5 @@
-import FirefoxData from './benchmark-gtx1080-firefox.json'
+import FirefoxData from './benchmark-mbp2012-firefox.json'
+
 export default {
   data: FirefoxData,
   displayName: 'Firefox',
