@@ -2,6 +2,7 @@
   "name": "gpu.rocks",
   "version": "1.0.0",
   "dependencies": {
+    "@nivo/line": "^0.56.2",
     "gh-pages": "^2.0.1",
     "jquery": "^3.4.0",
     "material-icons": "^0.3.1",
