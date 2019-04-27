@@ -6,7 +6,7 @@ import Plot from 'react-plotly.js'
 
 import './DevBenchmarks.scss'
 
-const DevBenchmarks = () => {
+const DevBenchmarks = ({active}) => {
   const plotData = {
     gtx1080: [],
     mbp: []
@@ -61,7 +61,7 @@ const DevBenchmarks = () => {
 
   return (
     <div id="dev-benchmarks">
-      <Heading active={true}>Development Benchmarks</Heading>
+      <Heading active={active.devBenchmarks}>Development Benchmarks</Heading>
       <Container className="center">
         <h6>Here is a chart representing the performance of a 512x512 matrix multiplication throughout our development (lower is better)</h6>
       </Container>
