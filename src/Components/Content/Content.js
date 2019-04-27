@@ -4,6 +4,7 @@ import Example from '../Example/Example'
 import Strength from '../Strength/Strength'
 import getActiveElems from './getActiveElems'
 import Syntax from '../Syntax/Syntax'
+import DevBenchmarks from '../DevBenchmarks/DevBenchmarks'
 
 import './Content.scss'
 
@@ -43,6 +44,10 @@ class Content extends Component {
         },
         syntax: {
           id: 'syntax',
+          thresh: 800
+        },
+        devBenchmarks: {
+          id: 'dev-benchmarks',
           thresh: 850
         }
       }
@@ -60,6 +65,7 @@ class Content extends Component {
         <hr />
         <Example active={this.state.active} />
         <Syntax active={this.state.active} />
+        <DevBenchmarks active={this.state.active} />
       </Container>
     )
   }
