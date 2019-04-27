@@ -65,7 +65,7 @@ class Content extends Component {
         <hr />
         <Example active={this.state.active} />
         <Syntax active={this.state.active} />
-        <DevBenchmarks active={this.state.active}/>
+        <DevBenchmarks active={this.state.active} />
       </Container>
     )
   }

@@ -56,7 +56,6 @@ const DevBenchmarks = ({active}) => {
   }
 
   gtx1080.forEach(brow => pushPlotData(brow, plotData.gtx1080))
-
   mbpFirefox.forEach(brow => pushPlotData(brow, plotData.mbp))
 
   return (

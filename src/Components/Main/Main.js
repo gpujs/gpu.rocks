@@ -1,13 +1,14 @@
 import React from 'react'
 import Header from '../Header/Header'
 import Content from '../Content/Content'
-import DevBenchmarks from '../DevBenchmarks/DevBenchmarks'
+import OldVersions from '../OldVersions/OldVersions'
 
 const Main = () => {
   return (
     <div>
       <Header />
       <Content />
+      <OldVersions />
     </div>
   )
 }
