@@ -2,6 +2,8 @@ import React from 'react'
 import { BrowserRouter, Switch, Route } from 'react-router-dom'
 import Main from './Components/Main/Main'
 import Benchmark from './Components/Benchmark/Benchmark'
+import Nav from './Components/Nav/Nav'
+import PageFooter from './Components/PageFooter/PageFooter'
 
 import 'materialize-css'
 import './scss/index.scss'
@@ -11,10 +13,12 @@ import 'material-icons'
 function App() {
   return (
     <BrowserRouter>
+      <Nav />
       <Switch>
-        <Route exact path="/" component={Main} />
         <Route path="/benchmark" component={Benchmark} />
+        <Route component={Main} />
       </Switch>
+      <PageFooter />
     </BrowserRouter>
   )
 }
