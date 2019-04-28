@@ -39,8 +39,8 @@ const Header = () => {
 
   return (
     <header id="header">
+      <Nav />
       <Container>
-        <Nav />
         <Row className="center responsive-img"><animated.img src={logo} style={{transform: y.interpolate(y => `translateY(${y}%)`)}} alt="logo" /></Row>
         <Row className="center" >
           {titleTrail.map(({y, height, ...styles}, i) => {
