@@ -6,7 +6,7 @@ import PageFooter from '../PageFooter/PageFooter'
 
 const Main = () => {
   return (
-    <div>
+    <div className="wrapper">
       <Header />
       <Content />
       <OldVersions />

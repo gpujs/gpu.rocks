@@ -4,9 +4,11 @@ import PageFooter from '../PageFooter/PageFooter'
 
 const Benchmark = () => {
   return (
-    <div>
+    <div className="wrapper">
       <Nav />
       <PageFooter />
     </div>
   )
 }
+
+export default Benchmark

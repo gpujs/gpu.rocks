@@ -22,7 +22,7 @@ const PageFooter = () => {
         </ul>
         }
       moreLinks={<span> | Design by <a href="https://github.com/HarshKhandeparkar" className="white-text">Harsh Khandeparkar</a></span>}
-      className="blue"
+      className="blue sticky"
     >
       <h5 className="white-text">
         GPU.js - GPU accelerated JavaScript
