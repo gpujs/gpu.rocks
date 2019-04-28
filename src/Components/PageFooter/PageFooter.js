@@ -7,7 +7,6 @@ import { faExclamationCircle, faHistory } from '@fortawesome/free-solid-svg-icon
 const PageFooter = () => {
   return (
     <Footer
-      copyrights={`© ${new Date().getFullYear()} GPU.js team`}
       links={
         <ul>
           <li>
@@ -21,7 +20,7 @@ const PageFooter = () => {
           </li>
         </ul>
         }
-      moreLinks={<span> | Design by <a href="https://github.com/HarshKhandeparkar" className="white-text">Harsh Khandeparkar</a></span>}
+      moreLinks={<div className="center"><span>&copy; {new Date().getFullYear()} GPU.js team</span> | <span>Design by <a href="https://github.com/HarshKhandeparkar" className="white-text">Harsh Khandeparkar</a></span></div>}
       className="blue sticky"
     >
       <h5 className="white-text">

@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 import { Container } from 'react-materialize'
 import Example from '../Example/Example'
 import Strength from '../Strength/Strength'
-import getActiveElems from './getActiveElems'
+import getActiveElems from '../../utils/getActiveElems'
 import Syntax from '../Syntax/Syntax'
 import DevBenchmarks from '../DevBenchmarks/DevBenchmarks'
 
@@ -10,9 +10,7 @@ import './Content.scss'
 
 class Content extends Component {
   state = {
-    active: {
-      strength: false
-    }
+    active: {}
   }
 
   componentDidMount() {
