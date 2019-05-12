@@ -7,27 +7,39 @@ export default [
     data: CpuData,
     displayName: 'CPU',
     lineColor: 'rgb(34, 106, 193)',
-    shadowColor: 'rgba(10, 181, 59, 0.1)',
-    lineOptions: {
-      shape: 'spline'
-    }
+    shadowColor: 'rgba(10, 181, 59, 0.1)'
   },
   {
     data: GpuData,
     displayName: 'GPU',
     lineColor: 'rgb(20, 188, 62)',
-    shadowColor: 'rgba(10, 181, 59, 0.1)',
-    lineOptions: {
-      shape: 'spline'
-    }
+    shadowColor: 'rgba(10, 181, 59, 0.1)'
   },
   {
     data: PipeData,
     displayName: 'GPU(pipeline mode)',
     lineColor: 'rgb(183, 64, 12)',
-    shadowColor: 'rgba(10, 181, 59, 0.1)',
-    lineOptions: {
-      shape: 'spline'
-    }
+    shadowColor: 'rgba(10, 181, 59, 0.1)'
   }
 ]
+
+export const obj = {
+  cpu: {
+    data: CpuData,
+    displayName: 'CPU',
+    lineColor: 'rgb(34, 106, 193)',
+    shadowColor: 'rgba(10, 181, 59, 0.1)'
+  },
+  gpu: {
+    data: GpuData,
+    displayName: 'GPU',
+    lineColor: 'rgb(20, 188, 62)',
+    shadowColor: 'rgba(10, 181, 59, 0.1)'
+  },
+  pipe: {
+    data: PipeData,
+    displayName: 'GPU(pipeline mode)',
+    lineColor: 'rgb(183, 64, 12)',
+    shadowColor: 'rgba(10, 181, 59, 0.1)'
+  }
+}

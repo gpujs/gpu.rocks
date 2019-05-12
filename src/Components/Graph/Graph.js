@@ -1,7 +1,7 @@
 import React from 'react'
 import Plot from 'react-plotly.js'
 
-const Graph = ({info}) => {
+const Graph = ({info, interpolation = false}) => {
   const plotData = []
 
   const interpolateArrays = (arrayX, arraysY) => {
@@ -37,11 +37,10 @@ const Graph = ({info}) => {
       x_series = each.data.x_series,
       y_series_upper = each.data.y_series_upper,
       y_series = each.data.y_series,
-      y_series_lower = each.data.y_series_lower;
-      const {arrayX, arraysY} = interpolateArrays(x_series, [y_series_lower, y_series, y_series_upper]),
+      y_series_lower = each.data.y_series_lower,
+      {arrayX, arraysY} = interpolation ? interpolateArrays(x_series, [y_series_lower, y_series, y_series_upper]) : {arrayX: x_series, arraysY: [y_series_lower, y_series, y_series_upper]},
       lineColor = each.lineColor,
-      shadowColor = each.shadowColor,
-      lineOptions = each.lineOptions || {};
+      shadowColor = each.shadowColor;
 
     plotData.push({
       name: `${displayName} (Upper Bound)`,
@@ -49,8 +48,11 @@ const Graph = ({info}) => {
       y: arraysY[2],
       type: 'scatter',
       mode: 'lines',
-      marker: {color:'#444', },
-      line: {width:0, ...lineOptions}
+      marker: {color:'#444'},
+      line: {
+        width:0,
+        shape: 'spline'
+      }
     })
     plotData.push({
       name: `${displayName} (Mean)`,
@@ -60,7 +62,7 @@ const Graph = ({info}) => {
       mode: 'lines',
       line: {
         color: lineColor,
-        ...lineOptions
+        shape: 'spline'
       },
       fillcolor: shadowColor,
       fill: 'tonexty'
@@ -72,7 +74,10 @@ const Graph = ({info}) => {
       type: 'scatter',
       mode: 'lines',
       marker: {color:'#444'},
-      line: {width:0, ...lineOptions},
+      line: {
+        width:0,
+        shape: 'spline'
+      },
       fillcolor: shadowColor
     })
   }
