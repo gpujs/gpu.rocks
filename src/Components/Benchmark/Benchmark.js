@@ -1,8 +1,9 @@
 import React, { Component } from 'react'
 import { Container, Button, Range, Checkbox } from 'react-materialize'
-import BenchIt, { initBenches } from './BenchIt'
 import Heading from '../Heading/Heading'
 import getActiveElems from '../../utils/getActiveElems'
+import Graph from '../Graph/Graph'
+import sizes from '../../Data/different-sizes/gt1030-firefox'
 import $ from 'jquery'
 
 class Benchmark extends Component {
@@ -17,6 +18,10 @@ class Benchmark extends Component {
         benchmark: {
           id: 'benchmark',
           thresh: 600
+        },
+        sizes: {
+          id: 'sizes',
+          thresh: 500
         }
       }
       
@@ -27,7 +32,6 @@ class Benchmark extends Component {
   }
   
   render(){
-    initBenches()
     return (
       <div id="benchmark">
         <Heading active={this.state.active.benchmark} >Benchmarks</Heading>
@@ -57,11 +61,16 @@ class Benchmark extends Component {
           <p>
             <Checkbox label="GPU(Texture Mode)" value="gputex" id="gputex" filledIn />
           </p>
-          <Button waves="light" id="bench" className="blue lighten-1" onClick={BenchIt} >
+          <Button waves="light" id="bench" className="blue lighten-1" >
             benchmark!
           </Button>
           <br /><br />
           <div id="out"></div>
+        </Container>
+
+        <Container id="sizes" className="center">
+          <Heading active={this.state.active.sizes}>Common Benchmarks</Heading>
+          <Graph info={sizes} />
         </Container>
       </div>
     )

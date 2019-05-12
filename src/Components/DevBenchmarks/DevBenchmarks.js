@@ -2,62 +2,11 @@ import React from 'react'
 import Heading from '../Heading/Heading'
 import { Container, Row, Col } from 'react-materialize'
 import { gtx1080, gtx1080Obj, mbpFirefox } from '../../Data/DevelopmentBenchmarks'
-import Plot from 'react-plotly.js'
+import Graph from '../Graph/Graph'
 
 import './DevBenchmarks.scss'
 
 const DevBenchmarks = ({active}) => {
-  const plotData = {
-    gtx1080: [],
-    mbp: []
-  }
-
-  const pushPlotData = (brow, pushTo) => {
-    const displayName = brow.displayName,
-      x_series = brow.data.x_series,
-      y_series_upper = brow.data.y_series_upper,
-      y_series = brow.data.y_series,
-      y_series_lower = brow.data.y_series_lower,
-      lineColor = brow.lineColor,
-      shadowColor = brow.shadowColor
-
-    pushTo.push({
-      name: `${displayName} (Upper Bound)`,
-      x: x_series,
-      y: y_series_upper,
-      type: 'scatter',
-      mode: 'lines',
-      marker: {color:'#444', },
-      line: {width:0},
-    })
-    pushTo.push({
-      name: `${displayName} (Mean)`,
-      x: x_series,
-      y: y_series,
-      type: 'scatter',
-      mode: 'lines',
-      line: {
-        color: lineColor
-      },
-      fillcolor: shadowColor,
-      fill: 'tonexty'
-    })
-    pushTo.push({
-      name: `${displayName} (Lower Bound)`,
-      x: x_series,
-      y: y_series_lower,
-      type: 'scatter',
-      mode: 'lines',
-      marker: {color:'#444'},
-      line: {width:0},
-      fillcolor: shadowColor,
-      fill: 'tonexty'
-    })
-  }
-
-  gtx1080.forEach(brow => pushPlotData(brow, plotData.gtx1080))
-  mbpFirefox.forEach(brow => pushPlotData(brow, plotData.mbp))
-
   return (
     <div id="dev-benchmarks">
       <Heading active={active.devBenchmarks}>Development Benchmarks</Heading>
@@ -86,17 +35,7 @@ const DevBenchmarks = ({active}) => {
       </Container>
 
       <Container className="center">
-        <Plot 
-          data={plotData.gtx1080}
-          layout={{
-            yxais: {
-              type: 'log',
-              autorange: true
-            },
-            showlegend: false,
-            hovermode: 'closest'
-          }}
-        />
+        <Graph info={gtx1080} />
       <h4>Non GPU benchmarks</h4>
       <h6>Here is the chart for our benchmarks on a device without a GPU</h6>
       </Container>
@@ -120,17 +59,7 @@ const DevBenchmarks = ({active}) => {
       </Container>
 
       <Container className="center">
-        <Plot 
-          data={plotData.mbp}
-          layout={{
-            yxais: {
-              type: 'log',
-              autorange: true
-            },
-            showlegend: false,
-            hovermode: 'closest'
-          }}
-        />
+        <Graph info={mbpFirefox} />
       </Container>
     </div>
   )
