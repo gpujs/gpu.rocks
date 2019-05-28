@@ -17,15 +17,15 @@ const Graph = ({info, interpolation = false}) => {
         highY = arraysY.map(arr => arr[i + 1]),
         diffY = lowY.map((low, i) => highY[i] - low);
       if (diffX > 128){ // interpolate only if there is a gap of more than 128 values
-        for (let scaleDiff = 16; scaleDiff > 0; scaleDiff -= 1){ // decreasing loop to add 16 new values
-          newArrayX.splice(newI + 17 - scaleDiff, 0, lowX + Math.pow((1 / scaleDiff), 3) * diffX) // cube the reciprocal of scaleDiff and multiply it to the difference and add to the lower value
-          newArraysY.forEach((arr, iY) => arr.splice(newI + 17 - scaleDiff, 0, lowY[iY] + (Math.pow((1 / scaleDiff), 3) * diffY[iY]))) // cube the reciprocal of scaleDiff and multiply it to the difference and add to the lower value
+        let addedValsNumber = Math.floor(diffX / 16) 
+        for (let scaleDiff = addedValsNumber; scaleDiff > 1; scaleDiff -= 1){ // decreasing loop to add new values
+          newArrayX.splice(newI + addedValsNumber - scaleDiff + 1, 0, lowX + Math.pow((1 / scaleDiff), 3) * diffX) // cube the reciprocal of scaleDiff and multiply it to the difference and add to the lower value
+          newArraysY.forEach((arr, iY) => arr.splice(newI + addedValsNumber - scaleDiff + 1, 0, lowY[iY] + (Math.pow((1 / scaleDiff), 3) * diffY[iY]))) // cube the reciprocal of scaleDiff and multiply it to the difference and add to the lower value
         }
-        newI += 16; // add offset for 16 new values
+        newI += addedValsNumber - 1; // add offset for new values
       }
       newI += 1;
     })
-
     return {
       arraysY: newArraysY,
       arrayX: newArrayX
@@ -41,7 +41,6 @@ const Graph = ({info, interpolation = false}) => {
       {arrayX, arraysY} = interpolation ? interpolateArrays(x_series, [y_series_lower, y_series, y_series_upper]) : {arrayX: x_series, arraysY: [y_series_lower, y_series, y_series_upper]},
       lineColor = each.lineColor,
       shadowColor = each.shadowColor;
-
     plotData.push({
       name: `${displayName} (Upper Bound)`,
       x: arrayX,
