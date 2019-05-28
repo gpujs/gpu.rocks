@@ -1,3 +1,3 @@
-[![Logo](http://gpu.rocks/img/ogimage.png)](http://gpu.rocks/)
+[![Logo](https://gpu.rocks/favicon.png)](https://gpu.rocks/)
 
-[Link to website](http://gpu.rocks/)
+[Link to website](https://gpu.rocks/)
