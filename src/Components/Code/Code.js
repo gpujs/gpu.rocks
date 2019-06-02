@@ -27,7 +27,7 @@ const Code = (props) => {
           <MaterialIcon icon="content_copy" size="small" color="white" />
         </Button>
       </Tooltip>
-      <SyntaxHighlighter language='javascript' style={monokai}>{props.code}</SyntaxHighlighter>
+      <SyntaxHighlighter language={props.language || 'javascript'} style={monokai}>{props.code}</SyntaxHighlighter>
     </div>
   )
 }

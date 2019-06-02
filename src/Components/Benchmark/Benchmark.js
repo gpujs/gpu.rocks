@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Container, Button, Range, Checkbox, Row, Col, Table } from 'react-materialize'
+import { Container, Button, Range, Checkbox, Row, Col } from 'react-materialize'
 import Heading from '../Heading/Heading'
 import getActiveElems from '../../utils/getActiveElems'
 import Graph from '../Graph/Graph'
@@ -131,7 +131,7 @@ class Benchmark extends Component {
         <tr>
           <td>Matrix Multiplication</td>
           <td>
-            ${bench.run_time.mat_mult.cpu.min == -1 ? 'Not Benchmarked' : `
+            ${bench.run_time.mat_mult.cpu.min === -1 ? 'Not Benchmarked' : `
               min: ${tidyNumber(bench.run_time.mat_mult.cpu.min)}ms<br>
               max: ${tidyNumber(bench.run_time.mat_mult.cpu.max)}ms<br>
               avg: ${tidyNumber(bench.run_time.mat_mult.cpu.avg)}ms<br>
@@ -151,7 +151,7 @@ class Benchmark extends Component {
         <tr>
           <td>Matrix Convolution</td>
           <td>
-            ${bench.run_time.mat_conv.cpu.min == -1 ? 'Not Benchmarked' : `
+            ${bench.run_time.mat_conv.cpu.min === -1 ? 'Not Benchmarked' : `
               min: ${tidyNumber(bench.run_time.mat_conv.cpu.min)}ms<br>
               max: ${tidyNumber(bench.run_time.mat_conv.cpu.max)}ms<br>
               avg: ${tidyNumber(bench.run_time.mat_conv.cpu.avg)}ms<br>

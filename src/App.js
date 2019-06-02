@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter, Switch, Route } from 'react-router-dom'
 import Main from './Components/Main/Main'
 import Benchmark from './Components/Benchmark/Benchmark'
+import Install from './Components/Install/Install'
 import Nav from './Components/Nav/Nav'
 import PageFooter from './Components/PageFooter/PageFooter'
 
@@ -16,6 +17,7 @@ function App() {
       <Nav />
       <Switch>
         <Route path="/benchmark" component={Benchmark} />
+        <Route path="/install" component={Install} />
         <Route component={Main} />
       </Switch>
       <PageFooter />
