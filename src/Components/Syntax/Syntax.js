@@ -35,6 +35,14 @@ const Syntax = (props) => {
               </CollectionItem>
 
               <CollectionItem>
+                <Red>Math.random()</Red> is supported but it isn't perfect (See the <NavLink to="/docs">Docs</NavLink>)
+              </CollectionItem>
+
+              <CollectionItem>
+                <Red>Pipelining</Red> (See the <NavLink to="/docs">Docs</NavLink>)
+              </CollectionItem>
+
+              <CollectionItem>
                 <Red>for</Red>, <Red>while</Red> and other loops
               </CollectionItem>
 
