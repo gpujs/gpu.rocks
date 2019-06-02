@@ -6,8 +6,6 @@ import Code from '../Code/Code'
 import code from './InstallCode'
 import $ from 'jquery'
 
-import './Install.scss'
-
 class Install extends Component {
   state = {
     active: {}
