@@ -276,7 +276,14 @@ class Benchmark extends Component {
         </Container>
 
         <Container className="center">
-          <Graph info={sizes} interpolation={true} />
+          <Graph info={sizes} title={{
+            x: {
+              text: 'matrix size'
+            },
+            y: {
+              text: 'time taken (in ms)'
+            }
+          }} interpolation={true} />
         </Container>
       </div>
     )

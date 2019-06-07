@@ -1,7 +1,7 @@
 import React from 'react'
 import Plot from 'react-plotly.js'
 
-const Graph = ({info, interpolation = false}) => {
+const Graph = ({info, title = {}, interpolation = false}) => {
   const plotData = []
 
   const interpolateArrays = (arrayX, arraysY) => {
@@ -87,9 +87,13 @@ const Graph = ({info, interpolation = false}) => {
     <Plot 
       data={plotData}
       layout={{
-        yxais: {
-          type: 'log',
-          autorange: true
+        yaxis: {
+          autorange: true,
+          title: title.y || {}
+        },
+        xaxis: {
+          autorange: true,
+          title: title.x || {}
         },
         showlegend: false,
         hovermode: 'closest'
