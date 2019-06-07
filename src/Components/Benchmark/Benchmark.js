@@ -259,7 +259,7 @@ class Benchmark extends Component {
               <ul>
                 <li><b>Hardware:</b> &nbsp;i5-7500 + GT1030</li>
                 <li><b>Operating System:</b> &nbsp;Ubuntu 18.04.2 LTS (64-bit)</li>
-                <li><b>Environment:</b> &nbsp;NodeJS v10.15.3 (64-bit) + gpu.js v2.0.0rc-13</li>
+                <li><b>Environment:</b> &nbsp;NodeJS v10.15.3 (64-bit) + gpu.js v2.0.0-rc.13</li>
                 <li>
                   <b>Benchmarks:</b>
                   <ul>
@@ -278,10 +278,20 @@ class Benchmark extends Component {
         <Container className="center">
           <Graph info={sizes} title={{
             x: {
-              text: 'matrix size'
+              text: 'matrix size',
+              font: {
+                family: 'Courier New, monospace',
+                size: 14,
+                color: '#7f7f7f'
+              }
             },
             y: {
-              text: 'time taken (in ms)'
+              text: 'time taken (in ms)',
+              font: {
+                family: 'Courier New, monospace',
+                size: 14,
+                color: '#7f7f7f'
+              }
             }
           }} interpolation={true} />
         </Container>
