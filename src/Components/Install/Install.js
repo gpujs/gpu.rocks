@@ -32,23 +32,35 @@ class Install extends Component {
         <Heading active={this.state.active.install}>Installation</Heading>
         <Container>
           <h5 className="center">On Linux, ensure you have the correct header files installed</h5>
-          <Code code={code.linux} language="bash"></Code>
+          <Container>
+            <Code code={code.linux} language="bash"></Code>
+          </Container>
 
           <h4 className="center">npm</h4>
-          <Code code={code.npm}/>
+          <Container>
+            <Code code={code.npm}/>
+          </Container>
 
           <h4 className="center">yarn</h4>
-          <Code code={code.yarn}/>
+          <Container>
+            <Code code={code.yarn}/>
+          </Container>
 
           <h4 className="center">Node</h4>
-          <Code code={code.node}/>
+          <Container>
+            <Code code={code.node}/>
+          </Container>
 
           <h4 className="center">Node Typescript</h4>
-          <Code code={code.type}/>
+          <Container>
+            <Code code={code.type}/>
+          </Container>
 
           <h4 className="center">Browser</h4>
           <p className="center">Download the <a href="https://raw.githubusercontent.com/gpujs/gpu.js/master/bin/gpu-browser.min.js">latest version of GPU.js</a> and include the files in your HTML page using the following tags</p>
-          <Code code={code.browser} language="html"/>
+          <Container>
+            <Code code={code.browser} language="html"/>
+          </Container>
         </Container>
       </div>
     )
