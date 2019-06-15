@@ -5,6 +5,7 @@ import Benchmark from './Components/Benchmark/Benchmark'
 import Install from './Components/Install/Install'
 import Nav from './Components/Nav/Nav'
 import PageFooter from './Components/PageFooter/PageFooter'
+import Examples from './Components/Examples/Examples'
 
 import 'materialize-css'
 import './scss/index.scss'
@@ -18,6 +19,7 @@ function App() {
       <Switch>
         <Route path="/benchmark" component={Benchmark} />
         <Route path="/install" component={Install} />
+        <Route path="/examples" component={Examples} />
         <Route component={Main} />
       </Switch>
       <PageFooter />
