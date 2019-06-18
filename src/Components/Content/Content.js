@@ -56,6 +56,10 @@ class Content extends Component {
     })
   }
 
+  componentWillUnmount() {
+    $(document).off('DOMContentLoaded scroll')
+  }
+
   render() {
     return (
       <Container id="content">

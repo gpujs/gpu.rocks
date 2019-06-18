@@ -26,6 +26,10 @@ class Install extends Component {
     })
   }
 
+  componentWillUnmount() {
+    $(document).off('DOMContentLoaded scroll')
+  }
+
   render() {
     return (
       <div id="install">

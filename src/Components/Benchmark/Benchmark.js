@@ -32,6 +32,10 @@ class Benchmark extends Component {
     })
   }
 
+  componentWillUnmount() {
+    $(document).off('DOMContentLoaded scroll')
+  }
+
   benchmarkFormHandler = (e) => {
     e.preventDefault();
 
@@ -224,7 +228,7 @@ class Benchmark extends Component {
           <form id="benchmark-form" onSubmit={this.benchmarkFormHandler}>
             <div className="input-field">
               <label htmlFor="size">Size of Matrix(uniform) -> <b><span id="size-val">128</span></b></label><br />
-              <Range id="size" default={512} min="1" max="1024" onInput={this.sizeChangeHandler}/>
+              <Range id="size" defaultValue="128" min="1" max="1024" onInput={this.sizeChangeHandler}/>
             </div>
             <div className="input-field">
               <label htmlFor="num-bench">Number of Benchmarks</label><br />
