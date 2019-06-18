@@ -3,6 +3,7 @@ import { Container } from 'react-materialize'
 import Example from '../Example/Example'
 import Strength from '../Strength/Strength'
 import getActiveElems from '../../utils/getActiveElems'
+import $ from 'jquery'
 import Syntax from '../Syntax/Syntax'
 import DevBenchmarks from '../DevBenchmarks/DevBenchmarks'
 
@@ -14,7 +15,7 @@ class Content extends Component {
   }
 
   componentDidMount() {
-    document.addEventListener('scroll', () => {
+    $(document).on('DOMContentLoaded scroll', () => {
       const ids = {
         'strength': {
           id: 'strength',

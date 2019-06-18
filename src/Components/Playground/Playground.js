@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import Heading from '../Heading/Heading'
-import { Container, Collection, CollectionItem, Range, Row, Col, Textarea} from 'react-materialize'
+import { Container, Collection, CollectionItem, Range, Row, Col} from 'react-materialize'
 
 export class Playground extends Component {
   render() {
