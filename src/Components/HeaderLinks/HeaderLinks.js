@@ -29,12 +29,6 @@ const HeaderLinks = () => {
       </li>
 
       <li>
-        <NavLink to="/playground">
-          Playground
-        </NavLink>
-      </li>
-
-      <li>
         <NavLink to="/benchmark">
           Benchmark
         </NavLink>
