@@ -1,6 +1,8 @@
+@import '../../scss/colors';
+
 #header {
   min-height: 80vh;
-  background: rgb(20, 132, 197);
+  background: $secondary;
   padding-bottom: 2rem;
 
   .name {
