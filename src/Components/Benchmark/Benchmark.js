@@ -60,6 +60,34 @@ class Benchmark extends Component {
     console.log(bench.stats)
 
     $('#out').html(`
+    <h5>Score</h5>
+    <Table>
+      <thead>
+        <tr>
+          <th>
+            Mode
+          </th>
+          <th>
+            Score
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>GPU</td>
+          <td>
+            <b>${bench.score.gpu}</b>
+          </td>
+        </tr>
+        <tr>
+          <td>CPU</td>
+          <td>
+            ${bench.score.cpu >= 0 ? `<b>${bench.score.cpu}</b>` : 'Not Benchmarked'}
+          </td>
+        </tr>
+      </tbody>
+    </Table>
+
     <h5>Initialization</h5>
     <Table>
       <thead>
