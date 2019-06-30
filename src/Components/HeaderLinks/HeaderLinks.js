@@ -11,7 +11,7 @@ const HeaderLinks = () => {
       </li>
 
       <li>
-        <a href="https://raw.githubusercontent.com/gpujs/gpu.js/master/bin/gpu-browser.min.js">
+        <a href="https://raw.githubusercontent.com/gpujs/gpu.js/master/dist/gpu-browser.min.js">
           Download
         </a>
       </li>
