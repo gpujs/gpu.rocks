@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,7 +13,7 @@
   <meta property="og:image" content="http://gpu.rocks/img/ogimage.png" />
 
   <title>gpu.js - GPU Accelerated JavaScript</title>
-  <link rel="icon" href="img/jelly.png">
+  <link rel="icon" href="img/jelly.svg">
 
   <!-- Bootstrap Core CSS - Uses Bootswatch Flatly Theme: http://bootswatch.com/flatly/ -->
   <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.6/flatly/bootstrap.min.css" rel="stylesheet">
@@ -30,7 +29,7 @@
   <!-- highlight.js -->
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/styles/color-brewer.min.css">
   <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/highlight.min.js"></script>
-  <script>hljs.initHighlightingOnLoad();</script>
+  <!--<script>hljs.initHighlightingOnLoad();</script>-->
 
   <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
   <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -38,35 +37,40 @@
   <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
   <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
   <![endif]-->
-
 </head>
 
 <body id="page-top" class="index">
-
-  <!-- Right side, white on black -->
-  <a href="https://github.com/gpujs/gpu.js" class="github-corner" style="position: fixed; top: 0; right: 0;"><svg width="80" height="80" viewBox="0 0 250 250" style="fill: rgba(21, 21, 19, 0.53); color:#fff; position: absolute; top: 0; border: 0; right: 0;"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+  <!-- Navigation -->
+  <nav class="navbar navbar-fixed-top">
+    <div class="container">
+      <a class="nav-brand" href="#"><img class="jelly-nav-logo" src="img/jelly.svg" alt="" />gpu.js</a>
+      <div class="btn-group pull-right" role="group">
+        <a href="https://github.com/gpujs/gpu.js#table-of-contents" class="btn btn-sm" role="button">
+          <i class="fa fa-book"></i> Docs
+        </a>
+        <a href="https://cdn.rawgit.com/gpujs/gpu.js/45103b7f154a12ec639990c6896b21a053eb6a6c/bin/gpu.js" class="btn btn-sm" role="button">
+          <i class="fa fa-download"></i> Download
+        </a>
+        <a href="https://github.com/gpujs/gpu.js/releases" class="btn btn-sm visible-lg" role="button">
+          <i class="fa fa-github"></i> Github
+        </a>
+        <a href="https://github.com/gpujs/gpu.js" class="github-corner" style="position: fixed; top: 0; right: 0;"><svg width="80" height="80" viewBox="0 0 250 250" style="fill: rgba(21, 21, 19, 0.53); color:#fff; position: absolute; top: 0; border: 0; right: 0;"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+      </div>
+    </div>
+  </nav>
 
   <!-- Header -->
   <header>
     <div class="container">
       <div class="row">
         <div class="col-lg-12">
-          <img class="img-responsive main-logo" src="img/jelly.png" alt="">
+          <img class="main-logo" src="img/jelly.svg" alt="">
           <div class="intro-text">
             <span class="name">gpu.js</span>
             <span class="skills">GPU Accelerated JavaScript</span>
           </div>
         </div>
         <div class="col-lg-10 col-lg-offset-1 text-center">
-          <a href="https://github.com/gpujs/gpu.js#table-of-contents" class="btn btn-lg btn-outline">
-            <i class="fa fa-book"></i> Docs
-          </a>
-          <a href="https://cdn.rawgit.com/gpujs/gpu.js/45103b7f154a12ec639990c6896b21a053eb6a6c/bin/gpu.js" class="btn btn-lg btn-outline">
-            <i class="fa fa-download"></i> Download
-          </a>
-          <a href="https://github.com/gpujs/gpu.js/releases" class="btn btn-lg btn-outline">
-            <i class="fa fa-github"></i> Github Repo
-          </a>
           <a title="click to copy" class="tip btn btn-lg btn-outline" onclick="copyToClipboard($(this).find('code').text());">
             <i class="fa fa-terminal"></i> Install <code>yarn add gpu.js</code>
           </a>
@@ -76,20 +80,20 @@
   </header>
 
   <!-- Features Section -->
-  <section  style="background-color: #f5f5f5">
+  <section class="threads">
     <div class="container">
       <div class="row">
-        <div class="col-lg-4 col-lg-offset-2">
+        <div class="col-lg-4 col-lg-offset-2 threads-container">
           <div class="text-center">
-            <img src="img/threads.png" style="padding: 20px; width: 100px; height: 100px;" />
+            <img src="img/threads.svg" alt="" class="thread-icon" />
             <p>
               Perform massively parallel GPGPU computations using GPU.
             </p>
           </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-4 threads-container">
           <div class="text-center">
-            <img src="img/thread.png" style="padding: 20px; width: 100px; height: 100px;" />
+            <img src="img/thread.svg" alt="" class="thread-icon" />
             <p>
               Graceful pure JavaScript fallback when GPU is not available.
             </p>
@@ -120,28 +124,21 @@
           </p>
           <br>
           <h4>Create a "kernel" <small>(a fancy word for a function that runs on your GPU)</small></h4>
-          <pre id="texture-mode-disabled"><code class="js" style="background: transparent;">const gpu = new GPU();
-const multiplyMatrix = gpu.createKernel(function(a, b) {
-  var sum = 0;
-  for (var i = 0; i < 512; i++) {
-    sum += a[this.thread.y][i] * b[i][this.thread.x];
-  }
-  return sum;
-}).setOutput([512, 512]);</code></pre>
-          <pre id="texture-mode-enabled"><code class="js" style="background: transparent;">const gpu = new GPU();
-const multiplyMatrix = gpu.createKernel(function(a, b) {
-  var sum = 0;
-  for (var i = 0; i < 512; i++) {
-    sum += a[this.thread.y][i] * b[i][this.thread.x];
-  }
-  return sum;
-})
-  .setOutput([512, 512])
-  .setOutputToTexture(true);</code></pre>
+<pre class="hljs" style="display: block; padding: 0.5em; background: #282a36; color: #f6f7f8;"><span class="hljs-keyword" style="color: #20a4f3; font-weight: 700;">const</span> gpu = <span class="hljs-keyword" style="color: #20a4f3; font-weight: 700;">new</span> GPU();
+  <span class="hljs-keyword" style="color: #20a4f3; font-weight: 700;">const</span> multiplyMatrix = gpu.createKernel(<span class="hljs-function"><span class="hljs-keyword" style="color: #ff79c6; font-weight: 700;">function</span>(<span class="hljs-params">a, b</span>) </span>{
+    <span class="hljs-keyword" style="color: #20a4f3; font-weight: 700;">var</span> sum = <span class="hljs-number">0</span>;
+    <span class="hljs-keyword" style="color: #20a4f3; font-weight: 700;">for</span> ( <span class="hljs-keyword" style="color: #20a4f3; font-weight: 700;">var</span> i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">512</span>; i++) { 
+      sum += a[<span class="hljs-keyword" style="color: #20a4f3; font-weight: 700;">this</span>.thread.y][i] * b[i][<span class="hljs-keyword" style="color: #20a4f3; font-weight: 700;">this</span>.thread.x];
+    }
+      <span class="hljs-keyword" style="color: #20a4f3; font-weight: 700;">return</span> sum; 
+  }).setOutput([<span class="hljs-number">512</span>, <span class="hljs-number">512</span>]);
+</pre>
           <br>
           <h4>Call kernel</h4>
           <p>Performs matrix multiplication on 2 matrices of size 512 x 512</p>
-          <pre><code style="background: transparent;">const c = multiplyMatrix(a, b);</code></pre><br>
+          <pre class="hljs" style="display: block; overflow-x: auto; padding: 0.5em; background: #282a36; color: #f6f7f8;">const c = multiplyMatrix(<span class="hljs-name" style="color: rgb(241, 250, 140); font-weight: 700;">a</span>, b)<span class="hljs-comment" style="color: rgb(98, 114, 164);">;</span>
+          </pre>
+          <br>
           <h4 >Benchmark it!</h4>
           <h5>Texture Mode (GPU only)</h5>
           <label><input class="output-to" type="radio" name="texture" checked="checked" value="number"> Disabled (default)</label><br>
@@ -156,6 +153,7 @@ const multiplyMatrix = gpu.createKernel(function(a, b) {
   </section>
 
   <hr />
+
   <section>
     <div class="container">
       <div class="row">
@@ -173,12 +171,12 @@ const multiplyMatrix = gpu.createKernel(function(a, b) {
             <li>1D, 2D, 3D array of numbers or just numbers as kernel input</li>
             <li>1D, 2D, 3D array of numbers as kernel output</li>
             <li>Number variables</li>
-            <li>Custom and custom native <code>function</code>s</li>
-            <li>Arithmetic operations (<code>+</code>, <code>+=</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>)</li>
-            <li>Javascript Math functions (<code>Math.floor()</code> and etc.)</li>
+            <li>Custom and custom native <kbd>function</kbd>s</li>
+            <li>Arithmetic operations ( <kbd>+</kbd> , <kbd>+=</kbd> , <kbd>-</kbd> , <kbd>*</kbd> , <kbd>/</kbd> , <kbd>%</kbd> )</li>
+            <li>Javascript Math functions ( <kbd>Math.floor()</kbd> and etc.)</li>
             <li>Loops</li>
-            <li><code>if</code> and <code>else</code> statements</li>
-            <li><code>const</code> and <code>let</code></li>
+            <li><kbd>if</kbd> and <kbd>else</kbd> statements</li>
+            <li><kbd>const</kbd> and <kbd>let</kbd></li>
             <li>No variables captured by a closure</li>
           </ul>
         </div>
@@ -273,7 +271,7 @@ const multiplyMatrix = gpu.createKernel(function(a, b) {
     <div class="container">
       <div class="row">
         <div class="col-lg-12 text-center">
-          <i class="fa fa-trophy" style="font-size: 100px;"></i>
+          <div id="lottieTrophy"></div>
           <h3>2nd Place, Hack &amp; Roll 2016</h3>
           <p>
             Made under 24 hours for a NUS Hackers hackathon, out of 68 competing projects.
@@ -320,6 +318,8 @@ const multiplyMatrix = gpu.createKernel(function(a, b) {
   <script src="https://cdn.plot.ly/plotly-1.2.0.min.js"></script>
 
   <script src="https://cdn.rawgit.com/gpujs/gpu.js/45103b7f154a12ec639990c6896b21a053eb6a6c/bin/gpu.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/4.13.0/bodymovin.min.js"></script>
+  <script src="js/trophy.js"></script>
   <script src="js/demo.js"></script>
   <script>
     $('.tip').tooltip();

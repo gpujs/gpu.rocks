@@ -1,0 +1,24 @@
+{
+	"files": {
+		"less/freelancer.less": {
+			"engines": [
+				{
+					"compiler": "less",
+					"output": "../css/freelancer.css",
+					"options": {
+						"compress": false,
+						"ieCompat": false,
+						"strictMath": false,
+						"strictUnits": false,
+						"javascriptEnabled": false,
+						"sourceMap": true
+					}
+				}
+			],
+			"sources": [
+				"mixins.less",
+				"variables.less"
+			]
+		}
+	}
+}
