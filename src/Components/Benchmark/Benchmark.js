@@ -254,6 +254,7 @@ class Benchmark extends Component {
           </tr>
         </tbody>
       </table>
+      <hr />
 
       <h5>Run Times</h5>
 
@@ -289,6 +290,7 @@ class Benchmark extends Component {
           </tr>
         </tbody>
       </table>
+      <hr />
 
       <h5>Overall</h5>
 
