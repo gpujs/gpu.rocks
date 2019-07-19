@@ -5,9 +5,9 @@ const HeaderLinks = () => {
   return (
     <ul>
       <li>
-        <NavLink to="/docs" >
+        <a href="https://github.com/gpujs/gpu.js/#readme">
           Documentation
-        </NavLink>
+        </a>
       </li>
 
       <li>
