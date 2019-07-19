@@ -39,7 +39,7 @@ class Benchmark extends Component {
   benchmarkFormHandler = (e) => {
     e.preventDefault();
 
-    const size = $('#size').val() || 128,
+    const size = $('#size').val() || 256,
       num_benchmarks = parseInt($('#num-bench').val()),
       cpu = $('#cpu').prop('checked');
 
@@ -57,210 +57,299 @@ class Benchmark extends Component {
     }
 
     const tidyNumber = (num) => num > 0 ? num : 'less than 1';
-    console.log(bench.stats)
 
     $('#out').html(`
-    <h5>Score</h5>
-    <Table>
-      <thead>
-        <tr>
-          <th>
-            Mode
-          </th>
-          <th>
-            Score
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>GPU</td>
-          <td>
-            <b>${bench.score.gpu}</b>
-          </td>
-        </tr>
-        <tr>
-          <td>CPU</td>
-          <td>
-            ${bench.score.cpu >= 0 ? `<b>${bench.score.cpu}</b>` : 'Not Benchmarked'}
-          </td>
-        </tr>
-      </tbody>
-    </Table>
+      <h4>Score</h4>
+      <table class="striped responsive-table highlight centered">
+        <thead>
+          <tr>
+            <th>
+              Mode
+            </th>
+            <th>
+              Score
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              GPU
+            </td>
+            <td>
+              ${bench.score['gpu']}
+            </td>
+          </tr>
+          <tr>
+            <td>
+              CPU
+            </td>
+            <td>
+              ${cpu ? bench.score['cpu'] : 'Not Benchmarked'}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <hr />
 
-    <h5>Initialization</h5>
-    <Table>
-      <thead>
-        <tr>
-          <th>
-            Task
-          </th>
-          <th>
-            Time
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Matrix Generation</td>
-          <td>${tidyNumber(bench.mat_gen)}ms</td>
-        </tr>
-        <tr>
-          <td>Matrix Padding</td>
-          <td>${tidyNumber(bench.mat_pad)}ms</td>
-        </tr>
-      </tbody>
-    </Table>
+      <h4>Build Times</h4>
+      <table class="striped responsive-table highlight centered">
+        <thead>
+          <tr>
+            <th>
+              Benchmark
+            </th>
+            <th>
+              Time Taken(GPU)
+            </th>
+            <th>
+              Time Taken(PIPELINE)
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Matrix Multiplication
+            </td>
+            <td>
+              ${tidyNumber(bench.build_time.mat_mult['gpu'])} ms
+            </td>
+            <td>
+              ${tidyNumber(bench.build_time.mat_mult['pipe'])} ms
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Matrix Convolution
+            </td>
+            <td>
+              ${tidyNumber(bench.build_time.mat_conv['gpu'])} ms
+            </td>
+            <td>
+              ${tidyNumber(bench.build_time.mat_conv['pipe'])} ms
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <hr />
 
-    <h5>Compile Time Performance</h5>
-    <Table>
-      <thead>
-        <tr>
-          <th>
-            Benchmark
-          </th>
-          <th>
-            GPU
-          </th>
-          <th>
-            GPU(Pipeline Mode)
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Matrix Multiplication</td>
-          <td>${tidyNumber(bench.build_time.mat_mult.gpu)}ms</td>
-          <td>${tidyNumber(bench.build_time.mat_mult.pipe)}ms</td>
-        </tr>
-        <tr>
-          <td>Matrix Convolution</td>
-          <td>${tidyNumber(bench.build_time.mat_conv.gpu)}ms</td>
-          <td>${tidyNumber(bench.build_time.mat_conv.pipe)}ms</td>
-        </tr>
-      </tbody>
-    </Table>
+      <h4>Run Times</h4>
+      <table class="striped responsive-table highlight centered">
+        <thead>
+          <tr>
+            <th>
+              Benchmark
+            </th>
+            <th>
+              Time Taken(GPU)
+            </th>
+            <th>
+              Time Taken(CPU)
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Matrix Multiplication
+            </td>
+            <td>
+              <b>Min</b>: ${tidyNumber(bench.run_time.mat_mult['gpu'].min)} ms<br />
+              <b>Max</b>: ${tidyNumber(bench.run_time.mat_mult['gpu'].max)} ms<br />
+              <b>Avg</b>: ${tidyNumber(bench.run_time.mat_mult['gpu'].avg)} ms<br />
+            </td>
+            <td>
+              ${cpu ? `
+                <b>Min</b>: ${tidyNumber(bench.run_time.mat_mult['cpu'].min)} ms<br />
+                <b>Max</b>: ${tidyNumber(bench.run_time.mat_mult['cpu'].max)} ms<br />
+                <b>Avg</b>: ${tidyNumber(bench.run_time.mat_mult['cpu'].avg)} ms<br />
+              ` : `Not Benchmarked`}
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Matrix Convolution
+            </td>
+            <td>
+              <b>Min</b>: ${tidyNumber(bench.run_time.mat_conv['gpu'].min)} ms<br />
+              <b>Max</b>: ${tidyNumber(bench.run_time.mat_conv['gpu'].max)} ms<br />
+              <b>Avg</b>: ${tidyNumber(bench.run_time.mat_conv['gpu'].avg)} ms<br />
+            </td>
+            <td>
+              ${cpu ? `
+                <b>Min</b>: ${tidyNumber(bench.run_time.mat_conv['cpu'].min)} ms<br />
+                <b>Max</b>: ${tidyNumber(bench.run_time.mat_conv['cpu'].max)} ms<br />
+                <b>Avg</b>: ${tidyNumber(bench.run_time.mat_conv['cpu'].avg)} ms<br />
+              ` : `Not Benchmarked`}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <hr />
 
-    <h5>Run Time Performance</h5>
-    <Table>
-      <thead>
-        <tr>
-          <th>
-            Benchmark
-          </th>
-          <th>
-            CPU
-          </th>
-          <th>
-            GPU
-          </th>
-          <th>
-            GPU(Pipeline Mode)
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Matrix Multiplication</td>
-          <td>
-            ${bench.run_time.mat_mult.cpu.min === -1 ? 'Not Benchmarked' : `
-              min: ${tidyNumber(bench.run_time.mat_mult.cpu.min)}ms<br>
-              max: ${tidyNumber(bench.run_time.mat_mult.cpu.max)}ms<br>
-              avg: ${tidyNumber(bench.run_time.mat_mult.cpu.avg)}ms<br>
-            `}
-          </td>
-          <td>
-            min: ${tidyNumber(bench.run_time.mat_mult.gpu.min)}ms<br>
-            max: ${tidyNumber(bench.run_time.mat_mult.gpu.max)}ms<br>
-            avg: ${tidyNumber(bench.run_time.mat_mult.gpu.avg)}ms<br>
-          </td>
-          <td>
-            min: ${tidyNumber(bench.run_time.mat_mult.pipe.min)}ms<br>
-            max: ${tidyNumber(bench.run_time.mat_mult.pipe.max)}ms<br>
-            avg: ${tidyNumber(bench.run_time.mat_mult.pipe.avg)}ms<br>
-          </td>
-        </tr>
-        <tr>
-          <td>Matrix Convolution</td>
-          <td>
-            ${bench.run_time.mat_conv.cpu.min === -1 ? 'Not Benchmarked' : `
-              min: ${tidyNumber(bench.run_time.mat_conv.cpu.min)}ms<br>
-              max: ${tidyNumber(bench.run_time.mat_conv.cpu.max)}ms<br>
-              avg: ${tidyNumber(bench.run_time.mat_conv.cpu.avg)}ms<br>
-            `}
-          </td>
-          <td>
-            min: ${tidyNumber(bench.run_time.mat_conv.gpu.min)}ms<br>
-            max: ${tidyNumber(bench.run_time.mat_conv.gpu.max)}ms<br>
-            avg: ${tidyNumber(bench.run_time.mat_conv.gpu.avg)}ms<br>
-          </td>
-          <td>
-            min: ${tidyNumber(bench.run_time.mat_conv.pipe.min)}ms<br>
-            max: ${tidyNumber(bench.run_time.mat_conv.pipe.max)}ms<br>
-            avg: ${tidyNumber(bench.run_time.mat_conv.pipe.avg)}ms<br>
-          </td>
-        </tr>
-      </tbody>
-    </Table>
+      <h4>Pipelining Benchmark</h4>
+      <table class="striped responsive-table highlight centered">
+        <thead>
+          <tr>
+            <th>
+              Benchmark
+            </th>
+            <th>
+              Time Taken(GPU)
+            </th>
+            <th>
+              Time Taken(CPU)
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Matrix Multiplication
+            </td>
+            <td>
+              <b>Min</b>: ${tidyNumber(bench.run_time.pipe['gpu'].min)} ms<br />
+              <b>Max</b>: ${tidyNumber(bench.run_time.pipe['gpu'].max)} ms<br />
+              <b>Avg</b>: ${tidyNumber(bench.run_time.pipe['gpu'].avg)} ms<br />
+            </td>
+            <td>
+              ${cpu ? `
+                <b>Min</b>: ${tidyNumber(bench.run_time.pipe['cpu'].min)} ms<br />
+                <b>Max</b>: ${tidyNumber(bench.run_time.pipe['cpu'].max)} ms<br />
+                <b>Avg</b>: ${tidyNumber(bench.run_time.pipe['cpu'].avg)} ms<br />
+              ` : `Not Benchmarked`}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <hr />
 
-    <h5>Run Time Statistics</h5>
-    <Table>
-      <thead>
-        <tr>
-          <th>
-            Benchmark
-          </th>
-          <th>
-            Best Performer
-          </th>
-          <th>
-            Worst Performer
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Matrix Multiplication</td>
-          <td>
-            ${performerMap[bench.stats.run_time.mat_mult.best_performer]}
-          </td>
-          <td>
-            ${performerMap[bench.stats.run_time.mat_mult.worst_performer]}
-          </td>
-        </tr>
-        <tr>
-          <td>Matrix Convolution</td>
-          <td>
-            ${performerMap[bench.stats.run_time.mat_conv.best_performer]}
-          </td>
-          <td>
-            ${performerMap[bench.stats.run_time.mat_conv.worst_performer]}
-          </td>
-        </tr>
-      </tbody>
-    </Table>
-    `)
+      <h4>Statistics</h4>
+      <h5>Build Times</h5>
+
+      <table class="centered hightlight striped responsive-table">
+        <thead>
+          <tr>
+            <th>Benchmark</th>
+            <th>GPU v/s PIPELINE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Matrix Multiplication
+            </td>
+            <td>
+              <b>${performerMap[bench.stats.build_time.mat_mult.diff.gpu_pipe.winner]}</b> took ${bench.stats.build_time.mat_mult.diff.gpu_pipe.percentage}% less time to compile
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Matrix Convolution
+            </td>
+            <td>
+              <b>${performerMap[bench.stats.build_time.mat_conv.diff.gpu_pipe.winner]}</b> took ${bench.stats.build_time.mat_conv.diff.gpu_pipe.percentage}% less time to compile
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h5>Run Times</h5>
+
+      <table class="centered hightlight striped responsive-table">
+        <thead>
+          <tr>
+            <th>Benchmark</th>
+            <th>GPU v/s CPU</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Matrix Multiplication
+            </td>
+            <td>
+              <b>${ cpu ?
+                `${performerMap[bench.stats.run_time.mat_mult.diff.cpu_gpu.avg.winner]}</b> took ${bench.stats.run_time.mat_mult.diff.cpu_gpu.avg.percentage}% less time` : 
+                `Not Benchmarked`
+                }
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Matrix Convolution
+            </td>
+            <td>
+              <b>${ cpu ?
+                `${performerMap[bench.stats.run_time.mat_conv.diff.cpu_gpu.avg.winner]}</b> took ${bench.stats.run_time.mat_conv.diff.cpu_gpu.avg.percentage}% less time` : 
+                `Not Benchmarked`
+                }
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h5>Overall</h5>
+
+      <table class="centered hightlight striped responsive-table">
+        <thead>
+          <tr>
+            <th>Benchmark</th>
+            <th>Best Performer</th>
+            <th>Worst Performer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Matrix Multiplication
+            </td>
+            <td>
+              <b>${performerMap[bench.stats.overall.mat_mult.best_performer]}</b>
+            </td>
+            <td>
+              <b>${performerMap[bench.stats.overall.mat_mult.worst_performer]}</b>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Matrix Convolution
+            </td>
+            <td>
+              <b>${performerMap[bench.stats.overall.mat_conv.best_performer]}</b>
+            </td>
+            <td>
+              <b>${performerMap[bench.stats.overall.mat_conv.worst_performer]}</b>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+    <br /><br />`)
   }
 
   sizeChangeHandler = () => {
     $('#size-val').text($('#size').val())
+    if ($('#size').val() >= 2500) $('#cpu').prop('checked', false).prop('disabled', true)
+    else $('#cpu').prop('checked', false).prop('disabled', false)
   }
   
   render(){
     return (
       <div id="benchmark">
-        <Heading active={this.state.active.benchmark} >Benchmarks</Heading>
+        <Heading active={this.state.active.benchmark} >Benchmark</Heading>
         <Container>
-          <p className="center"><b>GPU.js version:</b> &nbsp;v2.0.0</p>
+          <p className="center"><b>GPU.js version:</b> &nbsp;v2.0.0-rc.21</p>
 
           <form id="benchmark-form" onSubmit={this.benchmarkFormHandler}>
             <div className="input-field">
-              <label htmlFor="size">Size of Matrix(uniform) -> <b><span id="size-val">128</span></b></label><br />
-              <Range id="size" defaultValue="128" min="1" max="1024" onInput={this.sizeChangeHandler}/>
+              <label htmlFor="size">Size of Matrix(uniform) -> <b><span id="size-val">256</span></b></label><br />
+              <Range id="size" defaultValue="256" min="1" max="4096" onInput={this.sizeChangeHandler}/>
             </div>
             <div className="input-field">
               <label htmlFor="num-bench">Number of Benchmarks</label><br />
-              <input id="num-bench" type="number" defaultValue={5}/>
+              <input id="num-bench" type="number" defaultValue={2}/>
             </div>
             <h6> Select Modes</h6>
             <p>
@@ -280,8 +369,8 @@ class Benchmark extends Component {
           <div id="out"></div>
         </Container>
 
+        <Heading active={this.state.active.sizes}>Common Benchmarks</Heading>
         <Container id="sizes" className="center">
-          <Heading active={this.state.active.sizes}>Common Benchmarks</Heading>
           <h6>Here is a chart representing the performance of matrix multiplication of different arrays and different modes (lower is better)(some values are interpolated)</h6>
         </Container>
 
