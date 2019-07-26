@@ -6,6 +6,7 @@ import Graph from '../Graph/Graph'
 import sizes, {obj} from '../../Data/different-sizes/gt1030-firefox'
 import benchmark from '@gpujs/benchmark'
 import $ from 'jquery'
+// import getDb from '../../db/firebase'
 
 class Benchmark extends Component {
 
@@ -30,6 +31,10 @@ class Benchmark extends Component {
         active: getActiveElems(ids)
       })
     })
+  }
+
+  handleDB() {
+    // const db = getDb();
   }
 
   componentWillUnmount() {
