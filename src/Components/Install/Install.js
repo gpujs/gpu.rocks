@@ -61,7 +61,7 @@ class Install extends Component {
           </Container>
 
           <h4 className="center">Browser</h4>
-          <p className="center">Download the <a href="https://raw.githubusercontent.com/gpujs/gpu.js/master/bin/gpu-browser.min.js">latest version of GPU.js</a> and include the files in your HTML page using the following tags</p>
+          <p className="center">Download the <a href="https://raw.githubusercontent.com/gpujs/gpu.js/master/dist/gpu-browser.min.js">latest version of GPU.js</a> and include the files in your HTML page using the following tags</p>
           <Container>
             <Code code={code.browser} language="html"/>
           </Container>

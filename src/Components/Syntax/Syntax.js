@@ -31,15 +31,15 @@ const Syntax = (props) => {
               </CollectionItem>
 
               <CollectionItem>
-                <i>Some</i> Javascript Math functions like <Red>Math.floor()</Red> (See the <NavLink to="/docs">Docs</NavLink>)
+                <i>Some</i> Javascript Math functions like <Red>Math.floor()</Red> (See the <NavLink to="https://github.com/gpujs/gpu.js/#supported-math-functions">Docs</NavLink>)
               </CollectionItem>
 
               <CollectionItem>
-                <Red>Math.random()</Red> is supported but it isn't perfect (See the <NavLink to="/docs">Docs</NavLink>)
+                <Red>Math.random()</Red> is supported but it isn't perfect (See the <NavLink to="https://github.com/gpujs/gpu.js/#supported-math-functions">Docs</NavLink>)
               </CollectionItem>
 
               <CollectionItem>
-                <Red>Pipelining</Red> (See the <NavLink to="/docs">Docs</NavLink>)
+                <Red>Pipelining</Red> (See the <NavLink to="https://github.com/gpujs/gpu.js/#pipelining">Docs</NavLink>)
               </CollectionItem>
 
               <CollectionItem>
@@ -47,7 +47,7 @@ const Syntax = (props) => {
               </CollectionItem>
 
               <CollectionItem>
-                <Red>if</Red> and <Red>else</Red> statements but they are not recommended (See the <NavLink to="/docs">Docs</NavLink>)
+                <Red>if</Red> and <Red>else</Red> statements
               </CollectionItem>
 
               <CollectionItem>
