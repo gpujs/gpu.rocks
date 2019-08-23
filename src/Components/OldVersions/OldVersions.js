@@ -1,6 +1,6 @@
 import React from 'react'
 import { Container, Card, Parallax } from 'react-materialize'
-import MaterialIcon from 'material-icons-react'
+import MaterialIcon from '../Util/MaterialIcon/MaterialIcon'
 
 import HackNRoll from '../../img/hacknroll.jpg'
 

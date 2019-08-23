@@ -1,8 +1,8 @@
 import React from 'react'
-import Heading from '../Heading/Heading'
+import Heading from '../Util/Heading/Heading'
 import { Container, Row, Col } from 'react-materialize'
 import { gtx1080, gtx1080Obj, mbpFirefox } from '../../Data/DevelopmentBenchmarks'
-import Graph from '../Graph/Graph'
+import Graph from '../Util/Graph/Graph'
 
 import './DevBenchmarks.scss'
 

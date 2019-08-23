@@ -1,5 +1,5 @@
 import React from 'react'
-import Heading from '../Heading/Heading'
+import Heading from '../Util/Heading/Heading'
 import Red from './Red'
 import { NavLink } from 'react-router-dom'
 import { Container, Row, Col, Collection, CollectionItem } from 'react-materialize'

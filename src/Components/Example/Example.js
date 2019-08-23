@@ -1,7 +1,7 @@
 import React from 'react'
-import Code from '../Code/Code'
+import Code from '../Util/Code/Code'
 import { animated, useSpring } from 'react-spring'
-import Heading from '../Heading/Heading'
+import Heading from '../Util/Heading/Heading'
 import { generateMatrices, createKernel, callKernel, getOutput } from './CodeExamples'
 import { NavLink } from 'react-router-dom'
 

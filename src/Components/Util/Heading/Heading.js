@@ -1,5 +1,5 @@
 import React from 'react'
-import MaterialIcon from 'material-icons-react'
+import MaterialIcon from '../MaterialIcon/MaterialIcon'
 import { animated, useSpring } from 'react-spring'
 
 import './Heading.scss'
@@ -21,9 +21,9 @@ const Heading = (props) => {
 
   return (
     <h2 className={`center heading ${props.className || ''}`} style={{overflow: 'hidden', maxHeight: '110px'}} id={props.id || ''}>
-      <animated.p style={{display: 'inline-block', transform: x.interpolate(x => `translateX(${-x}vw)`)}}><MaterialIcon icon="chevron_right" size="medium" /></animated.p>
+      <animated.p style={{display: 'inline-block', transform: x.interpolate(x => `translateX(${-x}vw)`)}}><MaterialIcon icon="chevron_right" /></animated.p>
         {props.children}
-      <animated.p style={{display: 'inline-block', transform: x.interpolate(x => `translateX(${x}vw)`)}}><MaterialIcon icon="chevron_left" size="medium" /></animated.p>
+      <animated.p style={{display: 'inline-block', transform: x.interpolate(x => `translateX(${x}vw)`)}}><MaterialIcon icon="chevron_left" /></animated.p>
     </h2>
   )
 }

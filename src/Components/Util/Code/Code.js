@@ -2,7 +2,7 @@ import React from 'react'
 import SyntaxHighlighter from 'react-syntax-highlighter';
 import { monokai } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { Button } from 'react-materialize'
-import MaterialIcon from 'material-icons-react'
+import MaterialIcon from '../MaterialIcon/MaterialIcon'
 import M from 'materialize-css'
 import Tooltip from 'react-simple-tooltip'
 

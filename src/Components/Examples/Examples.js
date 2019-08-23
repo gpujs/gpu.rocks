@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import Heading from '../Heading/Heading'
+import Heading from '../Util/Heading/Heading'
 import { Row, Col, Container } from 'react-materialize'
 import M from 'materialize-css'
 

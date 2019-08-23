@@ -1,8 +1,8 @@
 import React, { Component } from 'react'
-import Heading from '../Heading/Heading'
+import Heading from '../Util/Heading/Heading'
 import getActiveElems from '../../utils/getActiveElems'
 import { Container } from 'react-materialize'
-import Code from '../Code/Code'
+import Code from '../Util/Code/Code'
 import code from './InstallCode'
 import $ from 'jquery'
 
