@@ -347,7 +347,7 @@ class Benchmark extends Component {
       <div id="benchmark">
         <Heading active={this.state.active.benchmark} >Benchmark</Heading>
         <Container>
-          <p className="center"><b>GPU.js version:</b> &nbsp;v2.0.0-rc.21</p>
+          <p className="center"><b>GPU.js version:</b> &nbsp;v2.0.0-rc.26</p>
 
           <form id="benchmark-form" onSubmit={this.benchmarkFormHandler}>
             <div className="input-field">
