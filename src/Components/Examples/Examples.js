@@ -28,7 +28,7 @@ export class Examples extends Component {
                   <p>A simple example wherein colors slowly fade in and fade out.</p>
                 </div>
                 <div className="card-action">
-                  <a href="https://observablehq.com/@robertleeplummerjr/gpu-js-example-slow-fade">Observable JS Notebook</a>
+                  <a href="https://observablehq.com/@robertleeplummerjr/gpu-js-example-slow-fade">Observable Notebook</a>
                 </div>
               </div>
             </Col>
@@ -43,7 +43,7 @@ export class Examples extends Component {
                   <p>A plot of a particular set of complex numbers called the Mandelbrot set.</p>
                 </div>
                 <div className="card-action">
-                  <a href="https://observablehq.com/@robertleeplummerjr/gpu-js-example-slow-fade">Observable JS Notebook</a>
+                  <a href="https://observablehq.com/@robertleeplummerjr/gpu-js-example-slow-fade">Observable Notebook</a>
                   <a href="https://en.wikipedia.org/wiki/Mandelbrot_set">Wikipedia</a>
                 </div>
               </div>

@@ -378,7 +378,7 @@ class Benchmark extends Component {
 
         <Heading active={this.state.active.sizes}>Common Benchmarks</Heading>
         <Container id="sizes" className="center">
-          <h6>Here is a chart representing the performance of matrix multiplication of different arrays and different modes (lower is better)(some values are interpolated)</h6>
+          <h6>Here is a chart representing the performance of matrix multiplication of different arrays and different modes (lower is better)</h6>
         </Container>
 
         <Container>
