@@ -6,6 +6,7 @@ import Graph from '../Util/Graph/Graph'
 import sizes, {obj} from '../../Data/different-sizes/gt1030-firefox'
 import benchmark from '@gpujs/benchmark'
 import $ from 'jquery'
+import ScrollButton from '../ScrollButton/ScrollButton'
 // import getDb from '../../db/firebase'
 
 class Benchmark extends Component {
@@ -345,6 +346,7 @@ class Benchmark extends Component {
   render(){
     return (
       <div id="benchmark">
+        <ScrollButton />
         <Heading active={this.state.active.benchmark} >Benchmark</Heading>
         <Container>
           <p className="center"><b>GPU.js version:</b> &nbsp;v2.0.0-rc.26</p>

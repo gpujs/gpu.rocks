@@ -5,6 +5,7 @@ import { Container } from 'react-materialize'
 import Code from '../Util/Code/Code'
 import code from './InstallCode'
 import $ from 'jquery'
+import ScrollButton from '../ScrollButton/ScrollButton'
 
 class Install extends Component {
   state = {
@@ -33,6 +34,7 @@ class Install extends Component {
   render() {
     return (
       <div id="install">
+        <ScrollButton />
         <Heading active={this.state.active.install}>Installation</Heading>
         <Container>
           <h5 className="center">On Linux, ensure you have the correct header files installed</h5>

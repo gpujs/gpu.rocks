@@ -6,6 +6,7 @@ import getActiveElems from '../../utils/getActiveElems'
 import $ from 'jquery'
 import Syntax from '../Syntax/Syntax'
 import DevBenchmarks from '../DevBenchmarks/DevBenchmarks'
+import ScrollButton from '../ScrollButton/ScrollButton'
 
 import './Content.scss'
 
@@ -64,6 +65,7 @@ class Content extends Component {
   render() {
     return (
       <Container id="content">
+        <ScrollButton />
         <Strength active={this.state.active.strength} />
         <hr />
         <Example active={this.state.active} />
