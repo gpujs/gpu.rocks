@@ -24,7 +24,7 @@ const PageFooter = () => {
       className="blue sticky"
     >
       <h5 className="white-text">
-        GPU.js - GPU accelerated JavaScript
+        GPU.js - GPU accelerated javascript
       </h5>
     </Footer>
   )

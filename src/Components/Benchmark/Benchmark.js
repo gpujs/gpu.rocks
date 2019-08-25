@@ -397,7 +397,7 @@ class Benchmark extends Component {
                   </ul>
                 </li>
                 <li><b>Last Updated:</b> &nbsp;12 May 2019</li>
-                <li>The Benchmarks were run using a tool called <a href="https://github.com/gpujs/benchmark"><b>@gpujs/benchmark</b></a> which is created by the gpu.js team to specifically benchmark gpu.js.</li>
+                <li>The Benchmarks were run using a tool called <a href="https://github.com/gpujs/benchmark"><b>@gpujs/benchmark</b></a> which is created by the gpu.js org to specifically benchmark gpu.js.</li>
               </ul>
             </Col>
           </Row>
