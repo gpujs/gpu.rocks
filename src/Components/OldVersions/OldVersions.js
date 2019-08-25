@@ -12,10 +12,10 @@ const OldVersions = () => {
           className="white darken-1 center"
           textClassName="grey-text text-darken-2"
           title={<b>v0.0 Alpha "Hackathon"</b>}
-          actions={[<a className="btn btn-floating waves-effect waves-light grey darken-3" href="https://gpu.rocks/v0.0/gpu.min.js" ><MaterialIcon icon="file_download" color="white" /></a>]}
+          actions={[<a key={1} className="btn btn-floating waves-effect waves-light grey darken-3" href="https://gpu.rocks/v0.0/gpu.min.js" ><MaterialIcon icon="file_download" color="white" /></a>]}
           key="v0.0"
         >
-          <h5 className="grey-text">TUE FEB 28 2017</h5>
+          <h5 key={1} className="grey-text">TUE FEB 28 2017</h5>
           This is the legacy version for backward compatiblity with the demos made using the "hackathon" API. 
         </Card>
       </Container>
