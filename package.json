@@ -30,7 +30,7 @@
   "scripts": {
     "setup": "yarn install",
     "start": "react-scripts start",
-    "start-mem": "node node_modules/react-scripts/scripts/start.js --max-old-space-size=4000",
+    "start-mem": "node --max-old-space-size=4000 node_modules/react-scripts/scripts/start.js",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
