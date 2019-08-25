@@ -88,6 +88,7 @@ const Graph = ({info, title = {}, interpolation = false}) => {
   return (
     <Plot 
       data={plotData}
+      style={{}}
       layout={{
         yaxis: {
           autorange: true,
@@ -98,6 +99,7 @@ const Graph = ({info, title = {}, interpolation = false}) => {
           title: title.x || {}
         },
         showlegend: false,
+        autosize: true,
         hovermode: 'closest'
       }}
     />
