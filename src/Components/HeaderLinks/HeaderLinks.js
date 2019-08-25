@@ -4,6 +4,11 @@ import { NavLink } from 'react-router-dom'
 const HeaderLinks = () => {
   return (
     <ul>
+    <li>
+        <NavLink to="/">
+          Home
+        </NavLink>
+      </li>
       <li>
         <a href="https://github.com/gpujs/gpu.js/#readme">
           Documentation
