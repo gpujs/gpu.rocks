@@ -20,7 +20,7 @@ const PageFooter = () => {
           </li>
         </ul>
         }
-      moreLinks={<div className="center"><span>&copy; {new Date().getFullYear()} GPU.js Org</span> | Images(except logo) by <a href="https://pixabay.com/users/CopyrightFreePictures-203/" className="white-text">CopyrightFreePictures</a> from <a href="https://pixabay.com/" className="white-text">Pixabay</a></div>}
+      moreLinks={<div className="center"><span>&copy; {new Date().getFullYear()} GPU.js Org</span> | Images(except logo) by <a href="https://pixabay.com/users/CopyrightFreePictures-203/" className="white-text">CopyrightFreePictures</a> on <a href="https://pixabay.com/" className="white-text">Pixabay</a></div>}
       className="blue sticky"
     >
       <h5 className="white-text">
