@@ -1,4 +1,4 @@
-export const generateMatrices = 
+export const generateMatrices =
 `
   const generateMatrices = () => {
     const matrices = [[], []]
@@ -15,7 +15,7 @@ export const generateMatrices =
 
 `
 
-export const createKernel = 
+export const createKernel =
 `
   const gpu = new GPU();
   const multiplyMatrix = gpu.createKernel(function(a, b) {
@@ -28,14 +28,14 @@ export const createKernel =
 
 `
 
-export const callKernel = 
+export const callKernel =
 `
   const matrices = generateMatrices()
   const out = multiplyMatrix(matrices[0], matrices[1])
 
 `
 
-export const getOutput = 
+export const getOutput =
 `
   console.log(out[y][x]) // Logs the element at the xth row and the yth column of the matrix
   console.log(out[10][12]) // Logs the element at the 10th row and the 12th column of the output matrix

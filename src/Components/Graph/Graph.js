@@ -8,7 +8,6 @@ const Graph = ({info, title = {}, interpolation = false}) => {
     const newArrayX = arrayX.map(val => val),
       newArraysY = arraysY.map(arr => arr.map(val => val)); // Clone input arrays to set the output
 
-      
     let newI = 0;
     arrayX.forEach((x, i) => { // loop over the input x array
       const lowX = x,
@@ -86,7 +85,7 @@ const Graph = ({info, title = {}, interpolation = false}) => {
   info.forEach(pushPlotData)
 
   return (
-    <Plot 
+    <Plot
       data={plotData}
       layout={{
         yaxis: {
@@ -100,6 +99,7 @@ const Graph = ({info, title = {}, interpolation = false}) => {
         showlegend: false,
         hovermode: 'closest'
       }}
+      responsive={true}
     />
   )
 }

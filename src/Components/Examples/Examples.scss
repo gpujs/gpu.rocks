@@ -1,0 +1,18 @@
+@import '../../scss/colors';
+
+#examples {
+  width: 50%;
+  margin: 0 auto;
+
+  @media(max-width:768px) {
+    width: 100%;
+  }
+
+  h2 {
+    color: $brand-white;
+  }
+
+  .examples-component {
+    color: $brand-black;
+  }
+}

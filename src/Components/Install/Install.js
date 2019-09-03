@@ -1,10 +1,11 @@
 import React, { Component } from 'react'
-import Heading from '../Heading/Heading'
 import getActiveElems from '../../utils/getActiveElems'
 import { Container } from 'react-materialize'
 import Code from '../Code/Code'
 import code from './InstallCode'
 import $ from 'jquery'
+
+import './Install.scss'
 
 class Install extends Component {
   state = {
@@ -33,8 +34,8 @@ class Install extends Component {
   render() {
     return (
       <div id="install">
-        <Heading active={this.state.active.install}>Installation</Heading>
-        <Container>
+        <h2 className="center">Installation</h2>
+        <div className="install-container">
           <h5 className="center">On Linux, ensure you have the correct header files installed</h5>
           <Container>
             <Code code={code.linux} language="bash"></Code>
@@ -65,7 +66,7 @@ class Install extends Component {
           <Container>
             <Code code={code.browser} language="html"/>
           </Container>
-        </Container>
+        </div>
       </div>
     )
   }

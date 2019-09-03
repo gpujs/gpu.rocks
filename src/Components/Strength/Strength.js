@@ -1,50 +1,30 @@
 import { Row, Col } from 'react-materialize'
 import React from 'react'
-import { animated, useSpring } from 'react-spring'
 
-import threads from '../../img/threads.png'
-import thread from '../../img/thread.png'
+import threads from '../../img/threads.svg'
+import thread from '../../img/thread.svg'
 import nodejs from '../../img/nodejs.png'
 
-const Strength = (props) => {
-  const config = {
-    mass: 5,
-    tension: 500,
-    friction: 50
-  }
+import './Strength.scss'
 
-  const {x, opacity} = useSpring({
-    config,
-    x: props.active ? 0 : 100,
-    opacity: props.active ? 1 : 0,
-    from: {
-      x: 100,
-      opacity: 0
-    }
-  })
+const Strength = (props) => {
 
   return (
     <div id="strength">
-      <Row style={{overflow: 'hidden'}}>
-        <Col m={12} l={6} className="center" style={{marginBottom: '3rem'}}>
-          <animated.div style={{transform: x.interpolate(x => `translateX(${-x}vw)`), opacity}} >
-            <img src={threads} className="threads" alt="threads" />
-            <h6 className="blue-grey-text text-darken-2"><b>Perform massively parallel GPGPU computations using GPU.</b></h6>
-          </animated.div>
+      <Row className="strength-container">
+        <Col m={12} l={6} className="center">
+          <img src={threads} className="threads" alt="threads" />
+          <h6>Perform massively parallel GPGPU computations using GPU.</h6>
         </Col>
-        <Col m={12} l={6} className="center" >
-          <animated.div style={{transform: x.interpolate(x => `translateX(${x}vw)`), opacity}} >
-            <img src={thread} className="thread" alt="thread" />
-            <h6 className="blue-grey-text text-darken-2"><b>Graceful pure JavaScript fallback when GPU is not available. </b></h6>
-          </animated.div>
+        <Col m={12} l={6} className="center">
+          <img src={thread} className="thread" alt="thread" />
+          <h6>Graceful pure JavaScript fallback when GPU is not available.</h6>
         </Col>
       </Row>
-      <Row>
-        <Col s={12} className="center" style={{marginBottom: '3rem'}}>
-          <animated.div style={{opacity}} >
-            <img src={nodejs} className="nodejs" alt="nodejs" />
-            <h5 className="blue-grey-text text-darken-2"><b>Works in <a href="https://nodejs.org">NodeJS</a>!</b></h5>
-          </animated.div>
+      <Row className="node-container">
+        <Col s={12} className="center">
+          <img src={nodejs} className="nodejs" alt="nodejs" />
+          <h6>Works in <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer">NodeJS</a>!</h6>
         </Col>
       </Row>
     </div>

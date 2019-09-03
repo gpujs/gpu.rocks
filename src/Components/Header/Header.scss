@@ -1,15 +1,34 @@
 @import '../../scss/colors';
 
-#header {
-  min-height: 80vh;
-  background: $secondary;
-  padding-bottom: 2rem;
+header {
+  background: $header-gradient;
+  color: $brand-white;
+  padding: 100px 0;
 
-  .name {
-    color: #fff;
+  img {
+    display: block;
+    margin: 0 auto 1.25em;
+    max-width: 300px;
   }
 
-  .desc {
-    color: #fff
+  .name {
+    display: block;
+    font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    text-transform: uppercase;
+    font-weight: 700;
+    font-size: 2em;
+
+    @media(min-width:768px) {
+      font-size: 4.75em;
+    }
+  }
+
+  .skills {
+    font-size: 1.25em;
+    font-weight: 300;
+
+    @media(min-width:768px) {
+      font-size: 1.75em;
+    }
   }
 }

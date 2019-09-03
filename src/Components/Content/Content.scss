@@ -1,14 +1,5 @@
-#content {
-  .threads {
-    width: 100px;
-    height: 100px;
-  }
-  .thread {
-    height: 100px;
-  }
-  .nodejs {
-    width: 140px;
-  }
+@import '../../scss/colors';
 
-  padding-top: 2rem;
+#content {
+  padding: 2em;
 }

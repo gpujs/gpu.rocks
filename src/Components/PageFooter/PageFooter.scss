@@ -1,0 +1,9 @@
+@import '../../scss/colors';
+
+footer.page-footer {
+  background: $footer-gradient;
+
+  h5 {
+    padding-top: 1em;
+  }
+}
