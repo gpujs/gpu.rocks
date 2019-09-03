@@ -342,6 +342,7 @@ class Benchmark extends Component {
     return (
       <div id="benchmark">
         <h2 className="center">Benchmark</h2>
+        <hr />
         <div className="benchmark-container">
           <p className="center"><b>GPU.js version:</b> &nbsp;v2.0.0-rc.21</p>
 

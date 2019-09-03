@@ -25,7 +25,7 @@ const PageFooter = () => {
       moreLinks={<div className="center"><span>&copy; {new Date().getFullYear()} GPU.js Org</span> | <span>Idea by <a href="https://github.com/HarshKhandeparkar" className="white-text">Harsh Khandeparkar</a></span> |             Images(except logo) by <a href="https://pixabay.com/users/CopyrightFreePictures-203/" className="white-text">CopyrightFreePictures</a> from <a href="https://pixabay.com/" className="white-text">Pixabay</a></div>}
       className="sticky"
     >
-      <h6 className="white-text">
+      <h6>
         <strong>GPU.js - GPU accelerated JavaScript</strong>
       </h6>
     </Footer>

@@ -7,6 +7,8 @@ import './OldVersions.scss'
 const OldVersions = () => {
   return (
     <Container className="container-fluid">
+      <h2 className="center">Older Versions</h2>
+      <hr />
       <Card
         className="center"
         title="v0.0 Alpha Hackathon"

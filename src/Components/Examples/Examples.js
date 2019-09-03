@@ -17,6 +17,7 @@ export class Examples extends Component {
     return (
       <div id="examples">
         <h2 className="center">Examples</h2>
+        <hr />
         <div className="examples-component">
           <Row>
             <Col s={6}>

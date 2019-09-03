@@ -35,6 +35,7 @@ class Install extends Component {
     return (
       <div id="install">
         <h2 className="center">Installation</h2>
+        <hr />
         <div className="install-container">
           <h5 className="center">On Linux, ensure you have the correct header files installed</h5>
           <Container>

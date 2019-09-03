@@ -8,7 +8,7 @@ import './Syntax.scss'
 const Syntax = (props) => {
   return (
     <div id="syntax">
-      <h3 className="center">Syntax Support</h3>
+      <h2 className="center">Syntax Support</h2>
       <hr />
       <p className="center"><b>GPU.js</b> relies on the assumption that the kernel function is using only a subset of legal JavaScript syntax</p>
 
