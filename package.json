@@ -1,7 +1,7 @@
 {
   "name": "gpu.rocks",
   "version": "1.0.0",
-  "homepage": "https://harshkhandeparkar.github.io/gpu.rocks",
+  "homepage": "https://gpu.rocks",
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^1.2.17",
     "@fortawesome/free-brands-svg-icons": "^5.8.1",
