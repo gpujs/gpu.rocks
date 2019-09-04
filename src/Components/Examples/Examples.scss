@@ -15,4 +15,22 @@
   .examples-component {
     color: $brand-black;
   }
+
+  .card {
+    background: rgba(0, 0, 0, 0);
+  }
+
+  .card-image {
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+  }
+
+  .card-content,.card-action {
+    background: $code-background;
+    color: white;
+  }
+
+  .card-action {
+    border-radius: 0 0 5px 5px;
+  }
 }
