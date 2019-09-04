@@ -46,7 +46,7 @@ export class Examples extends Component {
                 </div>
                 <div className="card-action">
                   <a href="https://observablehq.com/@robertleeplummerjr/gpu-js-example-slow-fade">Observable Notebook</a>
-                  <a href="https://en.wikipedia.org/wiki/Mandelbrot_set">Wikipedia</a>
+                  <a href="https://en.wikipedia.org/wiki/Mandelbrot_set">Read More</a>
                 </div>
               </div>
             </Col>

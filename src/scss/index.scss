@@ -72,3 +72,38 @@ h2 {
     outline: none;
 	}
 }
+
+// Materialize Override
+
+// Checkbox
+input[type="checkbox"]:enabled:checked + span::after {
+  background-color: $purple !important;
+  border-color: $purple !important;
+}
+
+//Range
+input[type=range] {
+  border: none !important;
+}
+.thumb {
+  background-color: $purple !important;
+  border-bottom-color: $purple !important;
+}
+input[type=range]::-webkit-slider-thumb {
+  background-color: $purple !important;
+}
+input[type=range]::-moz-range-thumb {
+  background-color: $purple !important;
+}
+input[type=range]::-ms-thumb {
+  background-color: $purple !important;
+}
+
+//Normal input
+input {
+  color: $brand-white;
+}
+input:focus {
+  box-shadow: 0 1px 0 0 $purple !important;
+  border-bottom: 1px solid $purple !important;
+}

@@ -7,7 +7,7 @@ import jellyLogo from '../../img/jelly-nav.png'
 
 import './Nav.scss'
 
-const Nav = () => {
+function Nav() {
   return (
     <div id="nav" className="navbar navbar-fixed">
       <Navbar
@@ -16,7 +16,7 @@ const Nav = () => {
         }
         alignLinks="right"
       >
-      <HeaderLinks />
+        <HeaderLinks />
       </Navbar>
     </div>
   )

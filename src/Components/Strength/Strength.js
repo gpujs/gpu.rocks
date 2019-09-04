@@ -7,7 +7,7 @@ import nodejs from '../../img/nodejs.png'
 
 import './Strength.scss'
 
-const Strength = (props) => {
+const Strength = () => {
 
   return (
     <div id="strength">

@@ -1,6 +1,5 @@
 import React, { Component } from 'react'
 import { Button, Range, Checkbox, Row, Col } from 'react-materialize'
-import getActiveElems from '../../utils/getActiveElems'
 import Graph from '../Util/Graph/Graph'
 import sizes, {obj} from '../../Data/different-sizes/gt1030-firefox'
 import benchmark from '@gpujs/benchmark'
@@ -11,36 +10,8 @@ import ScrollButton from '../ScrollButton/ScrollButton'
 import './Benchmark.scss'
 
 class Benchmark extends Component {
-
-  state = {
-    active: {}
-  }
-
-  componentDidMount() {
-    $(document).on('DOMContentLoaded scroll', () => {
-      const ids = {
-        benchmark: {
-          id: 'benchmark',
-          thresh: 600
-        },
-        sizes: {
-          id: 'sizes',
-          thresh: 500
-        }
-      }
-
-      this.setState({
-        active: getActiveElems(ids)
-      })
-    })
-  }
-
   handleDB() {
     // const db = getDb();
-  }
-
-  componentWillUnmount() {
-    $(document).off('DOMContentLoaded scroll')
   }
 
   benchmarkFormHandler = (e) => {
@@ -372,7 +343,7 @@ class Benchmark extends Component {
             <p>
               <Checkbox label="CPU" value="CPU" id="cpu" filledIn />
             </p>
-            <Button waves="light" id="bench" className="blue lighten-1" >
+            <Button waves="light" id="bench" className="purple darken-3" >
               benchmark!
             </Button>
           </form>
@@ -409,26 +380,11 @@ class Benchmark extends Component {
 
         <div className="center">
           <Graph info={sizes} title={{
-            x: {
-              text: 'matrix size',
-              font: {
-                family: 'Courier New, monospace',
-                size: 14,
-                color: '#7f7f7f'
-              }
-            },
-            y: {
-              text: 'time taken (in ms)',
-              font: {
-                family: 'Courier New, monospace',
-                size: 14,
-                color: '#7f7f7f'
-              }
-            }
+            x: 'matrix size',
+            y: 'time taken (in ms)'
           }}
           interpolation={true}
-          responsive={true}
-        />
+          />
         </div>
       </div>
     )

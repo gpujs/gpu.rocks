@@ -2,7 +2,7 @@ import React from 'react'
 
 const Red = (props) => {
   return (
-    <span className="red-text">{props.children}</span>
+    <span className="keyword">{props.children}</span>
   )
 }
 

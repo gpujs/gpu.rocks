@@ -1,5 +1,5 @@
 import React from 'react'
-import Red from './Red'
+import Keyword from './Keyword'
 import { NavLink } from 'react-router-dom'
 import { Container, Row, Col, Collection, CollectionItem } from 'react-materialize'
 
@@ -15,49 +15,49 @@ const Syntax = (props) => {
       <Container>
         <Row>
           <Col offset="l2" s={12} l={8}>
-            <Collection>
+            <Collection id="syntax-collection">
               <CollectionItem>
-                <b>1D</b>, <b>2D</b>, <b>3D</b> <Red>array</Red> of numbers or just numbers as kernel input or output
+                <b>1D</b>, <b>2D</b>, <b>3D</b> <Keyword>array</Keyword> of numbers or just numbers as kernel input or output
               </CollectionItem>
 
               <CollectionItem>
-                <Red>Number</Red> Variables
+                <Keyword>Number</Keyword> Variables
               </CollectionItem>
 
               <CollectionItem>
-                Custom and custom native <Red>function</Red>s
+                Custom and custom native <Keyword>function</Keyword>s
               </CollectionItem>
 
               <CollectionItem>
-                Arithmetic operators (<Red>+</Red>, <Red>+=</Red>, <Red>-</Red>, <Red>*</Red>, <Red>/</Red>, <Red>%</Red>)
+                Arithmetic operators (<Keyword>+</Keyword>, <Keyword>+=</Keyword>, <Keyword>-</Keyword>, <Keyword>*</Keyword>, <Keyword>/</Keyword>, <Keyword>%</Keyword>)
               </CollectionItem>
 
               <CollectionItem>
-                <i>Some</i> Javascript Math functions like <Red>Math.floor()</Red> (See the <NavLink to="https://github.com/gpujs/gpu.js/#supported-math-functions">Docs</NavLink>)
+                <i>Some</i> Javascript Math functions like <Keyword>Math.floor()</Keyword> (See the <NavLink to="https://github.com/gpujs/gpu.js/#supported-math-functions">Docs</NavLink>)
               </CollectionItem>
 
               <CollectionItem>
-                <Red>Math.random()</Red> is supported but it isn't perfect (See the <NavLink to="https://github.com/gpujs/gpu.js/#supported-math-functions">Docs</NavLink>)
+                <Keyword>Math.random()</Keyword> is supported but it isn't perfect (See the <NavLink to="https://github.com/gpujs/gpu.js/#supported-math-functions">Docs</NavLink>)
               </CollectionItem>
 
               <CollectionItem>
-                <Red>Pipelining</Red> (See the <NavLink to="https://github.com/gpujs/gpu.js/#pipelining">Docs</NavLink>)
+                <Keyword>Pipelining</Keyword> (See the <NavLink to="https://github.com/gpujs/gpu.js/#pipelining">Docs</NavLink>)
               </CollectionItem>
 
               <CollectionItem>
-                <Red>for</Red>, <Red>while</Red> and other loops
+                <Keyword>for</Keyword>, <Keyword>while</Keyword> and other loops
               </CollectionItem>
 
               <CollectionItem>
-                <Red>if</Red> and <Red>else</Red> statements
+                <Keyword>if</Keyword> and <Keyword>else</Keyword> statements
               </CollectionItem>
 
               <CollectionItem>
-                <Red>const</Red>, <Red>let</Red> and <Red>var</Red> variables
+                <Keyword>const</Keyword>, <Keyword>let</Keyword> and <Keyword>var</Keyword> variables
               </CollectionItem>
 
               <CollectionItem>
-                <b>NO</b> variables captured by a closure
+                <b>NO</b> variables captuKeyword by a closure
               </CollectionItem>
             </Collection>
           </Col>
