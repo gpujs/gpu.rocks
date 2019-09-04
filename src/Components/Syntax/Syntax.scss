@@ -10,7 +10,13 @@
       width: 100%;
     }
   }
-  .collection {
-    color: $brand-black;
+
+  #syntax-collection .collection-item {
+    background: $code-background;
+  }
+
+  .keyword {
+    color: $code-keyword;
+    font-weight: bold;
   }
 }

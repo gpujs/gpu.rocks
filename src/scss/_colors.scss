@@ -13,7 +13,8 @@ $brand-blue: #20a4f3;
 $brand-black-light: lighten(#000, 93.5%);
 
 $body-background: #020024;
-$code-background: #282a36;
+$code-background: rgb(39, 40, 34);
+$code-keyword: rgb(249, 38, 114);
 
 $header-gradient: linear-gradient(0deg, rgba(2,0,36,1) 0%, rgba(46,7,65,1) 60%);
 $footer-gradient: linear-gradient(0deg, rgba(46,7,65,1) 60%, rgba(2,0,36,1) 100%);

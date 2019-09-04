@@ -1,5 +1,7 @@
+@import '../../../scss/colors';
+
 #code {
-  background: rgb(39, 40, 34);
+  background: $code-background;
   border-radius: 10px;
   pre {
     border-radius: 10px;
