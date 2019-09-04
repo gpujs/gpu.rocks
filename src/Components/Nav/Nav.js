@@ -8,20 +8,18 @@ import jellyLogo from '../../img/jelly-nav.png'
 import './Nav.scss'
 
 function Nav() {
-  render() {
-    return (
-      <div id="nav" className="navbar navbar-fixed">
-        <Navbar
-          brand={
-            <NavLink to="/" className="brand-logo"><img src={jellyLogo} className="jelly-nav-logo" alt="Jelly Logo" />GPU.js</NavLink>
-          }
-          alignLinks="right"
-        >
+  return (
+    <div id="nav" className="navbar navbar-fixed">
+      <Navbar
+        brand={
+          <NavLink to="/" className="brand-logo"><img src={jellyLogo} className="jelly-nav-logo" alt="Jelly Logo" />GPU.js</NavLink>
+        }
+        alignLinks="right"
+      >
         <HeaderLinks />
-        </Navbar>
-      </div>
-    )
-  }
+      </Navbar>
+    </div>
+  )
 }
 
 export default Nav
