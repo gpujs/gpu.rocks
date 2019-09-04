@@ -1,18 +1,13 @@
-import React, { Component } from 'react'
+import React from 'react'
 import HeaderLinks from '../HeaderLinks/HeaderLinks'
 import { Navbar } from 'react-materialize'
 import { NavLink } from 'react-router-dom'
-import $ from 'jquery'
 
 import jellyLogo from '../../img/jelly-nav.png'
 
 import './Nav.scss'
 
-class Nav extends Component {
-  ComponentDidMount {
-    
-  }
-
+function Nav() {
   render() {
     return (
       <div id="nav" className="navbar navbar-fixed">
