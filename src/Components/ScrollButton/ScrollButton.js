@@ -7,7 +7,6 @@ import './ScrollButton.scss'
 export default class ScrollButton extends Component {
   componentDidMount() {
     $(document).on('scroll', () => {
-      console.log('scroll')
       if ($(':root').prop('scrollTop') > 50) $('#scroll-up-btn').fadeIn()
       else $('#scroll-up-btn').fadeOut()
     })
