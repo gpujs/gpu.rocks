@@ -372,7 +372,7 @@ class Benchmark extends Component {
             <p>
               <Checkbox label="CPU" value="CPU" id="cpu" filledIn />
             </p>
-            <Button waves="light" id="bench" className="blue lighten-1" >
+            <Button waves="light" id="bench" className="purple darken-3" >
               benchmark!
             </Button>
           </form>
