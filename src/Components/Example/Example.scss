@@ -1,0 +1,39 @@
+@import '../../scss/colors';
+
+#example {
+  h2, h4, h5 {
+    width: 60%;
+    margin: 0 auto;
+  }
+
+  section {
+    display: block;
+    width: 100%;
+    margin: 0 auto;
+
+    @media(min-width:1024px) {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      align-items: center;
+    }
+
+    h5 {
+      padding-bottom: 2em;
+    }
+
+    h6 {
+      width: 80%;
+      margin: 0 auto;
+      padding: 1em 0;
+    }
+  }
+
+  #code {
+    background: inherit;
+    padding: 1em;
+
+    button {
+      margin: 1.5em!important;
+    }
+  }
+}

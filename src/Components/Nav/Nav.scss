@@ -1,0 +1,31 @@
+@import '../../scss/colors';
+
+#nav nav {
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 0;
+  background: rgba(46, 7, 65, 0.8);
+  box-shadow: none;
+  line-height: 2.3em;
+
+  .nav-wrapper {
+    margin: 1em;
+  }
+  .brand-logo {
+    font-size: 1.5rem;
+    line-height: 1;
+    display: inline-grid;
+    grid-auto-flow: column;
+    align-items: center;
+
+    .jelly-nav-logo {
+      padding: 0 0.5em;
+      width: 52px;
+    }
+  }
+
+  .sidenav-trigger {
+    top: -15px;
+    left: 15px;
+  }
+}

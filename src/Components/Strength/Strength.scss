@@ -1,0 +1,23 @@
+@import '../../scss/colors';
+
+#strength {
+  .strength-container {
+    width: 60%;
+    margin: 0 auto;
+
+    .threads, .thread {
+      width: 100px;
+      height: 100px;
+    }
+  }
+
+  .node-container {
+    width: 50%;
+    margin: 0 auto;
+    padding: 3em 0;
+
+    .nodejs {
+      width: 140px;
+    }
+  }
+}

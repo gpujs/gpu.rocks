@@ -1,0 +1,74 @@
+@import 'colors';
+
+body {
+  background-color: $background;
+  min-height: 100vh;
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  background: $body-background;
+  color: $brand-white;
+  font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+p {
+  font-size: 1rem;
+
+  &.small {
+  	font-size: .75rem;
+  }
+}
+
+section {
+  padding: 3.5em 0;
+}
+
+a,
+a:hover,
+a:focus,
+a:active,
+a.active {
+  color: $brand-blue;
+  outline: none;
+  text-decoration: none;
+}
+
+h1, h2, h3 {
+  text-transform: uppercase;
+  line-height: 1.4!important;
+  font-weight: 700!important;
+}
+
+h4, h5, h6 {
+  font-weight: 300!important;
+}
+
+h2 {
+  font-size: 2.5rem!important;
+}
+
+hr {
+  margin: 21px auto;
+  max-width: 300px;
+  border-top: solid 5px;
+}
+
+h2 {
+  padding-top: 1em;
+}
+
+.img-centered {
+  margin: 0 auto;
+}
+
+.btn {
+  background-color: $brand-blue;
+  margin: 1.25em 0;
+
+  &:hover,
+	&:focus,
+	&:active,
+	&.active {
+    background: fade($brand-blue, 80%);
+    outline: none;
+	}
+}

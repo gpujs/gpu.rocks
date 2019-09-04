@@ -1,0 +1,14 @@
+{
+  "short_name": "GPU.js",
+  "name": "GPU.js - GPU accelerated JavaScript",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
