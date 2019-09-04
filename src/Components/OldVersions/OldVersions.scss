@@ -1,0 +1,10 @@
+@import '../../scss/colors';
+
+.container-fluid > .card {
+  background-color: $body-background;
+  box-shadow: none;
+
+  h5 {
+    padding-top: 1em;
+  }
+}

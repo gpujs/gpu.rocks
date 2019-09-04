@@ -1,0 +1,19 @@
+#install {
+  margin: 0 2em;
+
+  .container {
+    width: 50%;
+    padding: 1em 0 2em;
+
+    @media(max-width:768px) {
+      width: 100%;
+    }
+  }
+
+  #code {
+    background: inherit;
+    button {
+      margin: 1.5em!important;
+    }
+  }
+}

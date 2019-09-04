@@ -1,18 +1,20 @@
 import React from 'react'
-import Heading from '../Util/Heading/Heading'
 import Red from './Red'
 import { NavLink } from 'react-router-dom'
 import { Container, Row, Col, Collection, CollectionItem } from 'react-materialize'
 
+import './Syntax.scss'
+
 const Syntax = (props) => {
   return (
-    <div>
-      <Heading active={props.active.syntax} id="syntax">Syntax Support</Heading>
-      <h6 className="center"><b>GPU.js</b> relies on the assumption that the kernel function is using only a subset of legal JavaScript syntax</h6>
+    <div id="syntax">
+      <h2 className="center">Syntax Support</h2>
+      <hr />
+      <p className="center"><b>GPU.js</b> relies on the assumption that the kernel function is using only a subset of legal JavaScript syntax</p>
 
       <Container>
         <Row>
-          <Col offset="s2" s={8}>
+          <Col offset="l2" s={12} l={8}>
             <Collection>
               <CollectionItem>
                 <b>1D</b>, <b>2D</b>, <b>3D</b> <Red>array</Red> of numbers or just numbers as kernel input or output

@@ -4,6 +4,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGithub } from '@fortawesome/free-brands-svg-icons'
 import { faExclamationCircle, faHistory } from '@fortawesome/free-solid-svg-icons'
 
+import './PageFooter.scss'
+
 const PageFooter = () => {
   return (
     <Footer
@@ -20,12 +22,12 @@ const PageFooter = () => {
           </li>
         </ul>
         }
-      moreLinks={<div className="center"><span>&copy; {new Date().getFullYear()} GPU.js Org</span> | Images(except logo) by <a href="https://pixabay.com/users/CopyrightFreePictures-203/" className="white-text">CopyrightFreePictures</a> on <a href="https://pixabay.com/" className="white-text">Pixabay</a></div>}
-      className="blue sticky"
+      moreLinks={<div className="center"><span>&copy; {new Date().getFullYear()} GPU.js Org</span> | Images(except logo) by <a href="https://pixabay.com/users/CopyrightFreePictures-203/" className="white-text">CopyrightFreePictures</a> from <a href="https://pixabay.com/" className="white-text">Pixabay</a></div>}
+      className="sticky"
     >
-      <h5 className="white-text">
-        GPU.js - GPU accelerated javascript
-      </h5>
+      <h6>
+        <strong>GPU.js - GPU accelerated JavaScript</strong>
+      </h6>
     </Footer>
   )
 }

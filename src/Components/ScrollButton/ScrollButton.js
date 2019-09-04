@@ -2,6 +2,8 @@ import React, { Component } from 'react'
 import { Button } from 'react-materialize'
 import $ from 'jquery'
 
+import './ScrollButton.scss'
+
 export default class ScrollButton extends Component {
   componentDidMount() {
     $(document).on('scroll', () => {
@@ -20,10 +22,9 @@ export default class ScrollButton extends Component {
       <Button
         floating
         id="scroll-up-btn"
-        style={{display: 'none'}}
         fab={{direction: 'left', hoverEnabled: false}}
         icon="arrow_upward"
-        className="blue"
+        style={{display: 'none'}}
         large
         onClick={this.handleClick}
       />

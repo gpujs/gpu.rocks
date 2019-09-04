@@ -1,11 +1,12 @@
 import React, { Component } from 'react'
-import Heading from '../Util/Heading/Heading'
 import getActiveElems from '../../utils/getActiveElems'
 import { Container } from 'react-materialize'
 import Code from '../Util/Code/Code'
 import code from './InstallCode'
 import $ from 'jquery'
 import ScrollButton from '../ScrollButton/ScrollButton'
+
+import './Install.scss'
 
 class Install extends Component {
   state = {
@@ -35,8 +36,9 @@ class Install extends Component {
     return (
       <div id="install">
         <ScrollButton />
-        <Heading active={this.state.active.install}>Installation</Heading>
-        <Container>
+        <h2 className="center">Installation</h2>
+        <hr />
+        <div className="install-container">
           <h5 className="center">On Linux, ensure you have the correct header files installed</h5>
           <Container>
             <Code code={code.linux} language="bash"></Code>
@@ -67,7 +69,7 @@ class Install extends Component {
           <Container>
             <Code code={code.browser} language="html"/>
           </Container>
-        </Container>
+        </div>
       </div>
     )
   }

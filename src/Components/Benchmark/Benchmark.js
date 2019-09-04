@@ -1,6 +1,5 @@
 import React, { Component } from 'react'
-import { Container, Button, Range, Checkbox, Row, Col } from 'react-materialize'
-import Heading from '../Util/Heading/Heading'
+import { Button, Range, Checkbox, Row, Col } from 'react-materialize'
 import getActiveElems from '../../utils/getActiveElems'
 import Graph from '../Util/Graph/Graph'
 import sizes, {obj} from '../../Data/different-sizes/gt1030-firefox'
@@ -8,6 +7,8 @@ import benchmark from '@gpujs/benchmark'
 import $ from 'jquery'
 import ScrollButton from '../ScrollButton/ScrollButton'
 // import getDb from '../../db/firebase'
+
+import './Benchmark.scss'
 
 class Benchmark extends Component {
 
@@ -27,7 +28,7 @@ class Benchmark extends Component {
           thresh: 500
         }
       }
-      
+
       this.setState({
         active: getActiveElems(ids)
       })
@@ -342,14 +343,15 @@ class Benchmark extends Component {
     if ($('#size').val() >= 2500) $('#cpu').prop('checked', false).prop('disabled', true)
     else $('#cpu').prop('checked', false).prop('disabled', false)
   }
-  
+
   render(){
     return (
       <div id="benchmark">
         <ScrollButton />
-        <Heading active={this.state.active.benchmark} >Benchmark</Heading>
-        <Container>
-          <p className="center"><b>GPU.js version:</b> &nbsp;v2.0.0-rc.26</p>
+        <h2 className="center">Benchmark</h2>
+        <hr />
+        <div className="benchmark-container">
+          <p className="center"><b>GPU.js version:</b> &nbsp;v2.0.0</p>
 
           <form id="benchmark-form" onSubmit={this.benchmarkFormHandler}>
             <div className="input-field">
@@ -376,14 +378,14 @@ class Benchmark extends Component {
           </form>
           <br /><br />
           <div id="out"></div>
-        </Container>
+        </div>
 
-        <Heading active={this.state.active.sizes}>Common Benchmarks</Heading>
-        <Container id="sizes" className="center">
-          <h6>Here is a chart representing the performance of matrix multiplication of different arrays and different modes (lower is better)</h6>
-        </Container>
+        <h3 className="center">Common Benchmarks</h3>
+        <div id="sizes" className="center">
+          <p>Here is a chart representing the performance of matrix multiplication of different arrays and different modes (lower is better)</p>
+        </div>
 
-        <Container>
+        <div>
           <Row>
             <Col offset="s1" s={10}>
               <ul>
@@ -403,9 +405,9 @@ class Benchmark extends Component {
               </ul>
             </Col>
           </Row>
-        </Container>
+        </div>
 
-        <Container className="center">
+        <div className="center">
           <Graph info={sizes} title={{
             x: {
               text: 'matrix size',
@@ -423,8 +425,11 @@ class Benchmark extends Component {
                 color: '#7f7f7f'
               }
             }
-          }} interpolation={true} />
-        </Container>
+          }}
+          interpolation={true}
+          responsive={true}
+        />
+        </div>
       </div>
     )
   }
