@@ -1,6 +1,5 @@
 import React, { Component } from 'react'
 import { Button, Range, Checkbox, Row, Col } from 'react-materialize'
-import getActiveElems from '../../utils/getActiveElems'
 import Graph from '../Util/Graph/Graph'
 import sizes, {obj} from '../../Data/different-sizes/gt1030-firefox'
 import benchmark from '@gpujs/benchmark'
@@ -11,36 +10,8 @@ import ScrollButton from '../ScrollButton/ScrollButton'
 import './Benchmark.scss'
 
 class Benchmark extends Component {
-
-  state = {
-    active: {}
-  }
-
-  componentDidMount() {
-    $(document).on('DOMContentLoaded scroll', () => {
-      const ids = {
-        benchmark: {
-          id: 'benchmark',
-          thresh: 600
-        },
-        sizes: {
-          id: 'sizes',
-          thresh: 500
-        }
-      }
-
-      this.setState({
-        active: getActiveElems(ids)
-      })
-    })
-  }
-
   handleDB() {
     // const db = getDb();
-  }
-
-  componentWillUnmount() {
-    $(document).off('DOMContentLoaded scroll')
   }
 
   benchmarkFormHandler = (e) => {
