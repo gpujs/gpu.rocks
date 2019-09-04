@@ -87,19 +87,37 @@ const Graph = ({info, title = {}, interpolation = false}) => {
   return (
     <Plot
       data={plotData}
-      style={{}}
       layout={{
         yaxis: {
           autorange: true,
-          title: title.y || {}
+          title: {
+            font: {
+              family: 'Courier New, monospace',
+              size: 14,
+              color: '#fff'
+            },
+            text: title.y || ''
+          }
         },
         xaxis: {
           autorange: true,
-          title: title.x || {}
+          title: {
+            font: {
+              family: 'Courier New, monospace',
+              size: 14,
+              color: '#fff'
+            },
+            text: title.x || ''
+          }
         },
         showlegend: false,
         autosize: true,
-        hovermode: 'closest'
+        hovermode: 'closest',
+        plot_bgcolor: 'rgba(50, 0, 50, 0.6)',
+        paper_bgcolor: 'rgba(50, 0, 50, 0.6)',
+        font: {
+          color: 'white'
+        }
       }}
       responsive={true}
     />

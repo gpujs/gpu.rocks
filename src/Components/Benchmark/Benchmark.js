@@ -409,26 +409,11 @@ class Benchmark extends Component {
 
         <div className="center">
           <Graph info={sizes} title={{
-            x: {
-              text: 'matrix size',
-              font: {
-                family: 'Courier New, monospace',
-                size: 14,
-                color: '#7f7f7f'
-              }
-            },
-            y: {
-              text: 'time taken (in ms)',
-              font: {
-                family: 'Courier New, monospace',
-                size: 14,
-                color: '#7f7f7f'
-              }
-            }
+            x: 'matrix size',
+            y: 'time taken (in ms)'
           }}
           interpolation={true}
-          responsive={true}
-        />
+          />
         </div>
       </div>
     )
