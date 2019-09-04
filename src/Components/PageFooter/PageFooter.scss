@@ -6,4 +6,9 @@ footer.page-footer {
   h5 {
     padding-top: 1em;
   }
+
+  .btn-flat:hover {
+    background: $purple !important;
+    border-radius: 4px;
+  }
 }
