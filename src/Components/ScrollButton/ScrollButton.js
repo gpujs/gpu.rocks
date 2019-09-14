@@ -1,19 +1,22 @@
 import React, { Component } from 'react'
-import { Button } from 'react-materialize'
-import $ from 'jquery'
+import Button from 'react-materialize/lib/Button'
 
 import './ScrollButton.scss'
 
 export default class ScrollButton extends Component {
   componentDidMount() {
-    $(document).on('scroll', () => {
-      if ($(':root').prop('scrollTop') > 50) $('#scroll-up-btn').fadeIn()
-      else $('#scroll-up-btn').fadeOut()
-    })
+    const scrollUpBtn = document.querySelector('#scroll-up-btn')
+    window.onscroll = () => {
+      if (document.body.scrollTop > 50 || document.documentElement.scrollTop > 50) {
+        scrollUpBtn.style.opacity = '1'
+      } else {
+        scrollUpBtn.style.opacity = '0'
+      }
+    }
   }
 
   handleClick() {
-    $(':root').animate({scrollTop: 0})
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   render() {
@@ -23,7 +26,9 @@ export default class ScrollButton extends Component {
         id="scroll-up-btn"
         fab={{direction: 'left', hoverEnabled: false}}
         icon="arrow_upward"
-        style={{display: 'none'}}
+        style={{
+          transition: '400ms'
+        }}
         large
         onClick={this.handleClick}
       />

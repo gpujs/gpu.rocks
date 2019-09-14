@@ -1,5 +1,5 @@
 import React from 'react'
-import { Footer } from 'react-materialize'
+import Footer from 'react-materialize/lib/Footer'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGithub } from '@fortawesome/free-brands-svg-icons'
 import { faExclamationCircle, faHistory } from '@fortawesome/free-solid-svg-icons'

@@ -1,9 +1,13 @@
 import React, { Component } from 'react'
-import { Button, Range, Checkbox, Row, Col } from 'react-materialize'
+import Button from 'react-materialize/lib/Button'
+import Range from 'react-materialize/lib/Range'
+import Checkbox from 'react-materialize/lib/Checkbox'
+import Row from 'react-materialize/lib/Row'
+import Col from 'react-materialize/lib/Col'
+
 import Graph from '../Util/Graph/Graph'
 import sizes, {obj} from '../../Data/different-sizes/gt1030-firefox'
 import benchmark from '@gpujs/benchmark'
-import $ from 'jquery'
 import ScrollButton from '../ScrollButton/ScrollButton'
 // import getDb from '../../db/firebase'
 
@@ -17,9 +21,9 @@ class Benchmark extends Component {
   benchmarkFormHandler = (e) => {
     e.preventDefault();
 
-    const size = $('#size').val() || 256,
-      num_benchmarks = parseInt($('#num-bench').val()),
-      cpu = $('#cpu').prop('checked');
+    const size = document.querySelector('#size').value || 256,
+      num_benchmarks = parseInt(document.querySelector('#num-bench').value),
+      cpu = document.querySelector('#cpu').checked
 
     const bench = benchmark({
       num_benchmarks,
@@ -36,7 +40,7 @@ class Benchmark extends Component {
 
     const tidyNumber = (num) => num > 0 ? num : 'less than 1';
 
-    $('#out').html(`
+    document.querySelector('#out').innerHTML = `
       <h4>Score</h4>
       <table class="striped responsive-table highlight centered">
         <thead>
@@ -306,13 +310,20 @@ class Benchmark extends Component {
         </tbody>
       </table>
 
-    <br /><br />`)
+    <br /><br />`
   }
 
   sizeChangeHandler = () => {
-    $('#size-val').text($('#size').val())
-    if ($('#size').val() >= 2500) $('#cpu').prop('checked', false).prop('disabled', true)
-    else $('#cpu').prop('checked', false).prop('disabled', false)
+    const size = document.querySelector('#size')
+    const cpu = document.querySelector('#cpu')
+    document.querySelector('#size-val').textContent = size.value
+    if (size.value >= 2500) {
+      cpu.checked = false
+      cpu.disabled = true
+    } else {
+      cpu.checked = false
+      cpu.disabled = false
+    }
   }
 
   render(){
