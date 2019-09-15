@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Container } from 'react-materialize'
+import Container from 'react-materialize/lib/Container'
 import Code from '../Util/Code/Code'
 import code from './InstallCode'
 import ScrollButton from '../ScrollButton/ScrollButton'
@@ -21,12 +21,12 @@ class Install extends Component {
 
           <h4 className="center">npm</h4>
           <Container>
-            <Code code={code.npm}/>
+            <Code code={code.npm} language="bash"></Code>
           </Container>
 
           <h4 className="center">yarn</h4>
           <Container>
-            <Code code={code.yarn}/>
+            <Code code={code.yarn} language="bash"></Code>
           </Container>
 
           <h4 className="center">Node</h4>

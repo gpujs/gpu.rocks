@@ -1,5 +1,5 @@
 import React from 'react'
-import { Row } from 'react-materialize'
+import Row from 'react-materialize/lib/Row'
 import { animated, useSpring } from 'react-spring'
 
 import logo from '../../img/jelly.png'

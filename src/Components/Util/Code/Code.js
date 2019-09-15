@@ -1,12 +1,19 @@
 import React from 'react'
-import SyntaxHighlighter from 'react-syntax-highlighter';
-import { monokai } from 'react-syntax-highlighter/dist/esm/styles/hljs';
-import { Button } from 'react-materialize'
+import { Light as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { monokai } from 'react-syntax-highlighter/dist/esm/styles/hljs'
+import js from 'react-syntax-highlighter/dist/esm/languages/hljs/javascript'
+import bash from 'react-syntax-highlighter/dist/esm/languages/hljs/bash'
+import html from 'react-syntax-highlighter/dist/esm/languages/hljs/vbscript-html'
+import Button from 'react-materialize/lib/Button'
 import MaterialIcon from '../MaterialIcon/MaterialIcon'
 import M from 'materialize-css'
 import Tooltip from 'react-simple-tooltip'
 
 import './Code.scss'
+
+SyntaxHighlighter.registerLanguage('javascript', js)
+SyntaxHighlighter.registerLanguage('bash', bash)
+SyntaxHighlighter.registerLanguage('html', html)
 
 const Code = (props) => {
 
@@ -33,3 +40,4 @@ const Code = (props) => {
 }
 
 export default Code
+

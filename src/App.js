@@ -1,5 +1,7 @@
 import React from 'react'
-import { BrowserRouter, Switch, Route } from 'react-router-dom'
+import BrowserRouter from 'react-router-dom/es/BrowserRouter'
+import Switch from 'react-router-dom/es/Switch'
+import Route from 'react-router-dom/es/Route'
 import Main from './Components/Main/Main'
 import Benchmark from './Components/Benchmark/Benchmark'
 import Install from './Components/Install/Install'

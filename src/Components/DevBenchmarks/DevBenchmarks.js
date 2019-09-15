@@ -1,5 +1,6 @@
 import React from 'react'
-import { Row, Col } from 'react-materialize'
+import Row from 'react-materialize/lib/Row'
+import Col from 'react-materialize/lib/Col'
 import { gtx1080, gtx1080Obj, mbpFirefox } from '../../Data/DevelopmentBenchmarks'
 import Graph from '../Util/Graph/Graph'
 

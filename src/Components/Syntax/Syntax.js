@@ -1,7 +1,11 @@
 import React from 'react'
 import Keyword from './Keyword'
-import { NavLink } from 'react-router-dom'
-import { Container, Row, Col, Collection, CollectionItem } from 'react-materialize'
+import NavLink from 'react-router-dom/NavLink'
+import Container from 'react-materialize/lib/Container'
+import Row from 'react-materialize/lib/Row'
+import Col from 'react-materialize/lib/Col'
+import Collection from 'react-materialize/lib/Collection'
+import CollectionItem from 'react-materialize/lib/CollectionItem'
 
 import './Syntax.scss'
 
@@ -68,3 +72,4 @@ const Syntax = (props) => {
 }
 
 export default Syntax
+

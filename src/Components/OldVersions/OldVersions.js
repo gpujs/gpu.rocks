@@ -1,5 +1,6 @@
 import React from 'react'
-import { Container, Card } from 'react-materialize'
+import Container from 'react-materialize/lib/Container'
+import Card from 'react-materialize/lib/Card'
 import MaterialIcon from '../Util/MaterialIcon/MaterialIcon'
 
 import './OldVersions.scss'
@@ -23,3 +24,4 @@ const OldVersions = () => {
 }
 
 export default OldVersions
+

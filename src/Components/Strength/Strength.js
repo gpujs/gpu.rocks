@@ -1,4 +1,5 @@
-import { Row, Col } from 'react-materialize'
+import Row from 'react-materialize/lib/Row'
+import Col from 'react-materialize/lib/Col'
 import React from 'react'
 
 import threads from '../../img/threads.svg'

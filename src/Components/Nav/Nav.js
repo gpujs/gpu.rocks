@@ -1,7 +1,7 @@
 import React from 'react'
 import HeaderLinks from '../HeaderLinks/HeaderLinks'
-import { Navbar } from 'react-materialize'
-import { NavLink } from 'react-router-dom'
+import Navbar from 'react-materialize/lib/Navbar'
+import NavLink from 'react-router-dom/es/NavLink'
 
 import jellyLogo from '../../img/jelly-nav.png'
 
