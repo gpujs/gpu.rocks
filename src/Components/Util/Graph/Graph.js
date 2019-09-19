@@ -1,9 +1,9 @@
-import React from 'react'
+import 'chartist/dist/chartist.css'
+
 import Chartist from 'chartist'
 import ChartistGraph from 'react-chartist/dist/index'
+import React from 'react'
 import legend from 'chartist-plugin-legend'
-
-import 'chartist/dist/chartist.css'
 
 const Graph = () => {
   return null
