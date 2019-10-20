@@ -13,7 +13,7 @@ const OldVersions = () => {
       <Card
         className="center"
         title="v0.0 Alpha Hackathon"
-        actions={[<a className="btn btn-floating waves-effect waves-light grey darken-3" href="https://gpu.rocks/v0.0/gpu.min.js" ><MaterialIcon icon="file_download" color="white" /></a>]}
+        actions={[<a key={1} className="btn btn-floating waves-effect waves-light grey darken-3" href="https://gpu.rocks/v0.0/gpu.min.js" ><MaterialIcon icon="file_download" color="white" /></a>]}
         key="v0.0"
       >
         <h5 className="grey-text">TUE FEB 28 2017</h5>
