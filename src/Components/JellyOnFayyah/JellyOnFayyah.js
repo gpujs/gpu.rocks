@@ -63,7 +63,7 @@ export default class JellyOnFayyah extends Component {
     return (
       <div style={{
         width: '100%',
-        height: '300px',
+        height: '300px'
       }}>
         {
           this.state.logoIndex === -1

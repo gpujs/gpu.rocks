@@ -1,6 +1,6 @@
 import React from 'react'
 import Keyword from './Keyword'
-import NavLink from 'react-router-dom/NavLink'
+import { NavLink } from 'react-router-dom'
 import Container from 'react-materialize/lib/Container'
 import Row from 'react-materialize/lib/Row'
 import Col from 'react-materialize/lib/Col'

@@ -1,7 +1,7 @@
 import React from 'react'
 import Code from '../Util/Code/Code'
 import { generateMatrices, createKernel, callKernel, getOutput } from './CodeExamples'
-import NavLink from 'react-router-dom/NavLink'
+import { NavLink } from 'react-router-dom'
 
 import './Example.scss'
 
