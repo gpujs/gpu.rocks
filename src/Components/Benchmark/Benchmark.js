@@ -6,18 +6,13 @@ import Row from 'react-materialize/lib/Row'
 import Col from 'react-materialize/lib/Col'
 
 import Graph from '../Util/Graph/Graph'
-import sizes, {obj} from '../../Data/different-sizes/gt1030-firefox'
-import benchmark from '@gpujs/benchmark'
+import sizes, { obj } from '../../Data/different-sizes/gt1030-firefox'
+import { benchmark } from '@gpujs/benchmark'
 import ScrollButton from '../ScrollButton/ScrollButton'
-// import getDb from '../../db/firebase'
 
 import './Benchmark.scss'
 
 class Benchmark extends Component {
-  handleDB() {
-    // const db = getDb();
-  }
-
   benchmarkFormHandler = (e) => {
     e.preventDefault();
 
@@ -30,7 +25,7 @@ class Benchmark extends Component {
       matrix_size: size,
       logs: false,
       cpu_benchmark: cpu,
-    })
+    }).getData()
 
     const performerMap = {
       cpu: 'CPU',
@@ -333,7 +328,7 @@ class Benchmark extends Component {
         <h2 className="center">Benchmark</h2>
         <hr />
         <div className="benchmark-container">
-          <p className="center"><b>GPU.js version:</b> &nbsp;v2.0.0</p>
+          <p className="center"><b>GPU.js version:</b> &nbsp;v2.1.0</p>
 
           <form id="benchmark-form" onSubmit={this.benchmarkFormHandler}>
             <div className="input-field">
@@ -390,11 +385,12 @@ class Benchmark extends Component {
         </div>
 
         <div className="center">
-          <Graph info={sizes} title={{
-            x: 'matrix size',
-            y: 'time taken (in ms)'
-          }}
-          interpolation={true}
+          <Graph info={sizes} 
+            title={{
+              x: 'matrix size',
+              y: 'time taken (in ms)'
+            }}
+            interpolation={true}
           />
         </div>
       </div>
