@@ -6,7 +6,7 @@ import Row from 'react-materialize/lib/Row'
 import Col from 'react-materialize/lib/Col'
 
 import Graph from '../Util/Graph/Graph'
-import sizes, { obj } from '../../Data/different-sizes/gt1030-firefox'
+import sizes from '../../Data/different-sizes/gt1030-node'
 import { benchmark } from '@gpujs/benchmark'
 import ScrollButton from '../ScrollButton/ScrollButton'
 
@@ -367,17 +367,16 @@ class Benchmark extends Component {
             <Col offset="s1" s={10}>
               <ul>
                 <li><b>Hardware:</b> &nbsp;i5-7500 + GT1030</li>
-                <li><b>Operating System:</b> &nbsp;Ubuntu 18.04.2 LTS (64-bit)</li>
-                <li><b>Environment:</b> &nbsp;NodeJS v10.15.3 (64-bit) + gpu.js v2.0.0-rc.13</li>
+                <li><b>Operating System:</b> &nbsp;Ubuntu 18.04.3 LTS (64-bit)</li>
+                <li><b>Environment:</b> &nbsp;NodeJS v10.15.3 + gpu.js v2.0.1</li>
                 <li>
                   <b>Benchmarks:</b>
                   <ul>
-                    <li><span className="browser-color" style={{backgroundColor: obj.cpu.lineColor}}></span> CPU</li>
-                    <li><span className="browser-color" style={{backgroundColor: obj.gpu.lineColor}}></span> GPU</li>
-                    <li><span className="browser-color" style={{backgroundColor: obj.pipe.lineColor}}></span> GPU(pipeline mode)</li>
+                    <li><span className="bench-color" style={{backgroundColor: sizes.cpu_run_time_mat_mult.colors.lineColor}}></span> CPU</li>
+                    <li><span className="bench-color" style={{backgroundColor: sizes.gpu_run_time_mat_mult.colors.lineColor}}></span> GPU</li>
                   </ul>
                 </li>
-                <li><b>Last Updated:</b> &nbsp;12 May 2019</li>
+                <li><b>Last Updated:</b> &nbsp;1 November 2019</li>
                 <li>The Benchmarks were run using a tool called <a href="https://github.com/gpujs/benchmark"><b>@gpujs/benchmark</b></a> which is created by the gpu.js org to specifically benchmark gpu.js.</li>
               </ul>
             </Col>
@@ -385,10 +384,26 @@ class Benchmark extends Component {
         </div>
 
         <div className="center">
-          <Graph info={sizes} 
+          <Graph 
+            info={
+              {
+                data: [
+                  {
+                    id: 'GPU Run Time',
+                    color: sizes.gpu_run_time_mat_mult.colors.lineColor,
+                    data: sizes.gpu_run_time_mat_mult.series
+                  },
+                  {
+                    id: 'CPU Run Time',
+                    color: sizes.cpu_run_time_mat_mult.colors.lineColor,
+                    data: sizes.cpu_run_time_mat_mult.series
+                  }
+                ]
+              }
+            }
             title={{
-              x: 'matrix size',
-              y: 'time taken (in ms)'
+              x: 'Matrix Size',
+              y: 'Time Taken (in ms)'
             }}
             interpolation={true}
           />
