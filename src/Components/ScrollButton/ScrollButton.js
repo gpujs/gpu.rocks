@@ -27,7 +27,8 @@ export default class ScrollButton extends Component {
         fab={{direction: 'left', hoverEnabled: false}}
         icon="arrow_upward"
         style={{
-          transition: '400ms'
+          transition: '400ms',
+          opacity: 0
         }}
         large
         onClick={this.handleClick}
