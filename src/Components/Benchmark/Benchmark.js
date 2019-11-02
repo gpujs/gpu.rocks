@@ -267,44 +267,7 @@ class Benchmark extends Component {
           </tr>
         </tbody>
       </table>
-      <hr />
-
-      <h5>Overall</h5>
-
-      <table class="centered hightlight striped responsive-table">
-        <thead>
-          <tr>
-            <th>Benchmark</th>
-            <th>Best Performer</th>
-            <th>Worst Performer</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              Matrix Multiplication
-            </td>
-            <td>
-              <b>${performerMap[bench.stats.overall.mat_mult.best_performer]}</b>
-            </td>
-            <td>
-              <b>${performerMap[bench.stats.overall.mat_mult.worst_performer]}</b>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Matrix Convolution
-            </td>
-            <td>
-              <b>${performerMap[bench.stats.overall.mat_conv.best_performer]}</b>
-            </td>
-            <td>
-              <b>${performerMap[bench.stats.overall.mat_conv.worst_performer]}</b>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
+    <hr />
     <br /><br />`
   }
 
