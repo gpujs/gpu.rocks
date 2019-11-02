@@ -11,13 +11,11 @@ const ServerBenchmarks = () => {
     <div id="server-benchmarks">
       <h2 className="center">Server Benchmarks</h2>
       <hr />
-      <div className="center">
-        <p className="center">Here is a chart representing the performance of <b>GPU.js</b> in matrix multiplication of matrices of different sizes</p>
-      </div>
+      <p style={{paddingLeft: '0.75rem'}}>Here is a chart representing the performance of <b>GPU.js</b> in matrix multiplication of matrices of different sizes</p>
       <div>
         <div>
           <Row>
-            <Col offset="s1" s={8} className="specs">
+            <Col s={12} className="specs">
               <ul>
                 <li><b>Hardware:</b> &nbsp;<a href="https://ark.intel.com/content/www/us/en/ark/products/193396/intel-xeon-gold-5217-processor-11m-cache-3-00-ghz.html">Xeon Gold 5217</a> + 8 x <a href="https://www.nvidia.com/en-in/geforce/graphics-cards/rtx-2080-ti/">RTX 2080ti</a></li>
                 <li><b>Operating System:</b> &nbsp;<a href="https://ubuntu.com/">Ubuntu</a> 18.04</li>

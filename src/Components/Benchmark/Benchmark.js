@@ -321,13 +321,11 @@ class Benchmark extends Component {
         </div>
 
         <h3 className="center">Common Benchmarks</h3>
-        <div id="sizes" className="center">
-          <p>Here is a chart representing the time taken (GPU v/s CPU) of matrix multiplication of different arrays and different modes.</p>
-        </div>
 
+        <p style={{paddingLeft: '0.75rem'}}>Here is a chart representing the time taken (GPU v/s CPU) of matrix multiplication of different arrays and different modes.</p>
         <div>
           <Row>
-            <Col offset="s1" s={10}>
+            <Col s={12}>
               <ul>
                 <li><b>Hardware:</b> &nbsp;<a href="https://ark.intel.com/content/www/us/en/ark/products/97123/intel-core-i5-7500-processor-6m-cache-up-to-3-80-ghz.html">i5-7500</a> + <a href="https://www.geforce.com/hardware/desktop-gpus/geforce-gt-1030/specifications">GT 1030</a></li>
                 <li><b>Operating System:</b> &nbsp;<a href="https://ubuntu.com">Ubuntu</a> 18.04.3 LTS (64-bit)</li>
