@@ -61,7 +61,7 @@ const Syntax = (props) => {
               </CollectionItem>
 
               <CollectionItem>
-                <b>NO</b> variables captuKeyword by a closure
+                <b>NO</b> variables captured by a closure
               </CollectionItem>
             </Collection>
           </Col>
