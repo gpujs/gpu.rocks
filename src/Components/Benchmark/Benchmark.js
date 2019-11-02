@@ -6,7 +6,7 @@ import Row from 'react-materialize/lib/Row'
 import Col from 'react-materialize/lib/Col'
 
 import Graph from '../Util/Graph/Graph'
-import sizes from '../../Data/different-sizes/gt1030-node'
+import sizes from '../../Data/gt1030/gt1030-node'
 import { benchmark } from '@gpujs/benchmark'
 import ScrollButton from '../ScrollButton/ScrollButton'
 
@@ -368,7 +368,6 @@ class Benchmark extends Component {
               x: 'Matrix Size',
               y: 'Time Taken (in ms)'
             }}
-            interpolation={true}
           />
         </div>
       </div>
