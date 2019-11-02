@@ -21,7 +21,7 @@ export class Examples extends Component {
         <hr />
         <div className="examples-component">
           <Row>
-            <Col s={6}>
+            <Col s={12} l={6}>
               <div className="card">
                 <div className="card-image">
                   <img src={slowFade} alt="slow-fade" className="materialboxed" />
@@ -36,7 +36,7 @@ export class Examples extends Component {
               </div>
             </Col>
 
-            <Col s={6}>
+            <Col s={12} l={6}>
               <div className="card">
                 <div className="card-image">
                   <img src={mandelbrotSet} alt="mandelbrot-set" className="materialboxed" />
