@@ -322,7 +322,7 @@ class Benchmark extends Component {
 
         <h3 className="center">Common Benchmarks</h3>
         <div id="sizes" className="center">
-          <p>Here is a chart representing the performance of matrix multiplication of different arrays and different modes (lower is better)</p>
+          <p>Here is a chart representing the time taken (GPU v/s CPU) of matrix multiplication of different arrays and different modes.</p>
         </div>
 
         <div>
