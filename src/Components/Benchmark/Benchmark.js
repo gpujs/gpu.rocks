@@ -368,7 +368,7 @@ class Benchmark extends Component {
               <ul>
                 <li><b>Hardware:</b> &nbsp;i5-7500 + GT1030</li>
                 <li><b>Operating System:</b> &nbsp;Ubuntu 18.04.3 LTS (64-bit)</li>
-                <li><b>Environment:</b> &nbsp;NodeJS v10.15.3 + gpu.js v2.0.1</li>
+                <li><b>Environment:</b> &nbsp;NodeJS v10.15.3 + <b>GPU.js</b> v2.0.1</li>
                 <li>
                   <b>Benchmarks:</b>
                   <ul>
@@ -377,7 +377,7 @@ class Benchmark extends Component {
                   </ul>
                 </li>
                 <li><b>Last Updated:</b> &nbsp;1 November 2019</li>
-                <li>The Benchmarks were run using a tool called <a href="https://github.com/gpujs/benchmark"><b>@gpujs/benchmark</b></a> which is created by the gpu.js org to specifically benchmark gpu.js.</li>
+                <li>The Benchmarks were run using a tool called <a href="https://github.com/gpujs/benchmark"><b>@gpujs/benchmark</b></a> which is created by the <b>GPU.js</b> org to specifically benchmark <b>GPU.js</b>.</li>
               </ul>
             </Col>
           </Row>

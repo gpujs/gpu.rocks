@@ -22,11 +22,11 @@ const PageFooter = () => {
           </li>
         </ul>
         }
-      moreLinks={<div className="center"><span>&copy; {new Date().getFullYear()} GPU.js Org</span> | Images(except logo) by <a href="https://pixabay.com/users/CopyrightFreePictures-203/" className="white-text">CopyrightFreePictures</a> from <a href="https://pixabay.com/" className="white-text">Pixabay</a></div>}
+      moreLinks={<div className="center"><span>&copy; {new Date().getFullYear()} <b>GPU.js</b> Org</span> | Images(except logo) by <a href="https://pixabay.com/users/CopyrightFreePictures-203/" className="white-text">CopyrightFreePictures</a> from <a href="https://pixabay.com/" className="white-text">Pixabay</a></div>}
       className="sticky"
     >
       <h6>
-        <strong>GPU.js - GPU accelerated JavaScript</strong>
+        <strong><b>GPU.js</b> - GPU accelerated JavaScript</strong>
       </h6>
     </Footer>
   )

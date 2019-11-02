@@ -11,7 +11,7 @@ const DevBenchmarks = () => {
       <h2 className="center">Development Benchmarks</h2>
       <hr />
       <div className="center">
-        <h6>Here is a chart representing the performance of gpu.js in matrix multiplication of matrices of different sizes</h6>
+        <p className="center">Here is a chart representing the performance of <b>GPU.js</b> in matrix multiplication of matrices of different sizes</p>
       </div>
       <div className="grid-test">
         {/* <Graph info={gtx1080} /> */}
@@ -21,7 +21,7 @@ const DevBenchmarks = () => {
               <ul>
                 <li><b>Hardware:</b> &nbsp;Xeon Gold 5217 + 8 x RTX 2080ti</li>
                 <li><b>Operating System:</b> &nbsp;Ubuntu 18.04</li>
-                <li><b>Environment:</b> &nbsp;NodeJS v8.10.0</li>
+                <li><b>Environment:</b> &nbsp;NodeJS v8.10.0 + <b>GPU.js</b> v2.2.0</li>
                 <li>
                   <b>Browser:</b>
                   <ul>
@@ -31,7 +31,7 @@ const DevBenchmarks = () => {
                   </ul>
                 </li>
                 <li><b>Last Updated:</b> &nbsp;1 November 2019</li>
-                <li>The Benchmarks were run using a tool called <a href="https://github.com/gpujs/benchmark"><b>@gpujs/benchmark</b></a> which is created by the gpu.js org to specifically benchmark gpu.js.</li>
+                <li>The Benchmarks were run using a tool called <a href="https://github.com/gpujs/benchmark"><b>@gpujs/benchmark</b></a> which is created by the <b>GPU.js</b> org to specifically benchmark <b>GPU.js</b>.</li>
               </ul>
             </Col>
           </Row>
