@@ -23,7 +23,6 @@ const ServerBenchmarks = () => {
                 <li><b>Operating System:</b> &nbsp;<a href="https://ubuntu.com/">Ubuntu</a> 18.04</li>
                 <li><b>Environment:</b> &nbsp;NodeJS v8.10.0 + <b>GPU.js</b> v2.2.0</li>
                 <li>
-                  <b>Browser:</b>
                   <ul>
                     {/* <li><span className="bench-color" style={{backgroundColor: gtx1080Obj.firefox.lineColor}}></span> Firefox 54.0.1 (32-Bit)</li>
                     <li><span className="bench-color" style={{backgroundColor: gtx1080Obj.chrome.lineColor}}></span> Chrome 59.0.3071.115 (64-Bit)</li>
