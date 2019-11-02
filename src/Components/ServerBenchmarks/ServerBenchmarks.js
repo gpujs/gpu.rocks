@@ -3,12 +3,12 @@ import Row from 'react-materialize/lib/Row'
 import Col from 'react-materialize/lib/Col'
 // import Graph from '../Util/Graph/Graph'
 
-import './DevBenchmarks.scss'
+import './ServerBenchmarks.scss'
 
-const DevBenchmarks = () => {
+const ServerBenchmarks = () => {
   return (
     <div id="dev-benchmarks">
-      <h2 className="center">Development Benchmarks</h2>
+      <h2 className="center">Server Benchmarks</h2>
       <hr />
       <div className="center">
         <p className="center">Here is a chart representing the performance of <b>GPU.js</b> in matrix multiplication of matrices of different sizes</p>
@@ -41,4 +41,4 @@ const DevBenchmarks = () => {
   )
 }
 
-export default DevBenchmarks
+export default ServerBenchmarks

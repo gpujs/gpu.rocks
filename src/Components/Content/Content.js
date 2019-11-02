@@ -2,7 +2,7 @@ import React from 'react'
 import Example from '../Example/Example'
 import Strength from '../Strength/Strength'
 import Syntax from '../Syntax/Syntax'
-import DevBenchmarks from '../DevBenchmarks/DevBenchmarks'
+import ServerBenchmarks from '../ServerBenchmarks/ServerBenchmarks'
 import ScrollButton from '../ScrollButton/ScrollButton'
 import OldVersions from '../OldVersions/OldVersions'
 
@@ -15,7 +15,7 @@ function Content() {
       <Strength />
       <Example />
       <Syntax />
-      <DevBenchmarks />
+      <ServerBenchmarks />
       <OldVersions />
     </div>
   )
