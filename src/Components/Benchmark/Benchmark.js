@@ -366,8 +366,8 @@ class Benchmark extends Component {
           <Row>
             <Col offset="s1" s={10}>
               <ul>
-                <li><b>Hardware:</b> &nbsp;i5-7500 + GT1030</li>
-                <li><b>Operating System:</b> &nbsp;Ubuntu 18.04.3 LTS (64-bit)</li>
+                <li><b>Hardware:</b> &nbsp;<a href="https://ark.intel.com/content/www/us/en/ark/products/97123/intel-core-i5-7500-processor-6m-cache-up-to-3-80-ghz.html">i5-7500</a> + <a href="https://www.geforce.com/hardware/desktop-gpus/geforce-gt-1030/specifications">GT 1030</a></li>
+                <li><b>Operating System:</b> &nbsp;<a href="https://ubuntu.com">Ubuntu</a> 18.04.3 LTS (64-bit)</li>
                 <li><b>Environment:</b> &nbsp;NodeJS v10.15.3 + <b>GPU.js</b> v2.0.1</li>
                 <li>
                   <b>Benchmarks:</b>

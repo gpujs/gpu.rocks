@@ -19,8 +19,8 @@ const DevBenchmarks = () => {
           <Row>
             <Col offset="s3" s={8} className="specs">
               <ul>
-                <li><b>Hardware:</b> &nbsp;Xeon Gold 5217 + 8 x RTX 2080ti</li>
-                <li><b>Operating System:</b> &nbsp;Ubuntu 18.04</li>
+                <li><b>Hardware:</b> &nbsp;<a href="https://ark.intel.com/content/www/us/en/ark/products/193396/intel-xeon-gold-5217-processor-11m-cache-3-00-ghz.html">Xeon Gold 5217</a> + 8 x <a href="https://www.nvidia.com/en-in/geforce/graphics-cards/rtx-2080-ti/">RTX 2080ti</a></li>
+                <li><b>Operating System:</b> &nbsp;<a href="https://ubuntu.com/">Ubuntu</a> 18.04</li>
                 <li><b>Environment:</b> &nbsp;NodeJS v8.10.0 + <b>GPU.js</b> v2.2.0</li>
                 <li>
                   <b>Browser:</b>
