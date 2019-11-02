@@ -67,7 +67,7 @@ h2 {
 	&:focus,
 	&:active,
 	&.active {
-    background: fade($brand-blue, 80%);
+    // background: fade($brand-blue, 80%);
     outline: none;
 	}
 }
