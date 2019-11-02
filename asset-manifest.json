@@ -1,0 +1,26 @@
+{
+  "files": {
+    "main.css": "/static/css/main.440b84bd.chunk.css",
+    "main.js": "/static/js/main.59e4815b.chunk.js",
+    "main.js.map": "/static/js/main.59e4815b.chunk.js.map",
+    "runtime~main.js": "/static/js/runtime~main.a8a9905a.js",
+    "runtime~main.js.map": "/static/js/runtime~main.a8a9905a.js.map",
+    "static/css/2.745844aa.chunk.css": "/static/css/2.745844aa.chunk.css",
+    "static/js/2.e3c69dfc.chunk.js": "/static/js/2.e3c69dfc.chunk.js",
+    "static/js/2.e3c69dfc.chunk.js.map": "/static/js/2.e3c69dfc.chunk.js.map",
+    "index.html": "/index.html",
+    "precache-manifest.8eb9d14a902bb4fc4263f0dc2dd4eabc.js": "/precache-manifest.8eb9d14a902bb4fc4263f0dc2dd4eabc.js",
+    "service-worker.js": "/service-worker.js",
+    "static/css/2.745844aa.chunk.css.map": "/static/css/2.745844aa.chunk.css.map",
+    "static/css/main.440b84bd.chunk.css.map": "/static/css/main.440b84bd.chunk.css.map",
+    "static/media/material-icons.css": "/static/media/MaterialIcons-Regular.d120c85b.ttf",
+    "static/media/fire1.gif": "/static/media/fire1.e8965567.gif",
+    "static/media/fire2.gif": "/static/media/fire2.301cd498.gif",
+    "static/media/jelly.png": "/static/media/jelly.3587de60.png",
+    "static/media/mandelbrot-set.png": "/static/media/mandelbrot-set.d0bf7dd2.png",
+    "static/media/nodejs.png": "/static/media/nodejs.e8b8f86a.png",
+    "static/media/slow-fade.png": "/static/media/slow-fade.f5199eaf.png",
+    "static/media/thread.svg": "/static/media/thread.f4c30018.svg",
+    "static/media/threads.svg": "/static/media/threads.fd2157a9.svg"
+  }
+}
