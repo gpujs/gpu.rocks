@@ -19,28 +19,28 @@ class Install extends Component {
             <Code code={code.linux} language="bash"></Code>
           </Container>
 
-          <h4 className="center">npm</h4>
+          <h5 className="center">npm</h5>
           <Container>
             <Code code={code.npm} language="bash"></Code>
           </Container>
 
-          <h4 className="center">yarn</h4>
+          <h5 className="center">yarn</h5>
           <Container>
             <Code code={code.yarn} language="bash"></Code>
           </Container>
 
-          <h4 className="center">Node</h4>
+          <h5 className="center">Node</h5>
           <Container>
             <Code code={code.node}/>
           </Container>
 
-          <h4 className="center">Node Typescript</h4>
+          <h5 className="center">Node Typescript</h5>
           <Container>
             <Code code={code.type}/>
           </Container>
 
-          <h4 className="center">Browser</h4>
-          <p className="center">Download the <a href="https://raw.githubusercontent.com/gpujs/gpu.js/master/dist/gpu-browser.min.js">latest version of GPU.js</a> and include the files in your HTML page using the following tags</p>
+          <h5 className="center">Browser</h5>
+          <p className="center">Download the <a href="https://raw.githubusercontent.com/gpujs/gpu.js/master/dist/gpu-browser.min.js">latest version of <b>GPU.js</b></a> and include the files in your HTML page using the following tags</p>
           <Container>
             <Code code={code.browser} language="html"/>
           </Container>
