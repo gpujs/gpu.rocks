@@ -5,7 +5,7 @@ const HeaderLinks = () => {
   return (
     <ul>
     <li>
-        <NavLink to="/">
+        <NavLink to="/" exact>
           Home
         </NavLink>
       </li>
