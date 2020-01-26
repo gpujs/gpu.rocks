@@ -1,6 +1,6 @@
 import React from 'react'
-import Row from 'react-materialize/lib/Row'
-import Col from 'react-materialize/lib/Col'
+import { Row } from 'react-materialize'
+import { Col } from 'react-materialize'
 import Graph from '../Util/Graph/Graph'
 import sizes from '../../Data/beast-benchmark/beast-bench'
 

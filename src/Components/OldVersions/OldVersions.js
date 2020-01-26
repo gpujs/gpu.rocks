@@ -1,6 +1,6 @@
 import React from 'react'
-import Container from 'react-materialize/lib/Container'
-import Card from 'react-materialize/lib/Card'
+import { Container } from 'react-materialize'
+import { Card } from 'react-materialize'
 import MaterialIcon from '../Util/MaterialIcon/MaterialIcon'
 
 import './OldVersions.scss'

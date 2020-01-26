@@ -1,5 +1,6 @@
 import React, { Component } from 'react'
-import Button from 'react-materialize/lib/Button'
+import { Button } from 'react-materialize'
+import MaterialIcon from '../Util/MaterialIcon/MaterialIcon'
 
 import './ScrollButton.scss'
 
@@ -25,7 +26,7 @@ export default class ScrollButton extends Component {
         floating
         id="scroll-up-btn"
         fab={{direction: 'left', hoverEnabled: false}}
-        icon="arrow_upward"
+        icon={ <MaterialIcon icon="arrow_upward" /> }
         style={{
           transition: '400ms',
           opacity: 0

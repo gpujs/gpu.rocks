@@ -3490,6 +3490,11 @@ class-utils@^0.3.5:
     isobject "^3.0.0"
     static-extend "^0.1.1"
 
+classnames@^2.2.6:
+  version "2.2.6"
+  resolved "https://registry.yarnpkg.com/classnames/-/classnames-2.2.6.tgz#43935bffdd291f326dad0a205309b38d00f650ce"
+  integrity sha512-JR/iSQOSt+LQIWwrwEzJ9uk0xfN3mTVYMwt1Ir5mUcSN6pU+V4zQFFaJsclJbPuAUQH+yfWef6tm7l1quW3C8Q==
+
 clean-css@4.2.x:
   version "4.2.1"
   resolved "https://registry.yarnpkg.com/clean-css/-/clean-css-4.2.1.tgz#2d411ef76b8569b6d0c84068dabe85b0aa5e5c17"
@@ -10672,10 +10677,12 @@ react-lifecycles-compat@^3.0.2:
   resolved "https://registry.yarnpkg.com/react-lifecycles-compat/-/react-lifecycles-compat-3.0.4.tgz#4f1a273afdfc8f3488a8c516bfda78f872352362"
   integrity sha512-fBASbA6LnOU9dOU2eW7aQ8xmYBSXUIWr+UmF9b1efZBazGNO+rcXT/icdKnYm2pTwcRylVUYwW7H1PHfLekVzA==
 
-react-materialize@^3.5.6:
-  version "3.5.6"
-  resolved "https://registry.yarnpkg.com/react-materialize/-/react-materialize-3.5.6.tgz#be470a2410e1c0d634caf8499bdfadf2be31435f"
-  integrity sha512-iuKgqFwMxoL132nz3zLbbDuH0Zm9YPjbf18mj6Jxvf8kI1TjMB2WkrEX820eR3pVv1iGkpz4ByLDvQCW6ZIX2Q==
+react-materialize@^3.5.9:
+  version "3.5.9"
+  resolved "https://registry.yarnpkg.com/react-materialize/-/react-materialize-3.5.9.tgz#be93a16860ab09122113dea9166300660b7d3eab"
+  integrity sha512-/tKotBAWzxQuWCKHz+zo2Cw3CKS56/9spYqJzZ8+SevgSg3xcoMMeSQWYKtFKAg2/KTv+l9wcYUIIEt9zJJOYQ==
+  dependencies:
+    classnames "^2.2.6"
 
 react-measure@^2.2.4:
   version "2.3.0"

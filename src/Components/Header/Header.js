@@ -1,6 +1,6 @@
 import JellyOnFayyah from '../JellyOnFayyah/JellyOnFayyah'
 import React from 'react'
-import Row from 'react-materialize/lib/Row'
+import { Row } from 'react-materialize'
 import GitHubButton from 'react-github-btn'
 
 import './Header.scss'

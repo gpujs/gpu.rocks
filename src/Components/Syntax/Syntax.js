@@ -1,11 +1,11 @@
 import React from 'react'
 import Keyword from './Keyword'
 import { NavLink } from 'react-router-dom'
-import Container from 'react-materialize/lib/Container'
-import Row from 'react-materialize/lib/Row'
-import Col from 'react-materialize/lib/Col'
-import Collection from 'react-materialize/lib/Collection'
-import CollectionItem from 'react-materialize/lib/CollectionItem'
+import { Container } from 'react-materialize'
+import { Row } from 'react-materialize'
+import { Col } from 'react-materialize'
+import { Collection } from 'react-materialize'
+import { CollectionItem } from 'react-materialize'
 
 import './Syntax.scss'
 
