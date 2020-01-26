@@ -291,7 +291,7 @@ class Benchmark extends Component {
         <h2 className="center">Benchmark</h2>
         <hr />
         <div className="benchmark-container">
-          <p className="center"><b>GPU.js version:</b> &nbsp;v2.1.0</p>
+          <p className="center"><b>GPU.js version:</b> &nbsp;v2.3.0</p>
 
           <form id="benchmark-form" onSubmit={this.benchmarkFormHandler}>
             <div className="input-field">
