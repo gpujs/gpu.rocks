@@ -17,11 +17,11 @@ class Benchmark extends Component {
     e.preventDefault();
 
     const size = document.querySelector('#size').value || 256,
-      num_benchmarks = parseInt(document.querySelector('#num-bench').value),
+      num_iterations = parseInt(document.querySelector('#num-iter').value),
       cpu = document.querySelector('#cpu').checked
 
     const bench = benchmark({
-      num_benchmarks,
+      num_iterations,
       matrix_size: size,
       logs: false,
       cpu_benchmark: cpu,
@@ -32,8 +32,6 @@ class Benchmark extends Component {
       gpu: 'GPU',
       pipe: 'GPU(Pipeline Mode)'
     }
-
-    const tidyNumber = (num) => num > 0 ? num : 'less than 1';
 
     document.querySelector('#out').innerHTML = `
       <h4>Score</h4>
@@ -90,10 +88,10 @@ class Benchmark extends Component {
               Matrix Multiplication
             </td>
             <td>
-              ${tidyNumber(bench.build_time.mat_mult['gpu'])} ms
+              ${bench.build_time.mat_mult['gpu']} ms
             </td>
             <td>
-              ${tidyNumber(bench.build_time.mat_mult['pipe'])} ms
+              ${bench.build_time.mat_mult['pipe']} ms
             </td>
           </tr>
           <tr>
@@ -101,10 +99,10 @@ class Benchmark extends Component {
               Matrix Convolution
             </td>
             <td>
-              ${tidyNumber(bench.build_time.mat_conv['gpu'])} ms
+              ${bench.build_time.mat_conv['gpu']} ms
             </td>
             <td>
-              ${tidyNumber(bench.build_time.mat_conv['pipe'])} ms
+              ${bench.build_time.mat_conv['pipe']} ms
             </td>
           </tr>
         </tbody>
@@ -132,15 +130,11 @@ class Benchmark extends Component {
               Matrix Multiplication
             </td>
             <td>
-              <b>Min</b>: ${tidyNumber(bench.run_time.mat_mult['gpu'].min)} ms<br />
-              <b>Max</b>: ${tidyNumber(bench.run_time.mat_mult['gpu'].max)} ms<br />
-              <b>Avg</b>: ${tidyNumber(bench.run_time.mat_mult['gpu'].avg)} ms<br />
+              <b>Avg</b>: ${bench.run_time.mat_mult['gpu'].avg} ms &plusmn ${bench.run_time.mat_mult['gpu'].deviation}%<br />
             </td>
             <td>
               ${cpu ? `
-                <b>Min</b>: ${tidyNumber(bench.run_time.mat_mult['cpu'].min)} ms<br />
-                <b>Max</b>: ${tidyNumber(bench.run_time.mat_mult['cpu'].max)} ms<br />
-                <b>Avg</b>: ${tidyNumber(bench.run_time.mat_mult['cpu'].avg)} ms<br />
+                <b>Avg</b>: ${bench.run_time.mat_mult['cpu'].avg} ms &plusmn ${bench.run_time.mat_mult['cpu'].deviation}%<br />
               ` : `Not Benchmarked`}
             </td>
           </tr>
@@ -149,15 +143,11 @@ class Benchmark extends Component {
               Matrix Convolution
             </td>
             <td>
-              <b>Min</b>: ${tidyNumber(bench.run_time.mat_conv['gpu'].min)} ms<br />
-              <b>Max</b>: ${tidyNumber(bench.run_time.mat_conv['gpu'].max)} ms<br />
-              <b>Avg</b>: ${tidyNumber(bench.run_time.mat_conv['gpu'].avg)} ms<br />
+              <b>Avg</b>: ${bench.run_time.mat_conv['gpu'].avg} ms &plusmn ${bench.run_time.mat_conv['gpu'].deviation}%<br />
             </td>
             <td>
               ${cpu ? `
-                <b>Min</b>: ${tidyNumber(bench.run_time.mat_conv['cpu'].min)} ms<br />
-                <b>Max</b>: ${tidyNumber(bench.run_time.mat_conv['cpu'].max)} ms<br />
-                <b>Avg</b>: ${tidyNumber(bench.run_time.mat_conv['cpu'].avg)} ms<br />
+                <b>Avg</b>: ${bench.run_time.mat_conv['cpu'].avg} ms &plusmn ${bench.run_time.mat_conv['cpu'].deviation}%<br />
               ` : `Not Benchmarked`}
             </td>
           </tr>
@@ -165,7 +155,7 @@ class Benchmark extends Component {
       </table>
       <hr />
 
-      <h4>Pipelining Benchmark</h4>
+      <h4><a href="https://github.com/gpujs/gpu.js#pipelining">Pipelining</a> Benchmark</h4>
       <table class="striped responsive-table highlight centered">
         <thead>
           <tr>
@@ -186,15 +176,11 @@ class Benchmark extends Component {
               Matrix Multiplication
             </td>
             <td>
-              <b>Min</b>: ${tidyNumber(bench.run_time.pipe['gpu'].min)} ms<br />
-              <b>Max</b>: ${tidyNumber(bench.run_time.pipe['gpu'].max)} ms<br />
-              <b>Avg</b>: ${tidyNumber(bench.run_time.pipe['gpu'].avg)} ms<br />
+              <b>Avg</b>: ${bench.run_time.pipe['gpu'].avg} ms &plusmn ${bench.run_time.pipe['gpu'].deviation}%<br />
             </td>
             <td>
               ${cpu ? `
-                <b>Min</b>: ${tidyNumber(bench.run_time.pipe['cpu'].min)} ms<br />
-                <b>Max</b>: ${tidyNumber(bench.run_time.pipe['cpu'].max)} ms<br />
-                <b>Avg</b>: ${tidyNumber(bench.run_time.pipe['cpu'].avg)} ms<br />
+                <b>Avg</b>: ${bench.run_time.pipe['cpu'].avg} ms &plusmn ${bench.run_time.pipe['cpu'].deviation}%<br />
               ` : `Not Benchmarked`}
             </td>
           </tr>
@@ -231,7 +217,6 @@ class Benchmark extends Component {
           </tr>
         </tbody>
       </table>
-      <hr />
 
       <h5>Run Times</h5>
 
@@ -291,7 +276,7 @@ class Benchmark extends Component {
         <h2 className="center">Benchmark</h2>
         <hr />
         <div className="benchmark-container">
-          <p className="center"><b>GPU.js version:</b> &nbsp;v2.3.0</p>
+          <p className="center"><b>GPU.js version:</b> &nbsp;v2.8.4</p>
 
           <form id="benchmark-form" onSubmit={this.benchmarkFormHandler}>
             <div className="input-field">
@@ -299,8 +284,8 @@ class Benchmark extends Component {
               <Range id="size" defaultValue="256" min="1" max="4096" onInput={this.sizeChangeHandler}/>
             </div>
             <div className="input-field">
-              <label htmlFor="num-bench">Number of Benchmarks</label><br />
-              <input id="num-bench" type="number" defaultValue={2}/>
+              <label htmlFor="num-iter">Number of Iterations</label><br />
+              <input id="num-iter" type="number" defaultValue={5}/>
             </div>
             <h6> Select Modes</h6>
             <p>

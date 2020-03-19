@@ -1359,13 +1359,15 @@
     through2 "^3.0.0"
     xdg-basedir "^4.0.0"
 
-"@gpujs/benchmark@^2.1.0":
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/@gpujs/benchmark/-/benchmark-2.1.0.tgz#04f9f11f37c5489bdf2c61cc71e9701e3b03746f"
-  integrity sha512-5ow9f2zutlancHnfTpuUEEDspjV5S1bS7mGmSEaBD6GFfxM6GA2M+5pNA53pBBHhuwDoXtj33VN+u5XVnLAupQ==
+"@gpujs/benchmark@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@gpujs/benchmark/-/benchmark-3.0.0.tgz#44371dd36e1eb404de426fa9ef0f24909654da79"
+  integrity sha512-zZDkaUfG4FwHxq0y0F7DiVMkQLkVA+biV/egHCNQen/054ysQczUclDM/h6d/qPNV4joxq5gBnxjKeoBKFDncQ==
   dependencies:
-    gpu.js "^2.3.0"
+    gpu.js "^2.8.4"
+    lodash "^4.17.15"
     performance-now "^2.1.0"
+    readline-sync "^1.4.10"
 
 "@grpc/grpc-js@0.6.9":
   version "0.6.9"
@@ -2341,10 +2343,10 @@ acorn@^6.0.1, acorn@^6.0.4, acorn@^6.0.5, acorn@^6.0.7:
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-6.4.0.tgz#b659d2ffbafa24baf5db1cdbb2c94a983ecd2784"
   integrity sha512-gac8OEcQ2Li1dxIEWGZzsp2BitJxwkwcOm0zHAJLcPJaVvm58FRnk6RkuLRpU1EujipU2ZFODv2P9DLMfnV8mw==
 
-acorn@^7.1.0:
-  version "7.1.0"
-  resolved "https://registry.yarnpkg.com/acorn/-/acorn-7.1.0.tgz#949d36f2c292535da602283586c2477c57eb2d6c"
-  integrity sha512-kL5CuoXA/dgxlBbVrflsflzQ3PAas7RYZB52NOm/6839iVYJgKMJ3cQJD+t2i5+qFa8h3MDpEOJiS64E8JLnSQ==
+acorn@^7.1.1:
+  version "7.1.1"
+  resolved "https://registry.yarnpkg.com/acorn/-/acorn-7.1.1.tgz#e35668de0b402f359de515c5482a1ab9f89a69bf"
+  integrity sha512-add7dgA5ppRPxCFJoAGfMDi7PIBXq1RtGo7BhbLaxwrXPOmw8gq48Y9ozT01hUKy9byMjlR20EJhu5zlkErEkg==
 
 address@1.1.2, address@^1.0.1:
   version "1.1.2"
@@ -5897,10 +5899,10 @@ gl-wiretap@^0.6.2:
   resolved "https://registry.yarnpkg.com/gl-wiretap/-/gl-wiretap-0.6.2.tgz#e4aa19622831088fbaa7e5a18d01768f7a3fb07c"
   integrity sha512-fxy1XGiPkfzK+T3XKDbY7yaqMBmozCGvAFyTwaZA3imeZH83w7Hr3r3bYlMRWIyzMI/lDUvUMM/92LE2OwqFyQ==
 
-gl@^4.4.0:
-  version "4.4.0"
-  resolved "https://registry.yarnpkg.com/gl/-/gl-4.4.0.tgz#3d448769a9222ba809da4db80dd1f3c4b85498a0"
-  integrity sha512-4FIq5tqiltTsadrLh6DGY4R9+aQwj25OM2WlXEv81N6YN1q1C0qR7ct0SKp1uUJdnBqbKhUJP3zQ1td40AVeJg==
+gl@^4.4.1:
+  version "4.4.1"
+  resolved "https://registry.yarnpkg.com/gl/-/gl-4.4.1.tgz#515f3d4f3120ef5001fe15ae1f0fea1e04d69e2c"
+  integrity sha512-2ZG8/qUAQ6WRgPzflsiLbx1KBgrKra0T0GJeG6xyxzNYvUOoeFFPIJJZ/e9X089yag+4NcrzD0ql7PfbJCuuqQ==
   dependencies:
     bindings "^1.5.0"
     bit-twiddle "^1.0.2"
@@ -6072,13 +6074,13 @@ gpu-mock.js@^1.1.1:
   resolved "https://registry.yarnpkg.com/gpu-mock.js/-/gpu-mock.js-1.1.1.tgz#fe720db34b497c802b4e9381d8ddd883ecba999c"
   integrity sha512-BmoRk9nbMaxkrwzTJp4M0iuwIbzNEXt6tlBZ5+ZYzaGH9VWu5Nhn1Q1CBusCam3d8u3FfVEFf3Ueo8DocUCbUw==
 
-gpu.js@^2.3.0:
-  version "2.3.0"
-  resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.3.0.tgz#80eb29853f141e18185fd804f19e399547f7a6ec"
-  integrity sha512-4maf/y6AFb97WspNF0L121GgnwoVC5OIbbLTp0eFMg76jcDr/TuXr93HOLGaGnwTHXjD/e8pRc+olZaFXqkKsg==
+gpu.js@^2.8.4:
+  version "2.8.4"
+  resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.8.4.tgz#90d91fa30f5f78195f2494a473cdf9bd638816c0"
+  integrity sha512-9OmtvvwvRoMZwvq6sXvyqLcxbuFm97FD7sf2wkdsPJvm1O4O85oDOJbU0ksd8j/FLBqvSj3daEAZFJvGv0Mk9Q==
   dependencies:
-    acorn "^7.1.0"
-    gl "^4.4.0"
+    acorn "^7.1.1"
+    gl "^4.4.1"
     gl-wiretap "^0.6.2"
     gpu-mock.js "^1.1.1"
 
@@ -10927,6 +10929,11 @@ readdirp@^2.2.1:
     graceful-fs "^4.1.11"
     micromatch "^3.1.10"
     readable-stream "^2.0.2"
+
+readline-sync@^1.4.10:
+  version "1.4.10"
+  resolved "https://registry.yarnpkg.com/readline-sync/-/readline-sync-1.4.10.tgz#41df7fbb4b6312d673011594145705bf56d8873b"
+  integrity sha512-gNva8/6UAe8QYepIQH/jQ2qn91Qj0B9sYjMBBs3QOB8F2CXcKgLxQaJRP76sWVRQt+QU+8fAkCbCvjjMFu7Ycw==
 
 realpath-native@^1.1.0:
   version "1.1.0"
