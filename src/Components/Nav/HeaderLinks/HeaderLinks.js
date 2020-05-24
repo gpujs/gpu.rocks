@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink } from 'react-router-dom'
+import * as NavLink from 'react-router-dom/NavLink'
 
 const HeaderLinks = () => {
   return (
@@ -28,19 +28,19 @@ const HeaderLinks = () => {
       </li>
 
       <li>
-        <NavLink to="/install">
+        <NavLink to="install">
           Installation
         </NavLink>
       </li>
 
       <li>
-        <NavLink to="/benchmark">
+        <NavLink to="benchmark">
           Benchmark
         </NavLink>
       </li>
 
       <li>
-        <NavLink to="/examples">
+        <NavLink to="examples">
           Examples
         </NavLink>
       </li>

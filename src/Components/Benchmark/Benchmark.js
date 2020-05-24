@@ -1,9 +1,9 @@
 import React, { Component } from 'react'
-import { Button } from 'react-materialize'
-import { Range } from 'react-materialize'
-import { Checkbox } from 'react-materialize'
-import { Row } from 'react-materialize'
-import { Col } from 'react-materialize'
+import Button from 'react-materialize/lib/Button'
+import Range from 'react-materialize/lib/Range'
+import Checkbox from 'react-materialize/lib/Checkbox'
+import Row from 'react-materialize/lib/Row'
+import Col from 'react-materialize/lib/Col'
 
 import Graph from '../Util/Graph/Graph'
 import sizes from '../../Data/gt1030/gt1030-node'
@@ -330,7 +330,7 @@ class Benchmark extends Component {
         </div>
 
         <div className="center">
-          <Graph 
+          <Graph
             info={
               {
                 data: [

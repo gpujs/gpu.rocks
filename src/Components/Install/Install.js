@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Container } from 'react-materialize'
+import Container from 'react-materialize/lib/Container'
 import Code from '../Util/Code/Code'
 import code from './InstallCode'
 import ScrollButton from '../ScrollButton/ScrollButton'

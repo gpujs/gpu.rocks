@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Button } from 'react-materialize'
+import Button from 'react-materialize/lib/Button'
 import MaterialIcon from '../Util/MaterialIcon/MaterialIcon'
 
 import './ScrollButton.scss'

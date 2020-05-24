@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
-import { Row } from 'react-materialize'
-import { Col } from 'react-materialize'
+import Row from 'react-materialize/lib/Row'
+import Col from 'react-materialize/lib/Col'
 import M from 'materialize-css'
 
 import links from './examples-links'
