@@ -1,6 +1,5 @@
 import React from 'react'
 import Keyword from './Keyword'
-import NavLink from 'react-router-dom/NavLink'
 import Container from 'react-materialize/lib/Container'
 import Row from 'react-materialize/lib/Row'
 import Col from 'react-materialize/lib/Col'
@@ -37,15 +36,15 @@ const Syntax = (props) => {
               </CollectionItem>
 
               <CollectionItem>
-                <i>Some</i> Javascript Math functions like <Keyword>Math.floor()</Keyword> (See the <NavLink to="https://github.com/gpujs/gpu.js/#supported-math-functions">Docs</NavLink>)
+                <i>Some</i> Javascript Math functions like <Keyword>Math.floor()</Keyword> (See the <a href="https://github.com/gpujs/gpu.js/#supported-math-functions" target="_blank" rel="noopener noreferrer">Docs</a>)
               </CollectionItem>
 
               <CollectionItem>
-                <Keyword>Math.random()</Keyword> is supported but it isn't perfect (See the <NavLink to="https://github.com/gpujs/gpu.js/#supported-math-functions">Docs</NavLink>)
+                <Keyword>Math.random()</Keyword> is supported but it isn't perfect (See the <a href="https://github.com/gpujs/gpu.js/#supported-math-functions" target="_blank" rel="noopener noreferrer">Docs</a>)
               </CollectionItem>
 
               <CollectionItem>
-                <Keyword>Pipelining</Keyword> (See the <NavLink to="https://github.com/gpujs/gpu.js/#pipelining">Docs</NavLink>)
+                <Keyword>Pipelining</Keyword> (See the <a href="https://github.com/gpujs/gpu.js/#pipelining" target="_blank" rel="noopener noreferrer">Docs</a>)
               </CollectionItem>
 
               <CollectionItem>
