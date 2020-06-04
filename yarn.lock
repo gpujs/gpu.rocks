@@ -1521,7 +1521,7 @@
     through2 "^3.0.0"
     xdg-basedir "^4.0.0"
 
-"@gpujs/benchmark@^2":
+"@gpujs/benchmark@^2.1.0":
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/@gpujs/benchmark/-/benchmark-2.1.0.tgz#04f9f11f37c5489bdf2c61cc71e9701e3b03746f"
   integrity sha512-5ow9f2zutlancHnfTpuUEEDspjV5S1bS7mGmSEaBD6GFfxM6GA2M+5pNA53pBBHhuwDoXtj33VN+u5XVnLAupQ==
