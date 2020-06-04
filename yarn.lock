@@ -1521,15 +1521,13 @@
     through2 "^3.0.0"
     xdg-basedir "^4.0.0"
 
-"@gpujs/benchmark@^3.0.0":
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/@gpujs/benchmark/-/benchmark-3.0.0.tgz#44371dd36e1eb404de426fa9ef0f24909654da79"
-  integrity sha512-zZDkaUfG4FwHxq0y0F7DiVMkQLkVA+biV/egHCNQen/054ysQczUclDM/h6d/qPNV4joxq5gBnxjKeoBKFDncQ==
+"@gpujs/benchmark@^2":
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/@gpujs/benchmark/-/benchmark-2.1.0.tgz#04f9f11f37c5489bdf2c61cc71e9701e3b03746f"
+  integrity sha512-5ow9f2zutlancHnfTpuUEEDspjV5S1bS7mGmSEaBD6GFfxM6GA2M+5pNA53pBBHhuwDoXtj33VN+u5XVnLAupQ==
   dependencies:
-    gpu.js "^2.8.4"
-    lodash "^4.17.15"
+    gpu.js "^2.3.0"
     performance-now "^2.1.0"
-    readline-sync "^1.4.10"
 
 "@grpc/grpc-js@~1.0.3":
   version "1.0.5"
@@ -6494,7 +6492,7 @@ gpu-mock.js@^1.1.1:
   dependencies:
     gpu.js "^2.9.3"
 
-gpu.js@^2.8.4, gpu.js@^2.9.3:
+gpu.js@^2.3.0, gpu.js@^2.9.3:
   version "2.9.4"
   resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.9.4.tgz#33babbb2670fa469343e2b04afba84b4d81d1640"
   integrity sha512-1N+gN83Y3ZuiazTvsXsjdXTzoT7C8tUWdaiGPn6zDMupJx54gRFgK/z67jYW45o3165t9qKUsrQja8sx3XlDCA==
@@ -11564,11 +11562,6 @@ readdirp@~3.4.0:
   integrity sha512-0xe001vZBnJEK+uKcj8qOhyAKPzIT+gStxWr3LCB0DwcXR5NZJ3IaC+yGnHCYzB/S7ov3m3EEbZI2zeNvX+hGQ==
   dependencies:
     picomatch "^2.2.1"
-
-readline-sync@^1.4.10:
-  version "1.4.10"
-  resolved "https://registry.yarnpkg.com/readline-sync/-/readline-sync-1.4.10.tgz#41df7fbb4b6312d673011594145705bf56d8873b"
-  integrity sha512-gNva8/6UAe8QYepIQH/jQ2qn91Qj0B9sYjMBBs3QOB8F2CXcKgLxQaJRP76sWVRQt+QU+8fAkCbCvjjMFu7Ycw==
 
 realpath-native@^1.1.0:
   version "1.1.0"
