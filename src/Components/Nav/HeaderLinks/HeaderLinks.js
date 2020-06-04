@@ -1,5 +1,5 @@
 import React from 'react'
-import * as NavLink from 'react-router-dom/NavLink'
+import { NavLink } from 'react-router-dom'
 
 const HeaderLinks = () => {
   return (

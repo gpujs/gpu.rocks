@@ -1,7 +1,5 @@
 import React from 'react'
-import * as HashRouter from 'react-router-dom/HashRouter';
-import * as Switch from 'react-router-dom/Switch'
-import * as Route from 'react-router-dom/Route'
+import { HashRouter, Switch, Route } from 'react-router-dom';
 import Main from './Components/Main/Main'
 import Benchmark from './Components/Benchmark/Benchmark'
 import Install from './Components/Install/Install'
