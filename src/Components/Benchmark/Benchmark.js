@@ -5,6 +5,7 @@ import Checkbox from 'react-materialize/lib/Checkbox'
 import Row from 'react-materialize/lib/Row'
 import Col from 'react-materialize/lib/Col'
 import { GPU } from 'gpu.js'
+import { dependencies } from '../../../package.json'
 
 import Graph from '../Util/Graph/Graph'
 import sizes from '../../Data/gt1030/gt1030-node'
@@ -70,7 +71,7 @@ class Benchmark extends Component {
         <h2 className="center">Benchmark</h2>
         <hr />
         <div className="benchmark-container">
-          <p className="center"><b>GPU.js version:</b> &nbsp;v2.8.4</p>
+          <p className="center"><b>GPU.js version:</b> &nbsp;v{dependencies['gpu.js'].replace('^', '')}</p>
 
           <form id="benchmark-form" onSubmit={this.benchmarkFormHandler}>
             <div className="input-field">
