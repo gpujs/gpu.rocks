@@ -4,262 +4,56 @@ import Range from 'react-materialize/lib/Range'
 import Checkbox from 'react-materialize/lib/Checkbox'
 import Row from 'react-materialize/lib/Row'
 import Col from 'react-materialize/lib/Col'
+import { GPU } from 'gpu.js'
 
 import Graph from '../Util/Graph/Graph'
 import sizes from '../../Data/gt1030/gt1030-node'
 import { benchmark } from '@gpujs/benchmark'
 import ScrollButton from '../ScrollButton/ScrollButton'
+import BenchmarkTables from './BenchmarkTables'
 
 import './Benchmark.scss'
 
+const performerMap = {
+  cpu: 'CPU',
+  gpu: 'GPU',
+  pipe: 'GPU(Pipeline Mode)'
+}
+
 class Benchmark extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      benchmarked: false
+    }
+  }
+
   benchmarkFormHandler = (e) => {
     e.preventDefault();
 
-    const size = document.querySelector('#size').value || 256,
+    const size = document.querySelector('input[type="range"][min="1"][max="4096"]').value || 256,
       num_iterations = parseInt(document.querySelector('#num-iter').value),
       cpu = document.querySelector('#cpu').checked
 
-    const bench = benchmark({
-      num_iterations,
-      matrix_size: size,
-      logs: false,
-      cpu_benchmark: cpu,
-    }).getData()
+    this.setState({cpu});
+    this.setState({
+      bench: benchmark({
+        cpu: new GPU({mode: 'cpu'}),
+        gpu: new GPU(),
+        num_iterations,
+        matrix_size: size,
+        logs: false,
+        cpu_benchmark: cpu,
+      }).getData()
+    })
 
-    const performerMap = {
-      cpu: 'CPU',
-      gpu: 'GPU',
-      pipe: 'GPU(Pipeline Mode)'
-    }
-
-    document.querySelector('#out').innerHTML = `
-      <h4>Score</h4>
-      <table class="striped responsive-table highlight centered">
-        <thead>
-          <tr>
-            <th>
-              Mode
-            </th>
-            <th>
-              Score
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              GPU
-            </td>
-            <td>
-              ${bench.score['gpu']}
-            </td>
-          </tr>
-          <tr>
-            <td>
-              CPU
-            </td>
-            <td>
-              ${cpu ? bench.score['cpu'] : 'Not Benchmarked'}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <hr />
-
-      <h4>Build Times</h4>
-      <table class="striped responsive-table highlight centered">
-        <thead>
-          <tr>
-            <th>
-              Benchmark
-            </th>
-            <th>
-              Time Taken(GPU)
-            </th>
-            <th>
-              Time Taken(PIPELINE)
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              Matrix Multiplication
-            </td>
-            <td>
-              ${bench.build_time.mat_mult['gpu']} ms
-            </td>
-            <td>
-              ${bench.build_time.mat_mult['pipe']} ms
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Matrix Convolution
-            </td>
-            <td>
-              ${bench.build_time.mat_conv['gpu']} ms
-            </td>
-            <td>
-              ${bench.build_time.mat_conv['pipe']} ms
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <hr />
-
-      <h4>Run Times</h4>
-      <table class="striped responsive-table highlight centered">
-        <thead>
-          <tr>
-            <th>
-              Benchmark
-            </th>
-            <th>
-              Time Taken(GPU)
-            </th>
-            <th>
-              Time Taken(CPU)
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              Matrix Multiplication
-            </td>
-            <td>
-              <b>Avg</b>: ${bench.run_time.mat_mult['gpu'].avg} ms &plusmn ${bench.run_time.mat_mult['gpu'].deviation}%<br />
-            </td>
-            <td>
-              ${cpu ? `
-                <b>Avg</b>: ${bench.run_time.mat_mult['cpu'].avg} ms &plusmn ${bench.run_time.mat_mult['cpu'].deviation}%<br />
-              ` : `Not Benchmarked`}
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Matrix Convolution
-            </td>
-            <td>
-              <b>Avg</b>: ${bench.run_time.mat_conv['gpu'].avg} ms &plusmn ${bench.run_time.mat_conv['gpu'].deviation}%<br />
-            </td>
-            <td>
-              ${cpu ? `
-                <b>Avg</b>: ${bench.run_time.mat_conv['cpu'].avg} ms &plusmn ${bench.run_time.mat_conv['cpu'].deviation}%<br />
-              ` : `Not Benchmarked`}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <hr />
-
-      <h4><a href="https://github.com/gpujs/gpu.js#pipelining">Pipelining</a> Benchmark</h4>
-      <table class="striped responsive-table highlight centered">
-        <thead>
-          <tr>
-            <th>
-              Benchmark
-            </th>
-            <th>
-              Time Taken(GPU)
-            </th>
-            <th>
-              Time Taken(CPU)
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              Matrix Multiplication
-            </td>
-            <td>
-              <b>Avg</b>: ${bench.run_time.pipe['gpu'].avg} ms &plusmn ${bench.run_time.pipe['gpu'].deviation}%<br />
-            </td>
-            <td>
-              ${cpu ? `
-                <b>Avg</b>: ${bench.run_time.pipe['cpu'].avg} ms &plusmn ${bench.run_time.pipe['cpu'].deviation}%<br />
-              ` : `Not Benchmarked`}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <hr />
-
-      <h4>Statistics</h4>
-      <h5>Build Times</h5>
-
-      <table class="centered hightlight striped responsive-table">
-        <thead>
-          <tr>
-            <th>Benchmark</th>
-            <th>GPU v/s PIPELINE</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              Matrix Multiplication
-            </td>
-            <td>
-              <b>${performerMap[bench.stats.build_time.mat_mult.diff.gpu_pipe.winner]}</b> took ${bench.stats.build_time.mat_mult.diff.gpu_pipe.percentage}% less time to compile
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Matrix Convolution
-            </td>
-            <td>
-              <b>${performerMap[bench.stats.build_time.mat_conv.diff.gpu_pipe.winner]}</b> took ${bench.stats.build_time.mat_conv.diff.gpu_pipe.percentage}% less time to compile
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h5>Run Times</h5>
-
-      <table class="centered hightlight striped responsive-table">
-        <thead>
-          <tr>
-            <th>Benchmark</th>
-            <th>GPU v/s CPU</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              Matrix Multiplication
-            </td>
-            <td>
-              <b>${ cpu ?
-                `${performerMap[bench.stats.run_time.mat_mult.diff.cpu_gpu.avg.winner]}</b> took ${bench.stats.run_time.mat_mult.diff.cpu_gpu.avg.percentage}% less time` : 
-                `Not Benchmarked`
-                }
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Matrix Convolution
-            </td>
-            <td>
-              <b>${ cpu ?
-                `${performerMap[bench.stats.run_time.mat_conv.diff.cpu_gpu.avg.winner]}</b> took ${bench.stats.run_time.mat_conv.diff.cpu_gpu.avg.percentage}% less time` : 
-                `Not Benchmarked`
-                }
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    <hr />
-    <br /><br />`
+    this.setState({benchmarked: true})
   }
 
   sizeChangeHandler = () => {
-    const size = document.querySelector('#size')
+    const size = document.querySelector('input[type="range"][min="1"][max="4096"]')
     const cpu = document.querySelector('#cpu')
-    document.querySelector('#size-val').textContent = size.value
+    document.querySelector('#size-val').innerHTML = size.value;
     if (size.value >= 2500) {
       cpu.checked = false
       cpu.disabled = true
@@ -280,8 +74,8 @@ class Benchmark extends Component {
 
           <form id="benchmark-form" onSubmit={this.benchmarkFormHandler}>
             <div className="input-field">
-              <label htmlFor="size">Size of Matrix(uniform) -> <b><span id="size-val">256</span></b></label><br />
-              <Range id="size" defaultValue="256" min="1" max="4096" onInput={this.sizeChangeHandler}/>
+              <label htmlFor="size">Size of Matrix(uniform) -&gt; <b><span id="size-val">256</span></b></label><br />
+              <Range id="size" defaultValue="256" min="1" max="4096" onChange={this.sizeChangeHandler}/>
             </div>
             <div className="input-field">
               <label htmlFor="num-iter">Number of Iterations</label><br />
@@ -302,7 +96,9 @@ class Benchmark extends Component {
             </Button>
           </form>
           <br /><br />
-          <div id="out"></div>
+          {
+            this.state.benchmarked && <BenchmarkTables cpu={this.state.cpu} bench={this.state.bench} performerMap={performerMap} />
+          }
         </div>
 
         <h3 className="center">Common Benchmarks</h3>
