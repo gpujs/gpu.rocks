@@ -34,7 +34,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "predeploy": "yarn build",
-    "postdeploy": "git checkout gh-pages && git pull && echo \"gpu.rocks\" > CNAME && git add . && git push && git checkout --",
+    "postdeploy": "git checkout gh-pages && git pull && echo \"gpu.rocks\" > CNAME && git add . && git commit -m 'new version' && git push && git checkout --",
     "deploy": "gh-pages -d build; yarn postdeploy"
   },
   "eslintConfig": {
