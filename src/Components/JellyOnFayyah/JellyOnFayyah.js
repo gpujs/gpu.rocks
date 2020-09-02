@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import logo from '../../img/jelly.png'
 import fire1 from '../../img/fire1.gif'
-import fire2 from '../../img/fire2.gif'
+// import fire2 from '../../img/fire2.gif'
 
 const alt = 'GPU.js logo';
 function getImage(url, height, maxWidth) {
@@ -17,7 +17,7 @@ export default class JellyOnFayyah extends Component {
     this.state = {
       logoIndex: -1
     };
-    this.logos = [getImage(fire1, '370px', '370px'), getImage(fire2, '350px', '350px')];
+    this.logos = [getImage(fire1, '370px', '370px')];//, getImage(fire2, '350px', '350px')];
     this.activeTimeout = null;
     this.img = null;
     this.setImg = this.setImg.bind(this);
