@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom'
 import App from './App'
 import * as serviceWorker from './serviceWorker'
 
-if (window.location.protocol === 'http:' && window.location.origin === 'gpu.rocks') window.location.protocol = 'https://';
+if (window.location.protocol === 'http:' && window.location.hostname === 'gpu.rocks') window.location.protocol = 'https://';
 
 ReactDOM.render(<App />, document.getElementById('root'));
 
