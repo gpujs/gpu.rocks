@@ -9,15 +9,17 @@ const Header = () => {
   const titleComponents = [
     <h1 className="name" key={1}>GPU.js</h1>,
     <h5 className="desc" key={2}><b>GPU accelerated JavaScript</b></h5>,
-    <span style={{marginRight: '2rem'}}><GitHubButton
-      href="https://github.com/gpujs/gpu.js"
-      data-color-scheme="no-preference: dark; light: dark; dark: dark;"
-      data-size="large"
-      data-icon="octicon-star"
-      data-show-count="true"
-      aria-label="Star gpujs/gpu.js on GitHub"
-      key={3}
-    >Star</GitHubButton></span>,
+    <span key={3} style={{marginRight: '2rem'}}>
+      <GitHubButton
+        href="https://github.com/gpujs/gpu.js"
+        data-color-scheme="no-preference: dark; light: dark; dark: dark;"
+        data-size="large"
+        data-icon="octicon-star"
+        data-show-count="true"
+        aria-label="Star gpujs/gpu.js on GitHub"
+      >Star
+      </GitHubButton>
+    </span>,
     <GitHubButton
       href="https://github.com/gpujs/gpu.js/fork"
       data-color-scheme="no-preference: dark; light: dark; dark: dark;"
@@ -26,7 +28,8 @@ const Header = () => {
       data-show-count="true"
       aria-label="Fork gpujs/gpu.js on GitHub"
       key={4}
-    >Fork</GitHubButton>
+    >Fork
+    </GitHubButton>
   ]
 
   return (
