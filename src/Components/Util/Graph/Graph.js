@@ -10,7 +10,7 @@ const Graph = ({info, interpolation, title}) => {
         data={info.data}
         margin={{ top: 20, right: 100, bottom: 80, left: 100 }}
         xScale={{ type: 'point' }}
-        yScale={{ type: 'linear', stacked: true, min: 'auto', max: 'auto' }}
+        yScale={{ type: 'linear', min: 'auto', max: 'auto' }}
         curve="linear"
         axisTop={null}
         axisRight={null}

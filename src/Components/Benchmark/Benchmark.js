@@ -65,6 +65,7 @@ class Benchmark extends Component {
   }
 
   render(){
+    console.log(sizes.cpu_score.series, sizes.gpu_score.series)
     return (
       <div id="benchmark">
         <ScrollButton />
@@ -110,16 +111,16 @@ class Benchmark extends Component {
             <Col s={12}>
               <ul>
                 <li><b>Hardware:</b> &nbsp;<a href="https://ark.intel.com/content/www/us/en/ark/products/97123/intel-core-i5-7500-processor-6m-cache-up-to-3-80-ghz.html">i5-7500</a> + <a href="https://www.geforce.com/hardware/desktop-gpus/geforce-gt-1030/specifications">GT 1030</a></li>
-                <li><b>Operating System:</b> &nbsp;<a href="https://ubuntu.com">Ubuntu</a> 18.04.3 LTS (64-bit)</li>
-                <li><b>Environment:</b> &nbsp;NodeJS v10.15.3 + <b>GPU.js</b> v2.0.1</li>
+                <li><b>Operating System:</b> &nbsp;<a href="https://ubuntu.com">Ubuntu</a> 20.04 LTS (64-bit)</li>
+                <li><b>Environment:</b> &nbsp;NodeJS 12.16.3 + <b>GPU.js</b> v2.9.4</li> + <a href="https://github.com/gpujs/benchmark">benchmark</a> v3.1.0
                 <li>
                   <b>Benchmarks:</b>
                   <ul>
-                    <li><span className="bench-color" style={{backgroundColor: sizes.cpu_run_time_mat_mult.colors.lineColor}}></span> CPU</li>
-                    <li><span className="bench-color" style={{backgroundColor: sizes.gpu_run_time_mat_mult.colors.lineColor}}></span> GPU</li>
+                    <li><span className="bench-color" style={{backgroundColor: sizes.cpu_score.colors.lineColor}}></span> CPU</li>
+                    <li><span className="bench-color" style={{backgroundColor: sizes.gpu_score.colors.lineColor}}></span> GPU</li>
                   </ul>
                 </li>
-                <li><b>Last Updated:</b> &nbsp;1 November 2019</li>
+                <li><b>Last Updated:</b> &nbsp;21 Oct 2020</li>
                 <li>The Benchmarks were run using a tool called <a href="https://github.com/gpujs/benchmark"><b>@gpujs/benchmark</b></a> which is created by the <b>GPU.js</b> org to specifically benchmark <b>GPU.js</b>.</li>
               </ul>
             </Col>
@@ -132,21 +133,21 @@ class Benchmark extends Component {
               {
                 data: [
                   {
-                    id: 'GPU Run Time',
-                    color: sizes.gpu_run_time_mat_mult.colors.lineColor,
-                    data: sizes.gpu_run_time_mat_mult.series
+                    id: 'GPU score',
+                    color: sizes.gpu_score.colors.lineColor,
+                    data: sizes.gpu_score.series
                   },
                   {
-                    id: 'CPU Run Time',
-                    color: sizes.cpu_run_time_mat_mult.colors.lineColor,
-                    data: sizes.cpu_run_time_mat_mult.series
+                    id: 'CPU Score',
+                    color: sizes.cpu_score.colors.lineColor,
+                    data: sizes.cpu_score.series
                   }
                 ]
               }
             }
             title={{
               x: 'Matrix Size',
-              y: 'Time Taken (in ms)'
+              y: 'Score (higher is better)'
             }}
           />
         </div>
