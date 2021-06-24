@@ -1,4 +1,4 @@
-import React from 'react'
+  import React from 'react'
 
 // Images
 import shadedRelief from '../../img/examples/shaded-relief.png'
@@ -20,6 +20,7 @@ import helloV2 from '../../img/fire1.gif'
 import mandelbrotSet from '../../img/examples/mandelbrot-set.png'
 import juliaSet from '../../img/examples/julia-set.png'
 import slowFade from '../../img/examples/slow-fade.png'
+import gameOfLife from '../../img/examples/game-of-life.png'
 
 const links = [
   {
@@ -241,6 +242,19 @@ const links = [
     description: 'The hillshade data is calculated using GPU and drawn directly into a canvas element.',
     footerLinks: [
       <a href="https://observablehq.com/@rveciana/shaded-relief-with-gpujs-and-d3js/2">Observable Notebook</a>
+    ]
+  },
+  {
+    img: gameOfLife,
+    author: {
+      name: 'Gustavo Ferreyra',
+      link: 'https://github.com/brakdag'
+    },
+    title: 'Conway\'s Game of Life',
+    description: 'Game of life.',
+    footerLinks: [
+      <a href="https://observablehq.com/@brakdag/conway-game-of-life-gpu-js">Observable Notebook</a>,
+      <a href="https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life">Wikipedia</a>
     ]
   }
 ]
