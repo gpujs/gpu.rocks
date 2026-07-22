@@ -9,13 +9,10 @@
     "@fortawesome/react-fontawesome": "^0.1.4",
     "@gpujs/benchmark": "^3.1.0",
     "@nivo/line": "^0.63.0",
-    "firebase": "^6.3.2",
-    "firebase-admin": "^8.3.0",
     "gh-pages": "^2.1.1",
     "gpu.js": "^2.9.4",
     "material-icons": "^0.3.1",
     "materialize-css": "^1.0.0-rc.2",
-    "node-sass": "^4.14.1",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
     "react-github-btn": "^1.2.0",
@@ -24,12 +21,34 @@
     "react-scripts": "3.0.0",
     "react-simple-tooltip": "^2.5.0",
     "react-spring": "^8.0.19",
-    "react-syntax-highlighter": "^10.2.1"
+    "react-syntax-highlighter": "^10.2.1",
+    "sass": "^1.77.8"
+  },
+  "resolutions": {
+    "@babel/core": "7.29.6",
+    "@babel/plugin-transform-modules-systemjs": "7.29.4",
+    "@grpc/grpc-js": "1.9.16",
+    "@protobufjs/utf8": "1.1.1",
+    "@tootallnate/once": "2.0.1",
+    "brace-expansion": "1.1.16",
+    "form-data": "2.5.6",
+    "http-proxy-middleware": "2.0.10",
+    "js-yaml": "3.15.0",
+    "protobufjs": "7.6.3",
+    "sass-loader": "7.3.1",
+    "shell-quote": "1.8.4",
+    "tar": "7.5.16",
+    "tmp": "0.2.6",
+    "uuid": "11.1.1",
+    "webpack-dev-server": "3.11.3",
+    "websocket-driver": "0.7.5",
+    "ws": "6.2.4"
   },
   "scripts": {
     "setup": "yarn install",
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "postinstall": "patch-package",
+    "start": "NODE_OPTIONS=--openssl-legacy-provider react-scripts start",
+    "build": "NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
     "analyze": "source-map-explorer 'build/static/js/*.js'",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -52,6 +71,7 @@
     ]
   },
   "devDependencies": {
+    "patch-package": "^8.0.1",
     "source-map-explorer": "^2.0.1"
   }
 }

@@ -1,0 +1,13 @@
+diff --git a/node_modules/webpack-log/src/index.js b/node_modules/webpack-log/src/index.js
+index fc91104..a798da6 100644
+--- a/node_modules/webpack-log/src/index.js
++++ b/node_modules/webpack-log/src/index.js
+@@ -6,7 +6,7 @@
+   no-param-reassign,
+   space-before-function-paren
+ */
+-const uuid = require('uuid/v4');
++const uuid = require('uuid').v4;
+ const colors = require('ansi-colors');
+ const loglevel = require('./loglevel');
+ 
