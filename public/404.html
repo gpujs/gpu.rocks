@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>gpu.js</title>
+<script>
+  // The site is a hash-routed SPA on GitHub Pages, so direct hits on paths
+  // like /benchmark land here; forward them to the hash route (#546, #577)
+  (function() {
+    var l = window.location;
+    var path = l.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+    if (path) {
+      l.replace(l.origin + '/#/' + path + l.search);
+    } else {
+      l.replace(l.origin);
+    }
+  })();
+</script>
+</head>
+<body></body>
+</html>
