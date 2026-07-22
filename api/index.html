@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1">
-    <title>gpu.js 2.17.1 &#8212; GPU Accelerated JavaScript</title>
+    <title>gpu.js 2.18.0 &#8212; GPU Accelerated JavaScript</title>
     <meta name="description" content="GPU Accelerated JavaScript">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
@@ -167,7 +167,7 @@
 
             <h1>
                 <a href="http://gpu.rocks/">gpu.js</a>
-                <small>2.17.1</small>
+                <small>2.18.0</small>
             </h1>
 
             <p>GPU Accelerated JavaScript</p>
@@ -306,41 +306,6 @@
 
 
                         <li>
-                            <a href="#src/texture.js" class="file"><b>src/texture.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-texture.js-new-texture" title="new Texture">new Texture</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-texture.js-this.kernel" title="this.kernel">this.kernel</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-texture.js-toarray" title="toArray">toArray</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-texture.js-clone" title="clone">clone</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-texture.js-delete" title="delete">delete</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
                             <a href="#src/utils.js" class="file"><b>src/utils.js</b></a>
                             <ul>
 
@@ -452,6 +417,41 @@
 
                                 <li class="method-link scope-public">
                                     <a href="#src-utils.js-splitrgbatocanvases" title="splitRGBAToCanvases">splitRGBAToCanvases</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/texture.js" class="file"><b>src/texture.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-texture.js-new-texture" title="new Texture">new Texture</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-texture.js-this.kernel" title="this.kernel">this.kernel</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-texture.js-toarray" title="toArray">toArray</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-texture.js-clone" title="clone">clone</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-texture.js-delete" title="delete">delete</a>
                                 </li>
 
 
@@ -851,6 +851,11 @@
 
 
                                 <li class="method-link scope-public">
+                                    <a href="#src-backend-kernel.js-this.randomseed" title="this.randomSeed">this.randomSeed</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
                                     <a href="#src-backend-kernel.js-mergesettings" title="mergeSettings">mergeSettings</a>
                                 </li>
 
@@ -996,6 +1001,11 @@
 
 
                                 <li class="method-link scope-public">
+                                    <a href="#src-backend-kernel.js-setrandomseed" title="setRandomSeed">setRandomSeed</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
                                     <a href="#src-backend-kernel.js-sethardcodeconstants" title="setHardcodeConstants">setHardcodeConstants</a>
                                 </li>
 
@@ -1111,92 +1121,37 @@
 
 
                         <li>
-                            <a href="#src/backend/cpu/function-node.js" class="file"><b>src/backend/cpu/function-node.js</b></a>
+                            <a href="#src/plugins/math-random-uniformly-distributed.js" class="file"><b>src/plugins/math-random-uniformly-distributed.js</b></a>
                             <ul>
 
 
                                 <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-new-cpufunctionnode" title="new CPUFunctionNode">new CPUFunctionNode</a>
+                                    <a href="#src-plugins-math-random-uniformly-distributed.js-mulberry32" title="mulberry32">mulberry32</a>
                                 </li>
 
 
                                 <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astfunction" title="CPUFunctionNode.astFunction">CPUFunctionNode.astFunction</a>
+                                    <a href="#src-plugins-math-random-uniformly-distributed.js-onbeforerun" title="onBeforeRun">onBeforeRun</a>
                                 </li>
 
 
                                 <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astreturnstatement" title="CPUFunctionNode.astReturnStatement">CPUFunctionNode.astReturnStatement</a>
+                                    <a href="#src-plugins-math-random-uniformly-distributed.js-plugin" title="plugin">plugin</a>
                                 </li>
 
 
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astliteral" title="CPUFunctionNode.astLiteral">CPUFunctionNode.astLiteral</a>
-                                </li>
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/plugins/math-random-triangle-noise.js" class="file"><b>src/plugins/math-random-triangle-noise.js</b></a>
+                            <ul>
 
 
                                 <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astbinaryexpression" title="CPUFunctionNode.astBinaryExpression">CPUFunctionNode.astBinaryExpression</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astidentifierexpression" title="CPUFunctionNode.astIdentifierExpression">CPUFunctionNode.astIdentifierExpression</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astforstatement" title="CPUFunctionNode.astForStatement">CPUFunctionNode.astForStatement</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astwhilestatement" title="CPUFunctionNode.astWhileStatement">CPUFunctionNode.astWhileStatement</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astdowhilestatement" title="CPUFunctionNode.astDoWhileStatement">CPUFunctionNode.astDoWhileStatement</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astassignmentexpression" title="CPUFunctionNode.astAssignmentExpression">CPUFunctionNode.astAssignmentExpression</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astblockstatement" title="CPUFunctionNode.astBlockStatement">CPUFunctionNode.astBlockStatement</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astvariabledeclaration" title="CPUFunctionNode.astVariableDeclaration">CPUFunctionNode.astVariableDeclaration</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astifstatement" title="CPUFunctionNode.astIfStatement">CPUFunctionNode.astIfStatement</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astthisexpression" title="CPUFunctionNode.astThisExpression">CPUFunctionNode.astThisExpression</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astmemberexpression" title="CPUFunctionNode.astMemberExpression">CPUFunctionNode.astMemberExpression</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astcallexpression" title="CPUFunctionNode.astCallExpression">CPUFunctionNode.astCallExpression</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astarrayexpression" title="CPUFunctionNode.astArrayExpression">CPUFunctionNode.astArrayExpression</a>
+                                    <a href="#src-plugins-math-random-triangle-noise.js-module.exports" title="module.exports">module.exports</a>
                                 </li>
 
 
@@ -1242,41 +1197,6 @@
 
                                 <li class="method-link scope-public">
                                     <a href="#src-backend-cpu-kernel.js-getpixels" title="getPixels">getPixels</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
-                            <a href="#src/plugins/math-random-triangle-noise.js" class="file"><b>src/plugins/math-random-triangle-noise.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-plugins-math-random-triangle-noise.js-module.exports" title="module.exports">module.exports</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
-                            <a href="#src/plugins/math-random-uniformly-distributed.js" class="file"><b>src/plugins/math-random-uniformly-distributed.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-plugins-math-random-uniformly-distributed.js-onbeforerun" title="onBeforeRun">onBeforeRun</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-plugins-math-random-uniformly-distributed.js-plugin" title="plugin">plugin</a>
                                 </li>
 
 
@@ -1447,6 +1367,201 @@
 
                                 <li class="method-link scope-public">
                                     <a href="#src-backend-headless-gl-kernel.js-tostring" title="toString">toString</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/backend/cpu/function-node.js" class="file"><b>src/backend/cpu/function-node.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-new-cpufunctionnode" title="new CPUFunctionNode">new CPUFunctionNode</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astfunction" title="CPUFunctionNode.astFunction">CPUFunctionNode.astFunction</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astreturnstatement" title="CPUFunctionNode.astReturnStatement">CPUFunctionNode.astReturnStatement</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astliteral" title="CPUFunctionNode.astLiteral">CPUFunctionNode.astLiteral</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astbinaryexpression" title="CPUFunctionNode.astBinaryExpression">CPUFunctionNode.astBinaryExpression</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astidentifierexpression" title="CPUFunctionNode.astIdentifierExpression">CPUFunctionNode.astIdentifierExpression</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astforstatement" title="CPUFunctionNode.astForStatement">CPUFunctionNode.astForStatement</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astwhilestatement" title="CPUFunctionNode.astWhileStatement">CPUFunctionNode.astWhileStatement</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astdowhilestatement" title="CPUFunctionNode.astDoWhileStatement">CPUFunctionNode.astDoWhileStatement</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astassignmentexpression" title="CPUFunctionNode.astAssignmentExpression">CPUFunctionNode.astAssignmentExpression</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astblockstatement" title="CPUFunctionNode.astBlockStatement">CPUFunctionNode.astBlockStatement</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astvariabledeclaration" title="CPUFunctionNode.astVariableDeclaration">CPUFunctionNode.astVariableDeclaration</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astifstatement" title="CPUFunctionNode.astIfStatement">CPUFunctionNode.astIfStatement</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astthisexpression" title="CPUFunctionNode.astThisExpression">CPUFunctionNode.astThisExpression</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astmemberexpression" title="CPUFunctionNode.astMemberExpression">CPUFunctionNode.astMemberExpression</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astcallexpression" title="CPUFunctionNode.astCallExpression">CPUFunctionNode.astCallExpression</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-cpu-function-node.js-cpufunctionnode.prototype.astarrayexpression" title="CPUFunctionNode.astArrayExpression">CPUFunctionNode.astArrayExpression</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/backend/web-gl2/function-node.js" class="file"><b>src/backend/web-gl2/function-node.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-function-node.js-new-webgl2functionnode" title="new WebGL2FunctionNode">new WebGL2FunctionNode</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression" title="WebGL2FunctionNode.astIdentifierExpression">WebGL2FunctionNode.astIdentifierExpression</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/backend/web-gl2/kernel.js" class="file"><b>src/backend/web-gl2/kernel.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-testcanvas" title="testCanvas">testCanvas</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-testcontext" title="testContext">testContext</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-features" title="features">features</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-new-webgl2kernel" title="new WebGL2Kernel">new WebGL2Kernel</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures" title="WebGL2Kernel.getFeatures">WebGL2Kernel.getFeatures</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-initcontext" title="initContext">initContext</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-validatesettings" title="validateSettings">validateSettings</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-_getheaderstring" title="_getHeaderString">_getHeaderString</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-_gettexturecoordinate" title="_getTextureCoordinate">_getTextureCoordinate</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-_getmainargumentsstring" title="_getMainArgumentsString">_getMainArgumentsString</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-getkernelstring" title="getKernelString">getKernelString</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels" title="getMainResultKernelPackedPixels">getMainResultKernelPackedPixels</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels" title="getMainResultSubKernelPackedPixels">getMainResultSubKernelPackedPixels</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-tojson" title="toJSON">toJSON</a>
                                 </li>
 
 
@@ -1737,106 +1852,6 @@
 
                                 <li class="method-link scope-public">
                                     <a href="#src-backend-web-gl-kernel.js-tojson" title="toJSON">toJSON</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
-                            <a href="#src/backend/web-gl2/function-node.js" class="file"><b>src/backend/web-gl2/function-node.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-function-node.js-new-webgl2functionnode" title="new WebGL2FunctionNode">new WebGL2FunctionNode</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression" title="WebGL2FunctionNode.astIdentifierExpression">WebGL2FunctionNode.astIdentifierExpression</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
-                            <a href="#src/backend/web-gl2/kernel.js" class="file"><b>src/backend/web-gl2/kernel.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-testcanvas" title="testCanvas">testCanvas</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-testcontext" title="testContext">testContext</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-features" title="features">features</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-new-webgl2kernel" title="new WebGL2Kernel">new WebGL2Kernel</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures" title="WebGL2Kernel.getFeatures">WebGL2Kernel.getFeatures</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-initcontext" title="initContext">initContext</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-validatesettings" title="validateSettings">validateSettings</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-_getheaderstring" title="_getHeaderString">_getHeaderString</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-_gettexturecoordinate" title="_getTextureCoordinate">_getTextureCoordinate</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-_getmainargumentsstring" title="_getMainArgumentsString">_getMainArgumentsString</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-getkernelstring" title="getKernelString">getKernelString</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels" title="getMainResultKernelPackedPixels">getMainResultKernelPackedPixels</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels" title="getMainResultSubKernelPackedPixels">getMainResultSubKernelPackedPixels</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-tojson" title="toJSON">toJSON</a>
                                 </li>
 
 
@@ -3045,201 +3060,6 @@ You can send in one, two, etc.</p>
 
                             
 
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/texture.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-texture.js-new-texture">
-                            <a href="#src-texture.js-new-texture" class="permalink">#</a>
-                            <span class="method-name" title="new Texture(settings)">new Texture(settings)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>settings</td>
-                                            <td>
-                                                <code>IGPUTextureSettings</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-texture.js-this.kernel">
-                            <a href="#src-texture.js-this.kernel" class="permalink">#</a>
-                            <span class="method-name" title="this.kernel()">this.kernel()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-texture.js-toarray">
-                            <a href="#src-texture.js-toarray" class="permalink">#</a>
-                            <span class="method-name" title="toArray()">toArray()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>TextureArrayOutput</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-texture.js-clone">
-                            <a href="#src-texture.js-clone" class="permalink">#</a>
-                            <span class="method-name" title="clone()">clone()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>Texture</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-texture.js-delete">
-                            <a href="#src-texture.js-delete" class="permalink">#</a>
-                            <span class="method-name" title="delete()">delete()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
 
 
                         </section>
@@ -4846,6 +4666,201 @@ You can send in one, two, etc.</p>
 
                             
 
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/texture.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-texture.js-new-texture">
+                            <a href="#src-texture.js-new-texture" class="permalink">#</a>
+                            <span class="method-name" title="new Texture(settings)">new Texture(settings)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>settings</td>
+                                            <td>
+                                                <code>IGPUTextureSettings</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-texture.js-this.kernel">
+                            <a href="#src-texture.js-this.kernel" class="permalink">#</a>
+                            <span class="method-name" title="this.kernel()">this.kernel()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-texture.js-toarray">
+                            <a href="#src-texture.js-toarray" class="permalink">#</a>
+                            <span class="method-name" title="toArray()">toArray()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>TextureArrayOutput</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-texture.js-clone">
+                            <a href="#src-texture.js-clone" class="permalink">#</a>
+                            <span class="method-name" title="clone()">clone()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Texture</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-texture.js-delete">
+                            <a href="#src-texture.js-delete" class="permalink">#</a>
+                            <span class="method-name" title="delete()">delete()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
 
 
                         </section>
@@ -8675,6 +8690,36 @@ already been traced, we know that we must move the dependent function to the end
 
                     <div class="method scope-public">
 
+                        <h2 id="src-backend-kernel.js-this.randomseed">
+                            <a href="#src-backend-kernel.js-this.randomseed" class="permalink">#</a>
+                            <span class="method-name" title="this.randomSeed()">this.randomSeed()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            <p>Seed for Math.random() so kernel runs are reproducible; null seeds from Math.random()</p>
+
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
                         <h2 id="src-backend-kernel.js-mergesettings">
                             <a href="#src-backend-kernel.js-mergesettings" class="permalink">#</a>
                             <span class="method-name" title="mergeSettings(settings)">mergeSettings(settings)</span>
@@ -10494,6 +10539,76 @@ already been traced, we know that we must move the dependent function to the end
 
                     <div class="method scope-public">
 
+                        <h2 id="src-backend-kernel.js-setrandomseed">
+                            <a href="#src-backend-kernel.js-setrandomseed" class="permalink">#</a>
+                            <span class="method-name" title="setRandomSeed(seed)">setRandomSeed(seed)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            <p>Set a seed for Math.random(), so kernel runs are reproducible</p>
+
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>seed</td>
+                                            <td>
+                                                <code>Number</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>this</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
                         <h2 id="src-backend-kernel.js-sethardcodeconstants">
                             <a href="#src-backend-kernel.js-sethardcodeconstants" class="permalink">#</a>
                             <span class="method-name" title="setHardcodeConstants(flag)">setHardcodeConstants(flag)</span>
@@ -11846,6 +11961,1842 @@ already been traced, we know that we must move the dependent function to the end
                             </div>
 
                         </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/plugins/math-random-uniformly-distributed.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-plugins-math-random-uniformly-distributed.js-mulberry32">
+                            <a href="#src-plugins-math-random-uniformly-distributed.js-mulberry32" class="permalink">#</a>
+                            <span class="method-name" title="mulberry32(seed)">mulberry32(seed)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            <p>mulberry32, a fast counter-based PRNG with good distribution</p>
+
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>seed</td>
+                                            <td>
+                                                <code>Number</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Function</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-plugins-math-random-uniformly-distributed.js-onbeforerun">
+                            <a href="#src-plugins-math-random-uniformly-distributed.js-onbeforerun" class="permalink">#</a>
+                            <span class="method-name" title="onBeforeRun(kernel)">onBeforeRun(kernel)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>kernel</td>
+                                            <td>
+                                                <code>Kernel</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-plugins-math-random-uniformly-distributed.js-plugin">
+                            <a href="#src-plugins-math-random-uniformly-distributed.js-plugin" class="permalink">#</a>
+                            <span class="method-name" title="plugin()">plugin()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/plugins/math-random-triangle-noise.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-plugins-math-random-triangle-noise.js-module.exports">
+                            <a href="#src-plugins-math-random-triangle-noise.js-module.exports" class="permalink">#</a>
+                            <span class="method-name" title="module.exports()">module.exports()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/cpu/kernel.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-cpu-kernel.js-new-cpukernel">
+                            <a href="#src-backend-cpu-kernel.js-new-cpukernel" class="permalink">#</a>
+                            <span class="method-name" title="new CPUKernel()">new CPUKernel()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-cpu-kernel.js-validatesettings">
+                            <a href="#src-backend-cpu-kernel.js-validatesettings" class="permalink">#</a>
+                            <span class="method-name" title="validateSettings(args)">validateSettings(args)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>args</td>
+                                            <td>
+                                                <code>IArguments</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-cpu-kernel.js-build">
+                            <a href="#src-backend-cpu-kernel.js-build" class="permalink">#</a>
+                            <span class="method-name" title="build()">build()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-cpu-kernel.js-getkernelstring">
+                            <a href="#src-backend-cpu-kernel.js-getkernelstring" class="permalink">#</a>
+                            <span class="method-name" title="getKernelString()">getKernelString()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>result</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-cpu-kernel.js-tostring">
+                            <a href="#src-backend-cpu-kernel.js-tostring" class="permalink">#</a>
+                            <span class="method-name" title="toString()">toString()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-cpu-kernel.js-_getloopmaxstring">
+                            <a href="#src-backend-cpu-kernel.js-_getloopmaxstring" class="permalink">#</a>
+                            <span class="method-name" title="_getLoopMaxString()">_getLoopMaxString()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>result</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-cpu-kernel.js-getpixels">
+                            <a href="#src-backend-cpu-kernel.js-getpixels" class="permalink">#</a>
+                            <span class="method-name" title="getPixels(flip)">getPixels(flip)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>flip</td>
+                                            <td>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Uint8ClampedArray</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/gl/kernel-string.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel-string.js-glkernelstring">
+                            <a href="#src-backend-gl-kernel-string.js-glkernelstring" class="permalink">#</a>
+                            <span class="method-name" title="glKernelString(Kernel, args, originKernel[, setupContextString, destroyContextString])">glKernelString(Kernel, args, originKernel[, setupContextString, destroyContextString])</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>Kernel</td>
+                                            <td>
+                                                <code>GLKernel</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>args</td>
+                                            <td>
+                                                <code>Array.&lt;KernelVariable&gt;</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>originKernel</td>
+                                            <td>
+                                                <code>Kernel</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>setupContextString</td>
+                                            <td>
+                                                <code>string</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                                <span class="tag tag-default">Optional</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>destroyContextString</td>
+                                            <td>
+                                                <code>string</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                                <span class="tag tag-default">Optional</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>string</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel-string.js-findkernelvalue">
+                            <a href="#src-backend-gl-kernel-string.js-findkernelvalue" class="permalink">#</a>
+                            <span class="method-name" title="findKernelValue(argument, kernelValues, values, context, uploadedValues)">findKernelValue(argument, kernelValues, values, context, uploadedValues)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>argument</td>
+                                            <td>
+                                                <code>KernelVariable</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>kernelValues</td>
+                                            <td>
+                                                <code>Array.&lt;KernelValue&gt;</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>values</td>
+                                            <td>
+                                                <code>Array.&lt;KernelVariable&gt;</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>context</td>
+                                            <td>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>uploadedValues</td>
+                                            <td>
+                                                <code>Array.&lt;KernelVariable&gt;</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>string</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/gl/kernel.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-new-glkernel">
+                            <a href="#src-backend-gl-kernel.js-new-glkernel" class="permalink">#</a>
+                            <span class="method-name" title="new GLKernel()">new GLKernel()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-setupfeaturechecks">
+                            <a href="#src-backend-gl-kernel.js-setupfeaturechecks" class="permalink">#</a>
+                            <span class="method-name" title="setupFeatureChecks()">setupFeatureChecks()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-setfixintegerdivisionaccuracy">
+                            <a href="#src-backend-gl-kernel.js-setfixintegerdivisionaccuracy" class="permalink">#</a>
+                            <span class="method-name" title="setFixIntegerDivisionAccuracy(fix)">setFixIntegerDivisionAccuracy(fix)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>fix</td>
+                                            <td>
+                                                <code>Boolean</code>
+                                            </td>
+                                            <td><ul>
+<li>should fix</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-setprecision">
+                            <a href="#src-backend-gl-kernel.js-setprecision" class="permalink">#</a>
+                            <span class="method-name" title="setPrecision(flag)">setPrecision(flag)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>flag</td>
+                                            <td>
+                                                <code>String</code>
+                                            </td>
+                                            <td><ul>
+<li>'single' or 'unsigned'</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-setfloattextures">
+                            <a href="#src-backend-gl-kernel.js-setfloattextures" class="permalink">#</a>
+                            <span class="method-name" title="setFloatTextures(flag)">setFloatTextures(flag)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>flag</td>
+                                            <td>
+                                                <code>Boolean</code>
+                                            </td>
+                                            <td><ul>
+<li>true to enable floatTextures</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-nativefunctionarguments">
+                            <a href="#src-backend-gl-kernel.js-nativefunctionarguments" class="permalink">#</a>
+                            <span class="method-name" title="nativeFunctionArguments(source)">nativeFunctionArguments(source)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            <p>A highly readable very forgiving micro-parser for a glsl function that gets argument types</p>
+
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>source</td>
+                                            <td>
+                                                <code>String</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>[object Object]</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-this.textureconstructor">
+                            <a href="#src-backend-gl-kernel.js-this.textureconstructor" class="permalink">#</a>
+                            <span class="method-name" title="this.TextureConstructor()">this.TextureConstructor()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-pickrenderstrategy">
+                            <a href="#src-backend-gl-kernel.js-pickrenderstrategy" class="permalink">#</a>
+                            <span class="method-name" title="pickRenderStrategy(args)">pickRenderStrategy(args)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            <p>Picks a render strategy for the now finally parsed kernel</p>
+
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>args</td>
+                                            <td>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>KernelOutput</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getkernelstring">
+                            <a href="#src-backend-gl-kernel.js-getkernelstring" class="permalink">#</a>
+                            <span class="method-name" title="getKernelString()">getKernelString()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultkernelnumbertexture">
+                            <a href="#src-backend-gl-kernel.js-getmainresultkernelnumbertexture" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultKernelNumberTexture()">getMainResultKernelNumberTexture()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultsubkernelnumbertexture">
+                            <a href="#src-backend-gl-kernel.js-getmainresultsubkernelnumbertexture" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultSubKernelNumberTexture()">getMainResultSubKernelNumberTexture()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultkernelarray2texture">
+                            <a href="#src-backend-gl-kernel.js-getmainresultkernelarray2texture" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultKernelArray2Texture()">getMainResultKernelArray2Texture()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultsubkernelarray2texture">
+                            <a href="#src-backend-gl-kernel.js-getmainresultsubkernelarray2texture" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultSubKernelArray2Texture()">getMainResultSubKernelArray2Texture()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultkernelarray3texture">
+                            <a href="#src-backend-gl-kernel.js-getmainresultkernelarray3texture" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultKernelArray3Texture()">getMainResultKernelArray3Texture()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultsubkernelarray3texture">
+                            <a href="#src-backend-gl-kernel.js-getmainresultsubkernelarray3texture" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultSubKernelArray3Texture()">getMainResultSubKernelArray3Texture()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultkernelarray4texture">
+                            <a href="#src-backend-gl-kernel.js-getmainresultkernelarray4texture" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultKernelArray4Texture()">getMainResultKernelArray4Texture()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultsubkernelarray4texture">
+                            <a href="#src-backend-gl-kernel.js-getmainresultsubkernelarray4texture" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultSubKernelArray4Texture()">getMainResultSubKernelArray4Texture()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultgraphical">
+                            <a href="#src-backend-gl-kernel.js-getmainresultgraphical" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultGraphical()">getMainResultGraphical()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultmemoryoptimizedfloats">
+                            <a href="#src-backend-gl-kernel.js-getmainresultmemoryoptimizedfloats" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultMemoryOptimizedFloats()">getMainResultMemoryOptimizedFloats()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getmainresultpackedpixels">
+                            <a href="#src-backend-gl-kernel.js-getmainresultpackedpixels" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultPackedPixels()">getMainResultPackedPixels()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>String[]</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getfloattacticdeclaration">
+                            <a href="#src-backend-gl-kernel.js-getfloattacticdeclaration" class="permalink">#</a>
+                            <span class="method-name" title="getFloatTacticDeclaration()">getFloatTacticDeclaration()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>string</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getinttacticdeclaration">
+                            <a href="#src-backend-gl-kernel.js-getinttacticdeclaration" class="permalink">#</a>
+                            <span class="method-name" title="getIntTacticDeclaration()">getIntTacticDeclaration()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>string</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getsampler2dtacticdeclaration">
+                            <a href="#src-backend-gl-kernel.js-getsampler2dtacticdeclaration" class="permalink">#</a>
+                            <span class="method-name" title="getSampler2DTacticDeclaration()">getSampler2DTacticDeclaration()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>string</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-getpixels">
+                            <a href="#src-backend-gl-kernel.js-getpixels" class="permalink">#</a>
+                            <span class="method-name" title="getPixels([flip])">getPixels([flip])</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>flip</td>
+                                            <td>
+                                                <code>Boolean</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                                <span class="tag tag-default">Optional</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Uint8ClampedArray</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-gl-kernel.js-updatetextureargumentrefs">
+                            <a href="#src-backend-gl-kernel.js-updatetextureargumentrefs" class="permalink">#</a>
+                            <span class="method-name" title="updateTextureArgumentRefs(kernelValue, arg)">updateTextureArgumentRefs(kernelValue, arg)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>kernelValue</td>
+                                            <td>
+                                                <code>WebGLKernelValue</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>arg</td>
+                                            <td>
+                                                <code>GLTexture</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/headless-gl/kernel.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-headless-gl-kernel.js-tostring">
+                            <a href="#src-backend-headless-gl-kernel.js-tostring" class="permalink">#</a>
+                            <span class="method-name" title="toString()">toString()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
 
 
 
@@ -13257,14 +15208,138 @@ already been traced, we know that we must move the dependent function to the end
 
 
 
-                    <a id="src/backend/cpu/kernel.js"></a>
+                    <a id="src/backend/web-gl2/function-node.js"></a>
 
 
                     <div class="method scope-public">
 
-                        <h2 id="src-backend-cpu-kernel.js-new-cpukernel">
-                            <a href="#src-backend-cpu-kernel.js-new-cpukernel" class="permalink">#</a>
-                            <span class="method-name" title="new CPUKernel()">new CPUKernel()</span>
+                        <h2 id="src-backend-web-gl2-function-node.js-new-webgl2functionnode">
+                            <a href="#src-backend-web-gl2-function-node.js-new-webgl2functionnode" class="permalink">#</a>
+                            <span class="method-name" title="new WebGL2FunctionNode()">new WebGL2FunctionNode()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>the converted webGL function string</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression">
+                            <a href="#src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression" class="permalink">#</a>
+                            <span class="method-name" title="WebGL2FunctionNode.astIdentifierExpression(idtNode, retArr)">WebGL2FunctionNode.astIdentifierExpression(idtNode, retArr)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>idtNode</td>
+                                            <td>
+                                                <code>Object</code>
+                                            </td>
+                                            <td><ul>
+<li>An ast Node</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>retArr</td>
+                                            <td>
+                                                <code>Array</code>
+                                            </td>
+                                            <td><ul>
+<li>return array string</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Array</code>
+                            </p>
+
+                            <p>the append retArr</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/web-gl2/kernel.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-testcanvas">
+                            <a href="#src-backend-web-gl2-kernel.js-testcanvas" class="permalink">#</a>
+                            <span class="method-name" title="testCanvas()">testCanvas()</span>
                         </h2>
 
                         <div class="description lead">
@@ -13291,8 +15366,166 @@ already been traced, we know that we must move the dependent function to the end
 
                     <div class="method scope-public">
 
-                        <h2 id="src-backend-cpu-kernel.js-validatesettings">
-                            <a href="#src-backend-cpu-kernel.js-validatesettings" class="permalink">#</a>
+                        <h2 id="src-backend-web-gl2-kernel.js-testcontext">
+                            <a href="#src-backend-web-gl2-kernel.js-testcontext" class="permalink">#</a>
+                            <span class="method-name" title="testContext()">testContext()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-features">
+                            <a href="#src-backend-web-gl2-kernel.js-features" class="permalink">#</a>
+                            <span class="method-name" title="features()">features()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-new-webgl2kernel">
+                            <a href="#src-backend-web-gl2-kernel.js-new-webgl2kernel" class="permalink">#</a>
+                            <span class="method-name" title="new WebGL2Kernel()">new WebGL2Kernel()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures">
+                            <a href="#src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures" class="permalink">#</a>
+                            <span class="method-name" title="WebGL2Kernel.getFeatures()">WebGL2Kernel.getFeatures()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>IKernelFeatures</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-initcontext">
+                            <a href="#src-backend-web-gl2-kernel.js-initcontext" class="permalink">#</a>
+                            <span class="method-name" title="initContext()">initContext()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>WebGLRenderingContext</code>
+                                <code>WebGL2RenderingContext</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-validatesettings">
+                            <a href="#src-backend-web-gl2-kernel.js-validatesettings" class="permalink">#</a>
                             <span class="method-name" title="validateSettings(args)">validateSettings(args)</span>
                         </h2>
 
@@ -13354,9 +15587,9 @@ already been traced, we know that we must move the dependent function to the end
 
                     <div class="method scope-public">
 
-                        <h2 id="src-backend-cpu-kernel.js-build">
-                            <a href="#src-backend-cpu-kernel.js-build" class="permalink">#</a>
-                            <span class="method-name" title="build()">build()</span>
+                        <h2 id="src-backend-web-gl2-kernel.js-_getheaderstring">
+                            <a href="#src-backend-web-gl2-kernel.js-_getheaderstring" class="permalink">#</a>
+                            <span class="method-name" title="_getHeaderString()">_getHeaderString()</span>
                         </h2>
 
                         <div class="description lead">
@@ -13373,7 +15606,14 @@ already been traced, we know that we must move the dependent function to the end
                             <h3>Returns</h3>
 
 
-                            <p><code>Void</code></p>
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>result</p>
+
+
 
 
                         </section>
@@ -13383,8 +15623,117 @@ already been traced, we know that we must move the dependent function to the end
 
                     <div class="method scope-public">
 
-                        <h2 id="src-backend-cpu-kernel.js-getkernelstring">
-                            <a href="#src-backend-cpu-kernel.js-getkernelstring" class="permalink">#</a>
+                        <h2 id="src-backend-web-gl2-kernel.js-_gettexturecoordinate">
+                            <a href="#src-backend-web-gl2-kernel.js-_gettexturecoordinate" class="permalink">#</a>
+                            <span class="method-name" title="_getTextureCoordinate()">_getTextureCoordinate()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>result</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-_getmainargumentsstring">
+                            <a href="#src-backend-web-gl2-kernel.js-_getmainargumentsstring" class="permalink">#</a>
+                            <span class="method-name" title="_getMainArgumentsString(args)">_getMainArgumentsString(args)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>args</td>
+                                            <td>
+                                                <code>Array</code>
+                                            </td>
+                                            <td><ul>
+<li>The actual parameters sent to the Kernel</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>result</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-getkernelstring">
+                            <a href="#src-backend-web-gl2-kernel.js-getkernelstring" class="permalink">#</a>
                             <span class="method-name" title="getKernelString()">getKernelString()</span>
                         </h2>
 
@@ -13419,38 +15768,9 @@ already been traced, we know that we must move the dependent function to the end
 
                     <div class="method scope-public">
 
-                        <h2 id="src-backend-cpu-kernel.js-tostring">
-                            <a href="#src-backend-cpu-kernel.js-tostring" class="permalink">#</a>
-                            <span class="method-name" title="toString()">toString()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-cpu-kernel.js-_getloopmaxstring">
-                            <a href="#src-backend-cpu-kernel.js-_getloopmaxstring" class="permalink">#</a>
-                            <span class="method-name" title="_getLoopMaxString()">_getLoopMaxString()</span>
+                        <h2 id="src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels">
+                            <a href="#src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultKernelPackedPixels()">getMainResultKernelPackedPixels()</span>
                         </h2>
 
                         <div class="description lead">
@@ -13472,315 +15792,6 @@ already been traced, we know that we must move the dependent function to the end
                                 <code>String</code>
                             </p>
 
-                            <p>result</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-cpu-kernel.js-getpixels">
-                            <a href="#src-backend-cpu-kernel.js-getpixels" class="permalink">#</a>
-                            <span class="method-name" title="getPixels(flip)">getPixels(flip)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>flip</td>
-                                            <td>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>Uint8ClampedArray</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/plugins/math-random-triangle-noise.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-plugins-math-random-triangle-noise.js-module.exports">
-                            <a href="#src-plugins-math-random-triangle-noise.js-module.exports" class="permalink">#</a>
-                            <span class="method-name" title="module.exports()">module.exports()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/plugins/math-random-uniformly-distributed.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-plugins-math-random-uniformly-distributed.js-onbeforerun">
-                            <a href="#src-plugins-math-random-uniformly-distributed.js-onbeforerun" class="permalink">#</a>
-                            <span class="method-name" title="onBeforeRun(kernel)">onBeforeRun(kernel)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>kernel</td>
-                                            <td>
-                                                <code>Kernel</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-plugins-math-random-uniformly-distributed.js-plugin">
-                            <a href="#src-plugins-math-random-uniformly-distributed.js-plugin" class="permalink">#</a>
-                            <span class="method-name" title="plugin()">plugin()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/backend/gl/kernel-string.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel-string.js-glkernelstring">
-                            <a href="#src-backend-gl-kernel-string.js-glkernelstring" class="permalink">#</a>
-                            <span class="method-name" title="glKernelString(Kernel, args, originKernel[, setupContextString, destroyContextString])">glKernelString(Kernel, args, originKernel[, setupContextString, destroyContextString])</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>Kernel</td>
-                                            <td>
-                                                <code>GLKernel</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>args</td>
-                                            <td>
-                                                <code>Array.&lt;KernelVariable&gt;</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>originKernel</td>
-                                            <td>
-                                                <code>Kernel</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>setupContextString</td>
-                                            <td>
-                                                <code>string</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                                <span class="tag tag-default">Optional</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>destroyContextString</td>
-                                            <td>
-                                                <code>string</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                                <span class="tag tag-default">Optional</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>string</code>
-                            </p>
-
                             
 
 
@@ -13792,541 +15803,9 @@ already been traced, we know that we must move the dependent function to the end
 
                     <div class="method scope-public">
 
-                        <h2 id="src-backend-gl-kernel-string.js-findkernelvalue">
-                            <a href="#src-backend-gl-kernel-string.js-findkernelvalue" class="permalink">#</a>
-                            <span class="method-name" title="findKernelValue(argument, kernelValues, values, context, uploadedValues)">findKernelValue(argument, kernelValues, values, context, uploadedValues)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>argument</td>
-                                            <td>
-                                                <code>KernelVariable</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>kernelValues</td>
-                                            <td>
-                                                <code>Array.&lt;KernelValue&gt;</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>values</td>
-                                            <td>
-                                                <code>Array.&lt;KernelVariable&gt;</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>context</td>
-                                            <td>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>uploadedValues</td>
-                                            <td>
-                                                <code>Array.&lt;KernelVariable&gt;</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>string</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/backend/gl/kernel.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-new-glkernel">
-                            <a href="#src-backend-gl-kernel.js-new-glkernel" class="permalink">#</a>
-                            <span class="method-name" title="new GLKernel()">new GLKernel()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-setupfeaturechecks">
-                            <a href="#src-backend-gl-kernel.js-setupfeaturechecks" class="permalink">#</a>
-                            <span class="method-name" title="setupFeatureChecks()">setupFeatureChecks()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-setfixintegerdivisionaccuracy">
-                            <a href="#src-backend-gl-kernel.js-setfixintegerdivisionaccuracy" class="permalink">#</a>
-                            <span class="method-name" title="setFixIntegerDivisionAccuracy(fix)">setFixIntegerDivisionAccuracy(fix)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>fix</td>
-                                            <td>
-                                                <code>Boolean</code>
-                                            </td>
-                                            <td><ul>
-<li>should fix</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-setprecision">
-                            <a href="#src-backend-gl-kernel.js-setprecision" class="permalink">#</a>
-                            <span class="method-name" title="setPrecision(flag)">setPrecision(flag)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>flag</td>
-                                            <td>
-                                                <code>String</code>
-                                            </td>
-                                            <td><ul>
-<li>'single' or 'unsigned'</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-setfloattextures">
-                            <a href="#src-backend-gl-kernel.js-setfloattextures" class="permalink">#</a>
-                            <span class="method-name" title="setFloatTextures(flag)">setFloatTextures(flag)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>flag</td>
-                                            <td>
-                                                <code>Boolean</code>
-                                            </td>
-                                            <td><ul>
-<li>true to enable floatTextures</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-nativefunctionarguments">
-                            <a href="#src-backend-gl-kernel.js-nativefunctionarguments" class="permalink">#</a>
-                            <span class="method-name" title="nativeFunctionArguments(source)">nativeFunctionArguments(source)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            <p>A highly readable very forgiving micro-parser for a glsl function that gets argument types</p>
-
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>source</td>
-                                            <td>
-                                                <code>String</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>[object Object]</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-this.textureconstructor">
-                            <a href="#src-backend-gl-kernel.js-this.textureconstructor" class="permalink">#</a>
-                            <span class="method-name" title="this.TextureConstructor()">this.TextureConstructor()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-pickrenderstrategy">
-                            <a href="#src-backend-gl-kernel.js-pickrenderstrategy" class="permalink">#</a>
-                            <span class="method-name" title="pickRenderStrategy(args)">pickRenderStrategy(args)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            <p>Picks a render strategy for the now finally parsed kernel</p>
-
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>args</td>
-                                            <td>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>KernelOutput</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getkernelstring">
-                            <a href="#src-backend-gl-kernel.js-getkernelstring" class="permalink">#</a>
-                            <span class="method-name" title="getKernelString()">getKernelString()</span>
+                        <h2 id="src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels">
+                            <a href="#src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultSubKernelPackedPixels()">getMainResultSubKernelPackedPixels()</span>
                         </h2>
 
                         <div class="description lead">
@@ -14345,10 +15824,10 @@ already been traced, we know that we must move the dependent function to the end
 
 
                             <p>
+                                <code>String</code>
                             </p>
 
-                            <p>String</p>
-
+                            
 
 
 
@@ -14359,9 +15838,9 @@ already been traced, we know that we must move the dependent function to the end
 
                     <div class="method scope-public">
 
-                        <h2 id="src-backend-gl-kernel.js-getmainresultkernelnumbertexture">
-                            <a href="#src-backend-gl-kernel.js-getmainresultkernelnumbertexture" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultKernelNumberTexture()">getMainResultKernelNumberTexture()</span>
+                        <h2 id="src-backend-web-gl2-kernel.js-tojson">
+                            <a href="#src-backend-web-gl2-kernel.js-tojson" class="permalink">#</a>
+                            <span class="method-name" title="toJSON()">toJSON()</span>
                         </h2>
 
                         <div class="description lead">
@@ -14380,641 +15859,11 @@ already been traced, we know that we must move the dependent function to the end
 
 
                             <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultsubkernelnumbertexture">
-                            <a href="#src-backend-gl-kernel.js-getmainresultsubkernelnumbertexture" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultSubKernelNumberTexture()">getMainResultSubKernelNumberTexture()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultkernelarray2texture">
-                            <a href="#src-backend-gl-kernel.js-getmainresultkernelarray2texture" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultKernelArray2Texture()">getMainResultKernelArray2Texture()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultsubkernelarray2texture">
-                            <a href="#src-backend-gl-kernel.js-getmainresultsubkernelarray2texture" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultSubKernelArray2Texture()">getMainResultSubKernelArray2Texture()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultkernelarray3texture">
-                            <a href="#src-backend-gl-kernel.js-getmainresultkernelarray3texture" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultKernelArray3Texture()">getMainResultKernelArray3Texture()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultsubkernelarray3texture">
-                            <a href="#src-backend-gl-kernel.js-getmainresultsubkernelarray3texture" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultSubKernelArray3Texture()">getMainResultSubKernelArray3Texture()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultkernelarray4texture">
-                            <a href="#src-backend-gl-kernel.js-getmainresultkernelarray4texture" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultKernelArray4Texture()">getMainResultKernelArray4Texture()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultsubkernelarray4texture">
-                            <a href="#src-backend-gl-kernel.js-getmainresultsubkernelarray4texture" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultSubKernelArray4Texture()">getMainResultSubKernelArray4Texture()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultgraphical">
-                            <a href="#src-backend-gl-kernel.js-getmainresultgraphical" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultGraphical()">getMainResultGraphical()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultmemoryoptimizedfloats">
-                            <a href="#src-backend-gl-kernel.js-getmainresultmemoryoptimizedfloats" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultMemoryOptimizedFloats()">getMainResultMemoryOptimizedFloats()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getmainresultpackedpixels">
-                            <a href="#src-backend-gl-kernel.js-getmainresultpackedpixels" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultPackedPixels()">getMainResultPackedPixels()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>String[]</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getfloattacticdeclaration">
-                            <a href="#src-backend-gl-kernel.js-getfloattacticdeclaration" class="permalink">#</a>
-                            <span class="method-name" title="getFloatTacticDeclaration()">getFloatTacticDeclaration()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>string</code>
+                                <code>IKernelJSON</code>
                             </p>
 
                             
 
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getinttacticdeclaration">
-                            <a href="#src-backend-gl-kernel.js-getinttacticdeclaration" class="permalink">#</a>
-                            <span class="method-name" title="getIntTacticDeclaration()">getIntTacticDeclaration()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>string</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getsampler2dtacticdeclaration">
-                            <a href="#src-backend-gl-kernel.js-getsampler2dtacticdeclaration" class="permalink">#</a>
-                            <span class="method-name" title="getSampler2DTacticDeclaration()">getSampler2DTacticDeclaration()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>string</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-getpixels">
-                            <a href="#src-backend-gl-kernel.js-getpixels" class="permalink">#</a>
-                            <span class="method-name" title="getPixels([flip])">getPixels([flip])</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>flip</td>
-                                            <td>
-                                                <code>Boolean</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                                <span class="tag tag-default">Optional</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>Uint8ClampedArray</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-gl-kernel.js-updatetextureargumentrefs">
-                            <a href="#src-backend-gl-kernel.js-updatetextureargumentrefs" class="permalink">#</a>
-                            <span class="method-name" title="updateTextureArgumentRefs(kernelValue, arg)">updateTextureArgumentRefs(kernelValue, arg)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>kernelValue</td>
-                                            <td>
-                                                <code>WebGLKernelValue</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>arg</td>
-                                            <td>
-                                                <code>GLTexture</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/backend/headless-gl/kernel.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-headless-gl-kernel.js-tostring">
-                            <a href="#src-backend-headless-gl-kernel.js-tostring" class="permalink">#</a>
-                            <span class="method-name" title="toString()">toString()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
 
 
                         </section>
@@ -18346,670 +19195,6 @@ already been traced, we know that we must move the dependent function to the end
 
                         <h2 id="src-backend-web-gl-kernel.js-tojson">
                             <a href="#src-backend-web-gl-kernel.js-tojson" class="permalink">#</a>
-                            <span class="method-name" title="toJSON()">toJSON()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>IKernelJSON</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/backend/web-gl2/function-node.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-function-node.js-new-webgl2functionnode">
-                            <a href="#src-backend-web-gl2-function-node.js-new-webgl2functionnode" class="permalink">#</a>
-                            <span class="method-name" title="new WebGL2FunctionNode()">new WebGL2FunctionNode()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>the converted webGL function string</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression">
-                            <a href="#src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression" class="permalink">#</a>
-                            <span class="method-name" title="WebGL2FunctionNode.astIdentifierExpression(idtNode, retArr)">WebGL2FunctionNode.astIdentifierExpression(idtNode, retArr)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>idtNode</td>
-                                            <td>
-                                                <code>Object</code>
-                                            </td>
-                                            <td><ul>
-<li>An ast Node</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>retArr</td>
-                                            <td>
-                                                <code>Array</code>
-                                            </td>
-                                            <td><ul>
-<li>return array string</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>Array</code>
-                            </p>
-
-                            <p>the append retArr</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/backend/web-gl2/kernel.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-testcanvas">
-                            <a href="#src-backend-web-gl2-kernel.js-testcanvas" class="permalink">#</a>
-                            <span class="method-name" title="testCanvas()">testCanvas()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-testcontext">
-                            <a href="#src-backend-web-gl2-kernel.js-testcontext" class="permalink">#</a>
-                            <span class="method-name" title="testContext()">testContext()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-features">
-                            <a href="#src-backend-web-gl2-kernel.js-features" class="permalink">#</a>
-                            <span class="method-name" title="features()">features()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-new-webgl2kernel">
-                            <a href="#src-backend-web-gl2-kernel.js-new-webgl2kernel" class="permalink">#</a>
-                            <span class="method-name" title="new WebGL2Kernel()">new WebGL2Kernel()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures">
-                            <a href="#src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures" class="permalink">#</a>
-                            <span class="method-name" title="WebGL2Kernel.getFeatures()">WebGL2Kernel.getFeatures()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>IKernelFeatures</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-initcontext">
-                            <a href="#src-backend-web-gl2-kernel.js-initcontext" class="permalink">#</a>
-                            <span class="method-name" title="initContext()">initContext()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>WebGLRenderingContext</code>
-                                <code>WebGL2RenderingContext</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-validatesettings">
-                            <a href="#src-backend-web-gl2-kernel.js-validatesettings" class="permalink">#</a>
-                            <span class="method-name" title="validateSettings(args)">validateSettings(args)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>args</td>
-                                            <td>
-                                                <code>IArguments</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-_getheaderstring">
-                            <a href="#src-backend-web-gl2-kernel.js-_getheaderstring" class="permalink">#</a>
-                            <span class="method-name" title="_getHeaderString()">_getHeaderString()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>result</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-_gettexturecoordinate">
-                            <a href="#src-backend-web-gl2-kernel.js-_gettexturecoordinate" class="permalink">#</a>
-                            <span class="method-name" title="_getTextureCoordinate()">_getTextureCoordinate()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>result</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-_getmainargumentsstring">
-                            <a href="#src-backend-web-gl2-kernel.js-_getmainargumentsstring" class="permalink">#</a>
-                            <span class="method-name" title="_getMainArgumentsString(args)">_getMainArgumentsString(args)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>args</td>
-                                            <td>
-                                                <code>Array</code>
-                                            </td>
-                                            <td><ul>
-<li>The actual parameters sent to the Kernel</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>result</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-getkernelstring">
-                            <a href="#src-backend-web-gl2-kernel.js-getkernelstring" class="permalink">#</a>
-                            <span class="method-name" title="getKernelString()">getKernelString()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>result</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels">
-                            <a href="#src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultKernelPackedPixels()">getMainResultKernelPackedPixels()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels">
-                            <a href="#src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultSubKernelPackedPixels()">getMainResultSubKernelPackedPixels()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-tojson">
-                            <a href="#src-backend-web-gl2-kernel.js-tojson" class="permalink">#</a>
                             <span class="method-name" title="toJSON()">toJSON()</span>
                         </h2>
 
