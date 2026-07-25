@@ -42,8 +42,13 @@ yarn install
 yarn dev      # dev server on http://localhost:3000
 yarn build    # production build into dist/
 yarn preview  # serve the production build locally
-yarn deploy   # build and publish dist/ to the gh-pages branch
+yarn deploy   # build and publish dist/ to the gh-pages branch (usually unnecessary, see below)
 ```
+
+Pushing to `master` deploys automatically: CI builds, smoke tests the build in a
+browser, and then publishes *that same artifact* to the `gh-pages` branch and
+waits for https://gpu.rocks to serve it. `yarn deploy` remains for publishing
+from a machine when needed.
 
 Two checks run against a real browser (they use `puppeteer-core`, which does
 not download anything — set `CHROME_PATH` if Chrome is somewhere unusual):

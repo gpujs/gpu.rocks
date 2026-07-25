@@ -24,16 +24,6 @@ export default defineConfig({
     // unguarded, which throws before the app renders anything.
     global: 'globalThis',
   },
-  css: {
-    preprocessorOptions: {
-      scss: {
-        // the stylesheets still use @import and the global colour functions.
-        // Both work today and are only removed in Dart Sass 3.0 — migrating
-        // them is a separate change from swapping the build tool.
-        silenceDeprecations: ['import', 'global-builtin', 'color-functions'],
-      },
-    },
-  },
   build: {
     outDir: 'dist',
     // the benchmark legitimately pulls in gpu.js and @nivo

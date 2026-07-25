@@ -49,3 +49,53 @@ jobs:
 
       - name: Smoke test every route in a browser
         run: yarn test:smoke http://localhost:4173
+
+      - name: Keep the tested build for the deploy job
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
+
+  deploy:
+    # publishes the exact build the smoke test passed against, rather than
+    # rebuilding, so what ships is what was verified
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: deploy-gh-pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to the gh-pages branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          npx --yes gh-pages@6 --dist dist --dotfiles \
+            --message "Deploy ${GITHUB_SHA::7}: $(git log -1 --pretty=%s)"
+
+      - name: Wait for the deploy to go live
+        run: |
+          asset=$(grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' dist/index.html | head -1)
+          echo "waiting for $asset to be served"
+          for _ in $(seq 1 30); do
+            if curl -sf "https://gpu.rocks/?cachebust=$RANDOM" | grep -q "$asset"; then
+              curl -sf -o /dev/null "https://gpu.rocks/api/" \
+                && echo "live, and /api/ is still served" && exit 0
+              echo "::error::the site is live but /api/ is not being served"
+              exit 1
+            fi
+            sleep 10
+          done
+          echo "::error::gpu.rocks did not start serving $asset within 5 minutes"
+          exit 1

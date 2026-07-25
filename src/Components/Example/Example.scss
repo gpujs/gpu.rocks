@@ -1,4 +1,4 @@
-@import '../../scss/colors';
+@use '../../scss/colors' as *;
 
 #example {
   h2, h4, h5 {

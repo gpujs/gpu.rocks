@@ -1,4 +1,4 @@
-@import '../../scss/colors';
+@use '../../scss/colors' as *;
 
 footer.page-footer {
   background: $footer-gradient;
