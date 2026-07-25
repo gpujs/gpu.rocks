@@ -17,6 +17,8 @@ importScripts(
   "/precache-manifest.a748150979fd58f0c772c08e85930ed5.js"
 );
 
+self.skipWaiting();
+
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -33,7 +35,12 @@ workbox.core.clientsClaim();
 self.__precacheManifest = [].concat(self.__precacheManifest || []);
 workbox.precaching.precacheAndRoute(self.__precacheManifest, {});
 
+// The site is hash-routed (HashRouter), so the app shell is only ever needed
+// at the root. Without this whitelist the fallback swallows every extension-less
+// path — /api/ (the API reference) and /benchmark rendered the homepage instead
+// of the real page for anyone with the service worker installed.
+// See gpujs/gpu.js#852. Re-applied automatically by scripts/patch-sw.js.
 workbox.routing.registerNavigationRoute(workbox.precaching.getCacheKeyForURL("/index.html"), {
-  
+  whitelist: [/^\/$/],
   blacklist: [/^\/_/,/\/[^/]+\.[^/]+$/],
 });
