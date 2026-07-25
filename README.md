@@ -43,6 +43,21 @@ yarn preview  # serve the production build locally
 yarn deploy   # build and publish dist/ to the gh-pages branch
 ```
 
+Two checks run against a real browser (they use `puppeteer-core`, which does
+not download anything — set `CHROME_PATH` if Chrome is somewhere unusual):
+
+```sh
+yarn test:smoke                                  # every route rendered, /api/ still served
+yarn test:compare https://gpu.rocks http://localhost:4173   # diff two deployments
+```
+
+`test:smoke` runs in CI on every push and pull request. It exists because a
+build can succeed and still ship a blank site — the move off create-react-app
+did exactly that until a missing `global` shim was found. `test:compare` is a
+manual tool for changes that should *not* alter the site, such as a build tool
+swap or a dependency bump; it diffs the rendered text, links and images of two
+deployments.
+
 Everything in `public/` is copied verbatim into the build — that includes
 `api/` (the generated gpu.js API reference served at https://gpu.rocks/api/),
 `404.html` (forwards deep links to the hash routes), and `CNAME`.

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install packages
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Check the static files survived the build
+        # everything in public/ ships verbatim; CNAME keeps the custom domain,
+        # 404.html forwards deep links to the hash routes, and api/ is the
+        # gpu.js API reference served at https://gpu.rocks/api/
+        run: |
+          for file in index.html CNAME 404.html api/index.html manifest.json service-worker.js; do
+            if [ ! -f "dist/$file" ]; then
+              echo "::error::dist/$file is missing from the build"
+              exit 1
+            fi
+            echo "ok  dist/$file"
+          done
+
+      - name: Serve the build
+        run: |
+          yarn preview --port 4173 &
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:4173/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "::error::preview server never came up"
+          exit 1
+
+      - name: Smoke test every route in a browser
+        run: yarn test:smoke http://localhost:4173
