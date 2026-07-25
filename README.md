@@ -2,6 +2,8 @@
 
 [Link to website](https://gpu.rocks/)
 
+[![CI](https://github.com/gpujs/gpu.rocks/actions/workflows/ci.yml/badge.svg)](https://github.com/gpujs/gpu.rocks/actions/workflows/ci.yml)
+
 ### Contributing
 **All contributions are welcome**
 
