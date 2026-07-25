@@ -9,7 +9,7 @@ import Examples from './Components/Examples/Examples'
 
 import 'materialize-css'
 import './scss/index.scss'
-import '../node_modules/materialize-css/dist/css/materialize.css'
+import 'materialize-css/dist/css/materialize.css'
 import 'material-icons'
 
 function App() {
