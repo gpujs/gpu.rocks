@@ -1,46 +1,26 @@
-/**
- * Welcome to your Workbox-powered service worker!
- *
- * You'll need to register this file in your web app and you should
- * disable HTTP caching for this file too.
- * See https://goo.gl/nhQhGp
- *
- * The rest of the code is auto-generated. Please don't update this file
- * directly; instead, make changes to your Workbox build configuration
- * and re-run your build process.
- * See https://goo.gl/2aRDsh
- */
+// Tombstone for the create-react-app service worker this site used to ship.
+//
+// Its navigation fallback served the precached app shell for every
+// extension-less path, so real files such as /api/ (the gpu.js API reference)
+// and deep links like /benchmark rendered the homepage for anyone who had
+// visited before — see gpujs/gpu.js#852. The site is static and hash-routed, so
+// it does not need a service worker at all.
+//
+// Browsers that still have the old worker installed fetch this file on their
+// next update check; it unregisters itself, drops the stale precache, and
+// reloads open tabs so they pick up the real pages. Keep it here — deleting it
+// would leave those browsers on the old worker.
 
-importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
-
-importScripts(
-  "/precache-manifest.a748150979fd58f0c772c08e85930ed5.js"
-);
-
-self.skipWaiting();
-
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+self.addEventListener('install', () => {
+  self.skipWaiting();
 });
 
-workbox.core.clientsClaim();
-
-/**
- * The workboxSW.precacheAndRoute() method efficiently caches and responds to
- * requests for URLs in the manifest.
- * See https://goo.gl/S9QRab
- */
-self.__precacheManifest = [].concat(self.__precacheManifest || []);
-workbox.precaching.precacheAndRoute(self.__precacheManifest, {});
-
-// The site is hash-routed (HashRouter), so the app shell is only ever needed
-// at the root. Without this whitelist the fallback swallows every extension-less
-// path — /api/ (the API reference) and /benchmark rendered the homepage instead
-// of the real page for anyone with the service worker installed.
-// See gpujs/gpu.js#852. Re-applied automatically by scripts/patch-sw.js.
-workbox.routing.registerNavigationRoute(workbox.precaching.getCacheKeyForURL("/index.html"), {
-  whitelist: [/^\/$/],
-  blacklist: [/^\/_/,/\/[^/]+\.[^/]+$/],
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    await self.registration.unregister();
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+    const clients = await self.clients.matchAll({ type: 'window' });
+    clients.forEach(client => client.navigate(client.url));
+  })());
 });
