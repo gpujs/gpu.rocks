@@ -78,10 +78,15 @@ jobs:
           path: dist
 
       - name: Publish to the gh-pages branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # gh-pages publishes from its own clone, which does not inherit the
+          # credentials actions/checkout writes into this working copy
           npx --yes gh-pages@6 --dist dist --dotfiles \
+            --repo "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
             --message "Deploy ${GITHUB_SHA::7}: $(git log -1 --pretty=%s)"
 
       - name: Wait for the deploy to go live
