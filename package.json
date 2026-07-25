@@ -114,7 +114,7 @@
     "setup": "yarn install",
     "postinstall": "patch-package",
     "start": "NODE_OPTIONS=--openssl-legacy-provider react-scripts start",
-    "build": "NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
+    "build": "NODE_OPTIONS=--openssl-legacy-provider react-scripts build && node scripts/patch-sw.js",
     "analyze": "source-map-explorer 'build/static/js/*.js'",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
