@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1">
-    <title>gpu.js 2.19.3 &#8212; GPU Accelerated JavaScript</title>
+    <title>gpu.js 2.19.8 &#8212; GPU Accelerated JavaScript</title>
     <meta name="description" content="GPU Accelerated JavaScript">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
@@ -167,7 +167,7 @@
 
             <h1>
                 <a href="http://gpu.rocks/">gpu.js</a>
-                <small>2.19.3</small>
+                <small>2.19.8</small>
             </h1>
 
             <p>GPU Accelerated JavaScript</p>
@@ -277,6 +277,21 @@
 
                                 <li class="method-link scope-public">
                                     <a href="#src-gpu.js-destroy" title="destroy">destroy</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/index.d.ts" class="file"><b>src/index.d.ts</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-index.d.ts-createkernel" title="createKernel">createKernel</a>
                                 </li>
 
 
@@ -461,91 +476,6 @@
 
 
                         <li>
-                            <a href="#src/backend/function-builder.js" class="file"><b>src/backend/function-builder.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-new-functionbuilder" title="new FunctionBuilder">new FunctionBuilder</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-functionbuilder.fromkernel" title="FunctionBuilder.fromKernel">FunctionBuilder.fromKernel</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-functionbuilder.prototype.constructor" title="FunctionBuilder.constructor">FunctionBuilder.constructor</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-functionbuilder.prototype.addfunctionnode" title="FunctionBuilder.addFunctionNode">FunctionBuilder.addFunctionNode</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-functionbuilder.prototype.tracefunctioncalls" title="FunctionBuilder.traceFunctionCalls">FunctionBuilder.traceFunctionCalls</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-dependantnativefunctionname" title="dependantNativeFunctionName">dependantNativeFunctionName</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-dependantfunctionname" title="dependantFunctionName">dependantFunctionName</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-getprototypestring" title="getPrototypeString">getPrototypeString</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-getprototypes" title="getPrototypes">getPrototypes</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-getstringfromfunctionnames" title="getStringFromFunctionNames">getStringFromFunctionNames</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-getprototypesfromfunctionnames" title="getPrototypesFromFunctionNames">getPrototypesFromFunctionNames</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-getstring" title="getString">getString</a>
-                                </li>
-
-
-                                <li class="method-link scope-private">
-                                    <a href="#src-backend-function-builder.js-_getfunction" title="_getFunction">_getFunction</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-lookupfunctionargumentbitratio" title="lookupFunctionArgumentBitRatio">lookupFunctionArgumentBitRatio</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-function-builder.js-assignargumentbitratio" title="assignArgumentBitRatio">assignArgumentBitRatio</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
                             <a href="#src/backend/function-node.js" class="file"><b>src/backend/function-node.js</b></a>
                             <ul>
 
@@ -657,6 +587,91 @@
 
                                 <li class="method-link scope-public">
                                     <a href="#src-backend-function-node.js-functionnode.prototype.getmemberexpressiondetails" title="FunctionNode.getMemberExpressionDetails">FunctionNode.getMemberExpressionDetails</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/backend/function-builder.js" class="file"><b>src/backend/function-builder.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-new-functionbuilder" title="new FunctionBuilder">new FunctionBuilder</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-functionbuilder.fromkernel" title="FunctionBuilder.fromKernel">FunctionBuilder.fromKernel</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-functionbuilder.prototype.constructor" title="FunctionBuilder.constructor">FunctionBuilder.constructor</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-functionbuilder.prototype.addfunctionnode" title="FunctionBuilder.addFunctionNode">FunctionBuilder.addFunctionNode</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-functionbuilder.prototype.tracefunctioncalls" title="FunctionBuilder.traceFunctionCalls">FunctionBuilder.traceFunctionCalls</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-dependantnativefunctionname" title="dependantNativeFunctionName">dependantNativeFunctionName</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-dependantfunctionname" title="dependantFunctionName">dependantFunctionName</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-getprototypestring" title="getPrototypeString">getPrototypeString</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-getprototypes" title="getPrototypes">getPrototypes</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-getstringfromfunctionnames" title="getStringFromFunctionNames">getStringFromFunctionNames</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-getprototypesfromfunctionnames" title="getPrototypesFromFunctionNames">getPrototypesFromFunctionNames</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-getstring" title="getString">getString</a>
+                                </li>
+
+
+                                <li class="method-link scope-private">
+                                    <a href="#src-backend-function-builder.js-_getfunction" title="_getFunction">_getFunction</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-lookupfunctionargumentbitratio" title="lookupFunctionArgumentBitRatio">lookupFunctionArgumentBitRatio</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-function-builder.js-assignargumentbitratio" title="assignArgumentBitRatio">assignArgumentBitRatio</a>
                                 </li>
 
 
@@ -1121,6 +1136,66 @@
 
 
                         <li>
+                            <a href="#src/plugins/math-random-triangle-noise.js" class="file"><b>src/plugins/math-random-triangle-noise.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-plugins-math-random-triangle-noise.js-module.exports" title="module.exports">module.exports</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/plugins/math-random-uniformly-distributed.js" class="file"><b>src/plugins/math-random-uniformly-distributed.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-plugins-math-random-uniformly-distributed.js-mulberry32" title="mulberry32">mulberry32</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-plugins-math-random-uniformly-distributed.js-onbeforerun" title="onBeforeRun">onBeforeRun</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-plugins-math-random-uniformly-distributed.js-plugin" title="plugin">plugin</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/vendor/gl-wiretap.js" class="file"><b>src/vendor/gl-wiretap.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-vendor-gl-wiretap.js-glwiretap" title="glWiretap">glWiretap</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-vendor-gl-wiretap.js-glextensionwiretap" title="glExtensionWiretap">glExtensionWiretap</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
                             <a href="#src/backend/cpu/function-node.js" class="file"><b>src/backend/cpu/function-node.js</b></a>
                             <ul>
 
@@ -1252,46 +1327,6 @@
 
                                 <li class="method-link scope-public">
                                     <a href="#src-backend-cpu-kernel.js-getpixels" title="getPixels">getPixels</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
-                            <a href="#src/plugins/math-random-triangle-noise.js" class="file"><b>src/plugins/math-random-triangle-noise.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-plugins-math-random-triangle-noise.js-module.exports" title="module.exports">module.exports</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
-                            <a href="#src/plugins/math-random-uniformly-distributed.js" class="file"><b>src/plugins/math-random-uniformly-distributed.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-plugins-math-random-uniformly-distributed.js-mulberry32" title="mulberry32">mulberry32</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-plugins-math-random-uniformly-distributed.js-onbeforerun" title="onBeforeRun">onBeforeRun</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-plugins-math-random-uniformly-distributed.js-plugin" title="plugin">plugin</a>
                                 </li>
 
 
@@ -1447,6 +1482,121 @@
 
                                 <li class="method-link scope-public">
                                     <a href="#src-backend-gl-kernel.js-updatetextureargumentrefs" title="updateTextureArgumentRefs">updateTextureArgumentRefs</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/backend/headless-gl/kernel.js" class="file"><b>src/backend/headless-gl/kernel.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-headless-gl-kernel.js-tostring" title="toString">toString</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/backend/web-gl2/function-node.js" class="file"><b>src/backend/web-gl2/function-node.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-function-node.js-new-webgl2functionnode" title="new WebGL2FunctionNode">new WebGL2FunctionNode</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression" title="WebGL2FunctionNode.astIdentifierExpression">WebGL2FunctionNode.astIdentifierExpression</a>
+                                </li>
+
+
+                            </ul>
+
+                        </li>
+
+
+                        <li>
+                            <a href="#src/backend/web-gl2/kernel.js" class="file"><b>src/backend/web-gl2/kernel.js</b></a>
+                            <ul>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-testcanvas" title="testCanvas">testCanvas</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-testcontext" title="testContext">testContext</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-features" title="features">features</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-new-webgl2kernel" title="new WebGL2Kernel">new WebGL2Kernel</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures" title="WebGL2Kernel.getFeatures">WebGL2Kernel.getFeatures</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-initcontext" title="initContext">initContext</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-validatesettings" title="validateSettings">validateSettings</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-_getheaderstring" title="_getHeaderString">_getHeaderString</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-_gettexturecoordinate" title="_getTextureCoordinate">_getTextureCoordinate</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-_getmainargumentsstring" title="_getMainArgumentsString">_getMainArgumentsString</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-getkernelstring" title="getKernelString">getKernelString</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels" title="getMainResultKernelPackedPixels">getMainResultKernelPackedPixels</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels" title="getMainResultSubKernelPackedPixels">getMainResultSubKernelPackedPixels</a>
+                                </li>
+
+
+                                <li class="method-link scope-public">
+                                    <a href="#src-backend-web-gl2-kernel.js-tojson" title="toJSON">toJSON</a>
                                 </li>
 
 
@@ -1751,121 +1901,6 @@
 
 
                         <li>
-                            <a href="#src/backend/headless-gl/kernel.js" class="file"><b>src/backend/headless-gl/kernel.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-headless-gl-kernel.js-tostring" title="toString">toString</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
-                            <a href="#src/backend/web-gl2/function-node.js" class="file"><b>src/backend/web-gl2/function-node.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-function-node.js-new-webgl2functionnode" title="new WebGL2FunctionNode">new WebGL2FunctionNode</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression" title="WebGL2FunctionNode.astIdentifierExpression">WebGL2FunctionNode.astIdentifierExpression</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
-                            <a href="#src/backend/web-gl2/kernel.js" class="file"><b>src/backend/web-gl2/kernel.js</b></a>
-                            <ul>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-testcanvas" title="testCanvas">testCanvas</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-testcontext" title="testContext">testContext</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-features" title="features">features</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-new-webgl2kernel" title="new WebGL2Kernel">new WebGL2Kernel</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures" title="WebGL2Kernel.getFeatures">WebGL2Kernel.getFeatures</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-initcontext" title="initContext">initContext</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-validatesettings" title="validateSettings">validateSettings</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-_getheaderstring" title="_getHeaderString">_getHeaderString</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-_gettexturecoordinate" title="_getTextureCoordinate">_getTextureCoordinate</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-_getmainargumentsstring" title="_getMainArgumentsString">_getMainArgumentsString</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-getkernelstring" title="getKernelString">getKernelString</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels" title="getMainResultKernelPackedPixels">getMainResultKernelPackedPixels</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels" title="getMainResultSubKernelPackedPixels">getMainResultSubKernelPackedPixels</a>
-                                </li>
-
-
-                                <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl2-kernel.js-tojson" title="toJSON">toJSON</a>
-                                </li>
-
-
-                            </ul>
-
-                        </li>
-
-
-                        <li>
                             <a href="#src/backend/gl/texture/index.js" class="file"><b>src/backend/gl/texture/index.js</b></a>
                             <ul>
 
@@ -1946,12 +1981,12 @@
 
 
                         <li>
-                            <a href="#src/backend/web-gl/kernel-value/memory-optimized-number-texture.js" class="file"><b>src/backend/web-gl/kernel-value/memory-optimized-number-texture.js</b></a>
+                            <a href="#src/backend/web-gl/kernel-value/number-texture.js" class="file"><b>src/backend/web-gl/kernel-value/number-texture.js</b></a>
                             <ul>
 
 
                                 <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl-kernel-value-memory-optimized-number-texture.js-updatevalue" title="updateValue">updateValue</a>
+                                    <a href="#src-backend-web-gl-kernel-value-number-texture.js-updatevalue" title="updateValue">updateValue</a>
                                 </li>
 
 
@@ -1961,12 +1996,12 @@
 
 
                         <li>
-                            <a href="#src/backend/web-gl/kernel-value/number-texture.js" class="file"><b>src/backend/web-gl/kernel-value/number-texture.js</b></a>
+                            <a href="#src/backend/web-gl/kernel-value/memory-optimized-number-texture.js" class="file"><b>src/backend/web-gl/kernel-value/memory-optimized-number-texture.js</b></a>
                             <ul>
 
 
                                 <li class="method-link scope-public">
-                                    <a href="#src-backend-web-gl-kernel-value-number-texture.js-updatevalue" title="updateValue">updateValue</a>
+                                    <a href="#src-backend-web-gl-kernel-value-memory-optimized-number-texture.js-updatevalue" title="updateValue">updateValue</a>
                                 </li>
 
 
@@ -2956,6 +2991,43 @@ You can send in one, two, etc.</p>
 
                             
 
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/index.d.ts"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-index.d.ts-createkernel">
+                            <a href="#src-index.d.ts-createkernel" class="permalink">#</a>
+                            <span class="method-name" title="createKernel()">createKernel()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            <p>A kernel may also be given as source text. This is the only form available
+where the engine does not retain function source — React Native's Hermes,
+for instance, returns &quot;function name(a0, a1) { [bytecode] }&quot; from
+Function.prototype.toString().</p>
+
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
 
 
                         </section>
@@ -4874,1017 +4946,6 @@ You can send in one, two, etc.</p>
 
 
 
-                    <a id="src/backend/function-builder.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-new-functionbuilder">
-                            <a href="#src-backend-function-builder.js-new-functionbuilder" class="permalink">#</a>
-                            <span class="method-name" title="new FunctionBuilder()">new FunctionBuilder()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-functionbuilder.fromkernel">
-                            <a href="#src-backend-function-builder.js-functionbuilder.fromkernel" class="permalink">#</a>
-                            <span class="method-name" title="FunctionBuilder.fromKernel(kernel, FunctionNode[, extraNodeOptions])">FunctionBuilder.fromKernel(kernel, FunctionNode[, extraNodeOptions])</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>kernel</td>
-                                            <td>
-                                                <code>Kernel</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>FunctionNode</td>
-                                            <td>
-                                                <code>FunctionNode</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>extraNodeOptions</td>
-                                            <td>
-                                                <code>object</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                                <span class="tag tag-default">Optional</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>FunctionBuilder</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-functionbuilder.prototype.constructor">
-                            <a href="#src-backend-function-builder.js-functionbuilder.prototype.constructor" class="permalink">#</a>
-                            <span class="method-name" title="FunctionBuilder.constructor([settings])">FunctionBuilder.constructor([settings])</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>settings</td>
-                                            <td>
-                                                <code>IFunctionBuilderSettings</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                                <span class="tag tag-default">Optional</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-functionbuilder.prototype.addfunctionnode">
-                            <a href="#src-backend-function-builder.js-functionbuilder.prototype.addfunctionnode" class="permalink">#</a>
-                            <span class="method-name" title="FunctionBuilder.addFunctionNode(functionNode)">FunctionBuilder.addFunctionNode(functionNode)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionNode</td>
-                                            <td>
-                                                <code>FunctionNode</code>
-                                            </td>
-                                            <td><ul>
-<li>functionNode to add</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-functionbuilder.prototype.tracefunctioncalls">
-                            <a href="#src-backend-function-builder.js-functionbuilder.prototype.tracefunctioncalls" class="permalink">#</a>
-                            <span class="method-name" title="FunctionBuilder.traceFunctionCalls(functionName[, retList])">FunctionBuilder.traceFunctionCalls(functionName[, retList])</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionName</td>
-                                            <td>
-                                                <code>String</code>
-                                            </td>
-                                            <td><ul>
-<li>Function name to trace from, default to 'kernel'</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>retList</td>
-                                            <td>
-                                                <code>Array.&lt;String&gt;</code>
-                                            </td>
-                                            <td><ul>
-<li>Returning list of function names that is traced. Including itself.</li>
-</ul>
-</td>
-                                            <td>
-                                                <span class="tag tag-default">Optional</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>Array.&lt;String&gt;</code>
-                            </p>
-
-                            <p>Returning list of function names that is traced. Including itself.</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-dependantnativefunctionname">
-                            <a href="#src-backend-function-builder.js-dependantnativefunctionname" class="permalink">#</a>
-                            <span class="method-name" title="dependantNativeFunctionName()">dependantNativeFunctionName()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            <p><a href="https://github.com/gpujs/gpu.js/issues/207">https://github.com/gpujs/gpu.js/issues/207</a>
-if dependent function is already in the list, because a function depends on it, and because it has
-already been traced, we know that we must move the dependent function to the end of the the retList.</p>
-
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-dependantfunctionname">
-                            <a href="#src-backend-function-builder.js-dependantfunctionname" class="permalink">#</a>
-                            <span class="method-name" title="dependantFunctionName()">dependantFunctionName()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            <p><a href="https://github.com/gpujs/gpu.js/issues/207">https://github.com/gpujs/gpu.js/issues/207</a>
-if dependent function is already in the list, because a function depends on it, and because it has
-already been traced, we know that we must move the dependent function to the end of the the retList.</p>
-
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-getprototypestring">
-                            <a href="#src-backend-function-builder.js-getprototypestring" class="permalink">#</a>
-                            <span class="method-name" title="getPrototypeString(functionName)">getPrototypeString(functionName)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionName</td>
-                                            <td>
-                                                <code>String</code>
-                                            </td>
-                                            <td><ul>
-<li>Function name to trace from. If null, it returns the WHOLE builder stack</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>The full string, of all the various functions. Trace optimized if functionName given</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-getprototypes">
-                            <a href="#src-backend-function-builder.js-getprototypes" class="permalink">#</a>
-                            <span class="method-name" title="getPrototypes([functionName])">getPrototypes([functionName])</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionName</td>
-                                            <td>
-                                                <code>String</code>
-                                            </td>
-                                            <td><ul>
-<li>Function name to trace from. If null, it returns the WHOLE builder stack</li>
-</ul>
-</td>
-                                            <td>
-                                                <span class="tag tag-default">Optional</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>Array</code>
-                            </p>
-
-                            <p>The full string, of all the various functions. Trace optimized if functionName given</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-getstringfromfunctionnames">
-                            <a href="#src-backend-function-builder.js-getstringfromfunctionnames" class="permalink">#</a>
-                            <span class="method-name" title="getStringFromFunctionNames(functionList)">getStringFromFunctionNames(functionList)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionList</td>
-                                            <td>
-                                                <code>Array.&lt;String&gt;</code>
-                                            </td>
-                                            <td><ul>
-<li>List of function to build string</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>The string, of all the various functions. Trace optimized if functionName given</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-getprototypesfromfunctionnames">
-                            <a href="#src-backend-function-builder.js-getprototypesfromfunctionnames" class="permalink">#</a>
-                            <span class="method-name" title="getPrototypesFromFunctionNames(functionList)">getPrototypesFromFunctionNames(functionList)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionList</td>
-                                            <td>
-                                                <code>Array.&lt;String&gt;</code>
-                                            </td>
-                                            <td><ul>
-<li>List of function names to build the string.</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>Array</code>
-                            </p>
-
-                            <p>Prototypes of all functions converted</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-getstring">
-                            <a href="#src-backend-function-builder.js-getstring" class="permalink">#</a>
-                            <span class="method-name" title="getString(functionName)">getString(functionName)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionName</td>
-                                            <td>
-                                                <code>String</code>
-                                            </td>
-                                            <td><ul>
-<li>Function name to trace from. If null, it returns the WHOLE builder stack</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>settings - The string, of all the various functions. Trace optimized if functionName given</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-private">
-
-                        <h2 id="src-backend-function-builder.js-_getfunction">
-                            <a href="#src-backend-function-builder.js-_getfunction" class="permalink">#</a>
-                            <span class="method-name" title="_getFunction(functionName)">_getFunction(functionName)</span>
-                            <small class="scope-private">private method</small>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionName</td>
-                                            <td>
-                                                <code>String</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>FunctionNode</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-lookupfunctionargumentbitratio">
-                            <a href="#src-backend-function-builder.js-lookupfunctionargumentbitratio" class="permalink">#</a>
-                            <span class="method-name" title="lookupFunctionArgumentBitRatio(functionName, argumentName)">lookupFunctionArgumentBitRatio(functionName, argumentName)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionName</td>
-                                            <td>
-                                                <code>string</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>argumentName</td>
-                                            <td>
-                                                <code>string</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>number</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-function-builder.js-assignargumentbitratio">
-                            <a href="#src-backend-function-builder.js-assignargumentbitratio" class="permalink">#</a>
-                            <span class="method-name" title="assignArgumentBitRatio(functionName, argumentName, calleeFunctionName, argumentIndex)">assignArgumentBitRatio(functionName, argumentName, calleeFunctionName, argumentIndex)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>functionName</td>
-                                            <td>
-                                                <code>string</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>argumentName</td>
-                                            <td>
-                                                <code>string</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>calleeFunctionName</td>
-                                            <td>
-                                                <code>string</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>argumentIndex</td>
-                                            <td>
-                                                <code>number</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>number</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-
                     <a id="src/backend/function-node.js"></a>
 
 
@@ -7566,6 +6627,1017 @@ already been traced, we know that we must move the dependent function to the end
 
                             <p>
                                 <code>IFunctionNodeMemberExpressionDetails</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/function-builder.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-new-functionbuilder">
+                            <a href="#src-backend-function-builder.js-new-functionbuilder" class="permalink">#</a>
+                            <span class="method-name" title="new FunctionBuilder()">new FunctionBuilder()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-functionbuilder.fromkernel">
+                            <a href="#src-backend-function-builder.js-functionbuilder.fromkernel" class="permalink">#</a>
+                            <span class="method-name" title="FunctionBuilder.fromKernel(kernel, FunctionNode[, extraNodeOptions])">FunctionBuilder.fromKernel(kernel, FunctionNode[, extraNodeOptions])</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>kernel</td>
+                                            <td>
+                                                <code>Kernel</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>FunctionNode</td>
+                                            <td>
+                                                <code>FunctionNode</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>extraNodeOptions</td>
+                                            <td>
+                                                <code>object</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                                <span class="tag tag-default">Optional</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>FunctionBuilder</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-functionbuilder.prototype.constructor">
+                            <a href="#src-backend-function-builder.js-functionbuilder.prototype.constructor" class="permalink">#</a>
+                            <span class="method-name" title="FunctionBuilder.constructor([settings])">FunctionBuilder.constructor([settings])</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>settings</td>
+                                            <td>
+                                                <code>IFunctionBuilderSettings</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                                <span class="tag tag-default">Optional</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-functionbuilder.prototype.addfunctionnode">
+                            <a href="#src-backend-function-builder.js-functionbuilder.prototype.addfunctionnode" class="permalink">#</a>
+                            <span class="method-name" title="FunctionBuilder.addFunctionNode(functionNode)">FunctionBuilder.addFunctionNode(functionNode)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionNode</td>
+                                            <td>
+                                                <code>FunctionNode</code>
+                                            </td>
+                                            <td><ul>
+<li>functionNode to add</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-functionbuilder.prototype.tracefunctioncalls">
+                            <a href="#src-backend-function-builder.js-functionbuilder.prototype.tracefunctioncalls" class="permalink">#</a>
+                            <span class="method-name" title="FunctionBuilder.traceFunctionCalls(functionName[, retList])">FunctionBuilder.traceFunctionCalls(functionName[, retList])</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionName</td>
+                                            <td>
+                                                <code>String</code>
+                                            </td>
+                                            <td><ul>
+<li>Function name to trace from, default to 'kernel'</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>retList</td>
+                                            <td>
+                                                <code>Array.&lt;String&gt;</code>
+                                            </td>
+                                            <td><ul>
+<li>Returning list of function names that is traced. Including itself.</li>
+</ul>
+</td>
+                                            <td>
+                                                <span class="tag tag-default">Optional</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Array.&lt;String&gt;</code>
+                            </p>
+
+                            <p>Returning list of function names that is traced. Including itself.</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-dependantnativefunctionname">
+                            <a href="#src-backend-function-builder.js-dependantnativefunctionname" class="permalink">#</a>
+                            <span class="method-name" title="dependantNativeFunctionName()">dependantNativeFunctionName()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            <p><a href="https://github.com/gpujs/gpu.js/issues/207">https://github.com/gpujs/gpu.js/issues/207</a>
+if dependent function is already in the list, because a function depends on it, and because it has
+already been traced, we know that we must move the dependent function to the end of the the retList.</p>
+
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-dependantfunctionname">
+                            <a href="#src-backend-function-builder.js-dependantfunctionname" class="permalink">#</a>
+                            <span class="method-name" title="dependantFunctionName()">dependantFunctionName()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            <p><a href="https://github.com/gpujs/gpu.js/issues/207">https://github.com/gpujs/gpu.js/issues/207</a>
+if dependent function is already in the list, because a function depends on it, and because it has
+already been traced, we know that we must move the dependent function to the end of the the retList.</p>
+
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-getprototypestring">
+                            <a href="#src-backend-function-builder.js-getprototypestring" class="permalink">#</a>
+                            <span class="method-name" title="getPrototypeString(functionName)">getPrototypeString(functionName)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionName</td>
+                                            <td>
+                                                <code>String</code>
+                                            </td>
+                                            <td><ul>
+<li>Function name to trace from. If null, it returns the WHOLE builder stack</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>The full string, of all the various functions. Trace optimized if functionName given</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-getprototypes">
+                            <a href="#src-backend-function-builder.js-getprototypes" class="permalink">#</a>
+                            <span class="method-name" title="getPrototypes([functionName])">getPrototypes([functionName])</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionName</td>
+                                            <td>
+                                                <code>String</code>
+                                            </td>
+                                            <td><ul>
+<li>Function name to trace from. If null, it returns the WHOLE builder stack</li>
+</ul>
+</td>
+                                            <td>
+                                                <span class="tag tag-default">Optional</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Array</code>
+                            </p>
+
+                            <p>The full string, of all the various functions. Trace optimized if functionName given</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-getstringfromfunctionnames">
+                            <a href="#src-backend-function-builder.js-getstringfromfunctionnames" class="permalink">#</a>
+                            <span class="method-name" title="getStringFromFunctionNames(functionList)">getStringFromFunctionNames(functionList)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionList</td>
+                                            <td>
+                                                <code>Array.&lt;String&gt;</code>
+                                            </td>
+                                            <td><ul>
+<li>List of function to build string</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>The string, of all the various functions. Trace optimized if functionName given</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-getprototypesfromfunctionnames">
+                            <a href="#src-backend-function-builder.js-getprototypesfromfunctionnames" class="permalink">#</a>
+                            <span class="method-name" title="getPrototypesFromFunctionNames(functionList)">getPrototypesFromFunctionNames(functionList)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionList</td>
+                                            <td>
+                                                <code>Array.&lt;String&gt;</code>
+                                            </td>
+                                            <td><ul>
+<li>List of function names to build the string.</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Array</code>
+                            </p>
+
+                            <p>Prototypes of all functions converted</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-getstring">
+                            <a href="#src-backend-function-builder.js-getstring" class="permalink">#</a>
+                            <span class="method-name" title="getString(functionName)">getString(functionName)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionName</td>
+                                            <td>
+                                                <code>String</code>
+                                            </td>
+                                            <td><ul>
+<li>Function name to trace from. If null, it returns the WHOLE builder stack</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>settings - The string, of all the various functions. Trace optimized if functionName given</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-private">
+
+                        <h2 id="src-backend-function-builder.js-_getfunction">
+                            <a href="#src-backend-function-builder.js-_getfunction" class="permalink">#</a>
+                            <span class="method-name" title="_getFunction(functionName)">_getFunction(functionName)</span>
+                            <small class="scope-private">private method</small>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionName</td>
+                                            <td>
+                                                <code>String</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>FunctionNode</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-lookupfunctionargumentbitratio">
+                            <a href="#src-backend-function-builder.js-lookupfunctionargumentbitratio" class="permalink">#</a>
+                            <span class="method-name" title="lookupFunctionArgumentBitRatio(functionName, argumentName)">lookupFunctionArgumentBitRatio(functionName, argumentName)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionName</td>
+                                            <td>
+                                                <code>string</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>argumentName</td>
+                                            <td>
+                                                <code>string</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>number</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-function-builder.js-assignargumentbitratio">
+                            <a href="#src-backend-function-builder.js-assignargumentbitratio" class="permalink">#</a>
+                            <span class="method-name" title="assignArgumentBitRatio(functionName, argumentName, calleeFunctionName, argumentIndex)">assignArgumentBitRatio(functionName, argumentName, calleeFunctionName, argumentIndex)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>functionName</td>
+                                            <td>
+                                                <code>string</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>argumentName</td>
+                                            <td>
+                                                <code>string</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>calleeFunctionName</td>
+                                            <td>
+                                                <code>string</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>argumentIndex</td>
+                                            <td>
+                                                <code>number</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>number</code>
                             </p>
 
                             
@@ -11984,6 +12056,364 @@ already been traced, we know that we must move the dependent function to the end
 
 
 
+                    <a id="src/plugins/math-random-triangle-noise.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-plugins-math-random-triangle-noise.js-module.exports">
+                            <a href="#src-plugins-math-random-triangle-noise.js-module.exports" class="permalink">#</a>
+                            <span class="method-name" title="module.exports()">module.exports()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/plugins/math-random-uniformly-distributed.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-plugins-math-random-uniformly-distributed.js-mulberry32">
+                            <a href="#src-plugins-math-random-uniformly-distributed.js-mulberry32" class="permalink">#</a>
+                            <span class="method-name" title="mulberry32(seed)">mulberry32(seed)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            <p>mulberry32, a fast counter-based PRNG with good distribution</p>
+
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>seed</td>
+                                            <td>
+                                                <code>Number</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Function</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-plugins-math-random-uniformly-distributed.js-onbeforerun">
+                            <a href="#src-plugins-math-random-uniformly-distributed.js-onbeforerun" class="permalink">#</a>
+                            <span class="method-name" title="onBeforeRun(kernel)">onBeforeRun(kernel)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>kernel</td>
+                                            <td>
+                                                <code>Kernel</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-plugins-math-random-uniformly-distributed.js-plugin">
+                            <a href="#src-plugins-math-random-uniformly-distributed.js-plugin" class="permalink">#</a>
+                            <span class="method-name" title="plugin()">plugin()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/vendor/gl-wiretap.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-vendor-gl-wiretap.js-glwiretap">
+                            <a href="#src-vendor-gl-wiretap.js-glwiretap" class="permalink">#</a>
+                            <span class="method-name" title="glWiretap(gl[, options])">glWiretap(gl[, options])</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>gl</td>
+                                            <td>
+                                                <code>WebGLRenderingContext</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>options</td>
+                                            <td>
+                                                <code>IGLWiretapOptions</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                                <span class="tag tag-default">Optional</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>GLWiretapProxy</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-vendor-gl-wiretap.js-glextensionwiretap">
+                            <a href="#src-vendor-gl-wiretap.js-glextensionwiretap" class="permalink">#</a>
+                            <span class="method-name" title="glExtensionWiretap(extension, options)">glExtensionWiretap(extension, options)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>extension</td>
+                                            <td>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>options</td>
+                                            <td>
+                                                <code>IGLExtensionWiretapOptions</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+
                     <a id="src/backend/cpu/function-node.js"></a>
 
 
@@ -13671,205 +14101,6 @@ already been traced, we know that we must move the dependent function to the end
 
 
 
-                    <a id="src/plugins/math-random-triangle-noise.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-plugins-math-random-triangle-noise.js-module.exports">
-                            <a href="#src-plugins-math-random-triangle-noise.js-module.exports" class="permalink">#</a>
-                            <span class="method-name" title="module.exports()">module.exports()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/plugins/math-random-uniformly-distributed.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-plugins-math-random-uniformly-distributed.js-mulberry32">
-                            <a href="#src-plugins-math-random-uniformly-distributed.js-mulberry32" class="permalink">#</a>
-                            <span class="method-name" title="mulberry32(seed)">mulberry32(seed)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            <p>mulberry32, a fast counter-based PRNG with good distribution</p>
-
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>seed</td>
-                                            <td>
-                                                <code>Number</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>Function</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-plugins-math-random-uniformly-distributed.js-onbeforerun">
-                            <a href="#src-plugins-math-random-uniformly-distributed.js-onbeforerun" class="permalink">#</a>
-                            <span class="method-name" title="onBeforeRun(kernel)">onBeforeRun(kernel)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>kernel</td>
-                                            <td>
-                                                <code>Kernel</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-plugins-math-random-uniformly-distributed.js-plugin">
-                            <a href="#src-plugins-math-random-uniformly-distributed.js-plugin" class="permalink">#</a>
-                            <span class="method-name" title="plugin()">plugin()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-
                     <a id="src/backend/gl/kernel-string.js"></a>
 
 
@@ -15172,6 +15403,703 @@ already been traced, we know that we must move the dependent function to the end
 
 
                             <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/headless-gl/kernel.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-headless-gl-kernel.js-tostring">
+                            <a href="#src-backend-headless-gl-kernel.js-tostring" class="permalink">#</a>
+                            <span class="method-name" title="toString()">toString()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/web-gl2/function-node.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-function-node.js-new-webgl2functionnode">
+                            <a href="#src-backend-web-gl2-function-node.js-new-webgl2functionnode" class="permalink">#</a>
+                            <span class="method-name" title="new WebGL2FunctionNode()">new WebGL2FunctionNode()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                            </p>
+
+                            <p>the converted webGL function string</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression">
+                            <a href="#src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression" class="permalink">#</a>
+                            <span class="method-name" title="WebGL2FunctionNode.astIdentifierExpression(idtNode, retArr)">WebGL2FunctionNode.astIdentifierExpression(idtNode, retArr)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>idtNode</td>
+                                            <td>
+                                                <code>Object</code>
+                                            </td>
+                                            <td><ul>
+<li>An ast Node</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>retArr</td>
+                                            <td>
+                                                <code>Array</code>
+                                            </td>
+                                            <td><ul>
+<li>return array string</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>Array</code>
+                            </p>
+
+                            <p>the append retArr</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/web-gl2/kernel.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-testcanvas">
+                            <a href="#src-backend-web-gl2-kernel.js-testcanvas" class="permalink">#</a>
+                            <span class="method-name" title="testCanvas()">testCanvas()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-testcontext">
+                            <a href="#src-backend-web-gl2-kernel.js-testcontext" class="permalink">#</a>
+                            <span class="method-name" title="testContext()">testContext()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-features">
+                            <a href="#src-backend-web-gl2-kernel.js-features" class="permalink">#</a>
+                            <span class="method-name" title="features()">features()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-new-webgl2kernel">
+                            <a href="#src-backend-web-gl2-kernel.js-new-webgl2kernel" class="permalink">#</a>
+                            <span class="method-name" title="new WebGL2Kernel()">new WebGL2Kernel()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures">
+                            <a href="#src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures" class="permalink">#</a>
+                            <span class="method-name" title="WebGL2Kernel.getFeatures()">WebGL2Kernel.getFeatures()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>IKernelFeatures</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-initcontext">
+                            <a href="#src-backend-web-gl2-kernel.js-initcontext" class="permalink">#</a>
+                            <span class="method-name" title="initContext()">initContext()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>WebGLRenderingContext</code>
+                                <code>WebGL2RenderingContext</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-validatesettings">
+                            <a href="#src-backend-web-gl2-kernel.js-validatesettings" class="permalink">#</a>
+                            <span class="method-name" title="validateSettings(args)">validateSettings(args)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>args</td>
+                                            <td>
+                                                <code>IArguments</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-_getheaderstring">
+                            <a href="#src-backend-web-gl2-kernel.js-_getheaderstring" class="permalink">#</a>
+                            <span class="method-name" title="_getHeaderString()">_getHeaderString()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>result</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-_gettexturecoordinate">
+                            <a href="#src-backend-web-gl2-kernel.js-_gettexturecoordinate" class="permalink">#</a>
+                            <span class="method-name" title="_getTextureCoordinate()">_getTextureCoordinate()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>result</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-_getmainargumentsstring">
+                            <a href="#src-backend-web-gl2-kernel.js-_getmainargumentsstring" class="permalink">#</a>
+                            <span class="method-name" title="_getMainArgumentsString(args)">_getMainArgumentsString(args)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>args</td>
+                                            <td>
+                                                <code>Array</code>
+                                            </td>
+                                            <td><ul>
+<li>The actual parameters sent to the Kernel</li>
+</ul>
+</td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>result</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-getkernelstring">
+                            <a href="#src-backend-web-gl2-kernel.js-getkernelstring" class="permalink">#</a>
+                            <span class="method-name" title="getKernelString()">getKernelString()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            <p>result</p>
+
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels">
+                            <a href="#src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultKernelPackedPixels()">getMainResultKernelPackedPixels()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels">
+                            <a href="#src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels" class="permalink">#</a>
+                            <span class="method-name" title="getMainResultSubKernelPackedPixels()">getMainResultSubKernelPackedPixels()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>String</code>
+                            </p>
+
+                            
+
+
+
+                        </section>
+
+                    </div>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl2-kernel.js-tojson">
+                            <a href="#src-backend-web-gl2-kernel.js-tojson" class="permalink">#</a>
+                            <span class="method-name" title="toJSON()">toJSON()</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+
+                            <p>
+                                <code>IKernelJSON</code>
+                            </p>
+
+                            
+
 
 
                         </section>
@@ -18598,703 +19526,6 @@ already been traced, we know that we must move the dependent function to the end
 
 
 
-                    <a id="src/backend/headless-gl/kernel.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-headless-gl-kernel.js-tostring">
-                            <a href="#src-backend-headless-gl-kernel.js-tostring" class="permalink">#</a>
-                            <span class="method-name" title="toString()">toString()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/backend/web-gl2/function-node.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-function-node.js-new-webgl2functionnode">
-                            <a href="#src-backend-web-gl2-function-node.js-new-webgl2functionnode" class="permalink">#</a>
-                            <span class="method-name" title="new WebGL2FunctionNode()">new WebGL2FunctionNode()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                            </p>
-
-                            <p>the converted webGL function string</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression">
-                            <a href="#src-backend-web-gl2-function-node.js-webgl2functionnode.prototype.astidentifierexpression" class="permalink">#</a>
-                            <span class="method-name" title="WebGL2FunctionNode.astIdentifierExpression(idtNode, retArr)">WebGL2FunctionNode.astIdentifierExpression(idtNode, retArr)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>idtNode</td>
-                                            <td>
-                                                <code>Object</code>
-                                            </td>
-                                            <td><ul>
-<li>An ast Node</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>retArr</td>
-                                            <td>
-                                                <code>Array</code>
-                                            </td>
-                                            <td><ul>
-<li>return array string</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>Array</code>
-                            </p>
-
-                            <p>the append retArr</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-
-                    <a id="src/backend/web-gl2/kernel.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-testcanvas">
-                            <a href="#src-backend-web-gl2-kernel.js-testcanvas" class="permalink">#</a>
-                            <span class="method-name" title="testCanvas()">testCanvas()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-testcontext">
-                            <a href="#src-backend-web-gl2-kernel.js-testcontext" class="permalink">#</a>
-                            <span class="method-name" title="testContext()">testContext()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-features">
-                            <a href="#src-backend-web-gl2-kernel.js-features" class="permalink">#</a>
-                            <span class="method-name" title="features()">features()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-new-webgl2kernel">
-                            <a href="#src-backend-web-gl2-kernel.js-new-webgl2kernel" class="permalink">#</a>
-                            <span class="method-name" title="new WebGL2Kernel()">new WebGL2Kernel()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures">
-                            <a href="#src-backend-web-gl2-kernel.js-webgl2kernel.getfeatures" class="permalink">#</a>
-                            <span class="method-name" title="WebGL2Kernel.getFeatures()">WebGL2Kernel.getFeatures()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>IKernelFeatures</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-initcontext">
-                            <a href="#src-backend-web-gl2-kernel.js-initcontext" class="permalink">#</a>
-                            <span class="method-name" title="initContext()">initContext()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>WebGLRenderingContext</code>
-                                <code>WebGL2RenderingContext</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-validatesettings">
-                            <a href="#src-backend-web-gl2-kernel.js-validatesettings" class="permalink">#</a>
-                            <span class="method-name" title="validateSettings(args)">validateSettings(args)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>args</td>
-                                            <td>
-                                                <code>IArguments</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-_getheaderstring">
-                            <a href="#src-backend-web-gl2-kernel.js-_getheaderstring" class="permalink">#</a>
-                            <span class="method-name" title="_getHeaderString()">_getHeaderString()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>result</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-_gettexturecoordinate">
-                            <a href="#src-backend-web-gl2-kernel.js-_gettexturecoordinate" class="permalink">#</a>
-                            <span class="method-name" title="_getTextureCoordinate()">_getTextureCoordinate()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>result</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-_getmainargumentsstring">
-                            <a href="#src-backend-web-gl2-kernel.js-_getmainargumentsstring" class="permalink">#</a>
-                            <span class="method-name" title="_getMainArgumentsString(args)">_getMainArgumentsString(args)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>args</td>
-                                            <td>
-                                                <code>Array</code>
-                                            </td>
-                                            <td><ul>
-<li>The actual parameters sent to the Kernel</li>
-</ul>
-</td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>result</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-getkernelstring">
-                            <a href="#src-backend-web-gl2-kernel.js-getkernelstring" class="permalink">#</a>
-                            <span class="method-name" title="getKernelString()">getKernelString()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            <p>result</p>
-
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels">
-                            <a href="#src-backend-web-gl2-kernel.js-getmainresultkernelpackedpixels" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultKernelPackedPixels()">getMainResultKernelPackedPixels()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels">
-                            <a href="#src-backend-web-gl2-kernel.js-getmainresultsubkernelpackedpixels" class="permalink">#</a>
-                            <span class="method-name" title="getMainResultSubKernelPackedPixels()">getMainResultSubKernelPackedPixels()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>String</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl2-kernel.js-tojson">
-                            <a href="#src-backend-web-gl2-kernel.js-tojson" class="permalink">#</a>
-                            <span class="method-name" title="toJSON()">toJSON()</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-
-                            <p>
-                                <code>IKernelJSON</code>
-                            </p>
-
-                            
-
-
-
-                        </section>
-
-                    </div>
-
-
-
                     <a id="src/backend/gl/texture/index.js"></a>
 
 
@@ -19771,73 +20002,6 @@ already been traced, we know that we must move the dependent function to the end
 
 
 
-                    <a id="src/backend/web-gl/kernel-value/memory-optimized-number-texture.js"></a>
-
-
-                    <div class="method scope-public">
-
-                        <h2 id="src-backend-web-gl-kernel-value-memory-optimized-number-texture.js-updatevalue">
-                            <a href="#src-backend-web-gl-kernel-value-memory-optimized-number-texture.js-updatevalue" class="permalink">#</a>
-                            <span class="method-name" title="updateValue(inputTexture)">updateValue(inputTexture)</span>
-                        </h2>
-
-                        <div class="description lead">
-
-                            
-
-                        </div>
-
-
-                        <section class="parameters">
-
-                            <h3>Parameters</h3>
-
-                            <div class="table-responsive">
-                                <table class="table">
-
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Type</th>
-                                            <th>Description</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr>
-                                            <td>inputTexture</td>
-                                            <td>
-                                                <code>GLTextureMemoryOptimized</code>
-                                            </td>
-                                            <td></td>
-                                            <td>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-                            </div>
-
-                        </section>
-
-
-
-
-                        <section class="returns">
-
-                            <h3>Returns</h3>
-
-
-                            <p><code>Void</code></p>
-
-
-                        </section>
-
-                    </div>
-
-
-
                     <a id="src/backend/web-gl/kernel-value/number-texture.js"></a>
 
 
@@ -19876,6 +20040,73 @@ already been traced, we know that we must move the dependent function to the end
                                             <td>inputTexture</td>
                                             <td>
                                                 <code>GLTexture</code>
+                                            </td>
+                                            <td></td>
+                                            <td>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+
+                                </table>
+                            </div>
+
+                        </section>
+
+
+
+
+                        <section class="returns">
+
+                            <h3>Returns</h3>
+
+
+                            <p><code>Void</code></p>
+
+
+                        </section>
+
+                    </div>
+
+
+
+                    <a id="src/backend/web-gl/kernel-value/memory-optimized-number-texture.js"></a>
+
+
+                    <div class="method scope-public">
+
+                        <h2 id="src-backend-web-gl-kernel-value-memory-optimized-number-texture.js-updatevalue">
+                            <a href="#src-backend-web-gl-kernel-value-memory-optimized-number-texture.js-updatevalue" class="permalink">#</a>
+                            <span class="method-name" title="updateValue(inputTexture)">updateValue(inputTexture)</span>
+                        </h2>
+
+                        <div class="description lead">
+
+                            
+
+                        </div>
+
+
+                        <section class="parameters">
+
+                            <h3>Parameters</h3>
+
+                            <div class="table-responsive">
+                                <table class="table">
+
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr>
+                                            <td>inputTexture</td>
+                                            <td>
+                                                <code>GLTextureMemoryOptimized</code>
                                             </td>
                                             <td></td>
                                             <td>
