@@ -410,12 +410,12 @@
   dependencies:
     prop-types "^15.8.1"
 
-"@gpujs/benchmark@^3.1.0":
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/@gpujs/benchmark/-/benchmark-3.1.0.tgz#24505c74145b07a5ecebd85f2ab8ff2897ef7cf3"
-  integrity sha512-tJnxOT9fdIZDZ8iVC4dXBEAm0ztvds4wEA9kb7x4NVpy9s1ME27mDGq7Q+kyggrfK9rpwE3dCDPA+JDJLKFU1g==
+"@gpujs/benchmark@^3.2.1":
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/@gpujs/benchmark/-/benchmark-3.2.1.tgz#447029481cfbec18ac8ed9ef9d724a88d8205fc9"
+  integrity sha512-B7LRf6EZseTVVEgoRlDL7xl85Ny4DhHSM33+VMozZkW+5ArHqjqRZscqKLBgILn3OsP3AlbeAurPzmHuHxVvpQ==
   dependencies:
-    lodash "^4.17.15"
+    lodash "^4.17.21"
     performance-now "^2.1.0"
     readline-sync "^1.4.10"
 
@@ -2166,7 +2166,7 @@ lodash.isplainobject@^4.0.6:
   resolved "https://registry.yarnpkg.com/lodash.isplainobject/-/lodash.isplainobject-4.0.6.tgz#7c526a52d89b45c45cc690b88163be0497f550cb"
   integrity sha512-oSXzaWypCMHkPC3NvBEaPHf0KsA5mvPrOPgQWDsbg8n7orZ290M0BmC/jgRZ4vcJ6DTAhjrsSYgdsW/F+MFOBA==
 
-lodash@^4.17.11, lodash@^4.17.15:
+lodash@^4.17.11, lodash@^4.17.21:
   version "4.18.1"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.18.1.tgz#ff2b66c1f6326d59513de2407bf881439812771c"
   integrity sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==
@@ -3099,6 +3099,7 @@ streamx@^2.12.5, streamx@^2.15.0, streamx@^2.25.0:
     text-decoder "^1.1.0"
 
 "string-width-cjs@npm:string-width@^4.2.0", string-width@^4.1.0, string-width@^4.2.0, string-width@^4.2.3:
+  name string-width-cjs
   version "4.2.3"
   resolved "https://registry.yarnpkg.com/string-width/-/string-width-4.2.3.tgz#269c7117d27b05ad2e536830a8ec895ef9c6d010"
   integrity sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==
@@ -3408,6 +3409,7 @@ which@^5.0.0:
     isexe "^3.1.1"
 
 "wrap-ansi-cjs@npm:wrap-ansi@^7.0.0", wrap-ansi@^7.0.0:
+  name wrap-ansi-cjs
   version "7.0.0"
   resolved "https://registry.yarnpkg.com/wrap-ansi/-/wrap-ansi-7.0.0.tgz#67e145cff510a6a6984bdf1152911d69d2eb9e43"
   integrity sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==

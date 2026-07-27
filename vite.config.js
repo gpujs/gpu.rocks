@@ -1,23 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// @gpujs/benchmark's CLI colour table writes escapes as legacy octal ('\033'),
-// which webpack accepted but Rollup rejects because ES modules are strict mode.
-// The file is only pulled in because it sits behind the package entry point;
-// rewriting the escapes to their '' equivalent keeps it byte-identical in
-// behaviour. Remove once @gpujs/benchmark ships the fix upstream.
-const legacyOctalEscapes = {
-  name: 'gpujs-benchmark-legacy-octal-escapes',
-  transform(code, id) {
-    if (id.includes('@gpujs/benchmark') && code.includes('\\033')) {
-      return { code: code.replace(/\\033/g, '\\u001b'), map: null };
-    }
-  },
-};
-
 export default defineConfig({
   // React 16 predates the automatic JSX runtime
-  plugins: [react({ jsxRuntime: 'classic' }), legacyOctalEscapes],
+  plugins: [react({ jsxRuntime: 'classic' })],
   define: {
     // webpack 4 shimmed `global` for browser builds and some of the older
     // dependencies rely on it — @nivo/line reads `global.window.devicePixelRatio`
