@@ -7,7 +7,6 @@ import html from 'react-syntax-highlighter/dist/cjs/languages/hljs/vbscript-html
 import Button from 'react-materialize/lib/Button'
 import MaterialIcon from '../MaterialIcon/MaterialIcon'
 import M from 'materialize-css'
-import Tooltip from 'react-simple-tooltip'
 
 import './Code.scss'
 
@@ -29,11 +28,13 @@ const Code = (props) => {
 
   return (
     <div className="code">
-      <Tooltip content="Copy" placement="left" className="right" radius={10} padding={8} fadeDuration={400} >
+      {/* materialize ships its own tooltip; react-simple-tooltip predates
+          React 18 and broke on 19, and this was its only use */}
+      <span className="right copy-tooltip" data-tooltip="Copy">
         <Button floating waves="light" className="grey darken-3" style={{marginTop: '1rem', marginRight: '1rem'}} onClick={() => copy(props.code, () => M.toast({html: 'Code Copied', classes: 'rounded'}))}>
           <MaterialIcon icon="content_copy" size="small" color="white" />
         </Button>
-      </Tooltip>
+      </span>
 
       <SyntaxHighlighter language={props.language || 'javascript'} style={monokai}>{props.code}</SyntaxHighlighter>
     </div>

@@ -4,17 +4,16 @@
   "homepage": "https://gpu.rocks",
   "dependencies": {
     "@gpujs/benchmark": "^3.2.1",
-    "@nivo/line": "^0.63.0",
+    "@nivo/line": "^0.99.0",
     "gpu.js": "^2.9.4",
     "material-icons": "^0.3.1",
     "materialize-css": "^1.0.0-rc.2",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6",
+    "prop-types": "^15.8.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-github-btn": "^1.2.0",
     "react-materialize": "^3.5.9",
-    "react-router-dom": "^5.0.0",
-    "react-simple-tooltip": "^2.6.3",
-    "react-spring": "^8.0.19",
+    "react-router-dom": "^7.18.1",
     "react-syntax-highlighter": "^15.6.1"
   },
   "scripts": {

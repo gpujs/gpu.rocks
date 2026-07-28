@@ -1,5 +1,5 @@
 import React from 'react'
-import { HashRouter, Switch, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import Main from './Components/Main/Main'
 import Benchmark from './Components/Benchmark/Benchmark'
 import Install from './Components/Install/Install'
@@ -14,14 +14,14 @@ import 'material-icons'
 
 function App() {
   return (
-    <HashRouter hashType="slash">
+    <HashRouter>
       <Nav />
-      <Switch>
-        <Route path="/benchmark" component={Benchmark} />
-        <Route path="/install" component={Install} />
-        <Route path="/examples" component={Examples} />
-        <Route component={Main} />
-      </Switch>
+      <Routes>
+        <Route path="/benchmark" element={<Benchmark />} />
+        <Route path="/install" element={<Install />} />
+        <Route path="/examples" element={<Examples />} />
+        <Route path="*" element={<Main />} />
+      </Routes>
       <PageFooter />
     </HashRouter>
   )

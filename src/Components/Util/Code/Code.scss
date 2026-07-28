@@ -9,3 +9,26 @@
     border-radius: 10px;
   }
 }
+// css tooltip replacing react-simple-tooltip
+.copy-tooltip {
+  position: relative;
+  &::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: calc(100% + 4px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #000;
+    color: #fff;
+    padding: 8px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 400ms;
+  }
+  &:hover::after {
+    opacity: 1;
+  }
+}

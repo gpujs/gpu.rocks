@@ -1,10 +1,10 @@
 import React from 'react'
-import ReactDOM from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import App from './App'
 
 if (window.location.protocol === 'http:' && window.location.hostname === 'gpu.rocks') window.location.protocol = 'https://';
 else {
-  ReactDOM.render(<App />, document.getElementById('root'));
+  createRoot(document.getElementById('root')).render(<App />);
 
   // The site used to ship a create-react-app service worker whose navigation
   // fallback served the app shell for every extension-less path, so real files
