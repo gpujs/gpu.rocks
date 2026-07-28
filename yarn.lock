@@ -1791,11 +1791,6 @@ github-from-package@0.0.0:
   resolved "https://registry.yarnpkg.com/github-from-package/-/github-from-package-0.0.0.tgz#97fb5d96bfde8973313f20e8288ef9a167fa64ce"
   integrity sha512-SyHy3T1v2NUXn29OsWdxmK6RwHD+vkj3v8en8AOBZ1wBQ/hCAQ5bAQTD02kW4W9tUp/3Qh6J8r9EvntiyCmOOw==
 
-gl-wiretap@0.6.2:
-  version "0.6.2"
-  resolved "https://registry.yarnpkg.com/gl-wiretap/-/gl-wiretap-0.6.2.tgz#e4aa19622831088fbaa7e5a18d01768f7a3fb07c"
-  integrity sha512-fxy1XGiPkfzK+T3XKDbY7yaqMBmozCGvAFyTwaZA3imeZH83w7Hr3r3bYlMRWIyzMI/lDUvUMM/92LE2OwqFyQ==
-
 gl@8.1.6:
   version "8.1.6"
   resolved "https://registry.yarnpkg.com/gl/-/gl-8.1.6.tgz#1055e69ffbd7d08ca3a257eee829a86641e39f13"
@@ -1847,20 +1842,19 @@ glsl-tokenizer@^2.1.5:
   dependencies:
     through2 "^0.6.3"
 
-"gpu-mock.js@github:weagle08/gpu-mock.js":
-  version "1.3.1"
-  resolved "https://codeload.github.com/weagle08/gpu-mock.js/tar.gz/7f3d7a75d29e34c5098d6102fce006c53b5df50d"
+gpu-mock.js@^1.4.1:
+  version "1.4.1"
+  resolved "https://registry.yarnpkg.com/gpu-mock.js/-/gpu-mock.js-1.4.1.tgz#390f9d22667f9e3e73416d4e1f3f1261d0906a0a"
+  integrity sha512-LhCznlFsadwIJCYysx9OJZ4TXluvnKyBHZXt0F3Dbh5ENWbZsCm7TIyrOY2Dh/4DvaOfK67rAmDLYHFqBZ6B1Q==
 
-gpu.js@^2.9.4:
-  version "2.19.3"
-  resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.19.3.tgz#68d2a3ce2f7efa8799ca308b769e3e63d5a59d03"
-  integrity sha512-CFDYt49DOyfVFOUVHv9UnhsaTV00sB8cwQGo+kkaEExE29pKNZZQ3ssArYXSj5nQ6kKVTMiPPQe4rD/Zo71GYw==
+gpu.js@^2.19.9:
+  version "2.19.9"
+  resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.19.9.tgz#46aa84fc8562085fe347c876f30351a7badf35d5"
+  integrity sha512-ev1ClwRe09rXWAaBIkWbpi2i0BwIAOkse8Grw3iRART7yD+BuDmEc4cMpjV7MBMrFKOhRVHbtyF4NX61VhigNw==
   dependencies:
     acorn "8.14.0"
     gl "8.1.6"
-    gl-wiretap "0.6.2"
-    gpu-mock.js "github:weagle08/gpu-mock.js"
-    ordered-read-streams "^2.0.0"
+    gpu-mock.js "^1.4.1"
     webgpu "0.2.9"
 
 graceful-fs@^4.1.6, graceful-fs@^4.2.0, graceful-fs@^4.2.6:
@@ -2324,13 +2318,6 @@ once@^1.3.1, once@^1.4.0:
   integrity sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==
   dependencies:
     wrappy "1"
-
-ordered-read-streams@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/ordered-read-streams/-/ordered-read-streams-2.0.0.tgz#c6a8f025f8f701be533d5d6decdb5d98b63a295d"
-  integrity sha512-YT9wHHV9mB/qadhWnBsC57JKhAMA22/aR+RwZRgcf4K4Q7IIfmSsnYGxgiu9LVZP3wddRAm5pfYkzkmBb+HuwA==
-  dependencies:
-    streamx "^2.12.5"
 
 p-limit@^2.2.0:
   version "2.3.0"
