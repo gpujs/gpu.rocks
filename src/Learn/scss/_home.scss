@@ -1,0 +1,251 @@
+// _home.scss — landing-page styles (hero, highlights, tracks, pagefoot).
+// OWNED BY THE LANDING AGENT.
+// Everything scoped under .learn-root. The global site CSS forces
+// h1-h3 { line-height/font-weight !important } and h2 { font-size !important },
+// so heading font-size/font-weight overrides here carry !important; the higher
+// specificity of these nested selectors lets them beat learn.scss's own
+// !important heading resets too.
+
+.learn-root {
+  /* ============ hero ============ */
+  .hero {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 4.5rem 1.5rem 3.5rem;
+    display: grid;
+    grid-template-columns: 1.1fr .9fr;
+    gap: 3.5rem;
+    align-items: center;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.1rem, 4.5vw, 3.3rem) !important;
+    font-weight: 800 !important;
+    letter-spacing: .01em;
+    text-wrap: balance;
+  }
+
+  .hero h1 .accent {
+    color: var(--blue);
+  }
+
+  .hero .sub {
+    color: var(--muted);
+    font-size: 1.05rem;
+    max-width: 34rem;
+    margin: 1.2rem 0 1.8rem;
+  }
+
+  .hero .sub strong {
+    color: var(--ink);
+  }
+
+  .cta-row {
+    display: flex;
+    gap: .9rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* ============ highlights ============ */
+  .highlights {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.1rem;
+  }
+
+  .hl {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.3rem 1.4rem;
+  }
+
+  .hl h3 {
+    font-size: .82rem !important;
+    letter-spacing: .1em;
+    margin-bottom: .5rem;
+  }
+
+  .hl h3::before {
+    content: '▰ ';
+    color: var(--pink);
+  }
+
+  .hl p {
+    margin: 0;
+    color: var(--muted);
+    font-size: .88rem;
+  }
+
+  .hl .chips {
+    margin-top: .8rem;
+  }
+
+  /* ============ tracks ============ */
+  .tracks {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 1rem 1.5rem 5rem;
+  }
+
+  .track {
+    margin-top: 3.2rem;
+  }
+
+  .track-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    border-bottom: 2px solid var(--line);
+    padding-bottom: .8rem;
+    margin-bottom: 1.4rem;
+  }
+
+  .track-head .tno {
+    font-family: ui-monospace, Menlo, monospace;
+    color: var(--pink);
+    font-weight: 700;
+    font-size: .8rem;
+    letter-spacing: .1em;
+  }
+
+  .track-head h2 {
+    font-size: 1.35rem !important;
+    font-weight: 800 !important;
+  }
+
+  .track-head .tagline {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: .85rem;
+    font-style: italic;
+  }
+
+  .modules {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+
+  // module cards are <Link>s — reset anchor styling on top of the mockup card
+  .module,
+  a.module,
+  a.module:hover,
+  a.module:focus,
+  a.module:active {
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .module {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+    transition: border-color .15s, transform .15s;
+  }
+
+  .module:hover,
+  .module:focus-visible {
+    border-color: var(--blue);
+    transform: translateY(-2px);
+    cursor: pointer;
+  }
+
+  .module .mno {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: .72rem;
+    color: var(--muted);
+    letter-spacing: .08em;
+  }
+
+  .module h3 {
+    font-size: .95rem !important;
+    letter-spacing: .04em;
+  }
+
+  .module p {
+    margin: 0;
+    font-size: .82rem;
+    color: var(--muted);
+    flex: 1;
+  }
+
+  .module p code {
+    font-size: .9em;
+  }
+
+  .module .foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: .5rem;
+  }
+
+  .mstate {
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .mstate.done {
+    color: var(--teal);
+  }
+
+  .mstate.now {
+    color: var(--blue);
+  }
+
+  .mstate.todo {
+    color: var(--muted);
+  }
+
+  .module.current {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 15%, transparent);
+  }
+
+  /* ============ page footer ============ */
+  .pagefoot {
+    border-top: 1px solid var(--line);
+    padding: 2rem 1.5rem 6rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: .8rem;
+  }
+
+  /* ============ motion / responsive ============ */
+  @media (prefers-reduced-motion: reduce) {
+    .module {
+      transition: none;
+    }
+
+    .module:hover,
+    .module:focus-visible {
+      transform: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .hero {
+      grid-template-columns: 1fr;
+      padding-top: 3rem;
+    }
+
+    .highlights {
+      grid-template-columns: 1fr;
+    }
+
+    .track-head .tagline {
+      display: none;
+    }
+  }
+}

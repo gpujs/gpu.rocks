@@ -1,0 +1,832 @@
+// _task.scss — task-screen styles (crumbbar, toolbar, workspace, brief,
+// editor pane, console/tests tabs). OWNED BY THE TASK-PAGE AGENT.
+// Everything scoped under .learn-root. NOTE: the global site CSS forces
+// h1-h3 { line-height/font-weight !important } and h2 { font-size !important },
+// so heading font-size overrides here carry !important too.
+
+.learn-root {
+  // failure red (not in the mockup token set — the mockup shows no failures)
+  --lred: #c92a3f;
+}
+
+.learn-root[data-theme='dark'] {
+  --lred: #ff6b81;
+}
+
+.learn-root {
+  /* ============ task screen frame ============ */
+  .taskscreen {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  /* ============ crumb bar ============ */
+  .crumbbar {
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    padding: .55rem 1.4rem;
+    border-bottom: 1px solid var(--line);
+    font-size: .8rem;
+    color: var(--muted);
+    background: var(--surface);
+  }
+
+  .crumbbar b {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .crumbbar .sep {
+    opacity: .45;
+  }
+
+  .crumbbar .taskdots {
+    margin-left: auto;
+  }
+
+  .crumbbar .tcount {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ============ toolbar ============ */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .6rem;
+    padding: .55rem 1.4rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .tb-run {
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: .45rem 1.1rem;
+    font-weight: 800;
+    font-size: .85rem;
+    letter-spacing: .03em;
+    // materialize button resets
+    height: auto;
+    line-height: inherit;
+    text-transform: none;
+    box-shadow: none;
+  }
+
+  .tb-run:hover {
+    filter: brightness(1.08);
+  }
+
+  .tb-run[disabled] {
+    opacity: .6;
+    cursor: progress;
+    filter: none;
+  }
+
+  .tb-select {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: .42rem .8rem;
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .tb-select .lbl {
+    color: var(--muted);
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+  }
+
+  .tb-select select {
+    // materialize hides <select> (it expects its own JS dropdowns)
+    display: inline-block;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: none;
+    color: var(--ink);
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 600;
+    padding: 0;
+    margin: 0;
+    height: auto;
+    cursor: pointer;
+  }
+
+  .tb-select select option {
+    color: initial;
+    background: initial;
+  }
+
+  .tb-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    border-radius: 7px;
+    padding: .42rem .9rem;
+    font-size: .82rem;
+    font-weight: 600;
+    // materialize button resets
+    height: auto;
+    line-height: inherit;
+    text-transform: none;
+    box-shadow: none;
+  }
+
+  .tb-btn:hover {
+    border-color: var(--blue);
+    color: var(--blue);
+    background: transparent;
+  }
+
+  .tb-btn[disabled] {
+    opacity: .6;
+    cursor: progress;
+    border-color: var(--line);
+    color: var(--ink);
+  }
+
+  .bench-chip {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--teal);
+    background: color-mix(in srgb, var(--teal) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--teal) 40%, transparent);
+    border-radius: 999px;
+    padding: .3rem .8rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bench-chip .vs {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .bench-chip.cpu {
+    color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 12%, transparent);
+    border-color: color-mix(in srgb, var(--amber) 40%, transparent);
+  }
+
+  .bench-chip.note {
+    color: var(--muted);
+    font-weight: 600;
+    background: var(--surface-2);
+    border-color: var(--line);
+  }
+
+  .tb-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+  }
+
+  .pass-note {
+    font-size: .76rem;
+    color: var(--teal);
+    font-weight: 700;
+  }
+
+  .tb-next {
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: .45rem 1.15rem;
+    font-weight: 800;
+    font-size: .85rem;
+    box-shadow: 0 0 14px color-mix(in srgb, var(--blue) 45%, transparent);
+    // materialize button resets
+    height: auto;
+    line-height: inherit;
+    text-transform: none;
+  }
+
+  .tb-next:hover {
+    filter: brightness(1.08);
+  }
+
+  .tb-next[disabled] {
+    opacity: .35;
+    box-shadow: none;
+    cursor: not-allowed;
+    filter: none;
+  }
+
+  /* ============ workspace ============ */
+  .workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    min-height: 0;
+  }
+
+  /* ---- left: instructions ---- */
+  .brief {
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    padding: 1.5rem 1.6rem 2rem;
+    background: var(--surface);
+  }
+
+  .brief .eyebrow {
+    color: var(--pink);
+  }
+
+  .brief h2 {
+    // !important: global site CSS forces h2 font-size with !important
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+    margin-bottom: 1rem;
+    padding-top: 0;
+  }
+
+  .brief p {
+    font-size: .88rem;
+    color: var(--muted);
+  }
+
+  .brief p strong,
+  .brief li strong {
+    color: var(--ink);
+  }
+
+  .brief .goal {
+    border-left: 3px solid var(--blue);
+    background: color-mix(in srgb, var(--blue) 7%, transparent);
+    padding: .7rem .9rem;
+    font-size: .86rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1.1rem 0;
+  }
+
+  .brief ul.reqs {
+    padding-left: 0;
+    list-style: none;
+    margin: 1rem 0;
+  }
+
+  .brief ul.reqs li {
+    font-size: .85rem;
+    padding: .45rem 0 .45rem 1.6rem;
+    position: relative;
+    border-bottom: 1px dashed var(--line);
+    list-style: none;
+  }
+
+  .brief ul.reqs li::before {
+    content: '▢';
+    position: absolute;
+    left: .2rem;
+    color: var(--blue);
+    font-weight: 700;
+  }
+
+  .brief code {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: .05rem .35rem;
+    font-size: .8em;
+  }
+
+  .brief details {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    margin: .6rem 0;
+  }
+
+  .brief summary {
+    padding: .55rem .9rem;
+    font-size: .82rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--blue-ink);
+  }
+
+  .brief details p {
+    padding: 0 .9rem .7rem;
+    margin: 0;
+    font-size: .82rem;
+  }
+
+  .transfer {
+    margin-top: 1.4rem;
+    padding: .8rem .9rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: .76rem;
+    color: var(--muted);
+    background: var(--surface-2);
+  }
+
+  .transfer b {
+    color: var(--ink);
+    display: block;
+    margin-bottom: .3rem;
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+  }
+
+  /* ---- right: editor + bottom tabs ---- */
+  .editpane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .editor {
+    flex: 1.4;
+    min-height: 0;
+    background: var(--ed-bg);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .edtabs {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+    background: var(--ed-bg);
+    flex: none;
+  }
+
+  .edtab {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: .74rem;
+    padding: .5rem 1rem;
+    color: var(--ed-gutter);
+    border-right: 1px solid var(--ed-line);
+  }
+
+  .edtab.on {
+    color: var(--ed-ink);
+    background: var(--ed-line);
+    border-top: 2px solid var(--pink);
+  }
+
+  // keyboard-trap advisory (Tab indents inside CodeMirror)
+  .ed-hint {
+    margin-left: auto;
+    align-self: center;
+    padding: 0 1rem;
+    font-size: .68rem;
+    color: var(--ed-gutter);
+    white-space: nowrap;
+  }
+
+  .ed-fullbtn {
+    background: none;
+    border: none;
+    border-left: 1px solid var(--ed-line);
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: .74rem;
+    padding: .5rem 1rem;
+    color: var(--ed-gutter);
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover { color: var(--ed-ink); }
+  }
+
+  // takes over the viewport; small screens show only ~4 editor lines otherwise
+  .editor.editor-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 100; // above the sticky learn nav (z-index 20)
+    flex: none;
+  }
+
+  // @uiw/react-codemirror host div (className="cm-host")
+  .cm-host {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .cm-host .cm-editor {
+    height: 100%;
+  }
+
+  /* ---- bottom tabs ---- */
+  .bottompane {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--line);
+    background: var(--con-bg);
+  }
+
+  .btabs {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    padding: 0 .6rem;
+    gap: .2rem;
+    background: var(--surface);
+    flex: none;
+  }
+
+  .btab {
+    background: none;
+    border: none;
+    border-top: 2px solid transparent;
+    color: var(--muted);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: .55rem .9rem;
+    // materialize button resets
+    height: auto;
+    line-height: inherit;
+    box-shadow: none;
+  }
+
+  .btab.on {
+    color: var(--ink);
+    border-top-color: var(--blue);
+    background: var(--con-bg);
+  }
+
+  .btab .cnt {
+    font-weight: 600;
+    color: var(--teal);
+  }
+
+  .btabs .clearbtn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: .72rem;
+    height: auto;
+    line-height: inherit;
+    text-transform: none;
+    box-shadow: none;
+  }
+
+  .btabs .clearbtn:hover {
+    color: var(--blue);
+  }
+
+  .bpanel {
+    flex: 1;
+    overflow-y: auto;
+    padding: .8rem 1.1rem 1.2rem;
+    display: none;
+  }
+
+  .bpanel.on {
+    display: block;
+  }
+
+  /* ---- console ---- */
+  .console {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: .8rem;
+    line-height: 1.7;
+  }
+
+  .console .ln {
+    display: flex;
+    gap: .7rem;
+    align-items: baseline;
+  }
+
+  .console .t {
+    color: var(--con-dim);
+    font-size: .7rem;
+    min-width: 4.4rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .console .sys {
+    color: var(--con-dim);
+    font-style: italic;
+  }
+
+  .console .ok {
+    color: var(--teal);
+    font-weight: 700;
+  }
+
+  .console .warn {
+    color: var(--amber);
+  }
+
+  .console .err {
+    color: var(--lred);
+  }
+
+  .console .obj {
+    color: var(--ed-prop);
+  }
+
+  .console .arr {
+    color: var(--muted);
+  }
+
+  .console .imgout {
+    margin: .5rem 0 .5rem 5.1rem;
+    width: 148px;
+    height: 148px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    position: relative;
+  }
+
+  .console .imgout img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    object-fit: contain;
+  }
+
+  .console .imgout .cbadge {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-size: .6rem;
+    color: #eee;
+    background: rgba(0, 0, 0, .55);
+    padding: .05rem .35rem;
+    border-radius: 3px;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+
+  /* ---- tests ---- */
+  .testlist {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .test {
+    display: flex;
+    gap: .8rem;
+    align-items: baseline;
+    padding: .55rem .2rem;
+    border-bottom: 1px dashed var(--line);
+    font-size: .84rem;
+  }
+
+  .test .st {
+    font-weight: 800;
+    font-size: .78rem;
+    min-width: 3.4rem;
+    letter-spacing: .05em;
+  }
+
+  .test .st.pass {
+    color: var(--teal);
+  }
+
+  .test .st.fail {
+    color: var(--lred);
+  }
+
+  .test .st.lock {
+    color: var(--muted);
+  }
+
+  .test .ms {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: .72rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .test .desc code {
+    background: var(--surface-2);
+    border-radius: 4px;
+    padding: .02rem .3rem;
+    font-size: .82em;
+  }
+
+  .test .fail-msg {
+    display: block;
+    margin-top: .25rem;
+    font-size: .76rem;
+    color: var(--lred);
+    font-family: ui-monospace, Menlo, monospace;
+  }
+
+  .privnote {
+    padding: .7rem .2rem;
+    font-size: .78rem;
+    color: var(--muted);
+  }
+
+  .testsum {
+    margin-top: .6rem;
+    padding: .6rem .9rem;
+    border-radius: 8px;
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--teal);
+    background: color-mix(in srgb, var(--teal) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--teal) 35%, transparent);
+  }
+
+  /* ---- IntelliSense popovers (completion + signature help) ----
+     Themed via the --ed-* tokens so both light and dark editors just work.
+     Specificity is kept high (.learn-root + double class) so these win over
+     CodeMirror's injected base theme. */
+
+  // shared raised-surface look
+  .cm-tooltip.cm-tooltip-autocomplete,
+  .cm-tooltip.cm-completionInfo,
+  .cm-tooltip.cm-learn-signature {
+    background: color-mix(in srgb, var(--ed-ink) 4%, var(--ed-bg));
+    border: 1px solid color-mix(in srgb, var(--ed-gutter) 45%, transparent);
+    border-radius: 8px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, .22);
+    color: var(--ed-ink);
+    // CodeMirror clamps tooltip position to the viewport; the width must
+    // still fit a 375px screen
+    max-width: min(34rem, calc(100vw - 1.5rem));
+  }
+
+  .cm-tooltip.cm-tooltip-autocomplete {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    > ul {
+      font-family: inherit;
+      font-size: .76rem;
+      max-height: 13rem;
+
+      > li {
+        padding: .22rem .55rem;
+        color: var(--ed-ink);
+      }
+
+      > li[aria-selected] {
+        background: color-mix(in srgb, var(--blue) 22%, transparent);
+        color: var(--ed-ink);
+      }
+    }
+  }
+
+  .cm-completionIcon {
+    opacity: .85;
+    padding-right: .5rem;
+  }
+
+  .cm-completionIcon-method,
+  .cm-completionIcon-function {
+    color: var(--ed-fn);
+  }
+
+  .cm-completionIcon-property {
+    color: var(--ed-prop);
+  }
+
+  .cm-completionIcon-variable {
+    color: var(--ed-num);
+  }
+
+  .cm-completionIcon-class {
+    color: var(--ed-kw);
+  }
+
+  .cm-completionMatchedText {
+    text-decoration: none;
+    font-weight: 700;
+    color: var(--blue);
+  }
+
+  // VS Code-style flyout: monospace signature header + prose body
+  .cm-tooltip.cm-completionInfo {
+    padding: 0;
+    width: 22rem;
+  }
+
+  .cm-learn-info {
+    padding: .55rem .75rem .65rem;
+
+    .sig {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: .74rem;
+      color: var(--ed-prop);
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding-bottom: .45rem;
+      margin-bottom: .45rem;
+      border-bottom: 1px solid color-mix(in srgb, var(--ed-gutter) 30%, transparent);
+    }
+
+    .doc {
+      font-family: 'Avenir Next', 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+      font-size: .76rem;
+      line-height: 1.55;
+      color: color-mix(in srgb, var(--ed-ink) 88%, var(--ed-gutter));
+
+      code {
+        font-size: .92em;
+        background: color-mix(in srgb, var(--ed-ink) 9%, transparent);
+        border-radius: 4px;
+        padding: .02rem .28rem;
+      }
+    }
+
+    .kernel-note {
+      margin-top: .45rem;
+      font-family: 'Avenir Next', 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+      font-size: .7rem;
+      font-style: italic;
+      color: var(--amber);
+    }
+  }
+
+  // signature help — shown above the call's open paren
+  .cm-tooltip.cm-learn-signature {
+    padding: .45rem .7rem .5rem;
+
+    .sig {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: .76rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: color-mix(in srgb, var(--ed-ink) 78%, var(--ed-gutter));
+    }
+
+    .sig .param {
+      color: var(--ed-ink);
+    }
+
+    .sig .param.on {
+      color: var(--blue);
+      font-weight: 800;
+    }
+
+    .pdoc {
+      margin-top: .35rem;
+      padding-top: .35rem;
+      border-top: 1px solid color-mix(in srgb, var(--ed-gutter) 30%, transparent);
+      font-family: 'Avenir Next', 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+      font-size: .72rem;
+      line-height: 1.5;
+      color: color-mix(in srgb, var(--ed-ink) 85%, var(--ed-gutter));
+
+      b {
+        color: var(--blue);
+      }
+
+      code {
+        font-size: .92em;
+        background: color-mix(in srgb, var(--ed-ink) 9%, transparent);
+        border-radius: 4px;
+        padding: .02rem .28rem;
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    .cm-tooltip.cm-completionInfo {
+      width: auto;
+      max-width: min(16rem, calc(100vw - 2rem));
+    }
+  }
+
+  /* ---- responsive collapse (mockup @900px) ---- */
+  @media (max-width: 900px) {
+    .workspace {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+    }
+
+    .brief {
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      max-height: 38vh;
+    }
+  }
+
+  @media (max-width: 560px) {
+    // no Tab key on touch keyboards — make room for the full-screen button
+    .ed-hint { display: none; }
+  }
+}

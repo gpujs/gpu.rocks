@@ -1,0 +1,490 @@
+// gpu.rocks/learn — shared styles (scaffold-owned).
+// Token system ported verbatim from the approved mockup; everything is scoped
+// under .learn-root so it wins over materialize.css + src/scss/index.scss
+// without leaking back out.
+//
+// Theming: ThemeContext resolves 'auto' via matchMedia, so .learn-root always
+// carries an explicit data-theme of 'light' or 'dark' — the light tokens are
+// the default and [data-theme='dark'] overrides them.
+//
+// CASCADE WARNING for _home/_task authors: the global site CSS declares
+// h1-h3 { line-height: 1.4 !important; font-weight: 700 !important } and
+// h2 { font-size: 2.5rem !important }. Any heading font-size / font-weight /
+// line-height you set inside .learn-root must therefore carry !important.
+
+@use 'home';
+@use 'task';
+
+/* ============ tokens ============ */
+.learn-root {
+  --bg: #f6f6fb;
+  --bg-glow: radial-gradient(1200px 600px at 80% -10%, rgba(32, 164, 243, .10), transparent 60%),
+             radial-gradient(900px 500px at 10% 10%, rgba(255, 121, 198, .08), transparent 60%);
+  --surface: #ffffff;
+  --surface-2: #eceef8;
+  --ink: #191333;
+  --muted: #5f5a80;
+  --line: rgba(38, 20, 90, .14);
+  --blue: #147cd4;
+  --blue-ink: #0d5da3;
+  --pink: #d6288f;
+  --teal: #0d9a80;
+  --amber: #b97f10;
+  --cellgrid: rgba(38, 20, 90, .045);
+  --shadow: 0 10px 30px rgba(25, 19, 51, .08);
+
+  --ed-bg: #f7f5ef;
+  --ed-gutter: #a9a494;
+  --ed-line: rgba(60, 50, 20, .06);
+  --ed-ink: #2c2a24;
+  --ed-kw: #c7226e;
+  --ed-str: #9a7d0a;
+  --ed-num: #7c4dbe;
+  --ed-fn: #3e7d0e;
+  --ed-prop: #0e7ab8;
+  --ed-cm: #8a877a;
+
+  --con-bg: #ffffff;
+  --con-dim: #7a7596;
+}
+
+.learn-root[data-theme='dark'] {
+  --bg: #050218;
+  --bg-glow: radial-gradient(1200px 600px at 80% -10%, rgba(46, 7, 65, .9), transparent 60%),
+             radial-gradient(900px 500px at 10% 10%, rgba(32, 164, 243, .10), transparent 55%);
+  --surface: #0e0a2c;
+  --surface-2: #171040;
+  --ink: #f6f7f8;
+  --muted: #9b94c0;
+  --line: rgba(158, 140, 220, .20);
+  --blue: #20a4f3;
+  --blue-ink: #7cc8f8;
+  --pink: #ff79c6;
+  --teal: #18bc9c;
+  --amber: #e2b04a;
+  --cellgrid: rgba(158, 140, 220, .06);
+  --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+
+  --ed-bg: #272822;
+  --ed-gutter: #75715a;
+  --ed-line: rgba(255, 255, 255, .045);
+  --ed-ink: #f8f8f2;
+  --ed-kw: #f92672;
+  --ed-str: #e6db74;
+  --ed-num: #ae81ff;
+  --ed-fn: #a6e22e;
+  --ed-prop: #66d9ef;
+  --ed-cm: #75715a;
+
+  --con-bg: #0a0724;
+  --con-dim: #8d87b3;
+}
+
+/* ============ base ============ */
+.learn-root {
+  position: relative;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Avenir Next', 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  box-sizing: border-box;
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  // fixed cell-grid + glow backdrop (mockup body::before)
+  &::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      var(--bg-glow),
+      repeating-linear-gradient(0deg, var(--cellgrid) 0 1px, transparent 1px 28px),
+      repeating-linear-gradient(90deg, var(--cellgrid) 0 1px, transparent 1px 28px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .screen {
+    position: relative;
+    z-index: 1;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: 'Montserrat', 'Avenir Next', 'Futura', 'Segoe UI', sans-serif;
+    text-transform: uppercase;
+    // !important required: the global site CSS forces these with !important
+    line-height: 1.25 !important;
+    font-weight: 700 !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  h2 {
+    // global CSS: h2 { font-size: 2.5rem !important; padding-top: 1em; }
+    font-size: 1.35rem !important;
+    padding-top: 0;
+  }
+
+  section {
+    padding: 0; // global CSS pads every <section>
+  }
+
+  p {
+    font-size: inherit;
+  }
+
+  a,
+  a:hover,
+  a:focus,
+  a:active {
+    color: var(--blue);
+    text-decoration: none;
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+
+  code,
+  pre,
+  .mono {
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+
+  .eyebrow {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin: 0 0 .6em;
+  }
+
+  /* ============ nav ============ */
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: .7rem 1.4rem;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface) 80%, transparent);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    // materialize <nav> resets
+    height: auto;
+    line-height: inherit;
+    width: auto;
+    box-shadow: none;
+    color: inherit;
+  }
+
+  .nav .brand {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--ink);
+    letter-spacing: .02em;
+  }
+
+  .nav .brand .learn-tag {
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--pink);
+    border: 1px solid var(--pink);
+    border-radius: 999px;
+    padding: .1rem .5rem;
+  }
+
+  .nav .links {
+    margin-left: auto;
+    display: flex;
+    gap: 1.3rem;
+    font-size: .85rem;
+    font-weight: 600;
+  }
+
+  .nav .links a {
+    color: var(--muted);
+  }
+
+  .nav .links a.active {
+    color: var(--ink);
+    border-bottom: 2px solid var(--pink);
+    padding-bottom: .2rem;
+  }
+
+  .theme-btn {
+    margin-left: 1rem;
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: .3rem .85rem;
+    font-size: .78rem;
+    font-weight: 600;
+    // materialize button resets
+    height: auto;
+    line-height: inherit;
+    text-transform: none;
+    box-shadow: none;
+  }
+
+  .jelly {
+    width: 22px;
+    height: 22px;
+  }
+
+  // narrow viewports: wrap the nav instead of overflowing into a horizontal
+  // page scroll (WCAG 1.4.10 — everything must fit and stay reachable at 375px)
+  @media (max-width: 560px) {
+    .nav {
+      flex-wrap: wrap;
+      gap: .5rem .9rem;
+      padding: .7rem 1rem;
+    }
+
+    .nav .links {
+      gap: .8rem;
+      font-size: .8rem;
+      flex-wrap: wrap;
+    }
+
+    .theme-btn {
+      margin-left: 0;
+    }
+  }
+
+  /* ============ screen-reader-only status line ============ */
+  .sr-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* ============ buttons ============ */
+  .btn {
+    border-radius: 8px;
+    padding: .7rem 1.35rem;
+    font-weight: 700;
+    font-size: .9rem;
+    border: 1px solid transparent;
+    letter-spacing: .02em;
+    // materialize .btn + global .btn resets
+    display: inline-block;
+    height: auto;
+    line-height: 1.55;
+    text-transform: none;
+    text-align: center;
+    text-decoration: none;
+    box-shadow: none;
+    margin: 0;
+    background: transparent;
+    color: var(--ink);
+  }
+
+  .btn-primary {
+    background: var(--blue);
+    color: #fff;
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--blue) 35%, transparent);
+  }
+
+  // materialize's later .btn:hover { box-shadow: <gray elevation> } would win
+  // the specificity tie — pin the hover shadows explicitly
+  .btn:hover {
+    box-shadow: none;
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.08);
+    background: var(--blue);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--blue) 35%, transparent);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--line);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--blue);
+    color: var(--blue);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  /* ============ chips ============ */
+  .chips {
+    display: flex;
+    gap: .4rem;
+    flex-wrap: wrap;
+    // materialize .chips (chip-input widget) resets
+    border-bottom: none;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .chip {
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    padding: .18rem .55rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--blue-ink);
+    background: var(--surface-2);
+    // materialize .chip resets — the mockup chip is a natural-height pill
+    height: auto;
+    line-height: inherit;
+    margin: 0;
+  }
+
+  /* ============ kernel grid (hero animation) ============ */
+  .gridcard {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 1.2rem 1.2rem 1rem;
+  }
+
+  .gridcard .modehead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: .8rem;
+  }
+
+  .gridcard .modehead .mode {
+    font-weight: 800;
+    font-size: .8rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+
+  .gridcard .modehead .mode.cpu {
+    color: var(--amber);
+  }
+
+  .gridcard .modehead .mode.gpu {
+    color: var(--teal);
+  }
+
+  .gridcard .modehead .stat {
+    font-size: .75rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kgrid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 4px;
+  }
+
+  .kgrid span {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    transition: background .18s, box-shadow .18s, border-color .18s;
+  }
+
+  .kgrid span.lit {
+    background: var(--blue);
+    border-color: var(--blue);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--blue) 60%, transparent);
+  }
+
+  .kgrid span.lit.cpu {
+    background: var(--amber);
+    border-color: var(--amber);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--amber) 60%, transparent);
+  }
+
+  .gridcard .caption {
+    font-size: .75rem;
+    color: var(--muted);
+    margin-top: .9rem;
+    text-align: center;
+  }
+
+  /* ============ task dots (shared: module cards + crumb bar) ============ */
+  .taskdots {
+    display: flex;
+    gap: 4px;
+  }
+
+  .taskdots i {
+    width: 11px;
+    height: 11px;
+    border-radius: 2.5px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+  }
+
+  .taskdots i.done {
+    background: var(--teal);
+    border-color: var(--teal);
+  }
+
+  .taskdots i.now {
+    background: var(--blue);
+    border-color: var(--blue);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--blue) 70%, transparent);
+  }
+
+  /* scaffold-stub hero spacing — wrapped in :where() so the landing agent's
+     _home.scss rules (which sass emits earlier) still win on specificity */
+  :where(.hero) {
+    padding: 4.5rem 1.5rem 3.5rem;
+  }
+
+  :where(.hero) .sub {
+    color: var(--muted);
+    font-size: 1.05rem;
+    max-width: 34rem;
+    margin: 1.2rem 0 1.8rem;
+  }
+
+  :where(.hero) .sub strong {
+    color: var(--ink);
+  }
+
+  :where(.hero) h1 .accent {
+    color: var(--blue);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kgrid span {
+      transition: none;
+    }
+  }
+}

@@ -3,12 +3,14 @@
   "version": "1.2.1",
   "homepage": "https://gpu.rocks",
   "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
     "@fortawesome/fontawesome-svg-core": "^7.3.1",
     "@fortawesome/free-brands-svg-icons": "^7.3.1",
     "@fortawesome/free-solid-svg-icons": "^7.3.1",
     "@fortawesome/react-fontawesome": "^3.5.0",
     "@gpujs/benchmark": "^3.2.1",
     "@nivo/line": "^0.99.0",
+    "@uiw/react-codemirror": "^4.25.11",
     "gpu.js": "^2.19.9",
     "material-icons": "^0.3.1",
     "materialize-css": "^1.0.0-rc.2",
@@ -28,7 +30,8 @@
     "predeploy": "yarn build",
     "deploy": "gh-pages -d dist",
     "test:smoke": "node scripts/smoke-test.mjs",
-    "test:compare": "node scripts/compare.mjs"
+    "test:compare": "node scripts/compare.mjs",
+    "verify:learn": "node scripts/verify-learn.mjs"
   },
   "browserslist": {
     "production": [
