@@ -412,20 +412,17 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   }, [module]);
   const lastInTrack = !nextModule || nextModule.track !== module.track;
 
-  // previous module in the global sorted order; null on the course's first
-  const prevModule = useMemo(() => {
-    const idx = modules.findIndex(m => m.id === module.id);
-    return idx > 0 ? modules[idx - 1] : null;
-  }, [module]);
-  const prevEnabled = taskNum > 1 || Boolean(prevModule);
+  // Prev walks back within the module only — it never crosses into the
+  // previous module (Next does, but backwards that would drop you at the far
+  // end of work you may not have started). At task 1 the way out is the
+  // course list, which is its own button.
+  const prevEnabled = taskNum > 1;
 
   const handlePrev = useCallback(() => {
-    if (taskNum > 1) {
-      navigate(`/learn/${module.id}/${taskNum - 1}`);
-      return;
-    }
-    if (prevModule) navigate(`/learn/${prevModule.id}/${prevModule.tasks.length}`);
-  }, [navigate, module, taskNum, prevModule]);
+    if (taskNum > 1) navigate(`/learn/${module.id}/${taskNum - 1}`);
+  }, [navigate, module, taskNum]);
+
+  const handleAllModules = useCallback(() => navigate('/learn'), [navigate]);
 
   const handleNext = useCallback(() => {
     if (taskNum < total) {
@@ -554,6 +551,11 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           {passedNow && <span className="pass-note">✓ All tests passed</span>}
           <button type="button" className="tb-btn" onClick={handleReset}>
             Reset code
+          </button>
+          {/* same wording as the completion modal's way out, so leaving a
+              module reads the same whether you finished it or not */}
+          <button type="button" className="tb-btn" onClick={handleAllModules}>
+            End module
           </button>
           <button
             type="button"
