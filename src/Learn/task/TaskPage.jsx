@@ -87,6 +87,14 @@ function BenchChip({ bench }) {
   if (bench.error) {
     return <span className="bench-chip note">benchmark failed · {bench.error.message}</span>;
   }
+  if (bench.gpuRanOnCpu) {
+    return (
+      <span className="bench-chip note">
+        no GPU comparison — gpu.js ran this kernel on the CPU in both modes ·{' '}
+        {fmtMs(bench.cpuMs)} ms vs {fmtMs(bench.gpuMs)} ms
+      </span>
+    );
+  }
   if (bench.cpuMs < TIMER_FLOOR_MS || bench.gpuMs < TIMER_FLOOR_MS) {
     return (
       <span className="bench-chip note">
@@ -119,6 +127,7 @@ function benchStatusMessage(b) {
     return `Benchmark finished — code failed in GPU mode${b.error ? `: ${b.error.message}` : ''}`;
   }
   if (b.error) return `Benchmark failed — ${b.error.message}`;
+  if (b.gpuRanOnCpu) return 'Benchmark finished — no GPU comparison, this kernel ran on the CPU backend.';
   if (b.cpuMs < TIMER_FLOOR_MS || b.gpuMs < TIMER_FLOOR_MS) {
     return 'Benchmark finished — both runs too fast to compare.';
   }

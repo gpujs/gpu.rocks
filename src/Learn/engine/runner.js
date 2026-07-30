@@ -288,12 +288,84 @@ export function isGPUSupported() {
 
 // ---- runUserCode ----------------------------------------------------------
 
-export async function runUserCode(code, { mode = 'auto', task } = {}) {
+// ---- pre-flight guard ------------------------------------------------------
+//
+// A kernel that does pathological per-thread work (classically: multiplying a
+// whole row of an image instead of one pixel, which makes V8 stringify the
+// array on every thread) turns a 512×512 run into minutes of frozen page.
+// Nothing on the main thread can interrupt that: the kernel call is one
+// synchronous task with no yield points, so timers and AbortControllers never
+// get to run. What we CAN do is measure first — run the user's code once with
+// every output axis clamped small, then refuse the full-size run if the
+// measured cost per thread implies an absurd total.
+//
+// The guard fails OPEN in every ambiguous case (probe errored, nothing to
+// clamp, small output): a false refusal of legitimate code would be worse
+// than the freeze it prevents. It does not catch a plain `while (true)` in
+// user code — only a worker thread can.
+const PROBE_AXIS_CAP = 64; // clamp each output axis to this during the probe
+const PROBE_MIN_THREADS = 65536; // only guard runs larger than this
+const RUN_BUDGET_MS = 5000; // refuse a run estimated to exceed this
+
+function clampOutputSetting(output) {
+  if (Array.isArray(output)) {
+    const clamped = output.map(n => (typeof n === 'number' ? Math.min(n, PROBE_AXIS_CAP) : n));
+    const threads = of => of.reduce((a, b) => a * (typeof b === 'number' ? b : 1), 1);
+    return { clamped, requestedThreads: threads(output), clampedThreads: threads(clamped) };
+  }
+  if (output && typeof output === 'object') {
+    const axes = ['x', 'y', 'z'].filter(k => typeof output[k] === 'number');
+    if (!axes.length) return null;
+    const clamped = { ...output };
+    axes.forEach(k => { clamped[k] = Math.min(output[k], PROBE_AXIS_CAP); });
+    const threads = o => axes.reduce((a, k) => a * o[k], 1);
+    return { clamped, requestedThreads: threads(output), clampedThreads: threads(clamped) };
+  }
+  return null;
+}
+
+// Rewrites createKernel arguments so the probe runs a small slice of the work.
+// Anything it cannot clamp is recorded, which makes the probe inconclusive.
+function clampKernelArgs(args, stats) {
+  const settings = args[1];
+  const info = settings && typeof settings === 'object' ? clampOutputSetting(settings.output) : null;
+  if (!info) {
+    stats.unclamped = true;
+    return args;
+  }
+  stats.requestedThreads = Math.max(stats.requestedThreads, info.requestedThreads);
+  stats.clampedThreads = Math.max(stats.clampedThreads, info.clampedThreads);
+  const rest = args.slice(2);
+  return [args[0], { ...settings, output: info.clamped }, ...rest];
+}
+
+// Runs the code once at clamped size and extrapolates. Resolves to null when
+// the full-size run should go ahead, or a description of the refusal.
+async function preflight(code, mode, task) {
+  let probe;
+  try {
+    probe = await runUserCode(code, { mode, task, probe: true });
+  } catch (e) {
+    return null; // the probe itself is best-effort
+  }
+  const stats = probe.probeStats || {};
+  if (!probe.ok || stats.unclamped) return null;
+  if (!stats.requestedThreads || !stats.clampedThreads) return null;
+  if (stats.clampedThreads >= stats.requestedThreads) return null; // nothing was clamped
+  if (stats.requestedThreads <= PROBE_MIN_THREADS) return null;
+  const scale = stats.requestedThreads / stats.clampedThreads;
+  const estimateMs = probe.durationMs * scale;
+  if (estimateMs <= RUN_BUDGET_MS) return null;
+  return { probeMs: probe.durationMs, estimateMs, threads: stats.requestedThreads };
+}
+
+export async function runUserCode(code, { mode = 'auto', task, probe = false } = {}) {
   await destroyPreviousRun();
 
   const logs = [];
   const kernels = [];
   const instances = [];
+  const probeStats = { requestedThreads: 0, clampedThreads: 0, unclamped: false };
   let renderedCanvas = null;
 
   const gpuOk = isGPUSupported();
@@ -333,13 +405,15 @@ export async function runUserCode(code, { mode = 'auto', task } = {}) {
     }
 
     createKernel(...args) {
-      const kernel = patchKernel(super.createKernel(...args), logs);
+      const built = super.createKernel(...(probe ? clampKernelArgs(args, probeStats) : args));
+      const kernel = patchKernel(built, logs);
       kernels.push(kernel);
       return kernel;
     }
 
     createKernelMap(...args) {
-      const kernel = patchKernel(super.createKernelMap(...args), logs);
+      const built = super.createKernelMap(...(probe ? clampKernelArgs(args, probeStats) : args));
+      const kernel = patchKernel(built, logs);
       kernels.push(kernel);
       return kernel;
     }
@@ -368,6 +442,33 @@ export async function runUserCode(code, { mode = 'auto', task } = {}) {
     utils,
     mode: resolvedMode,
   };
+
+  // Measure a small slice before committing the main thread to the full run.
+  if (!probe) {
+    const refusal = await preflight(code, mode, task);
+    if (refusal) {
+      const seconds = Math.round(refusal.estimateMs / 1000);
+      const message =
+        `refused to run: this would take about ${seconds}s and freeze the page. ` +
+        `A ${PROBE_AXIS_CAP}×${PROBE_AXIS_CAP} slice took ${refusal.probeMs.toFixed(0)} ms, and the ` +
+        `kernel asks for ${refusal.threads.toLocaleString('en-US')} threads. That much work per ` +
+        `thread usually means a kernel is handling a whole row or array where it should handle one ` +
+        `value — check that every array is indexed down to a number before you do arithmetic on it.`;
+      logs.push({ type: 'error', time: timeString(), text: message });
+      await destroyPreviousRun();
+      return {
+        ok: false,
+        error: { message },
+        logs,
+        kernels: [],
+        canvas: null,
+        resolvedMode,
+        durationMs: 0,
+        refusedAsTooSlow: true,
+      };
+    }
+    await destroyPreviousRun(); // release the probe's contexts before the real run
+  }
 
   const started = performance.now();
   let error = null;
@@ -410,15 +511,48 @@ export async function runUserCode(code, { mode = 'auto', task } = {}) {
     }
   }
 
+  // What backend did gpu.js ACTUALLY use? It silently swaps in a CPU kernel
+  // when a kernel can't compile for WebGL — graphical kernels are pinned to
+  // 'unsigned' precision (backend/kernel.js setGraphical), which has no vec4
+  // array type, so any graphical kernel taking an image[y][x] array lands on
+  // the CPU. Saying so beats letting the console claim a GPU run.
+  const usedCpuKernel = kernels.some(k => {
+    try {
+      return k.kernel && k.kernel.constructor && k.kernel.constructor.name === 'CPUKernel';
+    } catch (e) {
+      return false;
+    }
+  });
+  const fellBackToCPU = resolvedMode === 'gpu' && usedCpuKernel;
+  if (fellBackToCPU && !probe) {
+    logs.push({
+      type: 'warn',
+      time: timeString(),
+      text:
+        '▸ gpu.js could not compile this kernel for WebGL and ran it on the CPU backend instead ' +
+        '(graphical kernels use unsigned precision, which has no 2D pixel-array type)',
+    });
+  }
+
   if (!error) {
     logs.push({
       type: 'ok',
       time: timeString(),
-      text: `✓ run complete in ${durationMs.toFixed(1)} ms`,
+      text: `✓ run complete in ${durationMs.toFixed(1)} ms${fellBackToCPU ? ' (on the CPU backend)' : ''}`,
     });
   }
 
-  return { ok: !error, error, logs, kernels, canvas, resolvedMode, durationMs };
+  return {
+    ok: !error,
+    error,
+    logs,
+    kernels,
+    canvas,
+    resolvedMode,
+    durationMs,
+    fellBackToCPU,
+    probeStats: probe ? probeStats : undefined,
+  };
 }
 
 // ---- test running ---------------------------------------------------------

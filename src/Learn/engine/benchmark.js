@@ -87,6 +87,10 @@ export async function runBenchmark(code, task) {
       gpuMs,
       ratio: gpuMs > 0 ? cpuMs / gpuMs : Infinity,
       fasterOn: gpuMs <= cpuMs ? 'gpu' : 'cpu',
+      // gpu.js swaps in a CPU kernel for anything it can't compile for WebGL,
+      // so "gpu mode" here may have been the CPU backend twice over — the chip
+      // has to say that rather than report a meaningless 1.0× ratio.
+      gpuRanOnCpu: Boolean(gpuRun.fellBackToCPU),
     };
   } catch (e) {
     // e.g. re-invoking a kernel the user's code already destroyed via
