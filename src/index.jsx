@@ -2,8 +2,20 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 
-if (window.location.protocol === 'http:' && window.location.hostname === 'gpu.rocks') window.location.protocol = 'https://';
-else {
+// Upgrade plain-http visits (e.g. arriving via a CDN/origin downgrade
+// redirect). Never assign location.protocol = 'https://' — the slashes make
+// WebKit throw at module top level, which blanked the whole site for any
+// webview that landed on http (Chrome tolerates it, so it hid for years).
+let upgradingToHttps = false;
+if (window.location.protocol === 'http:' && window.location.hostname === 'gpu.rocks') {
+  try {
+    upgradingToHttps = true;
+    window.location.replace(window.location.href.replace(/^http:/, 'https:'));
+  } catch (e) {
+    upgradingToHttps = false; // render over http rather than a blank page
+  }
+}
+if (!upgradingToHttps) {
   createRoot(document.getElementById('root')).render(<App />);
 
   // The site used to ship a create-react-app service worker whose navigation
