@@ -936,6 +936,14 @@
         color: var(--blue);
       }
 
+      // option drill-down: the type/shape after the bolded option name,
+      // e.g. `output` + ": [w] | [w, h] | [w, h, d] | { x, y?, z? }"
+      .otype {
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        font-size: .95em;
+        color: var(--ed-prop);
+      }
+
       code {
         font-size: .92em;
         background: color-mix(in srgb, var(--ed-ink) 9%, transparent);

@@ -15,7 +15,7 @@
 import { StateField, StateEffect } from '@codemirror/state';
 import { showTooltip, keymap } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
-import { getSignature } from './gpujsApi';
+import { getSignature, byName } from './gpujsApi';
 
 const triggerSignature = StateEffect.define(); // Mod-Shift-Space
 const dismissSignature = StateEffect.define(); // Esc
@@ -59,6 +59,37 @@ function activeIndex(argList, pos) {
     if (ch.name === ',' && ch.from < pos) idx++;
   }
   return idx;
+}
+
+// Object-literal drill-down (VS Code style): when the active parameter is an
+// options object with a documented key context (param.options names it — e.g.
+// createKernel's settings → 'kernel-settings') and the cursor sits on/inside a
+// Property of that object literal, return that option's dataset entry. Right
+// after the '{' (no enclosing Property) this returns null and the generic
+// parameter line stays. Nested calls never reach here: resolveChain already
+// resolved the innermost known call, so a `utils.flatten(` inside a property
+// value shows flatten's own signature instead.
+function optionAt(state, argList, entry, active, pos) {
+  const param = entry.params[active];
+  const optionCtx = param && param.options && byName[param.options];
+  if (!optionCtx) return null;
+  let prop = null; // deepest Property passed on the way up — becomes the
+  // object literal's DIRECT child by the time the walk reaches it
+  for (let node = syntaxTree(state).resolveInner(pos, -1); node; node = node.parent) {
+    if (node.from <= argList.from) return null; // walked out of the ArgList
+    if (node.name === 'Property') prop = node;
+    if (node.name !== 'ObjectExpression') continue;
+    const parent = node.parent;
+    if (!parent || parent.name !== 'ArgList' || parent.from !== argList.from) continue;
+    // `node` is the argument object literal itself (SyntaxNode wrappers have
+    // no identity — compare by position, like completions.js does)
+    if (!prop || prop.parent.from !== node.from) return null;
+    const key = prop.firstChild;
+    if (!key) return null;
+    const name = state.sliceDoc(key.from, key.to).replace(/^['"]|['"]$/g, '');
+    return optionCtx[name] || null;
+  }
+  return null;
 }
 
 // ---- tooltip DOM -----------------------------------------------------------
@@ -110,7 +141,7 @@ function span(text, className) {
   return el;
 }
 
-function buildDom(entry, active) {
+function buildDom(entry, active, option) {
   const dom = document.createElement('div');
   dom.className = 'cm-learn-signature';
   const sig = document.createElement('div');
@@ -133,7 +164,24 @@ function buildDom(entry, active) {
   }
   dom.appendChild(sig);
   const param = highlight >= 0 ? entry.params[highlight] : null;
-  if (param && param.doc) {
+  if (option) {
+    // drill-down: the cursor is on a documented key of an options-object
+    // argument — the detail line describes that option instead of the param
+    const doc = document.createElement('div');
+    doc.className = 'pdoc';
+    const name = document.createElement('b');
+    name.textContent = option.name;
+    doc.appendChild(name);
+    // type/shape = the option signature minus its leading "name:"
+    const shape = option.signature.startsWith(`${option.name}:`)
+      ? option.signature.slice(option.name.length + 1).trim()
+      : null;
+    if (shape) doc.appendChild(span(`: ${shape}`, 'otype'));
+    const body = document.createElement('span');
+    body.innerHTML = ` — ${option.doc}`; // trusted in-repo authored HTML
+    doc.appendChild(body);
+    dom.appendChild(doc);
+  } else if (param && param.doc) {
     const doc = document.createElement('div');
     doc.className = 'pdoc';
     const name = document.createElement('b');
@@ -149,11 +197,13 @@ function buildDom(entry, active) {
 
 // ---- state field -----------------------------------------------------------
 
-function makeValue(argList, entry, pos) {
+function makeValue(state, argList, entry, pos) {
+  const active = activeIndex(argList, pos);
   return {
     from: argList.from,
     entry,
-    active: activeIndex(argList, pos),
+    active,
+    option: optionAt(state, argList, entry, active, pos),
     tooltip: null, // filled below (needs the final active index)
   };
 }
@@ -165,7 +215,7 @@ function withTooltip(val) {
       pos: val.from, // anchored at the open paren — stable while typing args
       above: true,
       strictSide: false,
-      create: () => ({ dom: buildDom(val.entry, val.active) }),
+      create: () => ({ dom: buildDom(val.entry, val.active, val.option) }),
     },
   };
 }
@@ -175,7 +225,7 @@ function resolveChain(state, chain, pos) {
   for (const { argList, call } of chain) {
     const path = calleePath(state, call);
     const entry = path && getSignature(path);
-    if (entry) return makeValue(argList, entry, pos);
+    if (entry) return makeValue(state, argList, entry, pos);
   }
   return null;
 }
@@ -211,7 +261,7 @@ const signatureField = StateField.define({
       // keep the existing session while the cursor stays inside its ArgList
       const still = chain.find(c => c.argList.from === val.from);
       if (still) {
-        next = { from: val.from, entry: val.entry, active: activeIndex(still.argList, pos) };
+        next = makeValue(state, still.argList, val.entry, pos);
       } else if (!tr.isUserEvent('select.pointer')) {
         // the cursor left the session's ArgList without a mouse click — e.g.
         // it stepped over an inner call's `)` (a selection-only skip when the
@@ -226,7 +276,8 @@ const signatureField = StateField.define({
       val.tooltip &&
       val.from === next.from &&
       val.entry === next.entry &&
-      val.active === next.active
+      val.active === next.active &&
+      val.option === next.option
     ) {
       return val; // identical — keep tooltip identity, no DOM churn
     }

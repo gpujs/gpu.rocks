@@ -13,7 +13,11 @@
 //     context:    one of CONTEXTS below,
 //     signature:  VS Code-style signature string, e.g.
 //                 "createKernel(kernelFunction, settings?): Kernel",
-//     params:     [{ name, type, doc, optional? }],
+//     params:     [{ name, type, doc, optional?, options? }] — `options` names
+//                 the CONTEXT whose entries document the keys of an
+//                 options-object parameter (e.g. createKernel's settings →
+//                 'kernel-settings'); signature help drills into it when the
+//                 cursor sits inside a property of that argument.
 //     doc:        1-3 plain-text sentences (may contain <code> inline HTML),
 //     insertText: only when it differs from name. Placeholder convention:
 //                 ${label} marks a tab-stop the consumer converts to its own
@@ -26,6 +30,7 @@
 
 export const CONTEXTS = [
   'gpu-instance', // methods on a `new GPU()` instance
+  'gpu-settings', // keys of the `new GPU(settings)` object
   'kernel-settings', // keys of the createKernel settings object
   'kernel-method', // methods/properties on a created kernel (and Texture.toArray)
   'kernel-inside', // this.* API inside kernel functions
@@ -52,6 +57,7 @@ const gpuInstance = [
         name: 'settings',
         type: 'object',
         optional: true,
+        options: 'kernel-settings',
         doc: 'Kernel options: output, graphical, pipeline, constants, immutable, precision, …',
       },
     ],
@@ -70,7 +76,7 @@ const gpuInstance = [
         doc: 'Named functions ({ name: fn }) or an array of named functions, each callable from the kernel; every one’s output is saved.',
       },
       { name: 'kernelFunction', type: 'function', doc: 'Root kernel; may call the sub-kernel functions.' },
-      { name: 'settings', type: 'object', optional: true, doc: 'Same options as createKernel.' },
+      { name: 'settings', type: 'object', optional: true, options: 'kernel-settings', doc: 'Same options as createKernel.' },
     ],
     doc: 'Like createKernel, but also captures the output of every sub-function: calling the kernel returns <code>{ result, …one entry per sub-kernel }</code> (keyed by property name, or index for the array form). Not available in ’dev’ mode.',
     insertText: 'createKernelMap({ ${name}: ${fn} }, ${kernelFunction}, { output: [${size}] })',
@@ -126,6 +132,39 @@ const gpuInstance = [
     signature: 'destroy(): Promise<void>',
     params: [],
     doc: 'Destroys every kernel made by this instance and releases its WebGL context (deferred one tick, hence the Promise). In this editor, kernels from the previous run are destroyed automatically at the start of the next run.',
+  },
+];
+
+// ---- new GPU(settings) options (README "GPU Settings"; the constructor in
+// gpu.js src/gpu.js reads settings.mode / .canvas / .context — the installed
+// 2.19.9 supports modes 'gpu' | 'cpu' | 'dev' plus the internal kernels
+// 'webgl' | 'webgl2' | 'headlessgl', the latter Node-only) ------------------
+
+const gpuSettings = [
+  {
+    name: 'mode',
+    kind: 'option',
+    context: 'gpu-settings',
+    signature: "mode: 'gpu' | 'cpu' | 'webgl' | 'webgl2' | 'dev'",
+    params: [],
+    doc: 'Default ’gpu’ — best supported GL backend (webgl2, then webgl), falling back to cpu. ’webgl’/’webgl2’ force one backend; ’dev’ runs the kernel as plain un-transpiled JavaScript so breakpoints work. In this editor the Run-mode dropdown overrides this setting, so <code>new GPU()</code> is all you need.',
+    insertText: "mode: '${gpu}'",
+  },
+  {
+    name: 'canvas',
+    kind: 'option',
+    context: 'gpu-settings',
+    signature: 'canvas: HTMLCanvasElement',
+    params: [],
+    doc: 'Optional existing canvas for gpu.js to render into — for sharing one canvas with another library (e.g. THREE.js). Without it, graphical kernels create their own <code>kernel.canvas</code>.',
+  },
+  {
+    name: 'context',
+    kind: 'option',
+    context: 'gpu-settings',
+    signature: 'context: WebGLRenderingContext | WebGL2RenderingContext',
+    params: [],
+    doc: 'Optional existing rendering context to share with another library. The backend is chosen to match the context (webgl2 vs webgl), overriding <code>mode</code> — also the way to get custom context attributes like <code>premultipliedAlpha</code>.',
   },
 ];
 
@@ -412,6 +451,7 @@ const globals = [
         name: 'settings',
         type: '{ mode?, canvas?, context? }',
         optional: true,
+        options: 'gpu-settings',
         doc: "mode: 'gpu' (default), 'cpu', 'webgl', 'webgl2', 'dev'; canvas/context let gpu.js share a rendering surface with another library.",
       },
     ],
@@ -711,6 +751,7 @@ const mathMembers = [
 export const entries = [
   ...globals,
   ...gpuInstance,
+  ...gpuSettings,
   ...kernelSettings,
   ...kernelMethods,
   ...kernelInside,
@@ -726,6 +767,7 @@ function index(list) {
 
 export const byName = {
   'gpu-instance': index(gpuInstance),
+  'gpu-settings': index(gpuSettings),
   'kernel-settings': index(kernelSettings),
   'kernel-method': index(kernelMethods),
   'kernel-inside': index(kernelInside),
