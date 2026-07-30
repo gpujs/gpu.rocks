@@ -4,6 +4,10 @@
 // imported by the main thread AND by sandbox.worker.js, where `document` does
 // not exist. Anything that needs a canvas branches on what the environment
 // actually offers (document → HTMLCanvasElement, worker → OffscreenCanvas).
+//
+// The one global it does require is `ImageData` (plainToImageData) — present in
+// both a window and a worker, and only ever touched when called, so the content
+// modules that import this file still load in plain node (scripts/prerender.mjs).
 
 // ---- deterministic utils (shared with task inputs and tests) --------------
 
@@ -28,8 +32,68 @@ function q8(v) {
   return Math.round(clamp01(v) * 255) / 255;
 }
 
-// Deterministic seeded RGBA test image as nested arrays:
-// image[y][x] = [r, g, b, a], all channels 0–1. Same size → same image, always.
+// 8-bit-exact copy of one [r, g, b, a?] pixel. An ImageData can only hold 8-bit
+// channels, so a pixel literal like [0.3, 0.5, 0.7, 1] does NOT survive the trip
+// unchanged — quantize it here and test expectations computed from the result are
+// exactly what the kernel sees on every backend.
+export function quantizePixel(pixel) {
+  return [q8(pixel[0]), q8(pixel[1]), q8(pixel[2]), q8(pixel[3] === undefined ? 1 : pixel[3])];
+}
+
+// Nested-array image → an ImageData every gpu.js backend can read on the GPU.
+//
+// WHY IMAGEDATA. `graphical: true` pins a kernel to 'unsigned' precision, whose
+// kernel-value map has no entry for 'Array2D(4)' (backend/web-gl{,2}/kernel-
+// value-maps.js) — so gpu.js quietly substitutes a CPUKernel for any graphical
+// kernel handed an image[y][x] = [r, g, b, a] nested array. 'ImageData' IS in
+// every one of those maps (both precisions, dynamic and not), and it is
+// constructible in a Worker, so it is the one image shape that runs on the GPU
+// on WebGL2, WebGL and CPU alike.
+//
+// WHY THE ROWS ARE REVERSED. Both backends read an ImageData bottom-up: the GL
+// backends upload with UNPACK_FLIP_Y_WEBGL = true (web-gl/kernel-value/html-
+// image.js), and CPUKernel's _mediaTo2DArray fills row y from scanline
+// height-1-y. Writing the plain array's LAST row first therefore makes
+// `image[this.thread.y][this.thread.x]` return exactly `plain[y][x]` as an
+// [r, g, b, a] vec4 in 0–1 — the course's convention, unchanged, so no kernel
+// source, prose or diagram has to change.
+//
+// The returned object carries two extras for host-side test code:
+//   .plain      the same nested array (channels must be 8-bit exact — see
+//               quantizePixel — or it will not match what the kernel reads)
+//   .at(x, y)   → plain[y][x]
+// Both are non-enumerable, and NEITHER may be called `type`: gpu.js's
+// getVariableType checks `value.hasOwnProperty('type')` before it checks
+// `value instanceof ImageData`, so a `.type` property would mis-type the
+// argument.
+export function plainToImageData(plain) {
+  const height = plain.length;
+  const width = plain[0].length;
+  const data = new Uint8ClampedArray(width * height * 4);
+  let i = 0;
+  for (let y = height - 1; y >= 0; y--) {
+    const row = plain[y];
+    for (let x = 0; x < width; x++) {
+      const p = row[x];
+      data[i++] = Math.round(clamp01(p[0]) * 255);
+      data[i++] = Math.round(clamp01(p[1]) * 255);
+      data[i++] = Math.round(clamp01(p[2]) * 255);
+      data[i++] = Math.round(clamp01(p[3] === undefined ? 1 : p[3]) * 255);
+    }
+  }
+  const image = new ImageData(data, width, height);
+  Object.defineProperties(image, {
+    plain: { value: plain, enumerable: false },
+    at: { value: (x, y) => plain[y][x], enumerable: false },
+  });
+  return image;
+}
+
+// Deterministic seeded RGBA test image, as an ImageData a graphical kernel can
+// run on the GPU: in-kernel `image[y][x]` is [r, g, b, a] with channels 0–1, and
+// `image.plain[y][x]` / `image.at(x, y)` is the same pixel host-side. Channels
+// are quantized to 8-bit steps, which is what makes that round trip lossless.
+// Same size → same image, always.
 export function makeTestImage(size) {
   const rand = seededRandom(0x6770752e ^ (size * 2654435761));
   const image = new Array(size);
@@ -47,7 +111,7 @@ export function makeTestImage(size) {
     }
     image[y] = row;
   }
-  return image;
+  return plainToImageData(image);
 }
 
 // Flattens arbitrarily nested arrays / typed arrays into one plain Array.
@@ -104,6 +168,11 @@ export function formatValue(value, depth = 0) {
     const head = Array.from(value.slice(0, 8), v => formatValue(v, depth + 1));
     const more = value.length > 8 ? ', …' : '';
     return `${value.constructor.name}(${value.length}) [${head.join(', ')}${more}]`;
+  }
+  // the course's images: naming one beats JSON-stringifying a megapixel of
+  // channels only to truncate it at 200 characters
+  if (typeof ImageData !== 'undefined' && value instanceof ImageData) {
+    return `ImageData(${value.width}×${value.height})`;
   }
   if (Array.isArray(value)) {
     if (depth >= 2) return `Array(${value.length})`;

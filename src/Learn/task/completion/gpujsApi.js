@@ -188,7 +188,7 @@ const kernelSettings = [
     context: 'kernel-settings',
     signature: 'graphical: boolean',
     params: [],
-    doc: 'Default false. Renders to a canvas instead of returning numbers: output must be [width, height], the kernel calls <code>this.color(r, g, b, a?)</code>, its return value is ignored, and the image is read via <code>kernel.canvas</code> / <code>kernel.getPixels()</code>. Forces precision ’unsigned’.',
+    doc: 'Default false. Renders to a canvas instead of returning numbers: output must be [width, height], the kernel calls <code>this.color(r, g, b, a?)</code>, its return value is ignored, and the image is read via <code>kernel.canvas</code> / <code>kernel.getPixels()</code>. Forces precision ’unsigned’, which has no 2D pixel-array type — so an image handed to a graphical kernel as a nested <code>image[y][x] = [r, g, b, a]</code> array makes gpu.js silently swap in a CPU kernel. This course’s images are <code>ImageData</code> (<code>utils.makeTestImage</code>), which reads as the same per-pixel array and does run on the GPU.',
     insertText: 'graphical: true',
   },
   {
@@ -250,7 +250,7 @@ const kernelSettings = [
     context: 'kernel-settings',
     signature: "precision: 'single' | 'unsigned'",
     params: [],
-    doc: '’single’ stores real float32 values per channel (exact numeric results on the GL backend); ’unsigned’ packs floats into 8-bit RGBA for older hardware. Default depends on device support; graphical kernels always use ’unsigned’.',
+    doc: '’single’ stores real float32 values per channel (exact numeric results on the GL backend); ’unsigned’ packs floats into 8-bit RGBA for older hardware, and supports fewer argument types (no 2D pixel-array). Default depends on device support; graphical kernels always use ’unsigned’, and asking for ’single’ alongside <code>graphical: true</code> does not override that.',
     insertText: "precision: '${single}'",
   },
   {
@@ -259,7 +259,7 @@ const kernelSettings = [
     context: 'kernel-settings',
     signature: "argumentTypes: { [paramName]: type } | type[]",
     params: [],
-    doc: "Overrides type inference per kernel parameter, e.g. <code>{ image: 'Array2D(4)' }</code> for this course's image[y][x] = [r,g,b,a] convention (inference would guess a flat 3D 'Array', which the GL backend cannot partially index).",
+    doc: "Overrides type inference per kernel parameter. The course's images arrive as <code>ImageData</code> and need no override. You only need one for an image you build yourself as a nested <code>image[y][x] = [r, g, b, a]</code> array — <code>{ image: 'Array2D(4)' }</code>, because inference would guess a flat 3D 'Array' the GL backend cannot partially index. That type exists only at 'single' precision, so it cannot rescue a <code>graphical: true</code> kernel; pass an ImageData there.",
     insertText: "argumentTypes: { ${param}: '${type}' }",
   },
   {
@@ -611,9 +611,9 @@ const utilsMembers = [
     name: 'makeTestImage',
     kind: 'method',
     context: 'utils-member',
-    signature: 'utils.makeTestImage(size): number[][][]',
+    signature: 'utils.makeTestImage(size): ImageData',
     params: [{ name: 'size', type: 'number', doc: 'Width and height in pixels.' }],
-    doc: 'Deterministic seeded RGBA test image as nested arrays: <code>image[y][x] = [r, g, b, a]</code> with all channels 0–1. The same size always produces the exact same image.',
+    doc: 'Deterministic seeded RGBA test image, ready to pass straight into a kernel: inside one, <code>image[this.thread.y][this.thread.x]</code> is an <code>[r, g, b, a]</code> pixel with channels 0–1 on every backend. It is an <code>ImageData</code> rather than a nested array because a <code>graphical: true</code> kernel can only run on the GPU with one (see the <code>graphical</code> option). Host-side, <code>image.plain[y][x]</code> and <code>image.at(x, y)</code> give you the same pixel as a plain array. Channels are quantized to 8-bit steps, so those two views agree exactly. The same size always produces the exact same image.',
     insertText: 'makeTestImage(${size})',
   },
   {

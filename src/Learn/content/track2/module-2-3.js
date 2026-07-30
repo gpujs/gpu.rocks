@@ -12,6 +12,7 @@
 // in CPU mode.
 
 import { ARRAY_LAYOUT } from '../layoutNote.js';
+import { plainToImageData, quantizePixel } from '../../engine/utils.js';
 
 // Swapping this.thread.x and this.thread.y reads the transpose of the image —
 // the single most common mistake in the image tasks, and invisible to tests
@@ -141,8 +142,10 @@ function convolve1dRef(signal, filter, radius) {
 }
 
 // CPU reference: 3×3 box blur with clamp-to-edge, [y][x] = [r, g, b] 0–1.
+// `image` is a course image (an ImageData); .plain is its host-side [y][x] view.
 function boxBlurRef(image) {
-  const size = image.length;
+  const pixels = image.plain;
+  const size = pixels.length;
   const out = new Array(size);
   for (let y = 0; y < size; y++) {
     const row = new Array(size);
@@ -154,7 +157,7 @@ function boxBlurRef(image) {
         for (let dx = -1; dx <= 1; dx++) {
           const sy = Math.min(size - 1, Math.max(0, y + dy));
           const sx = Math.min(size - 1, Math.max(0, x + dx));
-          const p = image[sy][sx];
+          const p = pixels[sy][sx];
           r += p[0];
           g += p[1];
           b += p[2];
@@ -167,14 +170,16 @@ function boxBlurRef(image) {
   return out;
 }
 
-// Luminance map of an image — plain nested arrays of numbers.
+// Luminance map of a course image (an ImageData) — plain nested arrays of
+// numbers, which is what the numeric tasks take as input.
 function grayOf(image) {
-  const size = image.length;
+  const pixels = image.plain;
+  const size = pixels.length;
   const out = new Array(size);
   for (let y = 0; y < size; y++) {
     const row = new Array(size);
     for (let x = 0; x < size; x++) {
-      const p = image[y][x];
+      const p = pixels[y][x];
       row[x] = 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2];
     }
     out[y] = row;
@@ -212,34 +217,42 @@ function sharpenRef(gray) {
   return out;
 }
 
+// The three test-image helpers below all return the same thing the tasks' own
+// inputs() do: an ImageData, the one image shape a graphical kernel can run on
+// the GPU, whose .plain/.at(x, y) answer image[y][x] = [r, g, b, a] host-side.
+// Their pixels are quantized to what 8-bit channels can hold, so an expectation
+// read off .at() is exactly what the kernel sees. A kernel built with an
+// ImageData must never be re-invoked with a nested array — on WebGL2 that
+// silently paints wrong pixels, with no error and no warning.
+
 // Constant-color image (orientation-independent pixel tests).
 function constantImage(size, pixel) {
-  const row = new Array(size).fill(pixel);
-  return new Array(size).fill(row);
+  const row = new Array(size).fill(quantizePixel(pixel));
+  return plainToImageData(new Array(size).fill(row));
 }
 
 // Gray image split into a dark left half and a light right half.
 function verticalSplitImage(size, darkValue, lightValue) {
-  const dark = [darkValue, darkValue, darkValue, 1];
-  const light = [lightValue, lightValue, lightValue, 1];
+  const dark = quantizePixel([darkValue, darkValue, darkValue, 1]);
+  const light = quantizePixel([lightValue, lightValue, lightValue, 1]);
   const image = new Array(size);
   for (let y = 0; y < size; y++) {
     const row = new Array(size);
     for (let x = 0; x < size; x++) row[x] = x < size / 2 ? dark : light;
     image[y] = row;
   }
-  return image;
+  return plainToImageData(image);
 }
 
 // Gray image split into a dark top half and a light bottom half.
 function horizontalSplitImage(size, darkValue, lightValue) {
-  const dark = [darkValue, darkValue, darkValue, 1];
-  const light = [lightValue, lightValue, lightValue, 1];
+  const dark = quantizePixel([darkValue, darkValue, darkValue, 1]);
+  const light = quantizePixel([lightValue, lightValue, lightValue, 1]);
   const image = new Array(size);
   for (let y = 0; y < size; y++) {
     image[y] = new Array(size).fill(y < size / 2 ? dark : light);
   }
-  return image;
+  return plainToImageData(image);
 }
 
 export default {
@@ -623,12 +636,14 @@ render(blur.canvas);
         {
           name: 'blurring a flat color changes nothing',
           run: async ctx => {
-            ctx.kernel(constantImage(128, [0.3, 0.5, 0.7, 1]));
+            const image = constantImage(128, [0.3, 0.5, 0.7, 1]);
+            const flat = image.at(0, 0);
+            ctx.kernel(image);
             const pixels = ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 331 * 4) {
-              ctx.assertClose(pixels[i], 0.3 * 255, 2, `red at byte ${i}`);
-              ctx.assertClose(pixels[i + 1], 0.5 * 255, 2, `green at byte ${i}`);
-              ctx.assertClose(pixels[i + 2], 0.7 * 255, 2, `blue at byte ${i}`);
+              ctx.assertClose(pixels[i], flat[0] * 255, 2, `red at byte ${i}`);
+              ctx.assertClose(pixels[i + 1], flat[1] * 255, 2, `green at byte ${i}`);
+              ctx.assertClose(pixels[i + 2], flat[2] * 255, 2, `blue at byte ${i}`);
             }
           },
         },

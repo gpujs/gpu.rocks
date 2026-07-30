@@ -94,12 +94,18 @@ function makeConsoleProxy(push) {
   };
 }
 
-// The course convention for images is nested arrays image[y][x] = [r,g,b,a].
-// gpu.js auto-infers those as a flat 3D 'Array', which the GL backend cannot
-// partially index (`const pixel = image[y][x]`). Typing them explicitly as
+// The course convention for images is image[y][x] = [r, g, b, a], and the images
+// it HANDS OUT are ImageData objects (engine/utils.plainToImageData), which every
+// backend reads in exactly that shape — those need no help here.
+//
+// This is the rescue for an image a learner builds themselves as a nested array:
+// gpu.js auto-infers one as a flat 3D 'Array', which the GL backend cannot
+// partially index (`const pixel = image[y][x]`). Typing it explicitly as
 // 'Array2D(4)' — a 2D array of vec4 pixels — makes the same kernel source
-// compile on both backends. Applied before the kernel's first build, and only
-// when the author has not set argumentTypes themselves.
+// compile for WebGL, as long as the kernel is not graphical (there is no
+// 'Array2D(4)' at 'unsigned' precision — see the fallback warning below).
+// Applied before the kernel's first build, and only when the author has not set
+// argumentTypes themselves.
 function isImagePixel(v) {
   return (Array.isArray(v) || ArrayBuffer.isView(v)) && v.length === 4 && typeof v[0] === 'number';
 }
@@ -131,15 +137,40 @@ function applyImageArgumentTypes(target, args) {
   }
 }
 
+// An ImageData is the one image shape gpu.js will put on the GPU for a graphical
+// kernel, so it is what the course's tasks hand out. The CPU backend reads one
+// too — but by re-decoding it through a 2D canvas on EVERY call: 15–50 ms per
+// 512×512 invocation against 1.6 ms for the kernel itself, which would make the
+// benchmark's cpu side measure gpu.js's image decode instead of the learner's
+// code. Every image this course builds carries the identical nested array as
+// .plain with 8-bit-exact channels, so in cpu mode hand that over instead: the
+// same pixels (the canvas round trip disagrees on 0.02% of bytes, by 1), none of
+// the decode.
+function substituteCpuImages(args) {
+  if (typeof ImageData === 'undefined') return args;
+  let changed = false;
+  const out = args.map(arg => {
+    if (arg instanceof ImageData && Array.isArray(arg.plain)) {
+      changed = true;
+      return arg.plain;
+    }
+    return arg;
+  });
+  return changed ? out : args;
+}
+
 // Wraps a kernel-run shortcut so every invocation records .lastArgs and the
 // first invocation emits a "kernel compiled" system log line.
-function patchKernel(kernel, push) {
+function patchKernel(kernel, push, resolvedMode) {
   let announced = false;
   const proxy = new Proxy(kernel, {
     apply(target, thisArg, args) {
+      // the ImageData, not the substitution: the benchmark re-invokes through
+      // this same proxy, so its own mode decides again
       target.lastArgs = args;
-      applyImageArgumentTypes(target, args);
-      const result = Reflect.apply(target, thisArg, args);
+      const callArgs = resolvedMode === 'cpu' ? substituteCpuImages(args) : args;
+      applyImageArgumentTypes(target, callArgs);
+      const result = Reflect.apply(target, thisArg, callArgs);
       if (!announced) {
         announced = true;
         try {
@@ -214,24 +245,39 @@ function clampKernelArgs(args, stats) {
   return [args[0], { ...settings, output: info.clamped }, ...rest];
 }
 
-// Runs the code once at clamped size and extrapolates. Resolves to null when
-// the full-size run should go ahead, or a description of the refusal.
-async function preflight(code, mode, task) {
-  let probe;
+async function runProbe(code, mode, task) {
   try {
-    probe = await executeRun(code, { mode, task, probe: true });
+    return await executeRun(code, { mode, task, probe: true });
   } catch (e) {
     return null; // the probe itself is best-effort
   }
+}
+
+// Runs the code once at clamped size and extrapolates. Resolves to null when
+// the full-size run should go ahead, or a description of the refusal.
+async function preflight(code, mode, task) {
+  const probe = await runProbe(code, mode, task);
+  if (!probe) return null;
   const stats = probe.probeStats || {};
   if (!probe.ok || stats.unclamped) return null;
   if (!stats.requestedThreads || !stats.clampedThreads) return null;
   if (stats.clampedThreads >= stats.requestedThreads) return null; // nothing was clamped
   if (stats.requestedThreads <= PROBE_MIN_THREADS) return null;
   const scale = stats.requestedThreads / stats.clampedThreads;
-  const estimateMs = probe.durationMs * scale;
+  if (probe.durationMs * scale <= RUN_BUDGET_MS) return null;
+  // About to refuse — so measure twice. A probe is a single sample of a few tens
+  // of milliseconds, most of it fixed cost that `scale` (up to 64×) then
+  // multiplies: a GL context, a GLSL compile + link, the first draw. One load
+  // spike on that sample must not cost a learner a legitimate run. Genuinely
+  // pathological per-thread work measures the same both times, and healthy code
+  // never gets here, so the second probe is close to free.
+  const again = await runProbe(code, mode, task);
+  const durationMs = again && again.ok
+    ? Math.min(probe.durationMs, again.durationMs)
+    : probe.durationMs;
+  const estimateMs = durationMs * scale;
   if (estimateMs <= RUN_BUDGET_MS) return null;
-  return { probeMs: probe.durationMs, estimateMs, threads: stats.requestedThreads };
+  return { probeMs: durationMs, estimateMs, threads: stats.requestedThreads };
 }
 
 // ---- executeRun ------------------------------------------------------------
@@ -309,14 +355,14 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
 
     createKernel(...args) {
       const built = super.createKernel(...(probe ? clampKernelArgs(args, probeStats) : args));
-      const kernel = patchKernel(built, push);
+      const kernel = patchKernel(built, push, resolvedMode);
       kernels.push(kernel);
       return kernel;
     }
 
     createKernelMap(...args) {
       const built = super.createKernelMap(...(probe ? clampKernelArgs(args, probeStats) : args));
-      const kernel = patchKernel(built, push);
+      const kernel = patchKernel(built, push, resolvedMode);
       kernels.push(kernel);
       return kernel;
     }
@@ -374,8 +420,12 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
     await destroyPreviousRun(); // release the probe's contexts before the real run
   }
 
-  const started = performance.now();
-  let error = null;
+  // Building the task's inputs is the harness's work, not the learner's: a
+  // 512×512 test image costs ~30 ms to build and not one of them belongs in
+  // `durationMs`, which the console reports as their run — nor in the pre-flight
+  // probe's measurement, which multiplies whatever it sees by up to 64. Failures
+  // still surface as run errors, so they are raised inside the timed block.
+  let inputsFailure = null;
   try {
     if (task && typeof task.inputs === 'function') {
       const inputs = task.inputs(utils) || {};
@@ -383,6 +433,14 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
         if (IDENT_RE.test(name)) globals[name] = value;
       }
     }
+  } catch (e) {
+    inputsFailure = e;
+  }
+
+  const started = performance.now();
+  let error = null;
+  try {
+    if (inputsFailure) throw inputsFailure;
     const names = Object.keys(globals);
     // eslint-disable-next-line no-new-func
     const fn = new Function(
@@ -415,11 +473,13 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
     }
   }
 
-  // What backend did gpu.js ACTUALLY use? It silently swaps in a CPU kernel
-  // when a kernel can't compile for WebGL — graphical kernels are pinned to
-  // 'unsigned' precision (backend/kernel.js setGraphical), which has no vec4
-  // array type, so any graphical kernel taking an image[y][x] array lands on
-  // the CPU. Saying so beats letting the console claim a GPU run.
+  // What backend did gpu.js ACTUALLY use? It silently swaps in a CPU kernel when
+  // a kernel can't compile for WebGL. The classic cause here: a graphical kernel
+  // is pinned to 'unsigned' precision (backend/kernel.js setGraphical), which has
+  // no vec4 array type, so an image built as a nested array[y][x] = [r, g, b, a]
+  // lands on the CPU — which is why the course passes images as ImageData
+  // instead (engine/utils.plainToImageData). Saying so, and saying what to do
+  // about it, beats letting the console claim a GPU run.
   const usedCpuKernel = kernels.some(isCpuKernel);
   const fellBackToCPU = resolvedMode === 'gpu' && usedCpuKernel;
   if (fellBackToCPU && !probe) {
@@ -427,8 +487,11 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
       type: 'warn',
       time: timeString(),
       text:
-        '▸ gpu.js could not compile this kernel for WebGL and ran it on the CPU backend instead ' +
-        '(graphical kernels use unsigned precision, which has no 2D pixel-array type)',
+        '▸ gpu.js could not compile this kernel for WebGL and ran it on the CPU backend instead. ' +
+        'A graphical kernel always uses unsigned precision, which has no 2D pixel-array type, so ' +
+        'an image built as a nested array (image[y][x] = [r, g, b, a]) can only run on the CPU. ' +
+        'Pass this task\'s image through untouched — the images it hands you are ImageData, which ' +
+        'both backends read as the same image[this.thread.y][this.thread.x] pixel.',
     });
   }
 

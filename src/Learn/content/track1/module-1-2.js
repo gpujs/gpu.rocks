@@ -10,6 +10,7 @@
 // kernels use this.color(). Every task passes in CPU mode.
 
 import { ARRAY_LAYOUT } from '../layoutNote.js';
+import { plainToImageData, quantizePixel } from '../../engine/utils.js';
 
 const LUM = [0.299, 0.587, 0.114];
 
@@ -53,10 +54,15 @@ function transposeCellHint(got, transposed, eps, y, x) {
     : null;
 }
 
-// Constant-color image helper for orientation-independent pixel tests.
+// Constant-color image helper for orientation-independent pixel tests. Same
+// shape as the task's own input: an ImageData whose .plain/.at(x, y) answer
+// image[y][x] = [r, g, b, a], with the pixel quantized to what 8-bit channels
+// can actually hold (so expectations read off .at() are exact). A kernel built
+// with an ImageData must never be re-invoked with a nested array — on WebGL2
+// that silently paints wrong pixels — so every image a test passes is one.
 function constantImage(size, pixel) {
-  const row = new Array(size).fill(pixel);
-  return new Array(size).fill(row);
+  const row = new Array(size).fill(quantizePixel(pixel));
+  return plainToImageData(new Array(size).fill(row));
 }
 
 // ---- near-miss diagnosis --------------------------------------------------
@@ -455,7 +461,7 @@ render(grayscale.canvas);
         {
           name: 'pixel (0,0) matches <code>0.299r + 0.587g + 0.114b</code> within ±1/255',
           run: async ctx => {
-            const img = ctx.utils.makeTestImage(512);
+            const img = ctx.utils.makeTestImage(512).plain;
             const pixels = ctx.getPixels();
             const got = pixels[0] / 255;
             // getPixels row order can be top-down or bottom-up depending on
@@ -491,9 +497,9 @@ render(grayscale.canvas);
           name: 'private test #1',
           run: async ctx => {
             // Constant-color image → every output pixel must be its luminance.
-            const pixel = [0.2, 0.4, 0.6, 1];
-            const expected = luminanceOf(pixel) * 255;
-            ctx.kernel(constantImage(512, pixel));
+            const image = constantImage(512, [0.2, 0.4, 0.6, 1]);
+            const expected = luminanceOf(image.at(0, 0)) * 255;
+            ctx.kernel(image);
             const pixels = ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 4999 * 4) {
               ctx.assertClose(pixels[i], expected, 2, `red at byte ${i}`);
@@ -515,7 +521,7 @@ render(grayscale.canvas);
             gotMean /= (pixels.length / 4) * 255;
             let expectedMean = 0;
             for (let y = 0; y < 512; y++) {
-              for (let x = 0; x < 512; x++) expectedMean += luminanceOf(img[y][x]);
+              for (let x = 0; x < 512; x++) expectedMean += luminanceOf(img.plain[y][x]);
             }
             expectedMean /= 512 * 512;
             ctx.assertClose(gotMean, expectedMean, 1.5 / 255, 'mean luminance');
@@ -701,10 +707,11 @@ console.log('top-left brightness:', map[0][0]);
           run: async ctx => {
             const img = ctx.utils.makeTestImage(64);
             const out = ctx.kernel(img);
+            const plain = img.plain; // host-side view of the same pixels
             const cases = [[0, 0], [10, 3], [31, 40], [63, 63]];
             for (const [y, x] of cases) {
-              const p = img[y][x];
-              const t = img[x][y]; // the transposed cell's pixel
+              const p = plain[y][x];
+              const t = plain[x][y]; // the transposed cell's pixel
               const expected = (p[0] + p[1] + p[2]) / 3;
               const hint = transposeCellHint(out[y][x], (t[0] + t[1] + t[2]) / 3, 2e-3, y, x) ||
                 diagnose(out[y][x], expected, 2e-3, meanProbes(p));
@@ -719,10 +726,11 @@ console.log('top-left brightness:', map[0][0]);
           run: async ctx => {
             const img = ctx.utils.makeTestImage(64);
             const out = ctx.kernel(img);
+            const plain = img.plain;
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
-                const p = img[y][x];
-                const t = img[x][y];
+                const p = plain[y][x];
+                const t = plain[x][y];
                 const expected = (p[0] + p[1] + p[2]) / 3;
                 const hint = transposeCellHint(out[y][x], (t[0] + t[1] + t[2]) / 3, 2e-3, y, x) ||
                   diagnose(out[y][x], expected, 2e-3, meanProbes(p));
@@ -823,11 +831,12 @@ render(paint.canvas);
             ctx.assert(numeric, 'no numeric kernel found');
             const img = ctx.utils.makeTestImage(64);
             const out = numeric(img);
+            const plain = img.plain;
             const cases = [[0, 0], [5, 50], [33, 12], [63, 63]];
             for (const [y, x] of cases) {
-              const hint = transposeCellHint(out[y][x], luminanceOf(img[x][y]), 2e-3, y, x) ||
-                diagnose(out[y][x], luminanceOf(img[y][x]), 2e-3, luminanceProbes(img[y][x]));
-              ctx.assertClose(out[y][x], luminanceOf(img[y][x]), 2e-3, hint || `cell [${y}][${x}]`);
+              const hint = transposeCellHint(out[y][x], luminanceOf(plain[x][y]), 2e-3, y, x) ||
+                diagnose(out[y][x], luminanceOf(plain[y][x]), 2e-3, luminanceProbes(plain[y][x]));
+              ctx.assertClose(out[y][x], luminanceOf(plain[y][x]), 2e-3, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -861,9 +870,9 @@ render(paint.canvas);
             const numeric = ctx.kernels.find(k => k.kernel && !k.kernel.graphical);
             const graphical = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
-            const pixel = [0.6, 0.2, 0.4, 1];
-            const expected = luminanceOf(pixel) * 255;
-            const map = numeric(constantImage(64, pixel));
+            const image = constantImage(64, [0.6, 0.2, 0.4, 1]);
+            const expected = luminanceOf(image.at(0, 0)) * 255;
+            const map = numeric(image);
             graphical(map);
             const pixels = graphical.getPixels();
             for (let i = 0; i < pixels.length; i += 149 * 4) {

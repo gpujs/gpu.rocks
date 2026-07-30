@@ -13,6 +13,7 @@
 // destination … are the same. Use immutable = true" on BOTH backends.
 
 import { ARRAY_LAYOUT } from '../layoutNote.js';
+import { plainToImageData, quantizePixel } from '../../engine/utils.js';
 
 const LUM = [0.299, 0.587, 0.114];
 
@@ -62,10 +63,14 @@ function makeSpike(size, at, magnitude) {
   return field;
 }
 
-// Constant-color image for orientation-independent pixel tests.
+// Constant-color image for orientation-independent pixel tests. Same shape as
+// the task's own input: an ImageData whose .plain/.at(x, y) answer
+// image[y][x] = [r, g, b, a], with the pixel quantized to what 8-bit channels can
+// hold (so expectations read off .at() are exact). Never hand a kernel built with
+// an ImageData a nested array instead — on WebGL2 that silently reads garbage.
 function constantImage(size, pixel) {
-  const row = new Array(size).fill(pixel);
-  return new Array(size).fill(row);
+  const row = new Array(size).fill(quantizePixel(pixel));
+  return plainToImageData(new Array(size).fill(row));
 }
 
 // Task 3 reference: normalize (/10) → gamma (v²) → 3-tap smooth.
@@ -97,9 +102,10 @@ function refDiffuse(field, steps) {
   return prev;
 }
 
-// Task 5 references: luminance map, then clamped 3×3 box blur.
+// Task 5 references: luminance map, then clamped 3×3 box blur. `image` is a
+// course image (an ImageData); .plain is its host-side image[y][x] view.
 function refLuminanceMap(image) {
-  return image.map(row => row.map(luminanceOf));
+  return image.plain.map(row => row.map(luminanceOf));
 }
 
 function refBlur3(map) {
@@ -404,14 +410,15 @@ console.log('center cell:', result[32][32]);
             ctx.assert(piped && plain, 'expected a pipeline kernel and a plain kernel');
             const img = ctx.utils.makeTestImage(64);
             const out = plain(piped(img));
+            const pixels = img.plain; // host-side view of the same image
             const cases = [[0, 0], [7, 41], [32, 32], [63, 63]];
             for (const [y, x] of cases) {
-              const l = luminanceOf(img[y][x]);
+              const l = luminanceOf(pixels[y][x]);
               const hint = transposeCellHint(
-                out[y][x], contrastOf(luminanceOf(img[x][y])), 3e-3, y, x
+                out[y][x], contrastOf(luminanceOf(pixels[x][y])), 3e-3, y, x
               ) || diagnose(out[y][x], contrastOf(l), 3e-3, contrastProbes(l));
               ctx.assertClose(
-                out[y][x], contrastOf(luminanceOf(img[y][x])), 3e-3, hint || `cell [${y}][${x}]`
+                out[y][x], contrastOf(l), 3e-3, hint || `cell [${y}][${x}]`
               );
             }
           },
@@ -424,10 +431,11 @@ console.log('center cell:', result[32][32]);
             const piped = ctx.kernels.find(k => k.kernel && k.kernel.pipeline);
             const plain = ctx.kernels.find(k => k.kernel && !k.kernel.pipeline);
             ctx.assert(piped && plain, 'expected a pipeline kernel and a plain kernel');
-            const pixel = [0.8, 0.3, 0.5, 1];
-            const expected = contrastOf(luminanceOf(pixel));
-            const out = plain(piped(constantImage(64, pixel)));
-            const probes = contrastProbes(luminanceOf(pixel));
+            const image = constantImage(64, [0.8, 0.3, 0.5, 1]);
+            const luminance = luminanceOf(image.at(0, 0));
+            const expected = contrastOf(luminance);
+            const out = plain(piped(image));
+            const probes = contrastProbes(luminance);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
                 const hint = diagnose(out[y][x], expected, 3e-3, probes);
@@ -933,9 +941,9 @@ render(paint.canvas);
             // constant image every painted pixel must be its luminance,
             // whatever the row order.
             const [lum, blur, paint] = ctx.kernels;
-            const pixel = [0.35, 0.65, 0.15, 1];
-            const expected = luminanceOf(pixel) * 255;
-            paint(blur(lum(constantImage(64, pixel))));
+            const image = constantImage(64, [0.35, 0.65, 0.15, 1]);
+            const expected = luminanceOf(image.at(0, 0)) * 255;
+            paint(blur(lum(image)));
             const pixels = paint.getPixels();
             for (let i = 0; i < pixels.length; i += 149 * 4) {
               ctx.assertClose(pixels[i], expected, 2, `red at byte ${i}`);
