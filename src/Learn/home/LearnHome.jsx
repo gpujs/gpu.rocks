@@ -1,10 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import LearnNav from '../components/LearnNav';
 import KernelGrid from '../components/KernelGrid';
 import TaskDots from '../components/TaskDots';
 import { tracks } from '../content/index.js';
 import { moduleProgress } from '../engine/storage.js';
+import { learnHomeMeta } from '../../routeMeta';
+import { setPageMeta } from '../../pageMeta';
 
 // /learn landing page: hero + highlights + track/module catalogue.
 // Layout, spacing and copy come from the approved mockup; module/track data
@@ -80,6 +82,10 @@ function Track({ track }) {
 function LearnHome() {
   const tracksRef = useRef(null);
   const trackList = Array.isArray(tracks) ? tracks : [];
+
+  useEffect(() => {
+    setPageMeta(learnHomeMeta());
+  }, []);
 
   const scrollToTracks = () => {
     const el = tracksRef.current;

@@ -38,6 +38,6 @@ export function launch() {
   });
 }
 
-// the hash routes the site serves, plus the static API reference that must not
-// be swallowed by the SPA (gpujs/gpu.js#852)
-export const ROUTES = ['/#/', '/#/benchmark', '/#/install', '/#/examples'];
+// the path routes the site serves; the static API reference (/api/, which must
+// not be swallowed by the SPA — gpujs/gpu.js#852) is checked separately
+export const ROUTES = ['/', '/benchmark', '/install', '/examples'];

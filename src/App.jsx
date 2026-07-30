@@ -1,5 +1,7 @@
-import React, { Suspense, lazy } from 'react'
-import { HashRouter, Routes, Route, Outlet } from 'react-router';
+import React, { Suspense, lazy, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router';
+import { siteMeta } from './routeMeta'
+import { setPageMeta } from './pageMeta'
 import Main from './Components/Main/Main'
 import Benchmark from './Components/Benchmark/Benchmark'
 import Install from './Components/Install/Install'
@@ -19,6 +21,12 @@ import 'material-icons'
 // Existing site pages keep the shared Nav/PageFooter chrome; the learn
 // routes below render standalone (they bring their own nav).
 function SiteLayout() {
+  // history navigation doesn't reload the document, so retitle it here;
+  // routeMeta is the same source of truth the prerender bakes into static HTML
+  const { pathname } = useLocation()
+  useEffect(() => {
+    setPageMeta(siteMeta(pathname))
+  }, [pathname])
   return (
     <>
       <Nav />
@@ -50,7 +58,7 @@ function LearnFallback({ children }) {
 
 function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/learn/*" element={<LearnFallback><LearnApp /></LearnFallback>} />
         <Route path="/learn-verify" element={<LearnFallback><LearnApp verify /></LearnFallback>} />
@@ -61,7 +69,7 @@ function App() {
           <Route path="*" element={<Main />} />
         </Route>
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   )
 }
 

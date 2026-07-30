@@ -21,6 +21,8 @@ import {
   moduleProgress,
 } from '../engine/storage';
 import { lightEditorTheme, darkEditorTheme } from './editorThemes';
+import { moduleTaskMeta } from '../../routeMeta';
+import { setPageMeta } from '../../pageMeta';
 import { learnCompletions } from './completion/completions';
 import { signatureHelp } from './completion/signatureHelp';
 import ConsolePane from './ConsolePane';
@@ -251,6 +253,12 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   const saveTimer = useRef(null);
   const consoleTabRef = useRef(null);
   const testsTabRef = useRef(null);
+
+  // title/description/canonical for this task — same values the prerender
+  // bakes into the static HTML for this route
+  useEffect(() => {
+    setPageMeta(moduleTaskMeta(module, task, taskNum));
+  }, [module, task, taskNum]);
 
   const track = tracks.find(t => t.number === module.track);
   const progress = useMemo(

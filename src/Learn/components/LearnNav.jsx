@@ -33,10 +33,11 @@ function LearnNav() {
         GPU.js <span className="learn-tag">learn</span>
       </Link>
       <div className="links">
-        <a href="https://gpu.rocks/#/">Home</a>
+        <Link to="/">Home</Link>
         <Link to="/learn" className="active">Learn</Link>
+        {/* the API reference is a real static directory, not an SPA route */}
         <a href="/api/">API</a>
-        <a href="/#/examples">Examples</a>
+        <Link to="/examples">Examples</Link>
         <a href="https://github.com/gpujs/gpu.js">GitHub</a>
       </div>
       <button type="button" className="theme-btn" onClick={cycleTheme}>

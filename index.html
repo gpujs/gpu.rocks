@@ -4,15 +4,41 @@
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.png" type="image/png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta property="og:description" content="GPGPU operations using pure javascript!. Accelerate javascript functions using a GPU">
-    <meta property="og:title" content="GPU.js - GPU accelerated Javascript">
-    <meta property="og:image" content="/img/ogimage.png">
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before anything
+      // else loads (zero app boot on the wrong URL). Plain in-page anchors
+      // don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          window.location.replace(hash.slice(1) + window.location.search);
+          return;
+        }
+        // GitHub Pages 301-redirects directory URLs to a trailing slash
+        // (/learn → /learn/). Strip it so the address bar always shows the
+        // canonical path; replaceState costs no request and no reload.
+        var path = window.location.pathname;
+        if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          window.history.replaceState(
+            null,
+            '',
+            path.replace(/\/+$/, '') + window.location.search
+          );
+        }
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <meta property="og:title" content="GPU.js — GPU accelerated JavaScript">
+    <meta property="og:description" content="GPGPU operations using pure JavaScript. gpu.js compiles your JavaScript functions into shader code and runs them on your GPU — with a CPU fallback.">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
     <!--
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <title>GPU.js - GPU accelerated JavaScript</title>
+    <title>GPU.js — GPU accelerated JavaScript</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

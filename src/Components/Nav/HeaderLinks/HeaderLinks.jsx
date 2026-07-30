@@ -5,7 +5,7 @@ const HeaderLinks = () => {
   return (
     <ul>
     <li>
-        <NavLink to="/" exact>
+        <NavLink to="/" end>
           Home
         </NavLink>
       </li>
@@ -28,19 +28,19 @@ const HeaderLinks = () => {
       </li>
 
       <li>
-        <NavLink to="install">
+        <NavLink to="/install">
           Installation
         </NavLink>
       </li>
 
       <li>
-        <NavLink to="benchmark">
+        <NavLink to="/benchmark">
           Benchmark
         </NavLink>
       </li>
 
       <li>
-        <NavLink to="examples">
+        <NavLink to="/examples">
           Examples
         </NavLink>
       </li>

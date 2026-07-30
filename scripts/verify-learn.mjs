@@ -2,7 +2,7 @@
  * Content verification for the /learn course, in a real browser.
  *
  * For every task (optionally scoped to one module) and each requested mode it
- * checks, via the window.__verifyLearn hook on /#/learn-verify:
+ * checks, via the window.__verifyLearn hook on /learn-verify:
  *   1. the reference solution runs clean and passes ALL public+private tests;
  *   2. the starter code does NOT already pass;
  *   3. the task metadata is well-formed.
@@ -126,7 +126,7 @@ try {
   page.setDefaultTimeout(180000);
   page.on('pageerror', e => console.error(`(pageerror) ${String(e).split('\n')[0]}`));
 
-  await page.goto(`${base}/#/learn-verify`, { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.goto(`${base}/learn-verify`, { waitUntil: 'networkidle2', timeout: 60000 });
   await page.waitForFunction('typeof window.__verifyLearn === "function"', { timeout: 30000 });
 
   for (const mode of modes) {
