@@ -555,7 +555,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           {/* same wording as the completion modal's way out, so leaving a
               module reads the same whether you finished it or not */}
           <button type="button" className="tb-btn" onClick={handleAllModules}>
-            End module
+            Exit module
           </button>
           <button
             type="button"

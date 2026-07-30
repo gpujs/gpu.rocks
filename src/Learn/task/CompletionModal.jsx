@@ -98,12 +98,12 @@ function CompletionModal({
         <div className="cmodal-actions">
           {isTrack ? (
             <button type="button" className="tb-next" ref={primaryRef} onClick={onEnd}>
-              End track
+              Exit track
             </button>
           ) : (
             <>
               <button type="button" className="tb-btn" onClick={onEnd}>
-                End module
+                Exit module
               </button>
               <button type="button" className="tb-next" ref={primaryRef} onClick={onNextModule}>
                 Next module →
