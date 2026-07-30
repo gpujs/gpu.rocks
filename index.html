@@ -47,7 +47,21 @@
         }
         window.addEventListener('error', function (e) {
           remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
         }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
         window.addEventListener('unhandledrejection', function (e) {
           remember(e.reason && (e.reason.message || e.reason));
         });

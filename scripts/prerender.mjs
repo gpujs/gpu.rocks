@@ -234,15 +234,23 @@ for (const mod of modules) {
 }
 
 // Write every page: '/' enriches dist/index.html in place, everything else
-// goes to dist/<path>/index.html.
+// goes to BOTH dist/<path>.html and dist/<path>/index.html. The extensionless
+// twin makes GitHub Pages serve the canonical slashless URL (/learn) with a
+// direct 200 — without it, GH 301-redirects /learn → /learn/ with an absolute
+// http:// Location when the CDN fetches the origin over plain HTTP, and that
+// https→http downgrade hop loops forever in strict webviews (Telegram).
 let written = 0;
 for (const page of pages) {
+  const html = renderPage(headBlock(page, page.jsonLd));
   const outDir = page.path === '/' ? dist : join(dist, page.path.slice(1));
   if (existsSync(outDir) && !statSync(outDir).isDirectory()) {
     fail(`output path collides with an existing file: ${outDir}`);
   }
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, 'index.html'), renderPage(headBlock(page, page.jsonLd)));
+  writeFileSync(join(outDir, 'index.html'), html);
+  if (page.path !== '/') {
+    writeFileSync(join(dist, `${page.path.slice(1)}.html`), html);
+  }
   written++;
 }
 
