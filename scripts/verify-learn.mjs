@@ -7,12 +7,22 @@
  *   2. the starter code does NOT already pass;
  *   3. the task metadata is well-formed.
  *
+ * The hook runs the SAME pipeline a learner's ▶ Run uses — the worker sandbox
+ * in engine/sandbox.worker.js, supervised by engine/runner.js — so a task that
+ * passes here is a task that works in the app.
+ *
  * Usage: node scripts/verify-learn.mjs [--module 1-2] [--mode cpu|gpu|both]
+ *                                      [--base http://localhost:4173]
  *   --mode defaults to both; gpu is skipped gracefully when headless WebGL
  *   is unavailable.
+ *   --base checks an already-running server instead of spawning one — use it
+ *   to gate the PRODUCTION build (`yarn build && yarn preview`), where the
+ *   worker bundle is a separate minified chunk and a dev-only worker URL would
+ *   go unnoticed.
  *
- * Spawns `yarn vite --port 0` (ephemeral port — parallel agents run this
- * concurrently, so the port is parsed from vite's output, never hardcoded).
+ * Without --base it spawns `yarn vite --port 0` (ephemeral port — parallel
+ * agents run this concurrently, so the port is parsed from vite's output,
+ * never hardcoded).
  */
 import { spawn } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
@@ -26,9 +36,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 let moduleId = null;
 let modeArg = 'both';
+let baseArg = null;
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--module') moduleId = args[++i];
   else if (args[i] === '--mode') modeArg = args[++i];
+  else if (args[i] === '--base') baseArg = args[++i];
   else {
     console.error(`unknown argument: ${args[i]}`);
     process.exit(2);
@@ -84,7 +96,12 @@ function stopServer(child) {
 // ---- report printing ------------------------------------------------------
 
 function printModeReport(mode, report) {
-  console.log(`\n== mode: ${mode} (gpuSupported=${report.gpuSupported}) ==`);
+  const sandbox = report.sandbox
+    ? `, sandbox=${report.sandbox.path}${
+        report.sandbox.spawnMs != null ? ` in ${Math.round(report.sandbox.spawnMs)}ms` : ''
+      }${report.sandbox.reason ? ` — ${report.sandbox.reason}` : ''}`
+    : '';
+  console.log(`\n== mode: ${mode} (gpuSupported=${report.gpuSupported}${sandbox}) ==`);
   const pad = (s, w) => String(s).padEnd(w);
   console.log(pad('RESULT', 7) + pad('TASK', 8) + pad('META', 6) + pad('SOLUTION', 10) + pad('STARTER', 9) + 'TITLE');
   let failures = 0;
@@ -116,10 +133,16 @@ let browser = null;
 let failures = 0;
 
 try {
-  const started = await startServer();
-  server = started.child;
-  const base = `http://localhost:${started.port}`;
-  console.log(`vite dev server on ${base}`);
+  let base = baseArg;
+  if (base) {
+    base = base.replace(/\/$/, '');
+    console.log(`checking the server already running on ${base}`);
+  } else {
+    const started = await startServer();
+    server = started.child;
+    base = `http://localhost:${started.port}`;
+    console.log(`vite dev server on ${base}`);
+  }
 
   browser = await launch();
   const page = await browser.newPage();

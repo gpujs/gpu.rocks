@@ -1,629 +1,557 @@
-// engine/runner.js — sandboxed execution of learner code against gpu.js.
+// engine/runner.js — the public entry point for running learner code, and the
+// main-thread supervisor of the sandbox that actually runs it.
+//
+// WHY A WORKER: a gpu.js kernel call is ONE synchronous task with no yield
+// points. A kernel doing pathological per-thread work (multiplying a whole
+// image row, so V8 stringifies it per thread) froze the page for 197 s, and no
+// timer, promise or AbortController on the main thread can interrupt that. The
+// only real recovery is to run the code somewhere killable, so all learner code
+// — plus the task's tests and the benchmark's kernel re-invocations, which
+// tripled the original freeze — lives in sandbox.worker.js, and this file
+// enforces a wall-clock budget and calls terminate() when it is blown.
+//
+// PUBLIC CONTRACT
 //
 // runUserCode(code, { mode, task }) → Promise<RunResult>, never rejects:
 //   {
 //     ok: boolean,
 //     error?: { message, stack? },        // on throw / compile failure
 //     logs: [{ type: 'system'|'log'|'warn'|'error'|'canvas'|'ok',
-//              time,                       // 'HH:MM:SS.mmm' wall-clock string
-//              text?, canvas? }],
-//     kernels: [kernel],                  // every kernel created, in order;
-//                                         // each records .lastArgs on invocation
-//     canvas,                             // last canvas passed to render(), else
-//                                         // the last graphical kernel's canvas
+//              time,                      // 'HH:MM:SS.mmm' wall-clock string
+//              text?, snapshot? }],       // snapshot: { url, w, h }
+//     canvasInfo: { width, height } | null,
+//     kernelCount: number,
 //     resolvedMode: 'gpu' | 'cpu',
 //     durationMs: number,
+//     fellBackToCPU: boolean,             // gpu.js silently used a CPUKernel
+//     refusedAsTooSlow?: true,            // pre-flight guard refused the run
+//     stoppedByWatchdog?: true,           // budget blown, worker terminated
+//     runToken, sandboxGeneration,        // opaque; identify the retained run
 //   }
 //
-// Kernels (well, their owning GPU instances) created by one run are destroyed
-// at the start of the next run so WebGL contexts don't leak.
+// runTests(task, runResult) → Promise<
+//   { results: [{ name, private, passed, ms, error? }], passed, total, allPassed }>
+//   Runs in the sandbox against the run `runToken` identifies. When that run's
+//   worker is gone (the watchdog killed it) every test is reported as failed
+//   with the reason, so the Tests panel explains itself instead of emptying.
+//
+// warmUpSandbox()        — spawn the sandbox early (TaskPage calls it on mount)
+// sandboxGpuSupported()  — does the SANDBOX have WebGL (async: it must be asked)
+// sandboxInfo()          — { path, gpuSupported, spawnMs, reason }
+//
+// CONTRACT CHANGE vs the pre-worker version: the result no longer carries
+// `kernels` (live kernel functions) or `canvas` (a live canvas). They cannot
+// cross postMessage, and they must not: the tests are the only thing that ever
+// needed them, and the tests now run in the worker where those objects live, so
+// a test still calls ctx.kernel(args), ctx.getPixels() and ctx.kernels[i]
+// exactly as before. What the main thread gets instead is `kernelCount` and
+// `canvasInfo` (for reporting) and, per canvas log line, a `snapshot` data URL
+// produced from an ImageBitmap transferred out of the worker. The only caller
+// that used live kernels was benchmark.js, which now also runs in the sandbox.
+//
+// FALLBACK: without Worker or OffscreenCanvas the same sandbox module runs on
+// the main thread, behaving exactly as it did before (probe guard included, but
+// unrecoverable on a `while (true)` — nothing can be done there). Which path is
+// in use is disclosed as the first `system` log line of every run. On that path
+// the result is a SUPERSET of the contract above — the live `kernels` and
+// `canvas` are in-thread, so they stay on it — but nothing may depend on that.
 
-import { GPU, utils as gpuUtils } from 'gpu.js';
+import { modules } from '../content/index';
+import {
+  assert,
+  assertClose,
+  flatten,
+  makeTestImage,
+  seededRandom,
+  snapshotCanvas,
+  timeString,
+  toErrorMessage,
+  utils,
+} from './utils';
 
-// ---- deterministic utils (shared with task inputs and tests) --------------
+export {
+  assert,
+  assertClose,
+  flatten,
+  makeTestImage,
+  seededRandom,
+  snapshotCanvas,
+  toErrorMessage,
+  utils,
+};
 
-// mulberry32 — small, fast, fully deterministic PRNG. Returns () => [0, 1).
-export function seededRandom(seed) {
-  let s = seed >>> 0;
-  return function next() {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// ---- watchdog budgets ------------------------------------------------------
+//
+// Wall-clock, enforced here on the main thread; blowing one terminates the
+// worker. Measured headroom: the whole 75-task course verifies in ~1.2 s (cpu)
+// / ~5.4 s (gpu) for 150 runs plus 150 test suites, so the slowest single task
+// is orders of magnitude inside these.
+//
+// A run is the pre-flight probe plus the real thing.
+const RUN_WATCHDOG_MS = 10000;
+// Tests re-invoke the run's kernels, so they get their own budget.
+const TESTS_BUDGET_MS = 15000;
+// The benchmark is two full runs plus two adaptive timing loops.
+const BENCHMARK_BUDGET_MS = 30000;
+// Worker boot: module graph (gpu.js + the content registry) parse and evaluate.
+const HELLO_BUDGET_MS = 15000;
 
-function clamp01(v) {
-  return v < 0 ? 0 : v > 1 ? 1 : v;
-}
+// ---- sandbox supervisor ----------------------------------------------------
 
-// quantize to 8-bit steps so float → canvas → Uint8 readbacks compare cleanly
-function q8(v) {
-  return Math.round(clamp01(v) * 255) / 255;
-}
+let sandboxPath = null; // 'worker' | 'main', decided once
+let initPromise = null;
+let unavailableReason = null;
+let cachedGpuSupported = null;
+let spawnMs = null;
 
-// Deterministic seeded RGBA test image as nested arrays:
-// image[y][x] = [r, g, b, a], all channels 0–1. Same size → same image, always.
-export function makeTestImage(size) {
-  const rand = seededRandom(0x6770752e ^ (size * 2654435761));
-  const image = new Array(size);
-  for (let y = 0; y < size; y++) {
-    const row = new Array(size);
-    const ny = y / size;
-    for (let x = 0; x < size; x++) {
-      const nx = x / size;
-      row[x] = [
-        q8(0.2 + 0.55 * nx + 0.25 * rand()),
-        q8(0.2 + 0.55 * ny + 0.25 * rand()),
-        q8(0.15 + 0.6 * Math.abs(Math.sin(3.1 * (nx + ny))) + 0.25 * rand()),
-        1,
-      ];
-    }
-    image[y] = row;
-  }
-  return image;
-}
+let worker = null;
+let generation = 0; // bumped on every spawn; identifies a worker's run state
+let nextId = 1;
+const pending = new Map(); // id → { settle, timer, logs }
 
-// Flattens arbitrarily nested arrays / typed arrays into one plain Array.
-export function flatten(arr) {
-  const out = [];
-  const stack = [arr];
-  while (stack.length) {
-    const value = stack.pop();
-    if (Array.isArray(value) || ArrayBuffer.isView(value)) {
-      for (let i = value.length - 1; i >= 0; i--) stack.push(value[i]);
-    } else {
-      out.push(value);
-    }
-  }
-  return out;
-}
-
-export function assert(cond, message) {
-  if (!cond) throw new Error(message || 'assertion failed');
-}
-
-export function assertClose(a, b, eps = 1e-4, message) {
-  const prefix = message ? `${message} — ` : '';
-  if (typeof a !== 'number' || Number.isNaN(a)) {
-    throw new Error(`${prefix}expected a number close to ${b}, got ${a}`);
-  }
-  if (Math.abs(a - b) > eps) {
-    throw new Error(`${prefix}expected ${b} ± ${eps}, got ${a}`);
-  }
-}
-
-export const utils = { seededRandom, makeTestImage, flatten, assert, assertClose };
-
-// ---- run bookkeeping ------------------------------------------------------
-
-const IDENT_RE = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
-
-// GPU instances created by the previous run; destroyed on the next run.
-let previousInstances = [];
-
-async function destroyPreviousRun() {
-  const instances = previousInstances;
-  previousInstances = [];
-  for (const gpu of instances) {
-    try {
-      await gpu.destroy();
-    } catch (e) {
-      // a lost context is fine — we are throwing it away anyway
-    }
-  }
-}
-
-function timeString() {
-  const d = new Date();
-  const pad = (n, w) => String(n).padStart(w, '0');
-  return `${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}.${pad(d.getMilliseconds(), 3)}`;
-}
-
-function formatValue(value, depth = 0) {
-  if (value === null) return 'null';
-  if (value === undefined) return 'undefined';
-  const type = typeof value;
-  if (type === 'string') return depth === 0 ? value : JSON.stringify(value);
-  if (type === 'number' || type === 'boolean' || type === 'bigint') return String(value);
-  if (type === 'function') return `ƒ ${value.name || '(anonymous)'}`;
-  if (value instanceof Error) {
-    // message/stack are non-enumerable, so JSON.stringify(new Error()) === '{}'
-    return `${value.name || 'Error'}: ${value.message}`;
-  }
-  if (ArrayBuffer.isView(value)) {
-    const head = Array.from(value.slice(0, 8), v => formatValue(v, depth + 1));
-    const more = value.length > 8 ? ', …' : '';
-    return `${value.constructor.name}(${value.length}) [${head.join(', ')}${more}]`;
-  }
-  if (Array.isArray(value)) {
-    if (depth >= 2) return `Array(${value.length})`;
-    const head = value.slice(0, 8).map(v => formatValue(v, depth + 1));
-    const more = value.length > 8 ? ', …' : '';
-    return `[${head.join(', ')}${more}]`;
-  }
-  if (typeof HTMLCanvasElement !== 'undefined' && value instanceof HTMLCanvasElement) {
-    return 'HTMLCanvasElement';
-  }
+// Escape hatch for diagnostics and for A/B-ing the two paths in the browser:
+// set globalThis.__learnForceSandbox = 'main' | 'worker' before the first run.
+function forcedPath() {
   try {
-    const json = JSON.stringify(value);
-    return json && json.length > 200 ? `${json.slice(0, 200)}…` : json || String(value);
-  } catch (e) {
-    try {
-      return String(value);
-    } catch (e2) {
-      // circular AND unstringifiable — a console.log must never abort the run
-      return '[unprintable object]';
-    }
-  }
-}
-
-// Coerces a caught value into a plain string message. User code can throw
-// anything — including objects whose .message is itself an object — and the
-// result is rendered directly as a React child, so it must be a string.
-export function toErrorMessage(e) {
-  try {
-    const raw = e && e.message;
-    return raw ? String(raw) : String(e);
-  } catch (e2) {
-    return 'unprintable error';
-  }
-}
-
-function makeConsoleProxy(logs) {
-  const real = typeof console !== 'undefined' ? console : null;
-  const capture = type => (...args) => {
-    if (real && real[type]) real[type](...args);
-    logs.push({
-      type: type === 'warn' ? 'warn' : type === 'error' ? 'error' : 'log',
-      time: timeString(),
-      text: args.map(a => formatValue(a)).join(' '),
-    });
-  };
-  return {
-    log: capture('log'),
-    info: capture('info'),
-    debug: capture('debug'),
-    warn: capture('warn'),
-    error: capture('error'),
-  };
-}
-
-// The course convention for images is nested arrays image[y][x] = [r,g,b,a].
-// gpu.js auto-infers those as a flat 3D 'Array', which the GL backend cannot
-// partially index (`const pixel = image[y][x]`). Typing them explicitly as
-// 'Array2D(4)' — a 2D array of vec4 pixels — makes the same kernel source
-// compile on both backends. Applied before the kernel's first build, and only
-// when the author has not set argumentTypes themselves.
-function isImagePixel(v) {
-  return (Array.isArray(v) || ArrayBuffer.isView(v)) && v.length === 4 && typeof v[0] === 'number';
-}
-
-function isImageLike(arg) {
-  return Array.isArray(arg) && arg.length > 0 &&
-    Array.isArray(arg[0]) && arg[0].length > 0 &&
-    isImagePixel(arg[0][0]);
-}
-
-function applyImageArgumentTypes(target, args) {
-  try {
-    const kernel = target.kernel;
-    if (!kernel || kernel.built || kernel.argumentTypes) return;
-    const names = kernel.argumentNames || [];
-    if (names.length !== args.length) return;
-    let hasImage = false;
-    const types = args.map(arg => {
-      if (isImageLike(arg)) {
-        hasImage = true;
-        return 'Array2D(4)';
-      }
-      const inferred = gpuUtils.getVariableType(arg, kernel.strictIntegers);
-      return inferred === 'Integer' ? 'Number' : inferred;
-    });
-    if (hasImage) target.setArgumentTypes(types);
-  } catch (e) {
-    // typing is a compatibility shim — never let it break a run
-  }
-}
-
-// Wraps a kernel-run shortcut so every invocation records .lastArgs and the
-// first invocation emits a "kernel compiled" system log line.
-function patchKernel(kernel, logs) {
-  let announced = false;
-  const proxy = new Proxy(kernel, {
-    apply(target, thisArg, args) {
-      target.lastArgs = args;
-      applyImageArgumentTypes(target, args);
-      const result = Reflect.apply(target, thisArg, args);
-      if (!announced) {
-        announced = true;
-        try {
-          const built = target.kernel;
-          const output = built && built.output ? Array.from(built.output) : null;
-          if (output && output.length) {
-            const threads = output.reduce((a, b) => a * b, 1);
-            logs.push({
-              type: 'system',
-              time: timeString(),
-              text: `▸ kernel compiled · output ${output.join('×')} · ${threads.toLocaleString('en-US')} threads`,
-            });
-          }
-        } catch (e) {
-          // announcement is cosmetic — never let it break a run
-        }
-      }
-      return result;
-    },
-  });
-  return proxy;
-}
-
-// Snapshot a (possibly WebGL) canvas into a data URL. Called at render()-log
-// time so that two render() calls of the same canvas in one run each capture
-// their own frame, and again from the UI as a fallback for the run's canvas.
-export function snapshotCanvas(canvas) {
-  try {
-    if (!canvas || typeof document === 'undefined') return null;
-    const w = canvas.width;
-    const h = canvas.height;
-    if (!w || !h) return null;
-    const tmp = document.createElement('canvas');
-    tmp.width = w;
-    tmp.height = h;
-    tmp.getContext('2d').drawImage(canvas, 0, 0);
-    return { url: tmp.toDataURL(), w, h };
+    const forced = globalThis.__learnForceSandbox;
+    return forced === 'main' || forced === 'worker' ? forced : null;
   } catch (e) {
     return null;
   }
 }
 
-export function isGPUSupported() {
-  try {
-    return Boolean(GPU.isGPUSupported);
-  } catch (e) {
-    return false;
-  }
+function workerCapable() {
+  return (
+    typeof Worker !== 'undefined' &&
+    typeof OffscreenCanvas !== 'undefined' &&
+    typeof URL !== 'undefined'
+  );
 }
 
-// ---- runUserCode ----------------------------------------------------------
-
-// ---- pre-flight guard ------------------------------------------------------
-//
-// A kernel that does pathological per-thread work (classically: multiplying a
-// whole row of an image instead of one pixel, which makes V8 stringify the
-// array on every thread) turns a 512×512 run into minutes of frozen page.
-// Nothing on the main thread can interrupt that: the kernel call is one
-// synchronous task with no yield points, so timers and AbortControllers never
-// get to run. What we CAN do is measure first — run the user's code once with
-// every output axis clamped small, then refuse the full-size run if the
-// measured cost per thread implies an absurd total.
-//
-// The guard fails OPEN in every ambiguous case (probe errored, nothing to
-// clamp, small output): a false refusal of legitimate code would be worse
-// than the freeze it prevents. It does not catch a plain `while (true)` in
-// user code — only a worker thread can.
-const PROBE_AXIS_CAP = 64; // clamp each output axis to this during the probe
-const PROBE_MIN_THREADS = 65536; // only guard runs larger than this
-const RUN_BUDGET_MS = 5000; // refuse a run estimated to exceed this
-
-function clampOutputSetting(output) {
-  if (Array.isArray(output)) {
-    const clamped = output.map(n => (typeof n === 'number' ? Math.min(n, PROBE_AXIS_CAP) : n));
-    const threads = of => of.reduce((a, b) => a * (typeof b === 'number' ? b : 1), 1);
-    return { clamped, requestedThreads: threads(output), clampedThreads: threads(clamped) };
+function settleAll(reply) {
+  for (const [, entry] of pending) {
+    clearTimeout(entry.timer);
+    entry.settle({ ...reply, logs: entry.logs });
   }
-  if (output && typeof output === 'object') {
-    const axes = ['x', 'y', 'z'].filter(k => typeof output[k] === 'number');
-    if (!axes.length) return null;
-    const clamped = { ...output };
-    axes.forEach(k => { clamped[k] = Math.min(output[k], PROBE_AXIS_CAP); });
-    const threads = o => axes.reduce((a, k) => a * o[k], 1);
-    return { clamped, requestedThreads: threads(output), clampedThreads: threads(clamped) };
-  }
-  return null;
+  pending.clear();
 }
 
-// Rewrites createKernel arguments so the probe runs a small slice of the work.
-// Anything it cannot clamp is recorded, which makes the probe inconclusive.
-function clampKernelArgs(args, stats) {
-  const settings = args[1];
-  const info = settings && typeof settings === 'object' ? clampOutputSetting(settings.output) : null;
-  if (!info) {
-    stats.unclamped = true;
-    return args;
-  }
-  stats.requestedThreads = Math.max(stats.requestedThreads, info.requestedThreads);
-  stats.clampedThreads = Math.max(stats.clampedThreads, info.clampedThreads);
-  const rest = args.slice(2);
-  return [args[0], { ...settings, output: info.clamped }, ...rest];
-}
-
-// Runs the code once at clamped size and extrapolates. Resolves to null when
-// the full-size run should go ahead, or a description of the refusal.
-async function preflight(code, mode, task) {
-  let probe;
-  try {
-    probe = await runUserCode(code, { mode, task, probe: true });
-  } catch (e) {
-    return null; // the probe itself is best-effort
-  }
-  const stats = probe.probeStats || {};
-  if (!probe.ok || stats.unclamped) return null;
-  if (!stats.requestedThreads || !stats.clampedThreads) return null;
-  if (stats.clampedThreads >= stats.requestedThreads) return null; // nothing was clamped
-  if (stats.requestedThreads <= PROBE_MIN_THREADS) return null;
-  const scale = stats.requestedThreads / stats.clampedThreads;
-  const estimateMs = probe.durationMs * scale;
-  if (estimateMs <= RUN_BUDGET_MS) return null;
-  return { probeMs: probe.durationMs, estimateMs, threads: stats.requestedThreads };
-}
-
-export async function runUserCode(code, { mode = 'auto', task, probe = false } = {}) {
-  await destroyPreviousRun();
-
-  const logs = [];
-  const kernels = [];
-  const instances = [];
-  const probeStats = { requestedThreads: 0, clampedThreads: 0, unclamped: false };
-  let renderedCanvas = null;
-
-  const gpuOk = isGPUSupported();
-  let resolvedMode;
-  if (mode === 'cpu') {
-    resolvedMode = 'cpu';
-    logs.push({ type: 'system', time: timeString(), text: '▸ mode "cpu" → selected cpu' });
-  } else if (mode === 'gpu') {
-    if (gpuOk) {
-      resolvedMode = 'gpu';
-      logs.push({ type: 'system', time: timeString(), text: '▸ mode "gpu" → selected gpu (WebGL)' });
-    } else {
-      resolvedMode = 'cpu';
-      logs.push({
-        type: 'system',
-        time: timeString(),
-        text: '▸ mode "gpu" requested but WebGL is unavailable here — falling back to cpu',
-      });
-    }
-  } else {
-    resolvedMode = gpuOk ? 'gpu' : 'cpu';
-    logs.push({
-      type: 'system',
-      time: timeString(),
-      text: gpuOk
-        ? '▸ mode "auto" → selected gpu (WebGL)'
-        : '▸ mode "auto" → selected cpu (WebGL unavailable)',
-    });
-  }
-
-  // GPU subclass: forces the resolved mode, records instances and kernels.
-  class RecordingGPU extends GPU {
-    constructor(settings = {}) {
-      super({ ...settings, mode: resolvedMode });
-      instances.push(this);
-      previousInstances.push(this);
-    }
-
-    createKernel(...args) {
-      const built = super.createKernel(...(probe ? clampKernelArgs(args, probeStats) : args));
-      const kernel = patchKernel(built, logs);
-      kernels.push(kernel);
-      return kernel;
-    }
-
-    createKernelMap(...args) {
-      const built = super.createKernelMap(...(probe ? clampKernelArgs(args, probeStats) : args));
-      const kernel = patchKernel(built, logs);
-      kernels.push(kernel);
-      return kernel;
-    }
-  }
-
-  const render = canvas => {
-    renderedCanvas = canvas || renderedCanvas;
-    logs.push({
-      type: 'canvas',
-      time: timeString(),
-      text: `render: ${canvas && canvas.constructor ? canvas.constructor.name : 'canvas'}`,
-      canvas: canvas || null,
-      // capture pixels NOW — a later render() of this same canvas must not
-      // retroactively change what this entry shows
-      snapshot: snapshotCanvas(canvas),
-    });
-  };
-
-  const consoleProxy = makeConsoleProxy(logs);
-
-  // Injected globals: GPU, console, render, utils, mode, plus task inputs.
-  const globals = {
-    GPU: RecordingGPU,
-    console: consoleProxy,
-    render,
-    utils,
-    mode: resolvedMode,
-  };
-
-  // Measure a small slice before committing the main thread to the full run.
-  if (!probe) {
-    const refusal = await preflight(code, mode, task);
-    if (refusal) {
-      const seconds = Math.round(refusal.estimateMs / 1000);
-      const message =
-        `refused to run: this would take about ${seconds}s and freeze the page. ` +
-        `A ${PROBE_AXIS_CAP}×${PROBE_AXIS_CAP} slice took ${refusal.probeMs.toFixed(0)} ms, and the ` +
-        `kernel asks for ${refusal.threads.toLocaleString('en-US')} threads. That much work per ` +
-        `thread usually means a kernel is handling a whole row or array where it should handle one ` +
-        `value — check that every array is indexed down to a number before you do arithmetic on it.`;
-      logs.push({ type: 'error', time: timeString(), text: message });
-      await destroyPreviousRun();
-      return {
-        ok: false,
-        error: { message },
-        logs,
-        kernels: [],
-        canvas: null,
-        resolvedMode,
-        durationMs: 0,
-        refusedAsTooSlow: true,
-      };
-    }
-    await destroyPreviousRun(); // release the probe's contexts before the real run
-  }
-
-  const started = performance.now();
-  let error = null;
-  try {
-    if (task && typeof task.inputs === 'function') {
-      const inputs = task.inputs(utils) || {};
-      for (const [name, value] of Object.entries(inputs)) {
-        if (IDENT_RE.test(name)) globals[name] = value;
-      }
-    }
-    const names = Object.keys(globals);
-    // eslint-disable-next-line no-new-func
-    const fn = new Function(
-      ...names,
-      `"use strict";\nreturn (async () => {\n${code}\n})();`
-    );
-    await fn(...names.map(n => globals[n]));
-  } catch (e) {
-    error = {
-      message: toErrorMessage(e),
-      stack: e && e.stack ? String(e.stack) : undefined,
-    };
-    logs.push({ type: 'error', time: timeString(), text: error.message });
-  }
-  const durationMs = performance.now() - started;
-
-  // Last canvas passed to render(), else the last graphical kernel's canvas.
-  let canvas = renderedCanvas;
-  if (!canvas) {
-    for (let i = kernels.length - 1; i >= 0; i--) {
-      const k = kernels[i];
-      try {
-        if (k.kernel && k.kernel.graphical && k.canvas) {
-          canvas = k.canvas;
-          break;
-        }
-      } catch (e) {
-        // kernel never built — keep looking
-      }
-    }
-  }
-
-  // What backend did gpu.js ACTUALLY use? It silently swaps in a CPU kernel
-  // when a kernel can't compile for WebGL — graphical kernels are pinned to
-  // 'unsigned' precision (backend/kernel.js setGraphical), which has no vec4
-  // array type, so any graphical kernel taking an image[y][x] array lands on
-  // the CPU. Saying so beats letting the console claim a GPU run.
-  const usedCpuKernel = kernels.some(k => {
+function killWorker() {
+  const dying = worker;
+  worker = null;
+  generation++; // any run state that worker held is now unreachable
+  if (dying) {
+    dying.onmessage = null;
+    dying.onerror = null;
+    dying.onmessageerror = null;
     try {
-      return k.kernel && k.kernel.constructor && k.kernel.constructor.name === 'CPUKernel';
+      dying.terminate();
     } catch (e) {
-      return false;
+      // already gone
+    }
+  }
+  // nothing else will ever answer those requests
+  settleAll({ failed: true, error: { message: 'the sandbox worker was stopped' } });
+}
+
+function onWorkerMessage(event) {
+  const msg = event.data || {};
+  const entry = pending.get(msg.id);
+  if (!entry) return; // a reply to a request we already gave up on
+  if (msg.kind === 'log') {
+    entry.logs.push(msg.log);
+    return;
+  }
+  clearTimeout(entry.timer);
+  pending.delete(msg.id);
+  if (msg.kind === 'failed') {
+    entry.settle({ failed: true, error: msg.error || { message: 'sandbox failed' }, logs: entry.logs });
+    return;
+  }
+  entry.settle({ result: msg.result, logs: entry.logs });
+}
+
+function onWorkerBroken(reason) {
+  settleAll({ failed: true, error: { message: reason } });
+  killWorker();
+}
+
+function spawnWorker() {
+  worker = new Worker(new URL('./sandbox.worker.js', import.meta.url), {
+    type: 'module',
+    name: 'learn-sandbox',
+  });
+  generation++;
+  worker.onmessage = onWorkerMessage;
+  worker.onerror = event => {
+    onWorkerBroken(
+      (event && event.message) ? `sandbox worker error: ${event.message}` : 'sandbox worker failed to load'
+    );
+  };
+  worker.onmessageerror = () => onWorkerBroken('sandbox worker could not decode a message');
+}
+
+// Sends one request. Resolves (never rejects) to exactly one of:
+//   { result, logs } | { timedOut: true, logs } | { failed: true, error, logs }
+function call(message, budgetMs) {
+  try {
+    if (!worker) spawnWorker();
+  } catch (e) {
+    // e.g. a CSP that forbids worker scripts — the caller reports it, and
+    // ensureSandbox() will have moved to the main-thread path already
+    return Promise.resolve({ failed: true, error: { message: toErrorMessage(e) }, logs: [] });
+  }
+  const id = nextId++;
+  const target = worker;
+  return new Promise(resolve => {
+    let done = false;
+    const settle = reply => {
+      if (done) return;
+      done = true;
+      resolve(reply);
+    };
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      const logs = entry.logs;
+      // The worker is wedged in a synchronous task; terminate() is the only
+      // way out. Spawn its replacement now so the next Run does not pay for it.
+      killWorker();
+      try {
+        spawnWorker();
+      } catch (e) {
+        worker = null; // the next request tries again and reports the failure
+      }
+      settle({ timedOut: true, logs });
+    }, budgetMs);
+    const entry = { settle, timer, logs: [] };
+    pending.set(id, entry);
+    try {
+      target.postMessage({ ...message, id });
+    } catch (e) {
+      clearTimeout(timer);
+      pending.delete(id);
+      settle({ failed: true, error: { message: toErrorMessage(e) }, logs: [] });
     }
   });
-  const fellBackToCPU = resolvedMode === 'gpu' && usedCpuKernel;
-  if (fellBackToCPU && !probe) {
-    logs.push({
-      type: 'warn',
-      time: timeString(),
-      text:
-        '▸ gpu.js could not compile this kernel for WebGL and ran it on the CPU backend instead ' +
-        '(graphical kernels use unsigned precision, which has no 2D pixel-array type)',
-    });
-  }
-
-  if (!error) {
-    logs.push({
-      type: 'ok',
-      time: timeString(),
-      text: `✓ run complete in ${durationMs.toFixed(1)} ms${fellBackToCPU ? ' (on the CPU backend)' : ''}`,
-    });
-  }
-
-  return {
-    ok: !error,
-    error,
-    logs,
-    kernels,
-    canvas,
-    resolvedMode,
-    durationMs,
-    fellBackToCPU,
-    probeStats: probe ? probeStats : undefined,
-  };
 }
 
-// ---- test running ---------------------------------------------------------
-
-// ctx handed to each test: the RunResult spread, plus kernel (last created),
-// task, utils, assert, assertClose and getPixels().
-export function buildTestContext(runResult, task) {
-  const kernels = runResult.kernels || [];
-  return {
-    ...runResult,
-    task,
-    kernel: kernels.length ? kernels[kernels.length - 1] : null,
-    utils,
-    assert,
-    assertClose,
-    // Uint8ClampedArray from the last graphical kernel's getPixels();
-    // falls back to a 2D readback of the run's canvas.
-    getPixels(flip) {
-      for (let i = kernels.length - 1; i >= 0; i--) {
-        const k = kernels[i];
-        try {
-          if (k.kernel && k.kernel.graphical && typeof k.getPixels === 'function') {
-            return k.getPixels(flip);
-          }
-        } catch (e) {
-          // fall through to the next candidate
-        }
-      }
-      const source = runResult.canvas;
-      if (source && source.width) {
-        const tmp = document.createElement('canvas');
-        tmp.width = source.width;
-        tmp.height = source.height;
-        const g = tmp.getContext('2d');
-        g.drawImage(source, 0, 0);
-        return g.getImageData(0, 0, tmp.width, tmp.height).data;
-      }
-      throw new Error('no graphical kernel or canvas to read pixels from');
-    },
-  };
-}
-
-// Runs a task's public + private tests against a RunResult.
-// → { results: [{ name, private, passed, ms, error? }], passed, total, allPassed }
-export async function runTests(task, runResult) {
-  const suites = [
-    { tests: task.publicTests || [], isPrivate: false },
-    { tests: task.privateTests || [], isPrivate: true },
-  ];
-  const results = [];
-  for (const { tests, isPrivate } of suites) {
-    for (const test of tests) {
-      const ctx = buildTestContext(runResult, task);
+// Decides the execution path once, and warms the worker up (spawning it costs
+// a module-graph evaluation of gpu.js plus the content registry).
+export function ensureSandbox() {
+  if (initPromise) return initPromise;
+  // Resolves, never rejects: everything downstream promises not to throw.
+  initPromise = (async () => {
+    const forced = forcedPath();
+    if (forced === 'main' || (!forced && !workerCapable())) {
+      sandboxPath = 'main';
+      unavailableReason = forced
+        ? 'forced by __learnForceSandbox'
+        : 'this browser has no Worker or no OffscreenCanvas';
+      await loadMainThreadSandbox();
+      return sandboxPath;
+    }
+    try {
       const t0 = performance.now();
-      let passed = true;
-      let errorMessage;
-      try {
-        await test.run(ctx);
-      } catch (e) {
-        passed = false;
-        errorMessage = toErrorMessage(e);
+      spawnWorker();
+      const reply = await call({ kind: 'hello' }, HELLO_BUDGET_MS);
+      if (!reply.result) {
+        throw new Error(
+          reply.failed && reply.error ? reply.error.message : 'sandbox worker did not answer'
+        );
       }
-      results.push({
-        name: test.name,
-        private: isPrivate,
-        passed,
-        ms: performance.now() - t0,
-        error: errorMessage,
-      });
+      spawnMs = performance.now() - t0;
+      cachedGpuSupported = Boolean(reply.result.gpuSupported);
+      sandboxPath = 'worker';
+    } catch (e) {
+      killWorker();
+      sandboxPath = 'main';
+      unavailableReason = toErrorMessage(e);
+      await loadMainThreadSandbox();
+    }
+    return sandboxPath;
+  })();
+  return initPromise;
+}
+
+// The fallback's copy of the execution core, imported lazily so the normal
+// (worker) path does not pull gpu.js into the page's own bundle.
+async function loadMainThreadSandbox() {
+  try {
+    const sandbox = await import('./sandbox');
+    cachedGpuSupported = sandbox.gpuSupported();
+    return sandbox;
+  } catch (e) {
+    cachedGpuSupported = false;
+    return null;
+  }
+}
+
+// Optional: start the sandbox before the learner presses Run, so the spawn
+// happens while they are reading the brief instead of inside their first run.
+export function warmUpSandbox() {
+  ensureSandbox().catch(() => {});
+}
+
+// Which path is in use, whether the sandbox has WebGL, and what the spawn cost.
+export async function sandboxInfo() {
+  const path = await ensureSandbox();
+  return {
+    path,
+    gpuSupported: Boolean(cachedGpuSupported),
+    spawnMs,
+    reason: unavailableReason,
+  };
+}
+
+// Does the sandbox (the thread that actually builds kernels) have WebGL?
+export async function sandboxGpuSupported() {
+  await ensureSandbox();
+  return Boolean(cachedGpuSupported);
+}
+
+// ---- task identity ---------------------------------------------------------
+
+// Functions cannot cross postMessage, so the worker looks tasks up in its own
+// copy of the content registry. The main thread only sends the coordinates.
+const taskRefs = new WeakMap();
+let taskRefsBuilt = false;
+
+function buildTaskRefs() {
+  taskRefsBuilt = true;
+  for (const module of modules) {
+    (module.tasks || []).forEach((task, i) => {
+      if (task && typeof task === 'object') {
+        taskRefs.set(task, { moduleId: module.id, taskNum: i + 1 });
+      }
+    });
+  }
+}
+
+export function taskRefFor(task) {
+  if (!task || typeof task !== 'object') return null;
+  if (!taskRefsBuilt) buildTaskRefs();
+  return taskRefs.get(task) || null;
+}
+
+// ---- main-thread fallback --------------------------------------------------
+
+let mainRun = null; // { token, internal } — the fallback's retained run state
+let mainTokenSeq = 0;
+
+async function runOnMainThread(code, mode, task) {
+  const sandbox = await loadMainThreadSandbox();
+  if (!sandbox) {
+    return failedResult(mode, { message: 'the execution engine could not be loaded' }, []);
+  }
+  const internal = await sandbox.executeRun(code, { mode, task });
+  const token = `main-${++mainTokenSeq}`;
+  mainRun = { token, internal };
+  const canvas = internal.canvas;
+  // The fallback keeps the live `kernels`/`canvas` on the result: they are
+  // in-thread here, and anything that used to read them still can.
+  return {
+    ...internal,
+    canvasInfo: canvas && canvas.width ? { width: canvas.width, height: canvas.height } : null,
+    kernelCount: (internal.kernels || []).length,
+    runToken: token,
+    sandboxGeneration: generation,
+    sandboxPath: 'main',
+  };
+}
+
+// ---- run results -----------------------------------------------------------
+
+// ImageBitmaps are transferable, data URLs are what <img> wants: convert on
+// arrival so ConsolePane keeps rendering `log.snapshot.url` unchanged.
+function bitmapToDataUrl(snapshot) {
+  if (!snapshot || !snapshot.bitmap) return snapshot || null;
+  const { bitmap, w, h } = snapshot;
+  try {
+    const tmp = document.createElement('canvas');
+    tmp.width = w;
+    tmp.height = h;
+    tmp.getContext('2d').drawImage(bitmap, 0, 0);
+    return { url: tmp.toDataURL(), w, h };
+  } catch (e) {
+    return null;
+  } finally {
+    try {
+      bitmap.close();
+    } catch (e) {
+      // nothing to release
     }
   }
-  const passed = results.filter(r => r.passed).length;
-  return { results, passed, total: results.length, allPassed: passed === results.length };
+}
+
+function hydrate(result, gen) {
+  return {
+    ...result,
+    logs: (result.logs || []).map(log =>
+      log.snapshot && log.snapshot.bitmap ? { ...log, snapshot: bitmapToDataUrl(log.snapshot) } : log
+    ),
+    sandboxGeneration: gen,
+    sandboxPath: 'worker',
+  };
+}
+
+// The mode the sandbox WOULD have resolved — used only when the worker died
+// before it could tell us what it picked.
+function assumedMode(mode) {
+  if (mode === 'cpu') return 'cpu';
+  return cachedGpuSupported ? 'gpu' : 'cpu';
+}
+
+function stoppedResult(mode, logs, budgetMs, verb) {
+  const message =
+    `stopped after ${Math.round(budgetMs / 1000)}s — your code was still running and the page ` +
+    'would have frozen';
+  return {
+    ok: false,
+    error: { message },
+    logs: [...logs, { type: 'error', time: timeString(), text: message }],
+    canvasInfo: null,
+    kernelCount: 0,
+    resolvedMode: assumedMode(mode),
+    durationMs: budgetMs,
+    fellBackToCPU: false,
+    stoppedByWatchdog: true,
+    // the worker that held this run's state is gone: no generation can match,
+    // so runTests reports the stop instead of asking the fresh worker
+    sandboxGeneration: -1,
+    sandboxPath: 'worker',
+    stoppedDuring: verb,
+  };
+}
+
+function failedResult(mode, error, logs) {
+  const message = (error && error.message) || 'the sandbox failed';
+  return {
+    ok: false,
+    error: { message },
+    logs: [...logs, { type: 'error', time: timeString(), text: message }],
+    canvasInfo: null,
+    kernelCount: 0,
+    resolvedMode: assumedMode(mode),
+    durationMs: 0,
+    fellBackToCPU: false,
+    sandboxFailed: true,
+    sandboxGeneration: -1,
+    sandboxPath: 'worker',
+  };
+}
+
+// ---- runUserCode -----------------------------------------------------------
+
+export async function runUserCode(code, { mode = 'auto', task } = {}) {
+  try {
+    const path = await ensureSandbox();
+    const taskRef = taskRefFor(task);
+    // A task that is not in the registry (hand-built in a console, say) cannot
+    // be looked up by the worker — its inputs and tests are functions. Here.
+    if (path !== 'worker' || (task && !taskRef)) return await runOnMainThread(code, mode, task);
+
+    const gen = generation;
+    const reply = await call({ kind: 'run', code, mode, taskRef }, RUN_WATCHDOG_MS);
+    if (reply.timedOut) return stoppedResult(mode, reply.logs, RUN_WATCHDOG_MS, 'run');
+    if (reply.failed || !reply.result) return failedResult(mode, reply.error, reply.logs);
+    return hydrate(reply.result, gen);
+  } catch (e) {
+    // the contract is that this never rejects — the UI has no other channel
+    return failedResult(mode, { message: toErrorMessage(e) }, []);
+  }
+}
+
+// ---- runTests --------------------------------------------------------------
+
+// Every test failing with one explanation. Used when the run's state is gone
+// (the worker was terminated), so the Tests panel still lists the task's tests
+// instead of showing an empty report.
+function syntheticReport(task, message) {
+  const results = [];
+  (task.publicTests || []).forEach(t => {
+    results.push({ name: t.name, private: false, passed: false, ms: 0, error: message });
+  });
+  (task.privateTests || []).forEach(t => {
+    results.push({ name: t.name, private: true, passed: false, ms: 0, error: message });
+  });
+  return { results, passed: 0, total: results.length, allPassed: false };
+}
+
+export async function runTests(task, runResult) {
+  try {
+    return await runTestsInner(task, runResult);
+  } catch (e) {
+    return syntheticReport(task, toErrorMessage(e));
+  }
+}
+
+async function runTestsInner(task, runResult) {
+  const path = await ensureSandbox();
+
+  if (path === 'worker') {
+    const taskRef = taskRefFor(task);
+    const token = runResult && runResult.runToken;
+    const sameWorker = runResult && runResult.sandboxGeneration === generation;
+    if (taskRef && token && sameWorker) {
+      const reply = await call({ kind: 'tests', runToken: token, taskRef }, TESTS_BUDGET_MS);
+      if (reply.timedOut) {
+        return syntheticReport(
+          task,
+          `stopped after ${Math.round(TESTS_BUDGET_MS / 1000)}s — the tests were still running ` +
+            'and the page would have frozen'
+        );
+      }
+      if (reply.failed || !reply.result) {
+        return syntheticReport(task, (reply.error && reply.error.message) || 'the sandbox failed');
+      }
+      if (reply.result.staleToken || reply.result.unknownTask) {
+        return syntheticReport(task, 'the run this report belongs to is no longer available — run again');
+      }
+      return reply.result;
+    }
+    // No state to test against: say why, in the tests themselves.
+    const why =
+      runResult && runResult.error && runResult.error.message
+        ? runResult.error.message
+        : 'the run did not complete, so there is nothing to test — run again';
+    return syntheticReport(task, why);
+  }
+
+  // main-thread fallback
+  const sandbox = await loadMainThreadSandbox();
+  if (!sandbox) return syntheticReport(task, 'the execution engine could not be loaded');
+  const internal =
+    mainRun && runResult && runResult.runToken === mainRun.token ? mainRun.internal : runResult;
+  return sandbox.executeTests(task, internal || { logs: [], kernels: [] });
+}
+
+// ---- benchmark bridge ------------------------------------------------------
+
+// benchmark.js drives this; it lives here so there is exactly one supervisor.
+export async function runBenchmarkInSandbox(code, task) {
+  try {
+    const path = await ensureSandbox();
+    const taskRef = taskRefFor(task);
+    if (path !== 'worker' || (task && !taskRef)) {
+      const sandbox = await loadMainThreadSandbox();
+      if (!sandbox) return { error: { message: 'the execution engine could not be loaded' } };
+      return await sandbox.executeBenchmark(code, task);
+    }
+    const reply = await call({ kind: 'benchmark', code, taskRef }, BENCHMARK_BUDGET_MS);
+    if (reply.timedOut) {
+      return {
+        error: {
+          message:
+            `stopped after ${Math.round(BENCHMARK_BUDGET_MS / 1000)}s — your code was still ` +
+            'running and the page would have frozen',
+        },
+      };
+    }
+    if (reply.failed || !reply.result) {
+      return { error: { message: (reply.error && reply.error.message) || 'the sandbox failed' } };
+    }
+    return reply.result;
+  } catch (e) {
+    return { error: { message: toErrorMessage(e) } };
+  }
 }

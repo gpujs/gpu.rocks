@@ -2,7 +2,8 @@
 // completion and signature help. Plain JS module, zero dependencies.
 //
 // Every fact here was checked against the gpu.js source (~/Documents/gpu.js)
-// and src/Learn/engine/runner.js — do not "fix" docs from memory.
+// and src/Learn/engine/sandbox.js (the execution core, where the sandbox globals
+// are injected) — do not "fix" docs from memory.
 //
 // Entry shape:
 //   {
@@ -438,7 +439,7 @@ const kernelInside = [
   },
 ];
 
-// ---- Sandbox globals (docs from src/Learn/engine/runner.js) ---------------
+// ---- Sandbox globals (docs from src/Learn/engine/sandbox.js) --------------
 
 const globals = [
   {
@@ -594,7 +595,7 @@ const globals = [
   },
 ];
 
-// ---- utils members (src/Learn/engine/runner.js) ---------------------------
+// ---- utils members (docs from src/Learn/engine/utils.js) ------------------
 
 const utilsMembers = [
   {

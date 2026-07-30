@@ -1,12 +1,16 @@
 import React, { useEffect } from 'react';
 import { modules } from '../content/index.js';
-import { runUserCode, runTests, isGPUSupported } from './runner';
+import { runUserCode, runTests, sandboxGpuSupported, sandboxInfo } from './runner';
 
 // Headless verification hook for scripts/verify-learn.mjs.
 //
+// It goes through runUserCode/runTests — the exact pipeline a learner's ▶ Run
+// uses, worker sandbox and watchdog included — so what this verifies is what
+// users actually run. It does NOT reach into the execution core directly.
+//
 // window.__verifyLearn({ moduleId?, mode = 'cpu' }) → JSON-serializable:
 //   { skipped: true, reason }                        // mode 'gpu' without WebGL
-//   { gpuSupported, mode, tasks: [taskReport] }
+//   { gpuSupported, sandbox, mode, tasks: [taskReport] }
 //
 // taskReport:
 //   { id, slug, title, ok,
@@ -116,14 +120,25 @@ async function verifyTask(task, module, index, mode, seenSlugs) {
 
 function VerifyPage() {
   useEffect(() => {
+    // where the sandbox lives, whether IT has WebGL, and what spawning cost —
+    // reported by the harness, and handy when debugging by hand
+    window.__learnSandboxInfo = () => sandboxInfo();
     window.__verifyLearn = async ({ moduleId, mode = 'cpu' } = {}) => {
-      const gpuSupported = isGPUSupported();
+      // ask the thread that will actually build the kernels, not this one
+      const gpuSupported = await sandboxGpuSupported();
+      const sandbox = await sandboxInfo();
       if (mode === 'gpu' && !gpuSupported) {
-        return { skipped: true, reason: 'WebGL unavailable in this browser', gpuSupported, mode };
+        return {
+          skipped: true,
+          reason: 'WebGL unavailable in the sandbox',
+          gpuSupported,
+          sandbox,
+          mode,
+        };
       }
       const selected = moduleId ? modules.filter(m => m.id === moduleId) : modules;
       if (moduleId && selected.length === 0) {
-        return { error: `no module with id "${moduleId}"`, gpuSupported, mode };
+        return { error: `no module with id "${moduleId}"`, gpuSupported, sandbox, mode };
       }
       const tasks = [];
       for (const module of selected) {
@@ -133,10 +148,11 @@ function VerifyPage() {
           tasks.push(await verifyTask(module.tasks[i], module, i, mode, seenSlugs));
         }
       }
-      return { gpuSupported, mode, tasks };
+      return { gpuSupported, sandbox, mode, tasks };
     };
     return () => {
       delete window.__verifyLearn;
+      delete window.__learnSandboxInfo;
     };
   }, []);
   return <div className="mono">verify harness ready — window.__verifyLearn(&#123;moduleId, mode&#125;)</div>;

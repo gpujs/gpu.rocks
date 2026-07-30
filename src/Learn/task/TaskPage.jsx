@@ -18,7 +18,7 @@ import TaskDots from '../components/TaskDots';
 import { useTheme } from '../ThemeContext';
 import { tracks, modules, getTask } from '../content/index';
 import { getFigures } from '../content/figures/index';
-import { runUserCode, runTests, snapshotCanvas, utils } from '../engine/runner';
+import { runUserCode, runTests, snapshotCanvas, utils, warmUpSandbox } from '../engine/runner';
 import { runBenchmark } from '../engine/benchmark';
 import {
   getSavedCode,
@@ -39,9 +39,12 @@ import { highlightCodeBlocks } from './highlightCode';
 
 // ---- helpers ---------------------------------------------------------------
 
-// render() snapshots at log time (see runner.js); this is the fallback for a
-// canvas whose pixels couldn't be captured then — retried right after the run,
-// in the same microtask chain, before the browser can composite + clear it.
+// render() snapshots at log time (see engine/sandbox.js); this is the fallback
+// for a canvas whose pixels couldn't be captured then — retried right after the
+// run, in the same microtask chain, before the browser can composite + clear
+// it. Only the main-thread fallback path can ever hit it: a worker run has no
+// live canvas to retry, it ships an ImageBitmap that runner.js has already
+// turned into a data URL.
 function decorateLog(log) {
   if (log.type === 'canvas' && log.canvas && !log.snapshot) {
     const snapshot = snapshotCanvas(log.canvas);
@@ -300,6 +303,12 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   useEffect(() => {
     setPageMeta(moduleTaskMeta(module, task, taskNum));
   }, [module, task, taskNum]);
+
+  // Spawn the sandbox worker (gpu.js + the content registry evaluate in it)
+  // while the learner reads the brief, so the first ▶ Run does not pay for it.
+  useEffect(() => {
+    warmUpSandbox();
+  }, []);
 
   const track = tracks.find(t => t.number === module.track);
   const progress = useMemo(
