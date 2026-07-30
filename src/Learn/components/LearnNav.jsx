@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router';
 import { useTheme } from '../ThemeContext';
+import { FEEDBACK_URL } from '../feedback';
 
 function capitalize(word) {
   return word.charAt(0).toUpperCase() + word.slice(1);
@@ -39,6 +40,14 @@ function LearnNav() {
         <a href="/api/">API</a>
         <Link to="/examples">Examples</Link>
         <a href="https://github.com/gpujs/gpu.js">GitHub</a>
+        <a
+          className="feedback"
+          href={FEEDBACK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span aria-hidden="true">💬 </span>Feedback
+        </a>
       </div>
       <button type="button" className="theme-btn" onClick={cycleTheme}>
         Theme: {capitalize(pref)}

@@ -4,6 +4,7 @@ import LearnNav from '../components/LearnNav';
 import KernelGrid from '../components/KernelGrid';
 import TaskDots from '../components/TaskDots';
 import { tracks } from '../content/index.js';
+import { FEEDBACK_URL } from '../feedback';
 import { moduleProgress } from '../engine/storage.js';
 import { learnHomeMeta } from '../../routeMeta';
 import { setPageMeta } from '../../pageMeta';
@@ -158,6 +159,24 @@ function LearnHome() {
           <Track key={track.number != null ? track.number : track.id} track={track} />
         ))}
       </section>
+
+      <div className="feedback-card">
+        <div className="txt">
+          <b>Help shape this course</b>
+          <p>
+            Stuck on a task? Found a bug? Want a module that doesn't exist yet? Every task was
+            tested, but real learners find what tests can't.
+          </p>
+        </div>
+        <a
+          className="btn-feedback"
+          href={FEEDBACK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span aria-hidden="true">💬 </span>Leave feedback on GitHub →
+        </a>
+      </div>
 
       <footer className="pagefoot">
         GPU.js is MIT licensed · learn.gpu.rocks runs entirely in your browser — nothing to
