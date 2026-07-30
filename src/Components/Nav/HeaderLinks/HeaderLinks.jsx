@@ -44,6 +44,13 @@ const HeaderLinks = () => {
           Examples
         </NavLink>
       </li>
+
+      <li>
+        {/* the interactive course; its own pages carry the standalone learn nav */}
+        <NavLink to="/learn">
+          Learn
+        </NavLink>
+      </li>
     </ul>
   )
 }
