@@ -6,25 +6,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script>
       // The site was hash-routed until mid-2026, so old links look like
-      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before anything
-      // else loads (zero app boot on the wrong URL). Plain in-page anchors
-      // don't start with "#/" and are left alone.
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
       (function () {
         var hash = window.location.hash;
-        if (hash.length > 1 && hash.charAt(1) === '/') {
-          window.location.replace(hash.slice(1) + window.location.search);
-          return;
-        }
-        // GitHub Pages 301-redirects directory URLs to a trailing slash
-        // (/learn → /learn/). Strip it so the address bar always shows the
-        // canonical path; replaceState costs no request and no reload.
         var path = window.location.pathname;
-        if (path.length > 1 && path.charAt(path.length - 1) === '/') {
-          window.history.replaceState(
-            null,
-            '',
-            path.replace(/\/+$/, '') + window.location.search
-          );
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
         }
       })();
     </script>
