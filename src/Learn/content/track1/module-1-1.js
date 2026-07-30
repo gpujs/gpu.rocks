@@ -101,14 +101,11 @@ function parityHint(out) {
   ]);
 }
 
-// Task 5: gpu.js types an arithmetic expression from its LEFT operand, so
-// this.thread.x * scale compiles an integer multiply on the GL backend and
-// truncates the scale — the exact gotcha this task is built around. When the
-// scale happens to be a whole number the two agree and the probe stays quiet.
+// Task 5. gpu.js 2.20 made mixed int/float arithmetic commutative, so the
+// operand order this task used to warn about no longer changes the answer and
+// the truncated-scale probe that went with it has been retired.
 function scaleHint(out, scale) {
   return diagnoseAll(64, i => out[i], i => i * scale, 1e-2, [
-    [i => i * Math.trunc(scale),
-      'every cell is this.thread.x times a truncated scale — the integer thread id on the left makes gpu.js compile an integer multiply; put the float first: scale * this.thread.x'],
     [i => i,
       'the scale never reached the result — every cell is the bare this.thread.x'],
   ]);
@@ -529,19 +526,12 @@ console.log(result);
         input.</p>
         <p>Here's the payoff: a compiled kernel is <strong>reusable</strong>. Build it once, call it
         with <code>2.5</code>, call it again with <code>0.5</code> — two parallel launches, zero
-        recompiles. That build-once/call-many rhythm is how all real GPU code is structured.
-        One gpu.js habit to pick up now: <code>this.thread.x</code> is an <em>integer</em>, and
-        gpu.js's transpiler types a <code>*</code>, <code>+</code> or <code>-</code> expression
-        from its <strong>left</strong> operand (division always produces a float) — so write
-        <code>scale * this.thread.x</code> (float first) to get float math. That's a quirk of
-        this framework, not a GPU law: CUDA promotes mixed int/float math to float, and WGSL or
-        GLSL refuse to compile the mix outright.</p>`,
+        recompiles. That build-once/call-many rhythm is how all real GPU code is structured.</p>`,
       goal: `<strong>Goal:</strong> make <code>ramp</code> return <code>scale * this.thread.x</code>,
         then call it twice — once with <code>2.5</code>, once with <code>0.5</code>.`,
       requirements: [
         'Give the kernel function a <code>scale</code> parameter',
         'Multiply the shared argument by this thread\'s index — shared argument × thread identity',
-        'Keep the float on the left so gpu.js compiles a float multiply, not an integer one',
         'Call the kernel twice with different scales (already wired up)',
       ],
       hints: [
@@ -554,11 +544,7 @@ console.log(result);
         {
           title: 'Hint 2 — the body',
           body: `<p><code>return scale * this.thread.x;</code> — the argument is shared, the
-            index is per-thread, the product is different in every cell. Written the other way
-            round (<code>this.thread.x * scale</code>) gpu.js's GL backend compiles an
-            <em>integer</em> multiplication and truncates <code>scale</code> — a transpiler
-            gotcha specific to gpu.js (CUDA would promote to float; WGSL would refuse the
-            mixed types at compile time).</p>`,
+            index is per-thread, the product is different in every cell.</p>`,
         },
       ],
       transfer: `A value shared by all threads is a <em>uniform</em>: WebGPU binds it as a uniform

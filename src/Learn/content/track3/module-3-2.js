@@ -62,11 +62,10 @@ function diagnose(got, expected, eps, probes) {
   return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
 }
 
-// Task 1: the plane mapping, plus gpu.js's left-operand typing rule. Written
-// as `xMin + this.thread.x * step`, the GL backend types the multiply from the
-// integer thread id, compiles an integer multiply and truncates step to 0 — so
-// every cell reports the view's corner. Hoisting the id into a const first is
-// what makes it a float, which is exactly what the task asks for.
+// Task 1: the plane mapping. (Until gpu.js 2.20 the GL backend typed a mixed
+// multiply from its left operand, so an integer thread id on the left silently
+// truncated step to 0 and every cell reported the view's corner; that is fixed
+// upstream and the probe for it has been retired.)
 function planeProbes(xMin, yMin, step, x, y) {
   const cr = xMin + x * step;
   const ci = yMin + y * step;
@@ -75,8 +74,6 @@ function planeProbes(xMin, yMin, step, x, y) {
       'that is |c|, not |c|² — return cr * cr + ci * ci without the square root'],
     [x * step * (x * step) + y * step * (y * step),
       'the view offsets never got added — cr is xMin + x * step, ci is yMin + y * step'],
-    [xMin * xMin + yMin * yMin,
-      'every cell reports the corner of the view — the integer this.thread.x on the left of the multiply makes gpu.js truncate step to 0; hoist the thread id into a const first'],
   ];
 }
 

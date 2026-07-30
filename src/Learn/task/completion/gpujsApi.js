@@ -138,7 +138,7 @@ const gpuInstance = [
 
 // ---- new GPU(settings) options (README "GPU Settings"; the constructor in
 // gpu.js src/gpu.js reads settings.mode / .canvas / .context — the installed
-// 2.19.9 supports modes 'gpu' | 'cpu' | 'dev' plus the internal kernels
+// 2.20.0 supports modes 'gpu' | 'cpu' | 'dev' plus the internal kernels
 // 'webgl' | 'webgl2' | 'headlessgl', the latter Node-only) ------------------
 
 const gpuSettings = [
