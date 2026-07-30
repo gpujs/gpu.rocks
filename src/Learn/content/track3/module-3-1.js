@@ -84,8 +84,8 @@ export default {
         },
         {
           title: 'Hint 2 — the one-liner',
-          body: `<p>The whole kernel body:
-            <code>this.color(this.thread.x / 128, this.thread.y / 128, 0.5, 1);</code></p>`,
+          body: `<p>The whole kernel body:</p>
+<pre><code>this.color(this.thread.x / 128, this.thread.y / 128, 0.5, 1);</code></pre>`,
         },
       ],
       transfer: `Normalized pixel coordinates are the <em>uv</em> every shader language starts
@@ -217,8 +217,8 @@ render(gradient.canvas);
       hints: [
         {
           title: 'Hint 1 — the second axis',
-          body: `<p>Mirror the existing line for y:
-            <code>const cellY = Math.floor(this.thread.y / 16);</code></p>`,
+          body: `<p>Mirror the existing line for y:</p>
+<pre><code>const cellY = Math.floor(this.thread.y / 16);</code></pre>`,
         },
         {
           title: 'Hint 2 — why the sum?',
@@ -383,8 +383,8 @@ render(board.canvas);
         },
         {
           title: 'Hint 2 — the curve',
-          body: `<p><code>const curveY = 64 + 40 * Math.sin(x * 2 * Math.PI / 128);</code> —
-            <code>Math.sin</code> and <code>Math.PI</code> both work inside kernels.</p>`,
+          body: `<pre><code>const curveY = 64 + 40 * Math.sin(x * 2 * Math.PI / 128);</code></pre>
+<p><code>Math.sin</code> and <code>Math.PI</code> both work inside kernels.</p>`,
         },
       ],
       transfer: `Distance-to-shape rendering is how GPUs draw crisp text and vector art at any
@@ -542,9 +542,9 @@ render(plot.canvas);
         },
         {
           title: 'Hint 2 — the last three lines',
-          body: `<p><code>const wave = 0.5 + 0.5 * Math.cos(r * 0.35);</code><br/>
-            <code>const v = wave * Math.max(0, 1 - r / 96);</code><br/>
-            <code>this.color(0.4 * v, 0.75 * v, v, 1);</code></p>`,
+          body: `<pre><code>const wave = 0.5 + 0.5 * Math.cos(r * 0.35);
+const v = wave * Math.max(0, 1 - r / 96);
+this.color(0.4 * v, 0.75 * v, v, 1);</code></pre>`,
         },
       ],
       transfer: `Radius-and-angle reasoning is everywhere in GPU code: vignette and

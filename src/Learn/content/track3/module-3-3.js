@@ -141,10 +141,11 @@ export default {
         },
         {
           title: 'Hint 3 — the whole loop body',
-          body: `<p><code>const yy = (this.thread.y + dy + 16) % 16;</code><br>
-            <code>const xx = (this.thread.x + dx + 16) % 16;</code><br>
-            <code>count += grid[yy][xx];</code> — then <code>return count -
-            grid[this.thread.y][this.thread.x];</code></p>`,
+          body: `<pre><code>const yy = (this.thread.y + dy + 16) % 16;
+const xx = (this.thread.x + dx + 16) % 16;
+count += grid[yy][xx];</code></pre>
+<p>— then</p>
+<pre><code>return count - grid[this.thread.y][this.thread.x];</code></pre>`,
         },
       ],
       transfer: `Reading a fixed window around your own coordinate is the <em>stencil</em> pattern,
@@ -259,8 +260,8 @@ console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
         },
         {
           title: 'Hint 2 — the two ifs',
-          body: `<p><code>if (self === 1 &amp;&amp; (count === 2 || count === 3)) next = 1;</code><br>
-            <code>if (self === 0 &amp;&amp; count === 3) next = 1;</code></p>`,
+          body: `<pre><code>if (self === 1 &amp;&amp; (count === 2 || count === 3)) next = 1;
+if (self === 0 &amp;&amp; count === 3) next = 1;</code></pre>`,
         },
       ],
       transfer: `Reading one buffer while writing another is <em>ping-ponging</em>, and every
@@ -382,9 +383,12 @@ console.log('after :', Array.from(next[7]).join(''));
       hints: [
         {
           title: 'Hint 1 — the feed-back loop',
-          body: `<p><code>let current = world;</code> then
-            <code>for (let g = 1; g &lt;= 6; g++) { current = step(current); … }</code>.
-            No copying, no bookkeeping — the kernel's output is already a valid input.</p>`,
+          body: `<p><code>let current = world;</code> then</p>
+<pre><code>for (let g = 1; g &lt;= 6; g++) {
+  current = step(current);
+  // …
+}</code></pre>
+<p>No copying, no bookkeeping — the kernel's output is already a valid input.</p>`,
         },
         {
           title: 'Hint 2 — counting the living',
@@ -522,8 +526,11 @@ for (let g = 1; g <= 6; g++) {
         },
         {
           title: 'Hint 2 — the branch',
-          body: `<p><code>if (alive === 1) { this.color(0.2, 1, 0.4, 1); } else {
-            this.color(0.05, 0.06, 0.09, 1); }</code></p>`,
+          body: `<pre><code>if (alive === 1) {
+  this.color(0.2, 1, 0.4, 1);
+} else {
+  this.color(0.05, 0.06, 0.09, 1);
+}</code></pre>`,
         },
       ],
       transfer: `Sim pass feeding a render pass is the standard split in every API: a WebGPU compute
@@ -695,9 +702,9 @@ render(paint.canvas);
         },
         {
           title: 'Hint 2 — a single return',
-          body: `<p><code>let fate = born[count];</code> then
-            <code>if (self === 1) fate = stay[count];</code> then
-            <code>return fate;</code></p>`,
+          body: `<pre><code>let fate = born[count];
+if (self === 1) fate = stay[count];
+return fate;</code></pre>`,
         },
       ],
       transfer: `Shipping small lookup tables to a fixed kernel instead of recompiling is how GPUs

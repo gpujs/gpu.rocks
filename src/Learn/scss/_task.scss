@@ -308,6 +308,81 @@
     font-size: .8em;
   }
 
+  /* ---- authored code blocks (<pre><code>, highlighted by highlightCode.js)
+     Panel look matches the figure panels' rhythm; colors ride the --ed-*
+     editor tokens so both themes just work. The pre scrolls internally —
+     the page must never scroll sideways. */
+  .brief pre {
+    margin: 1.1rem 0;
+    padding: .75rem .9rem;
+    background: var(--ed-bg);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .8rem;
+    line-height: 1.6;
+    color: var(--ed-ink);
+  }
+
+  .brief pre code {
+    // reset the inline-chip style — the panel is the chrome here
+    display: block;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    white-space: pre;
+  }
+
+  // hint bodies: the pre sits between <p>s that carry .9rem side padding
+  .brief details pre {
+    margin: .1rem .9rem .7rem;
+  }
+
+  // classHighlighter's stable tok-* classes → the editor's --ed-* palette
+  .brief pre .tok-keyword,
+  .brief pre .tok-atom,
+  .brief pre .tok-bool {
+    color: var(--ed-kw);
+  }
+
+  .brief pre .tok-string,
+  .brief pre .tok-string2 {
+    color: var(--ed-str);
+  }
+
+  .brief pre .tok-number {
+    color: var(--ed-num);
+  }
+
+  .brief pre .tok-function,
+  .brief pre .tok-className {
+    color: var(--ed-fn);
+  }
+
+  .brief pre .tok-propertyName {
+    color: var(--ed-prop);
+  }
+
+  .brief pre .tok-comment {
+    color: var(--ed-cm);
+  }
+
+  .brief pre .tok-variableName,
+  .brief pre .tok-variableName2 {
+    color: var(--ed-ink);
+  }
+
+  .brief pre .tok-operator,
+  .brief pre .tok-punctuation {
+    color: var(--ed-ink);
+    opacity: .75;
+  }
+
   .brief details {
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -888,5 +963,85 @@
   @media (max-width: 560px) {
     // no Tab key on touch keyboards — make room for the full-screen button
     .ed-hint { display: none; }
+  }
+
+  /* ============ completion modal (module / track celebration) ============ */
+  .cmodal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200; // above the fullscreen editor (z-index 100) and nav (20)
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.2rem;
+    background: color-mix(in srgb, var(--ink) 50%, transparent);
+    backdrop-filter: blur(3px);
+  }
+
+  .cmodal {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    max-width: 26rem;
+    width: 100%;
+    padding: 1.9rem 2.1rem 1.7rem;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, .35);
+    animation: cmodal-in .2s ease-out;
+  }
+
+  @keyframes cmodal-in {
+    from {
+      opacity: 0;
+      transform: scale(.95);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .cmodal .eyebrow {
+    color: var(--teal);
+  }
+
+  .cmodal h2 {
+    // !important: global site CSS forces h2 font-size with !important
+    font-size: 1.15rem !important;
+    padding-top: 0;
+    margin-bottom: .9rem;
+  }
+
+  .cmodal .taskdots {
+    margin-bottom: 1.1rem;
+  }
+
+  .cmodal-line {
+    font-size: .88rem;
+    color: var(--ink);
+    margin: 0 0 .8rem;
+  }
+
+  .cmodal-feedback {
+    font-size: .8rem;
+    color: var(--muted);
+    margin: 0 0 1.5rem;
+
+    a {
+      color: var(--blue);
+      font-weight: 700;
+    }
+  }
+
+  .cmodal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .8rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cmodal {
+      animation: none;
+    }
   }
 }

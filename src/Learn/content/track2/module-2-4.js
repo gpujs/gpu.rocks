@@ -133,7 +133,11 @@ export default {
         },
         {
           title: 'Hint 2 — the verdict',
-          body: `<p><code>if (x * x + y * y &lt;= 1) { return 1; } return 0;</code> — a branch is
+          body: `<pre><code>if (x * x + y * y &lt;= 1) {
+  return 1;
+}
+return 0;</code></pre>
+<p>— a branch is
             fine in a kernel as long as every path returns.</p>`,
         },
       ],
@@ -255,9 +259,13 @@ console.log(count, 'of 4096 darts hit — π ≈', (4 * count) / 4096);
         },
         {
           title: 'Hint 2 — the loop',
-          body: `<p><code>const base = this.thread.x * 256; let sum = 0;
-            for (let i = 0; i &lt; 256; i++) { sum += hits[base + i]; } return sum;</code>
-            The bound is a literal, so gpu.js can unroll it safely.</p>`,
+          body: `<pre><code>const base = this.thread.x * 256;
+let sum = 0;
+for (let i = 0; i &lt; 256; i++) {
+  sum += hits[base + i];
+}
+return sum;</code></pre>
+<p>The bound is a literal, so gpu.js can unroll it safely.</p>`,
         },
       ],
       transfer: `Reduction is <em>the</em> fundamental pattern of GPU computing — CUDA has warp
@@ -408,8 +416,9 @@ console.log('π ≈', (4 * total) / 65536);
         },
         {
           title: 'Hint 2 — one line changes',
-          body: `<p>The loop skeleton is last task's reduction. Swap what you accumulate:
-            <code>const x = xs[base + i]; sum += Math.exp(-x * x);</code></p>`,
+          body: `<p>The loop skeleton is last task's reduction. Swap what you accumulate:</p>
+<pre><code>const x = xs[base + i];
+sum += Math.exp(-x * x);</code></pre>`,
         },
       ],
       transfer: `Fusing the map into the reduction halves the memory traffic — the same reasoning

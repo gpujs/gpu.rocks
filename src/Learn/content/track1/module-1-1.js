@@ -52,8 +52,13 @@ export default {
         },
         {
           title: 'Hint 2 — the whole thing',
-          body: `<p><code>gpu.createKernel(function () { return 42; }, { output: [16] })</code> —
-            then calling it returns an array of sixteen 42s.</p>`,
+          body: `<p>The whole call:</p>
+<pre><code>gpu.createKernel(function () {
+  return 42;
+}, {
+  output: [16],
+})</code></pre>
+<p>Calling it returns an array of sixteen 42s.</p>`,
         },
       ],
       transfer: `Launching N copies of one function is <em>the</em> primitive of every GPU API:
@@ -215,7 +220,9 @@ console.log(result);
       title: 'From For-Loop to Formula',
       intro: `<p>Here's the payoff of the thread index. On the CPU you'd sample a sine wave like
         this:</p>
-        <p><code>for (let i = 0; i &lt; 64; i++) wave[i] = Math.sin(i / 64 * 2 * Math.PI);</code></p>
+<pre><code>for (let i = 0; i &lt; 64; i++) {
+  wave[i] = Math.sin(i / 64 * 2 * Math.PI);
+}</code></pre>
         <p>On the GPU, the loop <strong>disappears</strong> — the 64 iterations become 64 threads,
         and the loop variable <code>i</code> becomes <code>this.thread.x</code>. The body of the loop
         is your kernel body, unchanged. (<code>Math.sin</code> and <code>Math.PI</code> work inside
@@ -236,7 +243,7 @@ console.log(result);
         },
         {
           title: 'Hint 2 — the body',
-          body: `<p><code>return Math.sin(this.thread.x / 64 * 2 * Math.PI);</code></p>`,
+          body: `<pre><code>return Math.sin(this.thread.x / 64 * 2 * Math.PI);</code></pre>`,
         },
       ],
       transfer: `This loop-body-becomes-kernel-body rewrite is called an <em>embarrassingly
@@ -332,8 +339,9 @@ console.log(samples);
         },
         {
           title: 'Hint 2 — the pattern',
-          body: `<p><code>return (this.thread.x + this.thread.y) % 2;</code> — neighbours differ
-            by one in <code>x</code> or <code>y</code>, so the parity flips checkerboard-style.</p>`,
+          body: `<pre><code>return (this.thread.x + this.thread.y) % 2;</code></pre>
+<p>Neighbours differ by one in <code>x</code> or <code>y</code>, so the parity flips
+            checkerboard-style.</p>`,
         },
       ],
       transfer: `GPUs are built around 2D grids because images are 2D: ROCm and CUDA launch

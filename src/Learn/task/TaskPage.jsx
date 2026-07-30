@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
@@ -27,6 +34,8 @@ import { setPageMeta } from '../../pageMeta';
 import { learnCompletions } from './completion/completions';
 import { signatureHelp } from './completion/signatureHelp';
 import ConsolePane from './ConsolePane';
+import CompletionModal from './CompletionModal';
+import { highlightCodeBlocks } from './highlightCode';
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -197,8 +206,15 @@ function Figures({ figures }) {
 
 function BriefPane({ moduleId, task, taskNum, total }) {
   const figures = getFigures(moduleId, taskNum);
+  const briefRef = useRef(null);
+  // Static syntax highlighting for authored <pre><code> blocks. Layout effect
+  // so the spans exist before paint (no flash of unhighlighted code, no
+  // post-paint layout thrash); idempotent, re-runs when the task changes.
+  useLayoutEffect(() => {
+    highlightCodeBlocks(briefRef.current);
+  }, [task]);
   return (
-    <aside className="brief">
+    <aside className="brief" ref={briefRef}>
       <p className="eyebrow">Task {taskNum} of {total}</p>
       <h2>{task.title}</h2>
       <div dangerouslySetInnerHTML={{ __html: task.intro || '' }} />
@@ -258,6 +274,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   const [fullscreen, setFullscreen] = useState(false);
   const [progressTick, setProgressTick] = useState(0);
   const [status, setStatus] = useState(''); // announced via the role=status region
+  const [celebration, setCelebration] = useState(null); // null | { kind: 'module' | 'track' }
 
   const codeRef = useRef(initialCode);
   const viewRef = useRef(null);
@@ -265,6 +282,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   modeRef.current = mode;
   const busyRef = useRef(false);
   const saveTimer = useRef(null);
+  const nextBtnRef = useRef(null);
   const consoleTabRef = useRef(null);
   const testsTabRef = useRef(null);
 
@@ -368,15 +386,36 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     setBench(null);
   }, [task, taskId]);
 
+  // next module in the global sorted order; when it belongs to another track
+  // (or doesn't exist) this module is the last of its track
+  const nextModule = useMemo(() => {
+    const idx = modules.findIndex(m => m.id === module.id);
+    return idx >= 0 ? modules[idx + 1] || null : null;
+  }, [module]);
+  const lastInTrack = !nextModule || nextModule.track !== module.track;
+
   const handleNext = useCallback(() => {
     if (taskNum < total) {
       navigate(`/learn/${module.id}/${taskNum + 1}`);
       return;
     }
-    const idx = modules.findIndex(m => m.id === module.id);
-    const next = idx >= 0 ? modules[idx + 1] : null;
-    navigate(next ? `/learn/${next.id}/1` : '/learn');
-  }, [navigate, module, taskNum, total]);
+    // last task of the module AND every task done (including this one):
+    // celebrate instead of navigating
+    if (moduleProgress(module).done === total) {
+      const kind = lastInTrack ? 'track' : 'module';
+      setCelebration({ kind });
+      setStatus(kind === 'track' ? 'Track complete' : 'Module complete');
+      return;
+    }
+    // earlier tasks were skipped — keep the plain navigation behavior
+    navigate(nextModule ? `/learn/${nextModule.id}/1` : '/learn');
+  }, [navigate, module, taskNum, total, nextModule, lastInTrack]);
+
+  // Esc / backdrop close: stay on the task, hand focus back to the Next button
+  const closeCelebration = useCallback(() => {
+    setCelebration(null);
+    if (nextBtnRef.current) nextBtnRef.current.focus();
+  }, []);
 
   // ⌘/Ctrl + Enter anywhere on the page runs the code. The CodeMirror keymap
   // below preventDefaults first, so check defaultPrevented to avoid a double run.
@@ -483,7 +522,13 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           <button type="button" className="tb-btn" onClick={handleReset}>
             Reset code
           </button>
-          <button type="button" className="tb-next" onClick={handleNext} disabled={!nextEnabled}>
+          <button
+            type="button"
+            className="tb-next"
+            ref={nextBtnRef}
+            onClick={handleNext}
+            disabled={!nextEnabled}
+          >
             Next task →
           </button>
         </div>
@@ -573,6 +618,23 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           </div>
         </div>
       </div>
+
+      {celebration && (
+        <CompletionModal
+          kind={celebration.kind}
+          module={module}
+          track={track}
+          totalTasks={total}
+          courseEnd={
+            celebration.kind === 'track' &&
+            Boolean(track) &&
+            track.number === tracks[tracks.length - 1].number
+          }
+          onClose={closeCelebration}
+          onEnd={() => navigate('/learn')}
+          onNextModule={() => navigate(`/learn/${nextModule.id}/1`)}
+        />
+      )}
     </div>
   );
 }

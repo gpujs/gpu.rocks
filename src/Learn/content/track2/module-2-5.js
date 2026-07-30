@@ -275,10 +275,10 @@ console.log('pull on body 0:', strength[0]);
         },
         {
           title: 'Hint 2 — the loop body',
-          body: `<p><code>const dx = posX[j] - myX;</code><br>
-            <code>const dy = posY[j] - myY;</code><br>
-            <code>const r2 = dx * dx + dy * dy;</code><br>
-            <code>ax += mass[j] * dx / (r2 * Math.sqrt(r2));</code></p>`,
+          body: `<pre><code>const dx = posX[j] - myX;
+const dy = posY[j] - myY;
+const r2 = dx * dx + dy * dy;
+ax += mass[j] * dx / (r2 * Math.sqrt(r2));</code></pre>`,
         },
       ],
       transfer: `This loop-inside-a-thread is the canonical O(n²) GPU pattern. Fast CUDA and ROCm
@@ -547,8 +547,9 @@ console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
         },
         {
           title: 'Hint 2 — the velocity kernel',
-          body: `<p><code>return [velX[this.thread.x] + accX[this.thread.x] * dt,
-            velY[this.thread.x] + accY[this.thread.x] * dt];</code> — the position kernel is the
+          body: `<pre><code>return [velX[this.thread.x] + accX[this.thread.x] * dt,
+        velY[this.thread.x] + accY[this.thread.x] * dt];</code></pre>
+<p>— the position kernel is the
             same shape with <code>pos</code> and <code>vel</code>.</p>`,
         },
       ],
@@ -739,18 +740,22 @@ console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
         },
         {
           title: 'Hint 2 — carrying the state',
-          body: `<p>End every tick by overwriting the state:
-            <code>vx = newVx; vy = newVy; px = newPx; py = newPy;</code> — next tick's
+          body: `<p>End every tick by overwriting the state:</p>
+<pre><code>vx = newVx;
+vy = newVy;
+px = newPx;
+py = newPy;</code></pre>
+<p>— next tick's
             <code>accel</code> must see the moved bodies, or time never advances.</p>`,
         },
         {
           title: 'Hint 3 — the whole loop',
-          body: `<p><code>for (let step = 0; step &lt; STEPS; step++) {</code><br>
-            <code>&nbsp;&nbsp;const [ax, ay] = unpack(accel(px, py, mass, SOFT));</code><br>
-            <code>&nbsp;&nbsp;const [nvx, nvy] = unpack(stepVel(vx, vy, ax, ay, DT));</code><br>
-            <code>&nbsp;&nbsp;const [npx, npy] = unpack(stepPos(px, py, nvx, nvy, DT));</code><br>
-            <code>&nbsp;&nbsp;px = npx; py = npy; vx = nvx; vy = nvy;</code><br>
-            <code>}</code></p>`,
+          body: `<pre><code>for (let step = 0; step &lt; STEPS; step++) {
+  const [ax, ay] = unpack(accel(px, py, mass, SOFT));
+  const [nvx, nvy] = unpack(stepVel(vx, vy, ax, ay, DT));
+  const [npx, npy] = unpack(stepPos(px, py, nvx, nvy, DT));
+  px = npx; py = npy; vx = nvx; vy = nvy;
+}</code></pre>`,
         },
       ],
       transfer: `A host loop launching device kernels in sequence is the universal skeleton of GPU

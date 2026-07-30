@@ -126,9 +126,10 @@ export default {
       hints: [
         {
           title: 'Hint 1 — the wrap is an if',
-          body: `<p>Same trick as clamping, different else:
-            <code>let xr = this.thread.x + 1; if (xr &gt; this.constants.size - 1) xr = 0;</code>
-            The starter already wrote <code>xl</code> for you — mirror it three times.</p>`,
+          body: `<p>Same trick as clamping, different else:</p>
+<pre><code>let xr = this.thread.x + 1;
+if (xr &gt; this.constants.size - 1) xr = 0;</code></pre>
+<p>The starter already wrote <code>xl</code> for you — mirror it three times.</p>`,
         },
         {
           title: 'Hint 2 — five reads',
@@ -138,8 +139,8 @@ export default {
         },
         {
           title: 'Hint 3 — the whole return',
-          body: `<p><code>return field[y][xl] + field[y][xr] + field[yd][x] + field[yu][x]
-            - 4 * field[y][x];</code></p>`,
+          body: `<pre><code>return field[y][xl] + field[y][xr] + field[yd][x]
+  + field[yu][x] - 4 * field[y][x];</code></pre>`,
         },
       ],
       transfer: `The 5-point Laplacian stencil is the beating heart of PDE solvers on every
@@ -266,8 +267,9 @@ console.log('at a bump:', result[16][16]);
         },
         {
           title: 'Hint 2 — stepU, spelled out',
-          body: `<p><code>return uc + (this.constants.du * lap - uc * vc * vc +
-            this.constants.f * (1 - uc)) * this.constants.dt;</code> — stepV is the same shape
+          body: `<pre><code>return uc + (this.constants.du * lap - uc * vc * vc
+  + this.constants.f * (1 - uc)) * this.constants.dt;</code></pre>
+<p>stepV is the same shape
             with <code>+ uc·vc·vc</code> and <code>− (f + k)·vc</code>.</p>`,
         },
       ],
@@ -450,14 +452,20 @@ console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
       hints: [
         {
           title: 'Hint 1 — why the starter is wrong',
-          body: `<p>The starter does <code>u = stepU(u, v); v = stepV(u, v);</code> — by the
+          body: `<p>The starter does</p>
+<pre><code>u = stepU(u, v);
+v = stepV(u, v);</code></pre>
+<p>— by the
             second call, <code>u</code> is already next step's grid. Stash both results in
             temporaries before assigning either.</p>`,
         },
         {
           title: 'Hint 2 — the loop body',
-          body: `<p><code>const nextU = stepU(u, v);<br>const nextV = stepV(u, v);<br>
-            u = nextU;<br>v = nextV;</code> — four lines, inside
+          body: `<pre><code>const nextU = stepU(u, v);
+const nextV = stepV(u, v);
+u = nextU;
+v = nextV;</code></pre>
+<p>Four lines, inside
             <code>for (let i = 0; i &lt; STEPS; i++)</code>.</p>`,
         },
       ],
@@ -664,8 +672,8 @@ console.log('center V after', STEPS, 'steps:', v[24][24]);
         },
         {
           title: 'Hint 2 — the whole body',
-          body: `<p><code>const t = Math.min(1, v[this.thread.y][this.thread.x] * 2.5);<br>
-            this.color(t, t * t, 0.25 + 0.75 * t, 1);</code></p>`,
+          body: `<pre><code>const t = Math.min(1, v[this.thread.y][this.thread.x] * 2.5);
+this.color(t, t * t, 0.25 + 0.75 * t, 1);</code></pre>`,
         },
       ],
       transfer: `Compute passes that end in a draw are the shape of every GPU simulation you've

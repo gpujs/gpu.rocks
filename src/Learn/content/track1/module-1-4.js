@@ -148,8 +148,8 @@ export default {
         },
         {
           title: 'Hint 2 — the mode-safe download',
-          body: `<p><code>const values = result.toArray ? result.toArray() : result;</code> —
-            on the GL backend that calls <code>toArray()</code>; on the CPU backend
+          body: `<pre><code>const values = result.toArray ? result.toArray() : result;</code></pre>
+<p>On the GL backend this calls <code>toArray()</code>; on the CPU backend
             <code>result</code> is already an array and passes through untouched.</p>`,
         },
       ],
@@ -274,7 +274,7 @@ console.log('first sample:', values[0]);
         },
         {
           title: 'Hint 2 — the clamp',
-          body: `<p><code>return Math.min(Math.max((l - 0.5) * 2 + 0.5, 0), 1);</code></p>`,
+          body: `<pre><code>return Math.min(Math.max((l - 0.5) * 2 + 0.5, 0), 1);</code></pre>`,
         },
       ],
       transfer: `Handing a texture from kernel to kernel is what CUDA does when consecutive
@@ -551,9 +551,9 @@ console.log('smoothed[0]:', out[0]);
         },
         {
           title: 'Hint 3 — the one-word diff',
-          body: `<p>In <code>step</code>'s settings:
-            <code>{ output: [128], pipeline: true, immutable: true }</code>. The loop is
-            already correct.</p>`,
+          body: `<p>In <code>step</code>'s settings:</p>
+<pre><code>{ output: [128], pipeline: true, immutable: true }</code></pre>
+<p>The loop is already correct.</p>`,
         },
       ],
       transfer: `Every GPU API solves read-write hazards the same way gpu.js just made you do:
@@ -722,8 +722,10 @@ console.log('peak after 12 steps:', heat[64]);
         {
           title: 'Hint 2 — clamping the edges',
           body: `<p>Compute <code>let yy = this.thread.y + dy;</code> then push it back in
-            range: <code>if (yy &lt; 0) yy = 0; if (yy &gt; 63) yy = 63;</code> — same for
-            <code>xx</code>. Corner cells just count some neighbours twice.</p>`,
+            range:</p>
+<pre><code>if (yy &lt; 0) yy = 0;
+if (yy &gt; 63) yy = 63;</code></pre>
+<p>Same for <code>xx</code>. Corner cells just count some neighbours twice.</p>`,
         },
         {
           title: 'Hint 3 — the whole body',

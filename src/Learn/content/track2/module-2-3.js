@@ -174,15 +174,19 @@ export default {
         },
         {
           title: 'Hint 2 — clamping with an if',
-          body: `<p><code>let left = x - 1; if (left &lt; 0) left = 0;</code> and the mirror image
+          body: `<pre><code>let left = x - 1;
+if (left &lt; 0) left = 0;</code></pre>
+<p>and the mirror image
             for <code>right</code> against <code>127</code>. Plain <code>if</code> statements work
             fine inside kernels.</p>`,
         },
         {
           title: 'Hint 3 — the whole body',
-          body: `<p><code>let left = x - 1; if (left &lt; 0) left = 0;
-            let right = x + 1; if (right &gt; 127) right = 127;
-            return 0.25 * signal[left] + 0.5 * signal[x] + 0.25 * signal[right];</code></p>`,
+          body: `<pre><code>let left = x - 1;
+if (left &lt; 0) left = 0;
+let right = x + 1;
+if (right &gt; 127) right = 127;
+return 0.25 * signal[left] + 0.5 * signal[x] + 0.25 * signal[right];</code></pre>`,
         },
       ],
       transfer: `Neighborhood reads like this are called <em>stencil</em> patterns in CUDA and
@@ -292,9 +296,10 @@ console.log('before:', signal[63], ' after:', result[63]);
         },
         {
           title: 'Hint 2 — the loop body',
-          body: `<p><code>let tap = x + i - this.constants.radius;
-            if (tap &lt; 0) tap = 0; if (tap &gt; 127) tap = 127;
-            sum += filter[i] * signal[tap];</code></p>`,
+          body: `<pre><code>let tap = x + i - this.constants.radius;
+if (tap &lt; 0) tap = 0;
+if (tap &gt; 127) tap = 127;
+sum += filter[i] * signal[tap];</code></pre>`,
         },
       ],
       transfer: `Baked-in constants are a first-class idea everywhere: WGSL has
@@ -416,8 +421,10 @@ console.log('smoothed sample 64:', result[64]);
         },
         {
           title: 'Hint 2 — clamp, then read',
-          body: `<p><code>let sy = this.thread.y + dy - 1; if (sy &lt; 0) sy = 0;
-            if (sy &gt; this.constants.last) sy = this.constants.last;</code> — same for
+          body: `<pre><code>let sy = this.thread.y + dy - 1;
+if (sy &lt; 0) sy = 0;
+if (sy &gt; this.constants.last) sy = this.constants.last;</code></pre>
+<p>— same for
             <code>sx</code> — then <code>const pixel = image[sy][sx];</code> and add
             <code>pixel[0]</code>, <code>pixel[1]</code>, <code>pixel[2]</code> into three
             running sums.</p>`,
@@ -579,7 +586,7 @@ render(blur.canvas);
         <code>5·center − left − right − up − down</code>, with neighbor indexes clamped.`,
       requirements: [
         'Clamp all four neighbor indexes to <code>0…this.constants.last</code>',
-        'Return <code>5 * gray[y][x] − gray[y][left] − gray[y][right] − gray[up][x] − gray[down][x]</code>',
+        'Return <code>5 * gray[y][x]</code> minus the four clamped neighbor samples',
         'Keep the kernel numeric — no <code>graphical: true</code>, values may leave 0–1',
       ],
       hints: [
@@ -591,10 +598,13 @@ render(blur.canvas);
         },
         {
           title: 'Hint 2 — four clamps, one return',
-          body: `<p><code>let left = x - 1; if (left &lt; 0) left = 0;</code> — repeat for
+          body: `<pre><code>let left = x - 1;
+if (left &lt; 0) left = 0;</code></pre>
+<p>— repeat for
             <code>right</code>, <code>up</code>, <code>down</code> against
-            <code>this.constants.last</code>, then a single <code>return</code> with the five
-            terms.</p>`,
+            <code>this.constants.last</code>, then a single return with the five terms:</p>
+<pre><code>return 5 * gray[y][x] - gray[y][left] - gray[y][right]
+  - gray[up][x] - gray[down][x];</code></pre>`,
         },
       ],
       transfer: `A convolution with learned weights is a CNN layer — cuDNN (CUDA) and MIOpen
@@ -707,7 +717,7 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
       requirements: [
         'Read the eight neighbors of <code>gray[y][x]</code> (no clamping needed — the border branch already ran)',
         'Apply both weight grids: <code>gx</code> from the right column minus the left, <code>gy</code> from the bottom row minus the top',
-        'Paint the magnitude: <code>const m = Math.sqrt(gx * gx + gy * gy); this.color(m, m, m, 1);</code>',
+        'Paint the magnitude <code>Math.sqrt(gx * gx + gy * gy)</code> as gray via <code>this.color(m, m, m, 1)</code>',
       ],
       hints: [
         {
@@ -719,14 +729,15 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
         },
         {
           title: 'Hint 2 — the two sums',
-          body: `<p><code>const gx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);</code> —
-            right column minus left column, middle counted double. <code>gy</code> is the same
+          body: `<pre><code>const gx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);</code></pre>
+<p>— right column minus left column, middle counted double. <code>gy</code> is the same
             with rows: <code>(bl + 2 * bm + br) - (tl + 2 * tm + tr)</code>.</p>`,
         },
         {
           title: 'Hint 3 — the finish',
-          body: `<p><code>const m = Math.sqrt(gx * gx + gy * gy); this.color(m, m, m, 1);</code>
-            — flat areas give 0 (black), sharp edges overshoot 1 and clamp to white.</p>`,
+          body: `<pre><code>const m = Math.sqrt(gx * gx + gy * gy);
+this.color(m, m, m, 1);</code></pre>
+<p>— flat areas give 0 (black), sharp edges overshoot 1 and clamp to white.</p>`,
         },
       ],
       transfer: `Sobel is the hello-world of GPU vision: it opens the OpenCL and CUDA imaging

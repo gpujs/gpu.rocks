@@ -55,14 +55,17 @@ export default {
       hints: [
         {
           title: 'Hint 1 — the stopwatch pattern',
-          body: `<p>Snapshot the clock, do the work, subtract:
-            <code>const t0 = Date.now();</code> … <code>console.log('first call:', Date.now() - t0, 'ms');</code></p>`,
+          body: `<p>Snapshot the clock, do the work, subtract:</p>
+<pre><code>const t0 = Date.now();
+// … the work …
+console.log('first call:', Date.now() - t0, 'ms');</code></pre>`,
         },
         {
           title: 'Hint 2 — averaging the warm calls',
-          body: `<p>One stopwatch around a loop of 10 calls, then divide:
-            <code>t0 = Date.now(); for (let i = 0; i &lt; 10; i++) wave();
-            console.log('warm call:', (Date.now() - t0) / 10, 'ms');</code></p>`,
+          body: `<p>One stopwatch around a loop of 10 calls, then divide:</p>
+<pre><code>t0 = Date.now();
+for (let i = 0; i &lt; 10; i++) wave();
+console.log('warm call:', (Date.now() - t0) / 10, 'ms');</code></pre>`,
         },
       ],
       transfer: `Every platform has a version of this pause: CUDA JIT-compiles PTX at first launch
@@ -176,9 +179,10 @@ console.log('sample value:', result[100]);
         },
         {
           title: 'Hint 2 — the helper body',
-          body: `<p><code>kernel(arg);</code> then
-            <code>const t0 = Date.now(); for (let i = 0; i &lt; 20; i++) kernel(arg);
-            return (Date.now() - t0) / 20;</code></p>`,
+          body: `<pre><code>kernel(arg);
+const t0 = Date.now();
+for (let i = 0; i &lt; 20; i++) kernel(arg);
+return (Date.now() - t0) / 20;</code></pre>`,
         },
       ],
       transfer: `The bus is the bottleneck everywhere: <code>cudaMemcpy</code> across PCIe is the
@@ -317,8 +321,10 @@ console.log('big:', timeKernel(bigKernel, big), 'ms/call');
       hints: [
         {
           title: 'Hint 1 — loops inside kernels',
-          body: `<p>Fixed-bound loops are fine in kernel code:
-            <code>for (let k = 1; k &lt;= 1000; k++) { sum += 1 / (k + this.thread.x); }</code></p>`,
+          body: `<p>Fixed-bound loops are fine in kernel code:</p>
+<pre><code>for (let k = 1; k &lt;= 1000; k++) {
+  sum += 1 / (k + this.thread.x);
+}</code></pre>`,
         },
         {
           title: 'Hint 2 — the tolerant verdict',
@@ -453,8 +459,8 @@ console.log('close enough:', Math.abs(result[0] - ref) < 1e-3);
         },
         {
           title: 'Hint 3 — declaring the winner',
-          body: `<p><code>console.log('winner:', kernelMs &lt; loopMs ? 'gpu kernel' : 'plain js');</code>
-            — on a job this small, expect the loop to take it. That's the honest answer.</p>`,
+          body: `<pre><code>console.log('winner:', kernelMs &lt; loopMs ? 'gpu kernel' : 'plain js');</code></pre>
+<p>On a job this small, expect the loop to take it. That's the honest answer.</p>`,
         },
       ],
       transfer: `Kernel-launch overhead runs to microseconds on CUDA and ROCm — thousands of

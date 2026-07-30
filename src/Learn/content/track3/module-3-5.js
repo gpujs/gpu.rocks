@@ -86,8 +86,9 @@ export default {
         },
         {
           title: 'Hint 2 — the whole thing',
-          body: `<p><code>const dx = wx - cx; const dy = wy - cy;
-            return Math.sqrt(dx * dx + dy * dy) - r;</code></p>`,
+          body: `<pre><code>const dx = wx - cx;
+const dy = wy - cy;
+return Math.sqrt(dx * dx + dy * dy) - r;</code></pre>`,
         },
       ],
       transfer: `Distance fields are a production technique, not a toy: Valve renders crisp text
@@ -195,10 +196,10 @@ console.log('far corner (outside):', field[0][0]);
         },
         {
           title: 'Hint 2 — the function, verbatim',
-          body: `<p><code>gpu.addFunction(function smin(a, b, k) {
-            const h = Math.max(k - Math.abs(a - b), 0.0) / k;
-            return Math.min(a, b) - h * h * k * 0.25;
-          });</code></p>`,
+          body: `<pre><code>gpu.addFunction(function smin(a, b, k) {
+  const h = Math.max(k - Math.abs(a - b), 0.0) / k;
+  return Math.min(a, b) - h * h * k * 0.25;
+});</code></pre>`,
         },
       ],
       transfer: `Smooth blends of implicit surfaces are how molecular-surface renderers in CUDA
@@ -322,11 +323,11 @@ console.log('midpoint (should dip to 0.1):', field[32][32]);
         },
         {
           title: 'Hint 2 — the loop, spelled out',
-          body: `<p><code>for (let i = 0; i &lt; 48; i++) {
-            const d = sceneDist(wx, wy, -2.5 + t, sep, r, k);
-            if (d &lt; 0.01) hit = 1.0;
-            t += d;
-          }</code></p>`,
+          body: `<pre><code>for (let i = 0; i &lt; 48; i++) {
+  const d = sceneDist(wx, wy, -2.5 + t, sep, r, k);
+  if (d &lt; 0.01) hit = 1.0;
+  t += d;
+}</code></pre>`,
         },
       ],
       transfer: `The fixed bound is a gpu.js/WebGL constraint — shader loop bounds must be
@@ -479,8 +480,8 @@ render(marchScene.canvas);
         (normal <code>(0, 0, -1)</code>, pointing at the camera) renders as
         <code>rgb(0.5, 0.5, 0)</code>, that mustard-olive tone every graphics programmer knows.</p>`,
       goal: `<strong>Goal:</strong> at each hit point, compute the finite-difference normal of
-        <code>sceneDist</code> and paint it as <code>this.color(nx * 0.5 + 0.5, ny * 0.5 + 0.5,
-        nz * 0.5 + 0.5, 1)</code>.`,
+        <code>sceneDist</code> and paint each component as <code>n * 0.5 + 0.5</code> —
+        hint 2 has the exact <code>this.color</code> call.`,
       requirements: [
         'Remember the hit distance: record <code>tHit</code> at the <em>first</em> hit',
         'Sample ± <code>e = 0.01</code> along x, y and z around the hit point',
@@ -490,14 +491,16 @@ render(marchScene.canvas);
       hints: [
         {
           title: 'Hint 1 — one axis at a time',
-          body: `<p>The x component before normalizing is
-            <code>sceneDist(wx + e, wy, pz, …) - sceneDist(wx - e, wy, pz, …)</code>
-            where <code>pz = -2.5 + tHit</code>. Same pattern for y and z.</p>`,
+          body: `<p>The x component before normalizing is</p>
+<pre><code>sceneDist(wx + e, wy, pz, …) - sceneDist(wx - e, wy, pz, …)</code></pre>
+<p>where <code>pz = -2.5 + tHit</code>. Same pattern for y and z.</p>`,
         },
         {
           title: 'Hint 2 — normalize and paint',
-          body: `<p><code>const len = Math.sqrt(nx * nx + ny * ny + nz * nz);</code> then
-            <code>this.color(nx / len * 0.5 + 0.5, ny / len * 0.5 + 0.5, nz / len * 0.5 + 0.5, 1);</code></p>`,
+          body: `<pre><code>const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+this.color(nx / len * 0.5 + 0.5,
+  ny / len * 0.5 + 0.5,
+  nz / len * 0.5 + 0.5, 1);</code></pre>`,
         },
       ],
       transfer: `Gradient-by-central-differences is the same stencil you'd write in a CUDA fluid
@@ -688,8 +691,9 @@ render(showNormals.canvas);
         },
         {
           title: 'Hint 2 — the two lines',
-          body: `<p><code>const diff = Math.max(nx / len * lx + ny / len * ly + nz / len * lz, 0.0);
-            const c = 0.15 + 0.85 * diff;</code></p>`,
+          body: `<pre><code>const diff = Math.max(nx / len * lx + ny / len * ly
+  + nz / len * lz, 0.0);
+const c = 0.15 + 0.85 * diff;</code></pre>`,
         },
       ],
       transfer: `<code>max(dot(n, l), 0.0)</code> is character-for-character the same in GLSL,
@@ -882,13 +886,16 @@ render(shadeScene.canvas);
         },
         {
           title: 'Hint 2 — the loop, spelled out',
-          body: `<p><code>let sh = 1.0; let st = 0.06;
-            for (let j = 0; j &lt; 32; j++) {
-              const d = sceneDist(wx + lx * st, wy + ly * st, pz + lz * st, sep, r, k);
-              sh = Math.min(sh, 3.0 * d / st);
-              st += Math.max(d, 0.02);
-            }
-            sh = Math.max(sh, 0.0);</code> — and remember to only apply it when
+          body: `<pre><code>let sh = 1.0;
+let st = 0.06;
+for (let j = 0; j &lt; 32; j++) {
+  const d = sceneDist(wx + lx * st, wy + ly * st,
+    pz + lz * st, sep, r, k);
+  sh = Math.min(sh, 3.0 * d / st);
+  st += Math.max(d, 0.02);
+}
+sh = Math.max(sh, 0.0);</code></pre>
+<p>And remember to only apply it when
             <code>shadowOn &gt; 0.5</code>.</p>`,
         },
       ],

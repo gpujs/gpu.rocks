@@ -390,8 +390,11 @@ render(grayscale.canvas);
         },
         {
           title: 'Hint 2 — the sum',
-          body: `<p>A plain <code>for</code> loop after the kernel call:
-            <code>let total = 0; for (let i = 0; i &lt; result.length; i++) total += result[i];</code></p>`,
+          body: `<p>A plain <code>for</code> loop after the kernel call:</p>
+<pre><code>let total = 0;
+for (let i = 0; i &lt; result.length; i++) {
+  total += result[i];
+}</code></pre>`,
         },
       ],
       transfer: `Read-back is never free: CUDA's <code>cudaMemcpy</code> device→host and WebGPU's
@@ -487,8 +490,8 @@ console.log('sum of squares:', total);
         },
         {
           title: 'Hint 2 — the average',
-          body: `<p><code>const pixel = photo[this.thread.y][this.thread.x];</code> then
-            <code>return (pixel[0] + pixel[1] + pixel[2]) / 3;</code></p>`,
+          body: `<pre><code>const pixel = photo[this.thread.y][this.thread.x];
+return (pixel[0] + pixel[1] + pixel[2]) / 3;</code></pre>`,
         },
       ],
       transfer: `Treating an image as a data grid is how real pipelines work: computer-vision
@@ -580,14 +583,14 @@ console.log('top-left brightness:', map[0][0]);
       hints: [
         {
           title: 'Hint 1 — the luminance pass',
-          body: `<p>Same lookup as before, but return a number:
-            <code>return 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2];</code></p>`,
+          body: `<p>Same lookup as before, but return a number:</p>
+<pre><code>return 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2];</code></pre>`,
         },
         {
           title: 'Hint 2 — the paint pass',
-          body: `<p><code>map</code> is a plain 2D array of numbers, so
-            <code>const l = map[this.thread.y][this.thread.x];</code> then
-            <code>this.color(l, l, l, 1);</code></p>`,
+          body: `<p><code>map</code> is a plain 2D array of numbers, so</p>
+<pre><code>const l = map[this.thread.y][this.thread.x];
+this.color(l, l, l, 1);</code></pre>`,
         },
       ],
       transfer: `Multi-pass pipelines are the backbone of GPU work: render passes in graphics,

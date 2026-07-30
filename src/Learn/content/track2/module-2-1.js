@@ -98,8 +98,12 @@ export default {
         },
         {
           title: 'Hint 2 — the whole body',
-          body: `<p><code>let sum = 0; for (let k = 0; k &lt; 16; k++) { sum += a[k] * b[k]; }
-            return sum;</code> — and <code>output: [1]</code> so only one thread runs it.</p>`,
+          body: `<pre><code>let sum = 0;
+for (let k = 0; k &lt; 16; k++) {
+  sum += a[k] * b[k];
+}
+return sum;</code></pre>
+<p>— and <code>output: [1]</code> so only one thread runs it.</p>`,
         },
       ],
       transfer: `Every GPU linear-algebra library — cuBLAS on CUDA, rocBLAS on ROCm, Metal
@@ -205,8 +209,11 @@ console.log(dot(a, b));
         },
         {
           title: 'Hint 2 — the inner loop',
-          body: `<p><code>let sum = 0; for (let k = 0; k &lt; 16; k++) { sum +=
-            a[this.thread.y][k] * b[k][this.thread.x]; } return sum;</code></p>`,
+          body: `<pre><code>let sum = 0;
+for (let k = 0; k &lt; 16; k++) {
+  sum += a[this.thread.y][k] * b[k][this.thread.x];
+}
+return sum;</code></pre>`,
         },
       ],
       transfer: `This one-thread-per-output-cell matmul is the "naive kernel" every WebGPU and
@@ -546,22 +553,38 @@ console.log('rows:', t.length, 'cols:', t[0].length);
       hints: [
         {
           title: 'Hint 1 — why the cap?',
-          body: `<p>On the GPU backend a loop bound that isn't a compile-time constant becomes
-            <code>for (i = 0; i &lt; LOOP_MAX; i++) { if (!(i &lt; size)) break; … }</code> in the
-            shader — <code>loopMaxIterations</code> <em>is</em> that LOOP_MAX. Set it to the
+          body: `<p>On the GPU backend a loop bound that isn't a compile-time constant becomes</p>
+<pre><code>for (i = 0; i &lt; LOOP_MAX; i++) {
+  if (!(i &lt; size)) break;
+  // …
+}</code></pre>
+<p>in the shader — <code>loopMaxIterations</code> <em>is</em> that LOOP_MAX. Set it to the
             largest size you'll ever pass: 64 here.</p>`,
         },
         {
           title: 'Hint 2 — sizing per call',
-          body: `<p>Inside <code>multiply</code>: <code>const n = a.length;
-            matmul.setOutput([n, n]); return matmul(a, b, n);</code> — set the launch shape first,
+          body: `<p>Inside <code>multiply</code>:</p>
+<pre><code>const n = a.length;
+matmul.setOutput([n, n]);
+return matmul(a, b, n);</code></pre>
+<p>— set the launch shape first,
             then invoke with the size as the last argument.</p>`,
         },
         {
           title: 'Hint 3 — the kernel',
-          body: `<p><code>function (a, b, size) { let sum = 0; for (let k = 0; k &lt; size; k++) {
-            sum += a[this.thread.y][k] * b[k][this.thread.x]; } return sum; }</code> with options
-            <code>{ dynamicOutput: true, dynamicArguments: true, loopMaxIterations: 64 }</code>.</p>`,
+          body: `<pre><code>function (a, b, size) {
+  let sum = 0;
+  for (let k = 0; k &lt; size; k++) {
+    sum += a[this.thread.y][k] * b[k][this.thread.x];
+  }
+  return sum;
+}</code></pre>
+<p>with options</p>
+<pre><code>{
+  dynamicOutput: true,
+  dynamicArguments: true,
+  loopMaxIterations: 64,
+}</code></pre>`,
         },
       ],
       transfer: `Shipping one kernel that covers a size range is standard practice everywhere:

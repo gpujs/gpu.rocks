@@ -82,11 +82,11 @@ export default {
         },
         {
           title: 'Hint 2 — the whole body',
-          body: `<p><code>const x = this.thread.x;</code><br>
-            <code>const y = this.thread.y;</code><br>
-            <code>const cr = xMin + x * step;</code><br>
-            <code>const ci = yMin + y * step;</code><br>
-            <code>return cr * cr + ci * ci;</code></p>`,
+          body: `<pre><code>const x = this.thread.x;
+const y = this.thread.y;
+const cr = xMin + x * step;
+const ci = yMin + y * step;
+return cr * cr + ci * ci;</code></pre>`,
         },
       ],
       transfer: `Index-to-domain mapping is step one of nearly every GPU program: fragment
@@ -191,18 +191,21 @@ console.log('corner cell [0][0]:', field[0][0]);
           title: 'Hint 1 — the shape of the loop',
           body: `<p>gpu.js's WebGL backend needs a fixed loop bound, so instead of breaking out
             we guard the body:</p>
-            <p><code>for (let i = 0; i &lt; 100; i++) { if (zr * zr + zi * zi &lt; 4) { …step and
-            count… } }</code></p>
+<pre><code>for (let i = 0; i &lt; 100; i++) {
+  if (zr * zr + zi * zi &lt; 4) {
+    // …step and count…
+  }
+}</code></pre>
             <p>After escape the guard fails on every remaining pass, so z freezes and count stops.</p>`,
         },
         {
           title: 'Hint 2 — don\'t clobber zr',
           body: `<p>Both formulas read the <em>old</em> <code>zr</code>, so stash the new real part
             first:</p>
-            <p><code>const zrNext = zr * zr - zi * zi + cr;</code><br>
-            <code>zi = 2 * zr * zi + ci;</code><br>
-            <code>zr = zrNext;</code><br>
-            <code>count = count + 1;</code></p>`,
+<pre><code>const zrNext = zr * zr - zi * zi + cr;
+zi = 2 * zr * zi + ci;
+zr = zrNext;
+count = count + 1;</code></pre>`,
         },
       ],
       transfer: `Data-dependent loops like this are where <em>divergence</em> lives: in CUDA and
@@ -333,8 +336,8 @@ console.log('far corner, escapes at once:', counts[0][0]);
         },
         {
           title: 'Hint 2 — the shade branch',
-          body: `<p><code>const t = count / 100;</code><br>
-            <code>this.color(t, t * t, 0.5 + 0.5 * t, 1);</code></p>`,
+          body: `<pre><code>const t = count / 100;
+this.color(t, t * t, 0.5 + 0.5 * t, 1);</code></pre>`,
         },
       ],
       transfer: `Mapping a scalar to a color is a <em>transfer function</em> — in scientific
@@ -504,10 +507,11 @@ render(paint.canvas);
         },
         {
           title: 'Hint 2 — the ending',
-          body: `<p><code>if (count &lt; 100) {</code><br>
-            <code>&nbsp;&nbsp;return count + 1 - Math.log2(0.5 * Math.log2(zr * zr + zi * zi));</code><br>
-            <code>}</code><br>
-            <code>return 100;</code></p>`,
+          body: `<pre><code>if (count &lt; 100) {
+  return count + 1
+    - Math.log2(0.5 * Math.log2(zr * zr + zi * zi));
+}
+return 100;</code></pre>`,
         },
       ],
       transfer: `Fighting quantization with a fractional correction is a graphics evergreen:
@@ -659,8 +663,9 @@ console.log('a fractional escape value:', field[0][0]);
         },
         {
           title: 'Hint 2 — the exact edits',
-          body: `<p>Seed with <code>let zr = this.constants.xMin + x * this.constants.step;</code>
-            (and likewise <code>zi</code> from y), then inside the loop use
+          body: `<p>Seed with</p>
+<pre><code>let zr = this.constants.xMin + x * this.constants.step;</code></pre>
+<p>(and likewise <code>zi</code> from y), then inside the loop use
             <code>… + cRe</code> and <code>… + cIm</code> instead of <code>px</code> / <code>py</code>.</p>`,
         },
       ],

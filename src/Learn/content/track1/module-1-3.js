@@ -117,7 +117,7 @@ export default {
         },
         {
           title: 'Hint 2 — the one-liner',
-          body: `<p><code>return celsius[this.thread.x] * 9 / 5 + 32;</code></p>`,
+          body: `<pre><code>return celsius[this.thread.x] * 9 / 5 + 32;</code></pre>`,
         },
       ],
       transfer: `Map is the hello-world of every GPU API: a CUDA grid where each thread transforms
@@ -208,7 +208,7 @@ console.log('first reading:', celsius[0], '°C →', result[0], '°F');
         },
         {
           title: 'Hint 2 — the one-liner',
-          body: `<p><code>return data[this.constants.n - 1 - this.thread.x];</code></p>`,
+          body: `<pre><code>return data[this.constants.n - 1 - this.thread.x];</code></pre>`,
         },
       ],
       transfer: `Gather is why GPUs have texture units: shaders sample textures at arbitrary
@@ -312,9 +312,9 @@ console.log('first:', result[0], '(should be the old last:', data[63] + ')');
         },
         {
           title: 'Hint 2 — wrapping without an if',
-          body: `<p>Adding <code>n</code> before the modulo keeps the index positive:
-            <code>(this.thread.x - 1 + this.constants.n) % this.constants.n</code> turns
-            <code>-1</code> into <code>63</code> and leaves 1…63 alone.</p>`,
+          body: `<p>Adding <code>n</code> before the modulo keeps the index positive:</p>
+<pre><code>(this.thread.x - 1 + this.constants.n) % this.constants.n</code></pre>
+<p>That turns <code>-1</code> into <code>63</code> and leaves 1…63 alone.</p>`,
         },
       ],
       transfer: `Compute APIs relax this ban: CUDA, WebGPU and ROCm threads <em>can</em> store to
@@ -423,9 +423,9 @@ console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', resul
         },
         {
           title: 'Hint 2 — the clamped read',
-          body: `<p><code>const j = Math.min(this.thread.x + 1, this.constants.n - 1);</code> then
-            <code>return signal[j] - signal[this.thread.x];</code> — for thread 63,
-            <code>j</code> is 63, and <code>signal[63] - signal[63]</code> is 0.</p>`,
+          body: `<pre><code>const j = Math.min(this.thread.x + 1, this.constants.n - 1);
+return signal[j] - signal[this.thread.x];</code></pre>
+<p>For thread 63, <code>j</code> is 63, and <code>signal[63] - signal[63]</code> is 0.</p>`,
         },
       ],
       transfer: `Graphics hardware ships this as a sampler setting — <code>clamp-to-edge</code>
@@ -528,9 +528,9 @@ console.log('last delta (should be exactly 0):', result[63]);
         },
         {
           title: 'Hint 2 — clamp inside the loop',
-          body: `<p>Each iteration:
-            <code>const j = Math.max(0, Math.min(this.constants.n - 1, this.thread.x + d - 2));</code>
-            then <code>sum += signal[j];</code></p>`,
+          body: `<p>Each iteration:</p>
+<pre><code>const j = Math.max(0, Math.min(this.constants.n - 1, this.thread.x + d - 2));
+sum += signal[j];</code></pre>`,
         },
         {
           title: 'Hint 3 — sanity-check the edge',
@@ -655,10 +655,12 @@ console.log('raw:', signal[64], '→ smoothed:', result[64]);
         },
         {
           title: 'Hint 2 — the x pass',
-          body: `<p><code>for (let d = 0; d < 3; d++) {
-            const j = Math.max(0, Math.min(this.constants.n - 1, this.thread.x + d - 1));
-            sum += grid[this.thread.y][j]; }</code> then <code>return sum / 3;</code>
-            The y pass swaps which coordinate is clamped: <code>grid[j][this.thread.x]</code>.</p>`,
+          body: `<pre><code>for (let d = 0; d &lt; 3; d++) {
+  const j = Math.max(0, Math.min(this.constants.n - 1, this.thread.x + d - 1));
+  sum += grid[this.thread.y][j];
+}
+return sum / 3;</code></pre>
+<p>The y pass swaps which coordinate is clamped: <code>grid[j][this.thread.x]</code>.</p>`,
         },
       ],
       transfer: `Separable filtering is a classic GPU optimization you'll meet everywhere: game

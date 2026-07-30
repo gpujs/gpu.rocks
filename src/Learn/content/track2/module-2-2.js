@@ -228,12 +228,15 @@ console.log('total:', sumAll(data)[0]);
         },
         {
           title: 'Hint 2 — the loop body',
-          body: `<p><code>sum += data[i * this.constants.threads + this.thread.x];</code></p>`,
+          body: `<pre><code>sum += data[i * this.constants.threads + this.thread.x];</code></pre>`,
         },
         {
           title: 'Hint 3 — finishing in JS',
-          body: `<p>After <code>const partial = partials(data);</code> a plain loop does it:
-            <code>let total = 0; for (let i = 0; i &lt; partial.length; i++) total += partial[i];</code></p>`,
+          body: `<p>After <code>const partial = partials(data);</code> a plain loop does it:</p>
+<pre><code>let total = 0;
+for (let i = 0; i &lt; partial.length; i++) {
+  total += partial[i];
+}</code></pre>`,
         },
       ],
       transfer: `This is CUDA's <em>grid-stride loop</em>, almost line for line — every serious
@@ -363,7 +366,7 @@ console.log('total:', total);
         },
         {
           title: 'Hint 2 — the one-liner',
-          body: `<p><code>return data[this.thread.x] + data[this.thread.x + this.output.x];</code></p>`,
+          body: `<pre><code>return data[this.thread.x] + data[this.thread.x + this.output.x];</code></pre>`,
         },
       ],
       transfer: `The halving fold is the heart of every tree reduction: CUDA's classic
@@ -466,14 +469,22 @@ console.log('first pair sum:', folded[0]);
         },
         {
           title: 'Hint 2 — the driver skeleton',
-          body: `<p><code>let n = values.length; while (n &gt; 1) { n = n / 2; … }</code> —
-            inside the loop, resize, re-invoke, and keep the returned array for the next
+          body: `<pre><code>let n = values.length;
+while (n &gt; 1) {
+  n = n / 2;
+  // …
+}</code></pre>
+<p>— inside the loop, resize, re-invoke, and keep the returned array for the next
             rung.</p>`,
         },
         {
           title: 'Hint 3 — the full driver',
-          body: `<p><code>while (n &gt; 1) { n = n / 2; halve.setOutput([n]);
-            values = halve(values); }</code> — then the answer is <code>values[0]</code>.</p>`,
+          body: `<pre><code>while (n &gt; 1) {
+  n = n / 2;
+  halve.setOutput([n]);
+  values = halve(values);
+}</code></pre>
+<p>— then the answer is <code>values[0]</code>.</p>`,
         },
       ],
       transfer: `Multi-pass reduction is the production pattern everywhere: CUDA launches a
@@ -594,8 +605,8 @@ console.log('total:', values[0]);
         {
           title: 'Hint 1 — Math inside kernels',
           body: `<p><code>Math.min(a, b)</code> and <code>Math.max(a, b)</code> both work inside
-            kernel functions. The fold becomes
-            <code>Math.min(data[this.thread.x], data[this.thread.x + this.output.x])</code>.</p>`,
+            kernel functions. The fold becomes</p>
+<pre><code>Math.min(data[this.thread.x], data[this.thread.x + this.output.x])</code></pre>`,
         },
         {
           title: 'Hint 2 — one driver, two ladders',
@@ -751,8 +762,9 @@ console.log('max:', reduce(maxStep, data));
       hints: [
         {
           title: 'Hint 1 — the fused body',
-          body: `<p>Read once, use twice:
-            <code>const v = data[i * this.constants.threads + this.thread.x]; sum += v * v;</code></p>`,
+          body: `<p>Read once, use twice:</p>
+<pre><code>const v = data[i * this.constants.threads + this.thread.x];
+sum += v * v;</code></pre>`,
         },
         {
           title: 'Hint 2 — one ladder, two rides',
@@ -761,8 +773,9 @@ console.log('max:', reduce(maxStep, data));
         },
         {
           title: 'Hint 3 — the whole shape',
-          body: `<p><code>const total = ladder(partialSums(data));</code>
-            <code>const totalSq = ladder(partialSquares(data));</code> then divide, square-root,
+          body: `<pre><code>const total = ladder(partialSums(data));
+const totalSq = ladder(partialSquares(data));</code></pre>
+<p>then divide, square-root,
             and log.</p>`,
         },
       ],
