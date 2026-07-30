@@ -394,6 +394,21 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   }, [module]);
   const lastInTrack = !nextModule || nextModule.track !== module.track;
 
+  // previous module in the global sorted order; null on the course's first
+  const prevModule = useMemo(() => {
+    const idx = modules.findIndex(m => m.id === module.id);
+    return idx > 0 ? modules[idx - 1] : null;
+  }, [module]);
+  const prevEnabled = taskNum > 1 || Boolean(prevModule);
+
+  const handlePrev = useCallback(() => {
+    if (taskNum > 1) {
+      navigate(`/learn/${module.id}/${taskNum - 1}`);
+      return;
+    }
+    if (prevModule) navigate(`/learn/${prevModule.id}/${prevModule.tasks.length}`);
+  }, [navigate, module, taskNum, prevModule]);
+
   const handleNext = useCallback(() => {
     if (taskNum < total) {
       navigate(`/learn/${module.id}/${taskNum + 1}`);
@@ -521,6 +536,14 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           {passedNow && <span className="pass-note">✓ All tests passed</span>}
           <button type="button" className="tb-btn" onClick={handleReset}>
             Reset code
+          </button>
+          <button
+            type="button"
+            className="tb-btn"
+            onClick={handlePrev}
+            disabled={!prevEnabled}
+          >
+            ← Prev task
           </button>
           <button
             type="button"

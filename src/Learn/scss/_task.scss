@@ -160,6 +160,12 @@
     color: var(--ink);
   }
 
+  // Prev on the course's first task is disabled-by-position, not busy
+  .tb-right .tb-btn[disabled] {
+    opacity: .35;
+    cursor: not-allowed;
+  }
+
   .bench-chip {
     display: flex;
     align-items: center;
