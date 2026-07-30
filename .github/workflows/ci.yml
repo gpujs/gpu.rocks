@@ -25,9 +25,9 @@ jobs:
         run: yarn build
 
       - name: Check the static files survived the build
-        # everything in public/ ships verbatim; CNAME keeps the custom domain,
-        # 404.html forwards deep links to the hash routes, and api/ is the
-        # gpu.js API reference served at https://gpu.rocks/api/
+        # CNAME keeps the custom domain, 404.html is the SPA shell that serves
+        # unprerendered deep paths, and api/ is the gpu.js API reference served
+        # at https://gpu.rocks/api/
         run: |
           for file in index.html CNAME 404.html api/index.html manifest.json service-worker.js; do
             if [ ! -f "dist/$file" ]; then
@@ -106,3 +106,27 @@ jobs:
           echo "::error::gpu.rocks is not serving the page that was just published"
           diff dist/index.html /tmp/live.html || true
           exit 1
+
+      - name: Purge the Cloudflare cache
+        # the origin is now serving the new build (previous step), but Cloudflare
+        # caches HTML for max-age=600 — purge so visitors see the deploy at once.
+        # Assets are content-hashed, so purge_everything is safe.
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_ZONE_ID" ] || [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "Cloudflare secrets not configured — skipping purge (stale HTML expires within ~10 min)"
+            exit 0
+          fi
+          response=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}')
+          if echo "$response" | grep -q '"success": *true'; then
+            echo "Cloudflare cache purged"
+          else
+            echo "::error::Cloudflare purge failed: $response"
+            exit 1
+          fi
