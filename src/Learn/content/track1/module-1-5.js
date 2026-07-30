@@ -28,6 +28,74 @@ function logged(ctx, text) {
   return ctx.logs.some(line => line.type === 'log' && line.text && line.text.includes(text));
 }
 
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so elements where two candidates coincide stay
+// silent, as do observations that match probes disagreeing with each other.
+// A wrong diagnosis is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: Math.sin(x / 100) * 100, mis-scaled in each of the obvious ways.
+function sineProbes(x) {
+  return [
+    [Math.sin(x / 100), 'the amplitude is missing — the sample is Math.sin(x / 100) * 100'],
+    [Math.sin(x) * 100, 'you sampled Math.sin(this.thread.x) — the index has to be divided by 100 first'],
+    [Math.sin(x * 100) * 100, 'the index is multiplied by 100 where it should be divided by it'],
+  ];
+}
+
+// Tasks 2 and 4: a one-instruction kernel that never ran its one instruction.
+function unchangedProbe(arr, i, operation) {
+  return [arr[i], `that is the element unchanged — the ${operation} never happened`];
+}
+
+// Task 4: "twice the index" is computed from the thread id rather than from the
+// data, and one matching cell would be weak evidence — this probe has to hold
+// across all 16 cells (and differ from the right answer somewhere) to speak.
+function doubleIndexHint(out, arr) {
+  return diagnoseAll(16, i => out[i], i => arr[i] * 2, 1e-3, [
+    [i => 2 * i,
+      'every cell is twice the thread index, not twice the element — index the array with it: data[this.thread.x]'],
+  ]);
+}
+
+function diagnoseAll(count, got, expected, eps, probes) {
+  const hits = probes
+    .filter(([value]) => {
+      let differs = false;
+      for (let i = 0; i < count; i++) {
+        if (!(Math.abs(got(i) - value(i)) <= eps)) return false;
+        if (Math.abs(expected(i) - value(i)) > eps) differs = true;
+      }
+      return differs;
+    })
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 3: the accumulator loop, three ways. The k = 0 probe is skipped for
+// thread 0, where the extra term would be a division by zero rather than a
+// number the test could match.
+function partialSumProbes(x) {
+  const probes = [
+    [1 / (1 + x), 'each pass overwrote the running total — accumulate it with sum += inside the loop'],
+    [partialSumRef(0) + 1000 * x, 'the parentheses are missing — each term is 1 / (k + this.thread.x), not 1 / k + this.thread.x'],
+  ];
+  if (x > 0) {
+    probes.push([partialSumRef(x) + 1 / x, 'the loop started at k = 0 — that extra 1 / this.thread.x term does not belong to the sum']);
+  }
+  return probes;
+}
+
 export default {
   id: '1-5',
   track: 1,
@@ -117,7 +185,9 @@ console.log('sample value:', result[100]);
             const out = ctx.kernel();
             ctx.assert(out && out.length === 2048, `expected 2048 output values, got ${out && out.length}`);
             for (const x of [0, 1, 100, 777, 1023, 2047]) {
-              ctx.assertClose(out[x], Math.sin(x / 100) * 100, 0.05, `element ${x}`);
+              const expected = Math.sin(x / 100) * 100;
+              const hint = diagnose(out[x], expected, 0.05, sineProbes(x));
+              ctx.assertClose(out[x], expected, 0.05, hint || `element ${x}`);
             }
           },
         },
@@ -142,7 +212,9 @@ console.log('sample value:', result[100]);
             const out = ctx.kernel();
             ctx.assert(out.length === 2048, 'expected 2048 output values');
             for (let x = 0; x < 2048; x++) {
-              ctx.assertClose(out[x], Math.sin(x / 100) * 100, 0.05, `element ${x}`);
+              const expected = Math.sin(x / 100) * 100;
+              const hint = diagnose(out[x], expected, 0.05, sineProbes(x));
+              ctx.assertClose(out[x], expected, 0.05, hint || `element ${x}`);
             }
           },
         },
@@ -257,12 +329,18 @@ console.log('big:', timeKernel(bigKernel, big), 'ms/call');
             const smallIn = makeValues(ctx.utils, 1024, 2201);
             const smallOut = small(smallIn);
             for (let i = 0; i < 1024; i++) {
-              ctx.assertClose(smallOut[i], smallIn[i] + 1, 1e-3, `small element ${i}`);
+              const hint = diagnose(smallOut[i], smallIn[i] + 1, 1e-3, [
+                unchangedProbe(smallIn, i, '+ 1'),
+              ]);
+              ctx.assertClose(smallOut[i], smallIn[i] + 1, 1e-3, hint || `small element ${i}`);
             }
             const bigIn = makeValues(ctx.utils, 65536, 2202);
             const bigOut = big(bigIn);
             for (let i = 0; i < 65536; i += 271) {
-              ctx.assertClose(bigOut[i], bigIn[i] + 1, 1e-3, `big element ${i}`);
+              const hint = diagnose(bigOut[i], bigIn[i] + 1, 1e-3, [
+                unchangedProbe(bigIn, i, '+ 1'),
+              ]);
+              ctx.assertClose(bigOut[i], bigIn[i] + 1, 1e-3, hint || `big element ${i}`);
             }
           },
         },
@@ -286,13 +364,19 @@ console.log('big:', timeKernel(bigKernel, big), 'ms/call');
             const smallOut = small(smallIn);
             ctx.assert(smallOut.length === 1024, 'small kernel should produce 1024 values');
             for (let i = 0; i < 1024; i++) {
-              ctx.assertClose(smallOut[i], smallIn[i] + 1, 1e-3, `small element ${i}`);
+              const hint = diagnose(smallOut[i], smallIn[i] + 1, 1e-3, [
+                unchangedProbe(smallIn, i, '+ 1'),
+              ]);
+              ctx.assertClose(smallOut[i], smallIn[i] + 1, 1e-3, hint || `small element ${i}`);
             }
             const bigIn = makeValues(ctx.utils, 65536, 3302);
             const bigOut = big(bigIn);
             ctx.assert(bigOut.length === 65536, 'big kernel should produce 65536 values');
             for (let i = 0; i < 65536; i += 97) {
-              ctx.assertClose(bigOut[i], bigIn[i] + 1, 1e-3, `big element ${i}`);
+              const hint = diagnose(bigOut[i], bigIn[i] + 1, 1e-3, [
+                unchangedProbe(bigIn, i, '+ 1'),
+              ]);
+              ctx.assertClose(bigOut[i], bigIn[i] + 1, 1e-3, hint || `big element ${i}`);
             }
           },
         },
@@ -391,7 +475,8 @@ console.log('close enough:', Math.abs(result[0] - ref) < 1e-3);
             const out = ctx.kernel();
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
             for (let x = 0; x < 64; x++) {
-              ctx.assertClose(out[x], partialSumRef(x), 1e-3, `partial sum for thread ${x}`);
+              const hint = diagnose(out[x], partialSumRef(x), 1e-3, partialSumProbes(x));
+              ctx.assertClose(out[x], partialSumRef(x), 1e-3, hint || `partial sum for thread ${x}`);
             }
           },
         },
@@ -414,7 +499,8 @@ console.log('close enough:', Math.abs(result[0] - ref) < 1e-3);
             // Values must track the reference AND carry its shape: each partial
             // sum starts one term later, so the sequence strictly decreases.
             for (let x = 0; x < 64; x++) {
-              ctx.assertClose(out[x], partialSumRef(x), 1e-3, `partial sum for thread ${x}`);
+              const hint = diagnose(out[x], partialSumRef(x), 1e-3, partialSumProbes(x));
+              ctx.assertClose(out[x], partialSumRef(x), 1e-3, hint || `partial sum for thread ${x}`);
             }
             for (let x = 0; x < 63; x++) {
               ctx.assert(out[x] > out[x + 1], `sum for thread ${x} should exceed thread ${x + 1}`);
@@ -535,8 +621,11 @@ console.log('winner:', kernelMs < loopMs ? 'gpu kernel' : 'plain js');
             for (let i = 0; i < 16; i++) arr[i] = i * 1.25 - 3;
             const out = ctx.kernel(arr);
             ctx.assert(out && out.length === 16, `expected 16 output values, got ${out && out.length}`);
+            const series = doubleIndexHint(out, arr);
             for (let i = 0; i < 16; i++) {
-              ctx.assertClose(out[i], arr[i] * 2, 1e-3, `element ${i}`);
+              const hint = series ||
+                diagnose(out[i], arr[i] * 2, 1e-3, [unchangedProbe(arr, i, 'doubling')]);
+              ctx.assertClose(out[i], arr[i] * 2, 1e-3, hint || `element ${i}`);
             }
           },
         },
@@ -566,8 +655,11 @@ console.log('winner:', kernelMs < loopMs ? 'gpu kernel' : 'plain js');
             const data = makeValues(ctx.utils, 16, 5505);
             const out = ctx.kernel(data);
             ctx.assert(out.length === 16, 'expected exactly 16 output values');
+            const series = doubleIndexHint(out, data);
             for (let i = 0; i < 16; i++) {
-              ctx.assertClose(out[i], data[i] * 2, 1e-3, `element ${i}`);
+              const hint = series ||
+                diagnose(out[i], data[i] * 2, 1e-3, [unchangedProbe(data, i, 'doubling')]);
+              ctx.assertClose(out[i], data[i] * 2, 1e-3, hint || `element ${i}`);
             }
           },
         },

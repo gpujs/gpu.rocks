@@ -9,6 +9,8 @@
 // image convention image[y][x] = [r, g, b, a] with channels 0–1, graphical
 // kernels use this.color(). Every task passes in CPU mode.
 
+import { ARRAY_LAYOUT } from '../layoutNote.js';
+
 const LUM = [0.299, 0.587, 0.114];
 
 function luminanceOf(pixel) {
@@ -23,10 +25,159 @@ function makeSignal(utils, seed = 4201) {
   return data;
 }
 
+// Swapping this.thread.x and this.thread.y reads the transpose of the image —
+// the single most common mistake in these tasks, and invisible to tests that
+// only check greyness or averages. When the value under test matches the
+// transposed pixel, say so instead of just reporting two numbers.
+// `last` is the highest index on each axis; the pixel under test is at column
+// `col` of the first returned row, which is row 0 or row `last` depending on
+// the backend's row order — so check the transpose of both candidates.
+function transposeHint(got, img, last, col) {
+  const swapped = [img[col][0], img[col][last]];
+  const hit = swapped.some(pixel => Math.abs(got - luminanceOf(pixel)) <= 2 / 255);
+  return hit
+    ? `that value is the luminance of the transposed pixel — looks like this.thread.x and ` +
+      `this.thread.y are swapped. Rows come first: image[this.thread.y][this.thread.x].`
+    : null;
+}
+
+// Numeric companion to transposeHint, for results that come back as plain 2D
+// arrays: there the cell under test is known exactly, so a cell holding the
+// value that belongs to cell [x][y] is that same swapped-index read. Cells on
+// the diagonal (y === x) are their own transpose and can never show it, which
+// is why the case lists below also probe off-diagonal cells.
+function transposeCellHint(got, transposed, eps, y, x) {
+  return Math.abs(got - transposed) <= eps
+    ? `that is the value for cell [${x}][${y}] — this.thread.x and this.thread.y are ` +
+      `swapped. Rows come first: image[this.thread.y][this.thread.x]`
+    : null;
+}
+
 // Constant-color image helper for orientation-independent pixel tests.
 function constantImage(size, pixel) {
   const row = new Array(size).fill(pixel);
   return new Array(size).fill(row);
+}
+
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// The transpose hints above are one instance of a general idea: when a failing
+// value is exactly what some specific mistake would produce, name that mistake
+// instead of reporting two numbers. A probe pairs such a value with its
+// sentence; diagnose() speaks only when the observed value matches a probe
+// within the test's own tolerance AND the correct value does not — so an index
+// where two candidates coincide (element 2, where x² and 2x are both 4) stays
+// silent, as do observations matching probes that disagree with each other.
+// A wrong diagnosis is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Where a candidate is computed from the thread index rather than from data,
+// one matching cell is weak evidence — `x * 2` also equals `x + 1` at x = 1.
+// These two forms therefore demand that a probe predict EVERY element (and
+// differ from the right answer somewhere) before it may speak. Probe values are
+// functions of the index; a missing cell makes the comparison NaN, which fails.
+function diagnoseAll(count, got, expected, eps, probes) {
+  const hits = probes
+    .filter(([value]) => {
+      let differs = false;
+      for (let i = 0; i < count; i++) {
+        if (!(Math.abs(got(i) - value(i)) <= eps)) return false;
+        if (Math.abs(expected(i) - value(i)) > eps) differs = true;
+      }
+      return differs;
+    })
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+function diagnoseGrid(size, out, expected, eps, probes) {
+  const hits = probes
+    .filter(([value]) => {
+      let differs = false;
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const c = value(y, x);
+          if (!(out[y] && Math.abs(out[y][x] - c) <= eps)) return false;
+          if (Math.abs(expected(y, x) - c) > eps) differs = true;
+        }
+      }
+      return differs;
+    })
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: the doubling applied to the wrong thing, or not at all.
+function doubleHint(out, arr) {
+  return diagnoseAll(64, i => out[i], i => arr[i] * 2, 1e-3, [
+    [i => arr[i], 'every cell is the element itself — the doubling never happened'],
+    [i => 2 * i, 'every cell is twice the thread index, not twice the element — index the array with it: data[this.thread.x]'],
+  ]);
+}
+
+// Task 2: the table is 1-based, so both coordinates need their + 1. All three
+// ways of forgetting one collapse to 0 in cell [0][0] — sharing a single
+// message is what lets the diagnosis speak there instead of cancelling itself.
+function tableHint(out) {
+  const missing = 'a + 1 is missing — this.thread.x and this.thread.y both start at 0, so cell [y][x] holds (x + 1) * (y + 1)';
+  return diagnoseGrid(16, out, (y, x) => (x + 1) * (y + 1), 1e-3, [
+    [(y, x) => x * y, missing],
+    [(y, x) => (x + 1) * y, missing],
+    [(y, x) => x * (y + 1), missing],
+    [(y, x) => (x + 1) + (y + 1),
+      'the coordinates were added, not multiplied — the cell is (x + 1) * (y + 1)'],
+  ]);
+}
+
+// Task 4: the index and its double both look like x² somewhere (2 · 2 = 2², and
+// 2x = x² at x = 2), so these have to hold across all 128 cells before either
+// one is named.
+function squareHint(out) {
+  return diagnoseAll(128, i => out[i], i => i * i, 1e-2, [
+    [i => i, 'you returned the thread index itself, not its square — every cell is exactly this.thread.x'],
+    [i => 2 * i, 'every cell is twice the index, not the index squared — x * x, not x * 2'],
+  ]);
+}
+
+// Tasks 5 and 6: the two grayscale recipes are easy to swap for each other,
+// and a mean is easy to leave un-divided.
+function meanProbes(pixel) {
+  return [
+    [luminanceOf(pixel), 'that is the weighted luminance — this map wants the plain average (r + g + b) / 3'],
+    [pixel[0] + pixel[1] + pixel[2], 'the three channels were summed but never divided by 3'],
+    [(pixel[0] + pixel[1] + pixel[2] + pixel[3]) / 4, 'alpha crept into the average — only r, g and b belong in it'],
+  ];
+}
+
+function luminanceProbes(pixel) {
+  return [
+    [(pixel[0] + pixel[1] + pixel[2]) / 3, 'that is the plain channel average — luminance weights the channels 0.299 R + 0.587 G + 0.114 B'],
+    [LUM[2] * pixel[0] + LUM[1] * pixel[1] + LUM[0] * pixel[2], 'the weights are in the wrong order — 0.299 belongs on red and 0.114 on blue'],
+  ];
+}
+
+// Task 3 reads pixels back from a canvas whose row order is unknown, so a probe
+// there has to be distinguishable from the correct luminance under BOTH
+// orientations before it may speak.
+function canvasHint(got, probes, correctA, correctB) {
+  const eps = 2 / 255;
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps &&
+      Math.abs(correctA - p[0]) > eps && Math.abs(correctB - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 3: 0–255 channels handed to this.color() clamp every pixel to white.
+function saturatedHint(got, correctA, correctB) {
+  return got >= 254 / 255 && Math.max(correctA, correctB) < 0.9
+    ? 'that pixel is clamped to full white — this.color() takes 0–1 channels and the image already is 0–1, so scaling by 255 saturates everything'
+    : null;
 }
 
 export default {
@@ -104,8 +255,9 @@ console.log(result);
             const arr = new Array(64);
             for (let i = 0; i < 64; i++) arr[i] = i * 1.5 - 10;
             const out = ctx.kernel(arr);
+            const hint = doubleHint(out, arr);
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], arr[i] * 2, 1e-3, `element ${i}`);
+              ctx.assertClose(out[i], arr[i] * 2, 1e-3, hint || `element ${i}`);
             }
           },
         },
@@ -117,8 +269,9 @@ console.log(result);
             const data = makeSignal(ctx.utils, 777);
             const out = ctx.kernel(data);
             ctx.assert(out.length === 64, 'expected 64 output values');
+            const hint = doubleHint(out, data);
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], data[i] * 2, 1e-3, `element ${i}`);
+              ctx.assertClose(out[i], data[i] * 2, 1e-3, hint || `element ${i}`);
             }
           },
         },
@@ -199,8 +352,9 @@ console.log('row 0:', result[0]);
           run: async ctx => {
             const out = ctx.kernel();
             const cases = [[0, 0, 1], [2, 3, 12], [7, 0, 8], [0, 7, 8], [15, 15, 256]];
+            const hint = tableHint(out);
             for (const [y, x, expected] of cases) {
-              ctx.assertClose(out[y][x], expected, 1e-3, `cell [${y}][${x}]`);
+              ctx.assertClose(out[y][x], expected, 1e-3, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -210,9 +364,10 @@ console.log('row 0:', result[0]);
           name: 'private test #1',
           run: async ctx => {
             const out = ctx.kernel();
+            const hint = tableHint(out);
             for (let y = 0; y < 16; y++) {
               for (let x = 0; x < 16; x++) {
-                ctx.assertClose(out[y][x], (x + 1) * (y + 1), 1e-3, `cell [${y}][${x}]`);
+                ctx.assertClose(out[y][x], (x + 1) * (y + 1), 1e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -226,7 +381,8 @@ console.log('row 0:', result[0]);
       slug: 'grayscale',
       title: 'Grayscale, the GPU way',
       intro: `<p>On the CPU you'd loop over 262,144 pixels one by one. On the GPU, every pixel gets
-        <strong>its own thread</strong> — the kernel body runs once per pixel, all at the same time.</p>`,
+        <strong>its own thread</strong> — the kernel body runs once per pixel, all at the same time.</p>
+        ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> write a graphical kernel that converts <code>image</code> to
         grayscale using perceptual luminance.`,
       requirements: [
@@ -306,10 +462,12 @@ render(grayscale.canvas);
             // backend — accept the correct luminance for either orientation.
             const a = luminanceOf(img[0][0]);
             const b = luminanceOf(img[511][0]);
-            ctx.assert(
-              Math.abs(got - a) <= 2 / 255 || Math.abs(got - b) <= 2 / 255,
-              `corner pixel should be its luminance (got ${got.toFixed(3)}, expected ≈${a.toFixed(3)})`
+            const ok = Math.abs(got - a) <= 2 / 255 || Math.abs(got - b) <= 2 / 255;
+            const recipe = canvasHint(
+              got, [...luminanceProbes(img[0][0]), ...luminanceProbes(img[511][0])], a, b
             );
+            ctx.assert(ok, transposeHint(got, img, 511, 0) || saturatedHint(got, a, b) || recipe ||
+              `corner pixel should be its luminance (got ${got.toFixed(3)}, expected ≈${a.toFixed(3)})`);
           },
         },
         {
@@ -435,8 +593,9 @@ console.log('sum of squares:', total);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const out = ctx.kernel();
             ctx.assert(out && out.length === 128, `expected 128 values, got ${out && out.length}`);
+            const hint = squareHint(out);
             for (let i = 0; i < 128; i++) {
-              ctx.assertClose(out[i], i * i, 1e-2, `element ${i}`);
+              ctx.assertClose(out[i], i * i, 1e-2, hint || `element ${i}`);
             }
           },
         },
@@ -460,7 +619,12 @@ console.log('sum of squares:', total);
             const out = ctx.kernel();
             let total = 0;
             for (let i = 0; i < out.length; i++) total += out[i];
-            ctx.assertClose(total, 690880, 1, 'sum of the kernel output');
+            // 8128 is 0 + 1 + … + 127: the indices themselves, unsquared.
+            const hint = diagnose(total, 690880, 1, [
+              [8128, 'that total is the sum of the indices themselves — the kernel is returning this.thread.x, not its square'],
+              [2 * 8128, 'that total is the sum of twice each index — the kernel is doubling where it should square'],
+            ]);
+            ctx.assertClose(total, 690880, 1, hint || 'sum of the kernel output');
           },
         },
       ],
@@ -474,7 +638,8 @@ console.log('sum of squares:', total);
         course an image is a nested array — <code>photo[y][x]</code> is an <code>[r, g, b, a]</code>
         pixel with channels 0–1 — and a kernel can read it like any other array argument.</p>
         <p>Drop <code>graphical: true</code>, and the same per-pixel indexing produces
-        <strong>numbers</strong> instead of colors: a measurement per pixel, ready for JavaScript.</p>`,
+        <strong>numbers</strong> instead of colors: a measurement per pixel, ready for JavaScript.</p>
+        ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> compute a 64×64 brightness map of <code>photo</code> — each cell
         the average of that pixel's red, green and blue channels.`,
       requirements: [
@@ -539,7 +704,11 @@ console.log('top-left brightness:', map[0][0]);
             const cases = [[0, 0], [10, 3], [31, 40], [63, 63]];
             for (const [y, x] of cases) {
               const p = img[y][x];
-              ctx.assertClose(out[y][x], (p[0] + p[1] + p[2]) / 3, 2e-3, `cell [${y}][${x}]`);
+              const t = img[x][y]; // the transposed cell's pixel
+              const expected = (p[0] + p[1] + p[2]) / 3;
+              const hint = transposeCellHint(out[y][x], (t[0] + t[1] + t[2]) / 3, 2e-3, y, x) ||
+                diagnose(out[y][x], expected, 2e-3, meanProbes(p));
+              ctx.assertClose(out[y][x], expected, 2e-3, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -553,7 +722,11 @@ console.log('top-left brightness:', map[0][0]);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
                 const p = img[y][x];
-                ctx.assertClose(out[y][x], (p[0] + p[1] + p[2]) / 3, 2e-3, `cell [${y}][${x}]`);
+                const t = img[x][y];
+                const expected = (p[0] + p[1] + p[2]) / 3;
+                const hint = transposeCellHint(out[y][x], (t[0] + t[1] + t[2]) / 3, 2e-3, y, x) ||
+                  diagnose(out[y][x], expected, 2e-3, meanProbes(p));
+                ctx.assertClose(out[y][x], expected, 2e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -570,7 +743,8 @@ console.log('top-left brightness:', map[0][0]);
         That result comes back to JavaScript, and you pass it straight into kernel two, a
         <strong>graphical</strong> kernel that paints the map as a grayscale picture.</p>
         <p>Array in → numbers out → array in again → pixels out. Data flowing <em>through</em>
-        kernels is the whole game (and module 1.4 shows how to keep that flow on the GPU).</p>`,
+        kernels is the whole game (and module 1.4 shows how to keep that flow on the GPU).</p>
+        ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> finish both kernels — <code>luminance</code> returns
         <code>0.299r + 0.587g + 0.114b</code> per pixel, and <code>paint</code> renders the map
         as gray pixels with <code>this.color()</code>.`,
@@ -651,7 +825,9 @@ render(paint.canvas);
             const out = numeric(img);
             const cases = [[0, 0], [5, 50], [33, 12], [63, 63]];
             for (const [y, x] of cases) {
-              ctx.assertClose(out[y][x], luminanceOf(img[y][x]), 2e-3, `cell [${y}][${x}]`);
+              const hint = transposeCellHint(out[y][x], luminanceOf(img[x][y]), 2e-3, y, x) ||
+                diagnose(out[y][x], luminanceOf(img[y][x]), 2e-3, luminanceProbes(img[y][x]));
+              ctx.assertClose(out[y][x], luminanceOf(img[y][x]), 2e-3, hint || `cell [${y}][${x}]`);
             }
           },
         },

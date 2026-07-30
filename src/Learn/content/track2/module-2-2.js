@@ -57,6 +57,74 @@ function runLadder(step, values) {
   return v[0];
 }
 
+// The contiguous-block sum a learner gets instead of the strided one: thread x
+// walking arr[x · chunk … x · chunk + chunk − 1] rather than every threads-th
+// element from x.
+function contiguousPartial(arr, x, chunk) {
+  let s = 0;
+  for (let i = 0; i < chunk; i++) s += arr[x * chunk + i];
+  return s;
+}
+
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so cells where two candidates coincide (an
+// all-ones input, where strided and contiguous sums agree) stay silent, as do
+// observations matching probes that disagree with each other. A wrong
+// diagnosis is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 2 and 6: the two ways a partial-sum walk goes wrong.
+function partialProbes(arr, x, threads, chunk) {
+  return [
+    [contiguousPartial(arr, x, chunk),
+      'that is the sum of a contiguous block — the strided walk is data[i * this.constants.threads + this.thread.x], so neighbouring threads touch neighbouring elements'],
+    [stridedPartial(arr, 0, threads, chunk),
+      "every thread summed thread 0's slice — this.thread.x has to appear in the index"],
+  ];
+}
+
+// Tasks 3 and 4: the fold distance. The partner is one OUTPUT width away, not
+// one element away, and it is easy to forget the partner entirely.
+function foldProbes(data, x) {
+  return [
+    [data[x] + data[x + 1],
+      'you paired with your immediate neighbour — the partner sits one output width away: data[this.thread.x + this.output.x]'],
+    [data[x],
+      'only your own element came back — the partner in the top half never got added'],
+  ];
+}
+
+// Task 6: squaring the finished partial sum instead of squaring each value as
+// it is read. On an all-2s input that yields (64 · 2)² = 16,384 per thread
+// where the fused kernel yields 64 · 4 = 256 — a signature worth naming.
+// Only called once the fused kernel has already been ruled out.
+function unfusedSquareHint(ctx) {
+  const twos = new Array(4096).fill(2);
+  for (const k of ctx.kernels) {
+    if (!k.kernel || k.kernel.dynamicOutput) continue;
+    let out;
+    try {
+      out = k(twos);
+    } catch (e) {
+      continue;
+    }
+    if (out && out.length === 64 && Math.abs(out[0] - 16384) <= 0.01) {
+      return 'one kernel squared its finished partial sum — the square belongs on each value as it is read, inside the loop';
+    }
+  }
+  return null;
+}
+
 // Every number that appeared in a console.log line.
 function loggedNumbers(logs) {
   const out = [];
@@ -183,7 +251,10 @@ console.log('total:', sumAll(data)[0]);
             const arr = new Array(4096);
             for (let i = 0; i < 4096; i++) arr[i] = ((i * 7) % 13) * 0.125;
             const out = ctx.kernel(arr);
-            ctx.assertClose(out[0], sumOf(arr), 2, 'the total');
+            const hint = diagnose(out[0], sumOf(arr), 2, [
+              [4096 * arr[0], 'the loop added the same element 4096 times — the accumulation has to index with the loop variable: data[i]'],
+            ]);
+            ctx.assertClose(out[0], sumOf(arr), 2, hint || 'the total');
           },
         },
       ],
@@ -194,7 +265,10 @@ console.log('total:', sumAll(data)[0]);
             const data = makeValues(ctx.utils, 4096, 4242);
             const out = ctx.kernel(data);
             ctx.assert(out && out.length === 1, 'expected 1 output value');
-            ctx.assertClose(out[0], sumOf(data), 2, 'the total');
+            const hint = diagnose(out[0], sumOf(data), 2, [
+              [4096 * data[0], 'the loop added the same element 4096 times — the accumulation has to index with the loop variable: data[i]'],
+            ]);
+            ctx.assertClose(out[0], sumOf(data), 2, hint || 'the total');
           },
         },
       ],
@@ -305,7 +379,8 @@ console.log('total:', total);
             const out = ctx.kernel(arr);
             for (const x of [0, 1, 31, 63]) {
               // Σ over i of (i * 64 + x) = 129024 + 64x — contiguous chunks would differ.
-              ctx.assertClose(out[x], 129024 + 64 * x, 0.5,
+              const hint = diagnose(out[x], 129024 + 64 * x, 0.5, partialProbes(arr, x, 64, 64));
+              ctx.assertClose(out[x], 129024 + 64 * x, 0.5, hint ||
                 `partial ${x} should sum data[${x}], data[${x} + 64], data[${x} + 128], …`);
             }
           },
@@ -330,7 +405,9 @@ console.log('total:', total);
             const out = ctx.kernel(data);
             ctx.assert(out && out.length === 64, 'expected 64 partial sums');
             for (let x = 0; x < 64; x++) {
-              ctx.assertClose(out[x], stridedPartial(data, x, 64, 64), 0.02, `partial ${x}`);
+              const expected = stridedPartial(data, x, 64, 64);
+              const hint = diagnose(out[x], expected, 0.02, partialProbes(data, x, 64, 64));
+              ctx.assertClose(out[x], expected, 0.02, hint || `partial ${x}`);
             }
             ctx.assertClose(sumOf(Array.from(out)), sumOf(data), 0.5, 'total of the partials');
           },
@@ -418,7 +495,8 @@ console.log('first pair sum:', folded[0]);
             for (let i = 0; i < 512; i++) arr[i] = i;
             const out = ctx.kernel(arr);
             for (let x = 0; x < 256; x++) {
-              ctx.assertClose(out[x], 2 * x + 256, 1e-3, `cell ${x}`);
+              const hint = diagnose(out[x], 2 * x + 256, 1e-3, foldProbes(arr, x));
+              ctx.assertClose(out[x], 2 * x + 256, 1e-3, hint || `cell ${x}`);
             }
           },
         },
@@ -431,7 +509,9 @@ console.log('first pair sum:', folded[0]);
             const out = ctx.kernel(data);
             ctx.assert(out && out.length === 256, 'expected 256 values after the fold');
             for (let x = 0; x < 256; x++) {
-              ctx.assertClose(out[x], data[x] + data[x + 256], 1e-3, `cell ${x}`);
+              const expected = data[x] + data[x + 256];
+              const hint = diagnose(out[x], expected, 1e-3, foldProbes(data, x));
+              ctx.assertClose(out[x], expected, 1e-3, hint || `cell ${x}`);
             }
             ctx.assertClose(sumOf(Array.from(out)), sumOf(data), 0.05, 'the fold must preserve the total');
           },
@@ -542,10 +622,13 @@ console.log('total:', values[0]);
             const halve = findDynamicKernel(ctx);
             ctx.assert(halve, 'no kernel with dynamicOutput: true found — pass it in the kernel options');
             halve.setOutput([2]);
-            const out = halve(Float32Array.from([1, 2, 3, 4]));
+            const rung = [1, 2, 3, 4];
+            const out = halve(Float32Array.from(rung));
             ctx.assert(out && out.length === 2, `expected 2 values after one rung, got ${out && out.length}`);
-            ctx.assertClose(out[0], 4, 1e-3, 'cell 0 should fold data[0] + data[2]');
-            ctx.assertClose(out[1], 6, 1e-3, 'cell 1 should fold data[1] + data[3]');
+            const cell0 = diagnose(out[0], 4, 1e-3, foldProbes(rung, 0));
+            ctx.assertClose(out[0], 4, 1e-3, cell0 || 'cell 0 should fold data[0] + data[2]');
+            const cell1 = diagnose(out[1], 6, 1e-3, foldProbes(rung, 1));
+            ctx.assertClose(out[1], 6, 1e-3, cell1 || 'cell 1 should fold data[1] + data[3]');
           },
         },
         {
@@ -873,7 +956,9 @@ console.log('rms:', rms);
           run: async ctx => {
             const { sums, squares } = findPartialKernels(ctx);
             ctx.assert(sums, 'no kernel producing 64 partial sums found (all-2s input should give 128 per thread)');
-            ctx.assert(squares, 'no fused kernel producing 64 partial sums of squares found (all-2s input should give 256 per thread)');
+            const squaresHint = squares ? null : unfusedSquareHint(ctx);
+            ctx.assert(squares, squaresHint ||
+              'no fused kernel producing 64 partial sums of squares found (all-2s input should give 256 per thread)');
             ctx.assert(findDynamicKernel(ctx), 'no dynamicOutput halving-ladder kernel found');
           },
         },
@@ -882,7 +967,9 @@ console.log('rms:', rms);
           run: async ctx => {
             const { sums, squares } = findPartialKernels(ctx);
             const halve = findDynamicKernel(ctx);
-            ctx.assert(sums && squares && halve, 'expected partialSums, partialSquares and a dynamic ladder kernel');
+            const fusion = squares ? null : unfusedSquareHint(ctx);
+            ctx.assert(sums && squares && halve,
+              fusion || 'expected partialSums, partialSquares and a dynamic ladder kernel');
             const arr = new Array(4096);
             for (let i = 0; i < 4096; i++) arr[i] = ((i % 8) + 1) / 4;
             let s = 0;
@@ -927,7 +1014,9 @@ console.log('rms:', rms);
           run: async ctx => {
             const { sums, squares } = findPartialKernels(ctx);
             const halve = findDynamicKernel(ctx);
-            ctx.assert(sums && squares && halve, 'expected partialSums, partialSquares and a dynamic ladder kernel');
+            const fusion = squares ? null : unfusedSquareHint(ctx);
+            ctx.assert(sums && squares && halve,
+              fusion || 'expected partialSums, partialSquares and a dynamic ladder kernel');
             const data = makeValues(ctx.utils, 4096, 909);
             let s = 0;
             let s2 = 0;

@@ -19,6 +19,101 @@ function expectedWave(count = 64) {
   return wave;
 }
 
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so cells where two candidates coincide stay
+// silent, as do observations that match probes disagreeing with each other.
+// A wrong diagnosis is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Where a candidate is computed from the thread index rather than from data,
+// one matching cell is weak evidence — `x * 2` also equals `x + 1` at x = 1.
+// These two forms therefore demand that a probe predict EVERY element (and
+// differ from the right answer somewhere) before it may speak. Probe values are
+// functions of the index; a missing cell makes the comparison NaN, which fails.
+function diagnoseAll(count, got, expected, eps, probes) {
+  const hits = probes
+    .filter(([value]) => {
+      let differs = false;
+      for (let i = 0; i < count; i++) {
+        if (!(Math.abs(got(i) - value(i)) <= eps)) return false;
+        if (Math.abs(expected(i) - value(i)) > eps) differs = true;
+      }
+      return differs;
+    })
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+function diagnoseGrid(size, out, expected, eps, probes) {
+  const hits = probes
+    .filter(([value]) => {
+      let differs = false;
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const c = value(y, x);
+          if (!(out[y] && Math.abs(out[y][x] - c) <= eps)) return false;
+          if (Math.abs(expected(y, x) - c) > eps) differs = true;
+        }
+      }
+      return differs;
+    })
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 3: every way of mis-scaling the index before handing it to Math.sin.
+// One cycle across n samples means (i / n) * 2π — each probe below is a
+// plausible near miss of exactly that expression.
+function waveProbes(i, n = 64) {
+  return [
+    [Math.sin(i),
+      'you sampled Math.sin(this.thread.x) directly — the index counts samples, not radians'],
+    [Math.sin((i / n) * Math.PI),
+      'that is half a cycle — a full turn is 2 * Math.PI, not Math.PI'],
+    [Math.sin((i / n) * 360),
+      'Math.sin takes radians, not degrees — a full turn is 2 * Math.PI, not 360'],
+    [Math.sin(i / n),
+      'the 2π factor is missing — x / 64 on its own spans about one radian, not a full cycle'],
+    [Math.sin((i / (n - 1)) * TWO_PI),
+      'you divided by 63 instead of 64 — the cycle spans all 64 samples, so sample 64 is where it would repeat'],
+  ];
+}
+
+// Task 4: a checkerboard needs BOTH coordinates. Dropping either one leaves a
+// perfectly regular pattern of stripes, which the parity of the surviving
+// coordinate predicts across the whole board.
+function parityHint(out) {
+  return diagnoseGrid(8, out, (y, x) => (x + y) % 2, 1e-3, [
+    [(y, x) => x % 2,
+      'the whole board is the parity of this.thread.x alone — vertical stripes; a checkerboard flips on both axes, so add this.thread.y'],
+    [(y, x) => y % 2,
+      'the whole board is the parity of this.thread.y alone — horizontal stripes; a checkerboard flips on both axes, so add this.thread.x'],
+  ]);
+}
+
+// Task 5: gpu.js types an arithmetic expression from its LEFT operand, so
+// this.thread.x * scale compiles an integer multiply on the GL backend and
+// truncates the scale — the exact gotcha this task is built around. When the
+// scale happens to be a whole number the two agree and the probe stays quiet.
+function scaleHint(out, scale) {
+  return diagnoseAll(64, i => out[i], i => i * scale, 1e-2, [
+    [i => i * Math.trunc(scale),
+      'every cell is this.thread.x times a truncated scale — the integer thread id on the left makes gpu.js compile an integer multiply; put the float first: scale * this.thread.x'],
+    [i => i,
+      'the scale never reached the result — every cell is the bare this.thread.x'],
+  ]);
+}
+
 export default {
   id: '1-1',
   track: 1,
@@ -191,8 +286,12 @@ console.log(result);
           name: 'cell <code>i</code> holds <code>i</code> — each thread reports its index',
           run: async ctx => {
             const out = ctx.kernel();
+            const hint = diagnoseAll(32, i => out[i], i => i, 1e-3, [
+              [i => i + 1,
+                'every cell is one more than its index — this.thread.x already counts from 0, so the first cell holds 0'],
+            ]);
             for (let i = 0; i < 32; i++) {
-              ctx.assertClose(out[i], i, 1e-3, `cell ${i}`);
+              ctx.assertClose(out[i], i, 1e-3, hint || `cell ${i}`);
             }
           },
         },
@@ -289,10 +388,13 @@ console.log(samples);
             const out = ctx.kernel();
             const expected = expectedWave(64);
             ctx.assertClose(out[0], 0, 1e-3, 'thread 0: sin(0) = 0');
-            ctx.assertClose(out[16], 1, 1e-3, 'thread 16: quarter cycle, sin = 1');
-            ctx.assertClose(out[48], -1, 1e-3, 'thread 48: three-quarter cycle, sin = -1');
+            const at16 = diagnose(out[16], 1, 1e-3, waveProbes(16));
+            ctx.assertClose(out[16], 1, 1e-3, at16 || 'thread 16: quarter cycle, sin = 1');
+            const at48 = diagnose(out[48], -1, 1e-3, waveProbes(48));
+            ctx.assertClose(out[48], -1, 1e-3, at48 || 'thread 48: three-quarter cycle, sin = -1');
             for (let i = 0; i < 64; i += 7) {
-              ctx.assertClose(out[i], expected[i], 1e-3, `sample ${i}`);
+              const hint = diagnose(out[i], expected[i], 1e-3, waveProbes(i));
+              ctx.assertClose(out[i], expected[i], 1e-3, hint || `sample ${i}`);
             }
           },
         },
@@ -304,7 +406,8 @@ console.log(samples);
             const out = ctx.kernel();
             const expected = expectedWave(64);
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], expected[i], 1e-3, `sample ${i}`);
+              const hint = diagnose(out[i], expected[i], 1e-3, waveProbes(i));
+              ctx.assertClose(out[i], expected[i], 1e-3, hint || `sample ${i}`);
             }
           },
         },
@@ -391,9 +494,10 @@ console.log(result);
           name: 'cells alternate like a checkerboard: <code>(x + y) % 2</code>',
           run: async ctx => {
             const out = ctx.kernel();
-            ctx.assertClose(out[0][0], 0, 1e-3, 'corner [0][0] is 0');
-            ctx.assertClose(out[0][1], 1, 1e-3, 'its neighbour [0][1] is 1');
-            ctx.assertClose(out[1][0], 1, 1e-3, 'its neighbour [1][0] is 1');
+            const stripes = parityHint(out);
+            ctx.assertClose(out[0][0], 0, 1e-3, stripes || 'corner [0][0] is 0');
+            ctx.assertClose(out[0][1], 1, 1e-3, stripes || 'its neighbour [0][1] is 1');
+            ctx.assertClose(out[1][0], 1, 1e-3, stripes || 'its neighbour [1][0] is 1');
             ctx.assertClose(out[7][7], 0, 1e-3, 'far corner [7][7] is 0 (7 + 7 is even)');
           },
         },
@@ -403,9 +507,10 @@ console.log(result);
           name: 'private test #1',
           run: async ctx => {
             const out = ctx.kernel();
+            const stripes = parityHint(out);
             for (let y = 0; y < 8; y++) {
               for (let x = 0; x < 8; x++) {
-                ctx.assertClose(out[y][x], (x + y) % 2, 1e-3, `cell [${y}][${x}]`);
+                ctx.assertClose(out[y][x], (x + y) % 2, 1e-3, stripes || `cell [${y}][${x}]`);
               }
             }
           },
@@ -492,8 +597,9 @@ console.log('scale 0.5:', ramp(0.5));
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const out = ctx.kernel(2.5);
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
+            const hint = scaleHint(out, 2.5);
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], i * 2.5, 1e-2, `cell ${i} with scale 2.5`);
+              ctx.assertClose(out[i], i * 2.5, 1e-2, hint || `cell ${i} with scale 2.5`);
             }
           },
         },
@@ -501,8 +607,9 @@ console.log('scale 0.5:', ramp(0.5));
           name: 'the same kernel re-launches with <code>0.5</code> — no rebuild needed',
           run: async ctx => {
             const out = ctx.kernel(0.5);
+            const hint = scaleHint(out, 0.5);
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], i * 0.5, 1e-2, `cell ${i} with scale 0.5`);
+              ctx.assertClose(out[i], i * 0.5, 1e-2, hint || `cell ${i} with scale 0.5`);
             }
           },
         },
@@ -515,8 +622,9 @@ console.log('scale 0.5:', ramp(0.5));
             const scale = -2.25;
             const out = ctx.kernel(scale);
             ctx.assert(out.length === 64, 'expected 64 output values');
+            const hint = scaleHint(out, scale);
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], i * scale, 1e-2, `cell ${i} with scale ${scale}`);
+              ctx.assertClose(out[i], i * scale, 1e-2, hint || `cell ${i} with scale ${scale}`);
             }
           },
         },

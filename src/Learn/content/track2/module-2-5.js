@@ -123,6 +123,87 @@ function closeish(ctx, got, expected, scale, message) {
   ctx.assertClose(got, expected, scale * (1 + Math.abs(expected)), message);
 }
 
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so bodies where two candidates coincide stay
+// silent, as do observations that match probes disagreeing with each other.
+// A wrong diagnosis is worse than none. `looseEps` mirrors closeish, so probes
+// are judged by exactly the yardstick the assert next to them uses.
+function looseEps(scale, expected) {
+  return scale * (1 + Math.abs(expected));
+}
+
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: the inverse-square law, over- and under-rooted.
+function pullProbes(mass, r2) {
+  return [
+    [mass / Math.sqrt(r2),
+      'that is M / r — dx * dx + dy * dy is already r², so there is no square root to take'],
+    [1 / r2,
+      "the star's mass never entered the result — the pull is starMass / r²"],
+    [mass * r2,
+      'that multiplies by r² where the law divides by it'],
+  ];
+}
+
+// Task 2 reference with the wrong power in the denominator: what mass[j] * dx
+// / r2 gives, with the direction dx / r never normalised.
+function accelUnnormalized(i, posX, posY, mass) {
+  let ax = 0;
+  let ay = 0;
+  for (let j = 0; j < posX.length; j++) {
+    if (j === i) continue;
+    const dx = posX[j] - posX[i];
+    const dy = posY[j] - posY[i];
+    const r2 = dx * dx + dy * dy;
+    ax += (mass[j] * dx) / r2;
+    ay += (mass[j] * dy) / r2;
+  }
+  return [ax, ay];
+}
+
+// Task 2: a missing factor of r, or an offset measured backwards.
+function accelProbes(i, b, ref, component) {
+  return [
+    [accelUnnormalized(i, b.posX, b.posY, b.mass)[component],
+      'that is mass[j]·d / r², one factor of r short — the unit direction is d / r, so each term is mass[j]·d / r³'],
+    [-ref,
+      'the offset points the wrong way — dx is posX[j] minus your OWN x, so the pull points at the other body'],
+  ];
+}
+
+// Task 3: softening added linearly instead of squared, or not added at all.
+// accelOn squares whatever ε it is handed, so √soft reproduces r² + soft.
+function softProbes(i, b, soft, component) {
+  return [
+    [accelOn(i, b.posX, b.posY, b.mass, Math.sqrt(soft))[component],
+      'that adds soft where it should add soft · soft — Plummer softening replaces r² with r² + ε²'],
+    [accelOn(i, b.posX, b.posY, b.mass, 0)[component],
+      'that is the unsoftened sum — ε never reached the denominator'],
+  ];
+}
+
+// Task 4: the integrator without its time step, or without its update at all.
+// Takes the same scale the closeish beside it uses, so both judge by one
+// tolerance.
+function stepHint(got, value, rate, dt, scale) {
+  const expected = value + rate * dt;
+  return diagnose(got, expected, looseEps(scale, expected), [
+    [value + rate, 'the time step is missing — the update is value + rate · dt'],
+    [value, 'that value came back unchanged — nothing was added to it'],
+  ]);
+}
+
 export default {
   id: '2-5',
   track: 2,
@@ -222,10 +303,12 @@ console.log('pull on body 0:', strength[0]);
               posY[i] = 0;
             }
             const out = ctx.kernel(posX, posY, 0, 0, 100);
+            const pullHint = (i, expected) =>
+              diagnose(out[i], expected, 1e-2, pullProbes(100, (i + 1) * (i + 1)));
             ctx.assertClose(out[0], 100, 1e-2, 'body at distance 1');
-            ctx.assertClose(out[1], 25, 1e-2, 'body at distance 2 (quarter the pull)');
-            ctx.assertClose(out[3], 6.25, 1e-2, 'body at distance 4 (a sixteenth)');
-            ctx.assertClose(out[9], 1, 1e-2, 'body at distance 10');
+            ctx.assertClose(out[1], 25, 1e-2, pullHint(1, 25) || 'body at distance 2 (quarter the pull)');
+            ctx.assertClose(out[3], 6.25, 1e-2, pullHint(3, 6.25) || 'body at distance 4 (a sixteenth)');
+            ctx.assertClose(out[9], 1, 1e-2, pullHint(9, 1) || 'body at distance 10');
           },
         },
       ],
@@ -238,7 +321,10 @@ console.log('pull on body 0:', strength[0]);
             for (let i = 0; i < 64; i++) {
               const dx = -1.5 - b.posX[i];
               const dy = 2.5 - b.posY[i];
-              closeish(ctx, out[i], 77 / (dx * dx + dy * dy), 1e-3, `body ${i}`);
+              const r2 = dx * dx + dy * dy;
+              const expected = 77 / r2;
+              const hint = diagnose(out[i], expected, looseEps(1e-3, expected), pullProbes(77, r2));
+              closeish(ctx, out[i], expected, 1e-3, hint || `body ${i}`);
             }
           },
         },
@@ -355,7 +441,8 @@ console.log('net x-pull on body 0:', ax[0]);
             const out = ctx.kernel(b.posX, b.posY, b.mass);
             for (const i of [0, 17, 40, 63]) {
               const ref = accelOn(i, b.posX, b.posY, b.mass, 0);
-              closeish(ctx, out[i], ref[0], 2e-3, `net x-acceleration on body ${i}`);
+              const hint = diagnose(out[i], ref[0], looseEps(2e-3, ref[0]), accelProbes(i, b, ref[0], 0));
+              closeish(ctx, out[i], ref[0], 2e-3, hint || `net x-acceleration on body ${i}`);
             }
           },
         },
@@ -368,7 +455,8 @@ console.log('net x-pull on body 0:', ax[0]);
             const out = ctx.kernel(b.posX, b.posY, b.mass);
             for (let i = 0; i < 64; i++) {
               const ref = accelOn(i, b.posX, b.posY, b.mass, 0);
-              closeish(ctx, out[i], ref[0], 2e-3, `net x-acceleration on body ${i}`);
+              const hint = diagnose(out[i], ref[0], looseEps(2e-3, ref[0]), accelProbes(i, b, ref[0], 0));
+              closeish(ctx, out[i], ref[0], 2e-3, hint || `net x-acceleration on body ${i}`);
             }
           },
         },
@@ -494,8 +582,10 @@ console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
             const out = ctx.kernel(b.posX, b.posY, b.mass, 0.1);
             for (const i of [0, 1, 7, 63]) {
               const ref = accelOn(i, b.posX, b.posY, b.mass, 0.1);
-              closeish(ctx, out[i][0], ref[0], 2e-3, `ax on body ${i}`);
-              closeish(ctx, out[i][1], ref[1], 2e-3, `ay on body ${i}`);
+              const hintX = diagnose(out[i][0], ref[0], looseEps(2e-3, ref[0]), softProbes(i, b, 0.1, 0));
+              const hintY = diagnose(out[i][1], ref[1], looseEps(2e-3, ref[1]), softProbes(i, b, 0.1, 1));
+              closeish(ctx, out[i][0], ref[0], 2e-3, hintX || `ax on body ${i}`);
+              closeish(ctx, out[i][1], ref[1], 2e-3, hintY || `ay on body ${i}`);
             }
           },
         },
@@ -509,8 +599,10 @@ console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
             const out = ctx.kernel(b.posX, b.posY, b.mass, 0.25);
             for (let i = 0; i < 64; i++) {
               const ref = accelOn(i, b.posX, b.posY, b.mass, 0.25);
-              closeish(ctx, out[i][0], ref[0], 2e-3, `ax on body ${i}`);
-              closeish(ctx, out[i][1], ref[1], 2e-3, `ay on body ${i}`);
+              const hintX = diagnose(out[i][0], ref[0], looseEps(2e-3, ref[0]), softProbes(i, b, 0.25, 0));
+              const hintY = diagnose(out[i][1], ref[1], looseEps(2e-3, ref[1]), softProbes(i, b, 0.25, 1));
+              closeish(ctx, out[i][0], ref[0], 2e-3, hintX || `ax on body ${i}`);
+              closeish(ctx, out[i][1], ref[1], 2e-3, hintY || `ay on body ${i}`);
             }
           },
         },
@@ -658,8 +750,10 @@ console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
             }
             const out = velK(vx, vy, ax, ay, 0.5);
             for (let i = 0; i < 64; i++) {
-              closeish(ctx, out[i][0], vx[i] + ax[i] * 0.5, 1e-3, `vx of body ${i}`);
-              closeish(ctx, out[i][1], vy[i] + ay[i] * 0.5, 1e-3, `vy of body ${i}`);
+              closeish(ctx, out[i][0], vx[i] + ax[i] * 0.5, 1e-3,
+                stepHint(out[i][0], vx[i], ax[i], 0.5, 1e-3) || `vx of body ${i}`);
+              closeish(ctx, out[i][1], vy[i] + ay[i] * 0.5, 1e-3,
+                stepHint(out[i][1], vy[i], ay[i], 0.5, 1e-3) || `vy of body ${i}`);
             }
           },
         },
@@ -679,8 +773,10 @@ console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
             }
             const out = posK(px, py, vx, vy, 0.2);
             for (let i = 0; i < 64; i++) {
-              closeish(ctx, out[i][0], px[i] + vx[i] * 0.2, 1e-3, `x of body ${i}`);
-              closeish(ctx, out[i][1], py[i] + vy[i] * 0.2, 1e-3, `y of body ${i}`);
+              closeish(ctx, out[i][0], px[i] + vx[i] * 0.2, 1e-3,
+                stepHint(out[i][0], px[i], vx[i], 0.2, 1e-3) || `x of body ${i}`);
+              closeish(ctx, out[i][1], py[i] + vy[i] * 0.2, 1e-3,
+                stepHint(out[i][1], py[i], vy[i], 0.2, 1e-3) || `y of body ${i}`);
             }
           },
         },
@@ -700,10 +796,14 @@ console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
             const vel = ctx.kernels[0](vx, vy, ax, ay, 0.025);
             const pos = ctx.kernels[1](px, py, vx, vy, 0.025);
             for (let i = 0; i < 64; i++) {
-              closeish(ctx, vel[i][0], vx[i] + ax[i] * 0.025, 1e-3, `vx of body ${i}`);
-              closeish(ctx, vel[i][1], vy[i] + ay[i] * 0.025, 1e-3, `vy of body ${i}`);
-              closeish(ctx, pos[i][0], px[i] + vx[i] * 0.025, 1e-3, `x of body ${i}`);
-              closeish(ctx, pos[i][1], py[i] + vy[i] * 0.025, 1e-3, `y of body ${i}`);
+              closeish(ctx, vel[i][0], vx[i] + ax[i] * 0.025, 1e-3,
+                stepHint(vel[i][0], vx[i], ax[i], 0.025, 1e-3) || `vx of body ${i}`);
+              closeish(ctx, vel[i][1], vy[i] + ay[i] * 0.025, 1e-3,
+                stepHint(vel[i][1], vy[i], ay[i], 0.025, 1e-3) || `vy of body ${i}`);
+              closeish(ctx, pos[i][0], px[i] + vx[i] * 0.025, 1e-3,
+                stepHint(pos[i][0], px[i], vx[i], 0.025, 1e-3) || `x of body ${i}`);
+              closeish(ctx, pos[i][1], py[i] + vy[i] * 0.025, 1e-3,
+                stepHint(pos[i][1], py[i], vy[i], 0.025, 1e-3) || `y of body ${i}`);
             }
           },
         },

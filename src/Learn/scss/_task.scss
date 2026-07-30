@@ -469,6 +469,32 @@
     fill: var(--muted);
   }
 
+  /* ---- shared "array layout in gpu.js" callout (content/layoutNote.js).
+     Amber rail: this is the mind-the-gotcha note, distinct from the blue
+     goal callout and the neutral transfer box. */
+  .brief .layout-note {
+    margin: 1.1rem 0;
+    padding: .7rem .9rem;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--amber);
+    border-radius: 0 8px 8px 0;
+    background: var(--surface-2);
+  }
+
+  .brief .layout-note b {
+    display: block;
+    color: var(--ink);
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    margin-bottom: .35rem;
+  }
+
+  .brief .layout-note p {
+    margin: 0;
+    font-size: .8rem;
+  }
+
   .transfer {
     margin-top: 1.4rem;
     padding: .8rem .9rem;

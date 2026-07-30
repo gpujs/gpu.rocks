@@ -46,6 +46,73 @@ function paletteBytes(t) {
   ];
 }
 
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so cells where a candidate happens to equal the
+// right answer stay silent, as do observations matching probes that disagree
+// with each other. A wrong diagnosis is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: the plane mapping, plus gpu.js's left-operand typing rule. Written
+// as `xMin + this.thread.x * step`, the GL backend types the multiply from the
+// integer thread id, compiles an integer multiply and truncates step to 0 — so
+// every cell reports the view's corner. Hoisting the id into a const first is
+// what makes it a float, which is exactly what the task asks for.
+function planeProbes(xMin, yMin, step, x, y) {
+  const cr = xMin + x * step;
+  const ci = yMin + y * step;
+  return [
+    [Math.sqrt(cr * cr + ci * ci),
+      'that is |c|, not |c|² — return cr * cr + ci * ci without the square root'],
+    [x * step * (x * step) + y * step * (y * step),
+      'the view offsets never got added — cr is xMin + x * step, ci is yMin + y * step'],
+    [xMin * xMin + yMin * yMin,
+      'every cell reports the corner of the view — the integer this.thread.x on the left of the multiply makes gpu.js truncate step to 0; hoist the thread id into a const first'],
+  ];
+}
+
+// Task 2: the escape guard, missing or inverted. 100 everywhere means counting
+// continued after z escaped; 0 everywhere means no pass ever ran.
+function escapeProbes() {
+  return [
+    [MAX_ITER,
+      'every point reached the 100 cap — counting continued after z escaped, so the guard zr * zr + zi * zi < 4 is either missing or not wrapping the count'],
+    [0,
+      'count came back 0 — no guarded pass ever ran; the guard admits z while zr * zr + zi * zi is BELOW 4'],
+  ];
+}
+
+// Task 3: interior pixels painted with the escape shade instead of black. At
+// count = 100 the shade is t = 1, so a white interior names its own mistake.
+function interiorHint(r, g, b) {
+  return r >= 253 && g >= 253 && b >= 253
+    ? 'the interior came out white — count = 100 pixels are falling into the shade branch; shade only when count < 100 and paint the rest black'
+    : null;
+}
+
+// Task 4: the normalized iteration count, one term at a time.
+function smoothProbes(cr, ci) {
+  const orbit = escapeOrbit(cr, ci);
+  const r2 = orbit.zr * orbit.zr + orbit.zi * orbit.zi;
+  return [
+    [orbit.count,
+      'that is the raw integer count — the fractional correction 1 − log2(0.5 · log2|z|²) is missing'],
+    [orbit.count + 1 - Math.log(0.5 * Math.log(r2)),
+      'Math.log is the natural logarithm — the normalized iteration count takes log2 twice'],
+    [orbit.count + 1 - Math.log2(Math.log2(r2)),
+      'the halving is missing — log2|z| is 0.5 * Math.log2(zr * zr + zi * zi)'],
+  ];
+}
+
 export default {
   id: '3-2',
   track: 3,
@@ -131,9 +198,15 @@ console.log('corner cell [0][0]:', field[0][0]);
             const out = ctx.kernel(-2, -2, 4 / 64);
             ctx.assert(out && out.length === 64, `expected 64 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 64, 'each row should hold 64 values');
-            ctx.assertClose(out[32][32], 0, 1e-3, 'cell [32][32] should be the origin, |c|² = 0');
-            ctx.assertClose(out[32][48], 1, 1e-3, 'cell [32][48] sits at c = 1 + 0i, so |c|² = 1');
-            ctx.assertClose(out[0][0], 8, 1e-2, 'cell [0][0] sits at c = -2 - 2i, so |c|² = 8');
+            const step = 4 / 64;
+            const planeHint = (y, x, expected, eps) =>
+              diagnose(out[y][x], expected, eps, planeProbes(-2, -2, step, x, y));
+            ctx.assertClose(out[32][32], 0, 1e-3, planeHint(32, 32, 0, 1e-3) ||
+              'cell [32][32] should be the origin, |c|² = 0');
+            ctx.assertClose(out[32][48], 1, 1e-3, planeHint(32, 48, 1, 1e-3) ||
+              'cell [32][48] sits at c = 1 + 0i, so |c|² = 1');
+            ctx.assertClose(out[0][0], 8, 1e-2, planeHint(0, 0, 8, 1e-2) ||
+              'cell [0][0] sits at c = -2 - 2i, so |c|² = 8');
           },
         },
         {
@@ -143,7 +216,8 @@ console.log('corner cell [0][0]:', field[0][0]);
             const cases = [[0, 0], [2, 3], [7, 7], [63, 1]];
             for (const [y, x] of cases) {
               const expected = 0.25 * (x * x + y * y);
-              ctx.assertClose(out[y][x], expected, 1e-2, `cell [${y}][${x}]`);
+              const hint = diagnose(out[y][x], expected, 1e-2, planeProbes(0, 0, 0.5, x, y));
+              ctx.assertClose(out[y][x], expected, 1e-2, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -157,7 +231,9 @@ console.log('corner cell [0][0]:', field[0][0]);
               for (let x = 0; x < 64; x += 3) {
                 const cr = -1 + x * 0.25;
                 const ci = 2 + y * 0.25;
-                ctx.assertClose(out[y][x], cr * cr + ci * ci, 1e-2, `cell [${y}][${x}]`);
+                const hint = diagnose(out[y][x], cr * cr + ci * ci, 1e-2,
+                  planeProbes(-1, 2, 0.25, x, y));
+                ctx.assertClose(out[y][x], cr * cr + ci * ci, 1e-2, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -268,9 +344,13 @@ console.log('far corner, escapes at once:', counts[0][0]);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const out = ctx.kernel(-2.2, -1.6, 0.05);
             ctx.assert(out && out.length === 64 && out[0].length === 64, 'expected a 64×64 grid');
-            ctx.assertClose(out[32][44], 100, 1e-3, 'cell [32][44] is c = 0 — it never escapes');
-            ctx.assertClose(out[32][24], 100, 1e-3, 'cell [32][24] is c = -1 — a stable 2-cycle');
-            ctx.assertClose(out[0][0], 1, 1e-3, 'cell [0][0] is c = -2.2 - 1.6i, |c| > 2 — gone in one step');
+            const countHint = (y, x, expected) => diagnose(out[y][x], expected, 1e-3, escapeProbes());
+            ctx.assertClose(out[32][44], 100, 1e-3, countHint(32, 44, 100) ||
+              'cell [32][44] is c = 0 — it never escapes');
+            ctx.assertClose(out[32][24], 100, 1e-3, countHint(32, 24, 100) ||
+              'cell [32][24] is c = -1 — a stable 2-cycle');
+            ctx.assertClose(out[0][0], 1, 1e-3, countHint(0, 0, 1) ||
+              'cell [0][0] is c = -2.2 - 1.6i, |c| > 2 — gone in one step');
           },
         },
         {
@@ -279,7 +359,9 @@ console.log('far corner, escapes at once:', counts[0][0]);
             const out = ctx.kernel(2.5, 0.5, 0.01);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
-                ctx.assertClose(out[y][x], 1, 1e-3, `cell [${y}][${x}] has |c| > 2 — count must be 1`);
+                const hint = diagnose(out[y][x], 1, 1e-3, escapeProbes());
+                ctx.assertClose(out[y][x], 1, 1e-3,
+                  hint || `cell [${y}][${x}] has |c| > 2 — count must be 1`);
               }
             }
           },
@@ -293,14 +375,16 @@ console.log('far corner, escapes at once:', counts[0][0]);
             const inside = ctx.kernel(-0.2, -0.1, 0.003);
             for (let y = 0; y < 64; y += 5) {
               for (let x = 0; x < 64; x += 5) {
-                ctx.assertClose(inside[y][x], 100, 1e-3, `cardioid cell [${y}][${x}]`);
+                const hint = diagnose(inside[y][x], 100, 1e-3, escapeProbes());
+                ctx.assertClose(inside[y][x], 100, 1e-3, hint || `cardioid cell [${y}][${x}]`);
               }
             }
             // A window far above the set: |c| > 2 everywhere.
             const above = ctx.kernel(-0.32, 2.5, 0.01);
             for (let y = 0; y < 64; y += 5) {
               for (let x = 0; x < 64; x += 5) {
-                ctx.assertClose(above[y][x], 1, 1e-3, `exterior cell [${y}][${x}]`);
+                const hint = diagnose(above[y][x], 1, 1e-3, escapeProbes());
+                ctx.assertClose(above[y][x], 1, 1e-3, hint || `exterior cell [${y}][${x}]`);
               }
             }
           },
@@ -430,7 +514,8 @@ render(paint.canvas);
             for (let i = 0; i < pixels.length; i += 401 * 4) {
               ctx.assert(
                 pixels[i] <= 2 && pixels[i + 1] <= 2 && pixels[i + 2] <= 2,
-                `interior pixel at byte ${i} should be black, got rgb(${pixels[i]}, ${pixels[i + 1]}, ${pixels[i + 2]})`
+                interiorHint(pixels[i], pixels[i + 1], pixels[i + 2]) ||
+                  `interior pixel at byte ${i} should be black, got rgb(${pixels[i]}, ${pixels[i + 1]}, ${pixels[i + 2]})`
               );
             }
           },
@@ -459,7 +544,8 @@ render(paint.canvas);
             for (let i = 0; i < pixels.length; i += 293 * 4) {
               ctx.assert(
                 pixels[i] <= 2 && pixels[i + 1] <= 2 && pixels[i + 2] <= 2,
-                `bulb pixel at byte ${i} should be black, got rgb(${pixels[i]}, ${pixels[i + 1]}, ${pixels[i + 2]})`
+                interiorHint(pixels[i], pixels[i + 1], pixels[i + 2]) ||
+                  `bulb pixel at byte ${i} should be black, got rgb(${pixels[i]}, ${pixels[i + 1]}, ${pixels[i + 2]})`
               );
             }
             // Far left of the set: uniform count-1 shade.
@@ -599,7 +685,9 @@ console.log('a fractional escape value:', field[0][0]);
             const cases = [[0, 0], [10, 20], [33, 7], [63, 63]];
             for (const [y, x] of cases) {
               const expected = smoothEscape(0, 0, 3 + x * 0.01, 1 + y * 0.01);
-              ctx.assertClose(out[y][x], expected, 0.02, `cell [${y}][${x}]`);
+              const hint = diagnose(out[y][x], expected, 0.02,
+                smoothProbes(3 + x * 0.01, 1 + y * 0.01));
+              ctx.assertClose(out[y][x], expected, 0.02, hint || `cell [${y}][${x}]`);
               if (Math.abs(out[y][x] - Math.round(out[y][x])) > 0.05) sawFraction = true;
             }
             ctx.assert(
@@ -618,7 +706,9 @@ console.log('a fractional escape value:', field[0][0]);
             for (let y = 0; y < 64; y += 9) {
               for (let x = 0; x < 64; x += 9) {
                 const expected = smoothEscape(0, 0, -4 + x * 0.005, 2 + y * 0.005);
-                ctx.assertClose(far[y][x], expected, 0.02, `far cell [${y}][${x}]`);
+                const hint = diagnose(far[y][x], expected, 0.02,
+                  smoothProbes(-4 + x * 0.005, 2 + y * 0.005));
+                ctx.assertClose(far[y][x], expected, 0.02, hint || `far cell [${y}][${x}]`);
               }
             }
             // Count-2 territory on the positive real side.
@@ -626,7 +716,9 @@ console.log('a fractional escape value:', field[0][0]);
             for (let y = 0; y < 64; y += 9) {
               for (let x = 0; x < 64; x += 9) {
                 const expected = smoothEscape(0, 0, 1.5 + x * 0.001, -0.032 + y * 0.001);
-                ctx.assertClose(near[y][x], expected, 0.02, `near cell [${y}][${x}]`);
+                const hint = diagnose(near[y][x], expected, 0.02,
+                  smoothProbes(1.5 + x * 0.001, -0.032 + y * 0.001));
+                ctx.assertClose(near[y][x], expected, 0.02, hint || `near cell [${y}][${x}]`);
               }
             }
           },

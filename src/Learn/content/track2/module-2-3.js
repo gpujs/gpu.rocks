@@ -11,6 +11,108 @@
 // convention image[y][x] = [r, g, b, a] with channels 0–1. Every task passes
 // in CPU mode.
 
+import { ARRAY_LAYOUT } from '../layoutNote.js';
+
+// Swapping this.thread.x and this.thread.y reads the transpose of the image —
+// the single most common mistake in the image tasks, and invisible to tests
+// that only check flat colours or greyness. Numeric results come back as plain
+// 2D arrays, so the cell under test is known exactly: a cell holding the value
+// that belongs to cell [x][y] is that swapped read. Cells on the diagonal
+// (y === x) are their own transpose and can never show it, which is why the
+// case lists below also probe off-diagonal cells.
+function transposeCellHint(got, transposed, eps, y, x) {
+  return Math.abs(got - transposed) <= eps
+    ? `that is the value for cell [${x}][${y}] — this.thread.x and this.thread.y are ` +
+      `swapped. Rows come first: image[this.thread.y][this.thread.x]`
+    : null;
+}
+
+// Canvas counterpart: a graphical kernel that swaps the two thread coordinates
+// paints the whole picture transposed, so the value belonging at (row, col)
+// turns up at (col, row) instead. getPixels row order can be top-down or
+// bottom-up, so each caller decides — in whatever terms its own expectation is
+// written — whether the observation matches the transposed picture under either
+// order, and this words the diagnosis once.
+function transposePixelHint(hit, row, col) {
+  return hit
+    ? `the picture is transposed — the value for row ${row}, col ${col} turned up at ` +
+      `row ${col}, col ${row}. this.thread.x and this.thread.y are swapped; rows come ` +
+      `first: image[this.thread.y][this.thread.x].`
+    : null;
+}
+
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// The transpose hints above are one instance of a general idea: when a failing
+// value is exactly what some specific mistake would produce, name that mistake
+// instead of reporting two numbers. A probe pairs such a value with its
+// sentence; diagnose() speaks only when the observed value matches a probe
+// within the test's own tolerance AND the correct value does not — so samples
+// where a candidate happens to equal the right answer stay silent, as do
+// observations matching probes that disagree with each other. A wrong diagnosis
+// is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: the 3-tap filter left unweighted, mis-weighted, or not applied.
+function smoothProbes(signal, i) {
+  const n = signal.length;
+  const clamp = j => Math.max(0, Math.min(n - 1, j));
+  const l = signal[clamp(i - 1)];
+  const c = signal[i];
+  const r = signal[clamp(i + 1)];
+  return [
+    [(l + c + r) / 3, 'that is the plain 3-tap mean — this filter weights the taps 0.25 / 0.5 / 0.25'],
+    [c, 'that is the sample itself — the weighted average of its neighborhood never happened'],
+    [0.25 * (l + c + r), 'the center tap carries 0.5, not 0.25 — the three weights have to sum to 1'],
+  ];
+}
+
+// Task 1, the ends: a neighbor index that was never clamped reads past the
+// signal and comes back as a non-number.
+function unclampedHint(got) {
+  return Number.isFinite(got)
+    ? null
+    : 'that sample read outside the signal — clamp the neighbor indexes into 0…127 before reading';
+}
+
+// Task 2: both ways of misplacing the window (dropping the radius, or adding it
+// instead of subtracting it) slide the taps off center, so they share a
+// message. The shifted references are built once per test by the caller.
+function tapProbes(shiftedRefs, i) {
+  const shifted = 'the window is not centered on this thread — tap i belongs at x + i − this.constants.radius';
+  return shiftedRefs.map(ref => [ref[i], shifted]);
+}
+
+// Task 3: painting the nine-sample sum instead of its mean clamps every channel
+// to white, which a not-nearly-white expectation gives away.
+function undividedHint(pixels, row, col, expected) {
+  const i = (row * 128 + col) * 4;
+  const white = pixels[i] >= 253 && pixels[i + 1] >= 253 && pixels[i + 2] >= 253;
+  return white && Math.max(expected[0], expected[1], expected[2]) < 0.9
+    ? 'every channel is clamped to white — that is the sum of the nine samples; divide each one by 9'
+    : null;
+}
+
+// Task 4: the sharpen cross with the wrong center weight or the wrong signs.
+function sharpenProbes(gray, y, x) {
+  const size = gray.length;
+  const clamp = i => Math.max(0, Math.min(size - 1, i));
+  const c = gray[y][x];
+  const around = gray[y][clamp(x - 1)] + gray[y][clamp(x + 1)] +
+    gray[clamp(y - 1)][x] + gray[clamp(y + 1)][x];
+  return [
+    [4 * c - around, 'the center weight is 4, not 5 — the five weights have to sum to 1 so flat areas pass through unchanged'],
+    [5 * c + around, 'the four neighbors are being added — a sharpen subtracts them: 5·center − left − right − up − down'],
+    [c, 'that is the value unchanged — none of the five weights reached the return value'],
+    [around / 4, 'that is the average of the four neighbors — the 5·center term is missing'],
+  ];
+}
+
 // Deterministic noisy signal for the 1D tasks (shared by inputs() and tests).
 function makeSignal(utils, seed = 2301) {
   const rand = utils.seededRandom(seed);
@@ -231,7 +333,8 @@ console.log('before:', signal[63], ' after:', result[63]);
             ctx.assert(out && out.length === 128, `expected 128 output samples, got ${out && out.length}`);
             const ref = convolve1dRef(signal, [0.25, 0.5, 0.25], 1);
             for (const i of [1, 17, 42, 63, 100, 126]) {
-              ctx.assertClose(out[i], ref[i], 1e-3, `sample ${i}`);
+              const hint = diagnose(out[i], ref[i], 1e-3, smoothProbes(signal, i));
+              ctx.assertClose(out[i], ref[i], 1e-3, hint || `sample ${i}`);
             }
           },
         },
@@ -241,11 +344,13 @@ console.log('before:', signal[63], ' after:', result[63]);
             const s = new Array(128);
             for (let i = 0; i < 128; i++) s[i] = ((i * 37) % 23) - 11;
             const out = ctx.kernel(s);
-            ctx.assertClose(out[0], 0.75 * s[0] + 0.25 * s[1], 1e-3, 'sample 0');
-            ctx.assertClose(out[127], 0.25 * s[126] + 0.75 * s[127], 1e-3, 'sample 127');
             const ref = convolve1dRef(s, [0.25, 0.5, 0.25], 1);
+            const edgeHint = i => unclampedHint(out[i]) ||
+              diagnose(out[i], ref[i], 1e-3, smoothProbes(s, i));
+            ctx.assertClose(out[0], 0.75 * s[0] + 0.25 * s[1], 1e-3, edgeHint(0) || 'sample 0');
+            ctx.assertClose(out[127], 0.25 * s[126] + 0.75 * s[127], 1e-3, edgeHint(127) || 'sample 127');
             for (let i = 0; i < 128; i++) {
-              ctx.assertClose(out[i], ref[i], 1e-3, `sample ${i}`);
+              ctx.assertClose(out[i], ref[i], 1e-3, edgeHint(i) || `sample ${i}`);
             }
           },
         },
@@ -259,7 +364,9 @@ console.log('before:', signal[63], ' after:', result[63]);
             const ref = convolve1dRef(signal, [0.25, 0.5, 0.25], 1);
             ctx.assert(out.length === 128, 'expected 128 output samples');
             for (let i = 0; i < 128; i++) {
-              ctx.assertClose(out[i], ref[i], 1e-3, `sample ${i}`);
+              const hint = unclampedHint(out[i]) ||
+                diagnose(out[i], ref[i], 1e-3, smoothProbes(signal, i));
+              ctx.assertClose(out[i], ref[i], 1e-3, hint || `sample ${i}`);
             }
           },
         },
@@ -354,10 +461,16 @@ console.log('smoothed sample 64:', result[64]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const signal = makeSignal(ctx.utils);
-            const out = ctx.kernel(signal, [0, 0, 1, 0, 0]);
+            const identity = [0, 0, 1, 0, 0];
+            const out = ctx.kernel(signal, identity);
             ctx.assert(out && out.length === 128, `expected 128 output samples, got ${out && out.length}`);
+            const shifted = [
+              convolve1dRef(signal, identity, 0),
+              convolve1dRef(signal, identity, -2),
+            ];
             for (let i = 0; i < 128; i++) {
-              ctx.assertClose(out[i], signal[i], 1e-3, `sample ${i}`);
+              const hint = diagnose(out[i], signal[i], 1e-3, tapProbes(shifted, i));
+              ctx.assertClose(out[i], signal[i], 1e-3, hint || `sample ${i}`);
             }
           },
         },
@@ -369,8 +482,10 @@ console.log('smoothed sample 64:', result[64]);
             const box = [0.2, 0.2, 0.2, 0.2, 0.2];
             const out = ctx.kernel(s, box);
             const ref = convolve1dRef(s, box, 2);
+            const shifted = [convolve1dRef(s, box, 0), convolve1dRef(s, box, -2)];
             for (let i = 0; i < 128; i++) {
-              ctx.assertClose(out[i], ref[i], 2e-3, `sample ${i}`);
+              const hint = diagnose(out[i], ref[i], 2e-3, tapProbes(shifted, i));
+              ctx.assertClose(out[i], ref[i], 2e-3, hint || `sample ${i}`);
             }
           },
         },
@@ -385,8 +500,10 @@ console.log('smoothed sample 64:', result[64]);
             for (let i = 0; i < 5; i++) filter[i] = Math.round((rand() * 0.6 - 0.1) * 100) / 100;
             const out = ctx.kernel(signal, filter);
             const ref = convolve1dRef(signal, filter, 2);
+            const shifted = [convolve1dRef(signal, filter, 0), convolve1dRef(signal, filter, -2)];
             for (let i = 0; i < 128; i++) {
-              ctx.assertClose(out[i], ref[i], 2e-3, `sample ${i}`);
+              const hint = diagnose(out[i], ref[i], 2e-3, tapProbes(shifted, i));
+              ctx.assertClose(out[i], ref[i], 2e-3, hint || `sample ${i}`);
             }
           },
         },
@@ -403,7 +520,8 @@ console.log('smoothed sample 64:', result[64]);
         131,072 threads each do their nine reads at once.</p>
         <p>Same edge problem, now on four sides: clamp <em>both</em> coordinates into
         <code>0…this.constants.last</code> before indexing. Average red, green and blue
-        separately and hand the result to <code>this.color()</code>.</p>`,
+        separately and hand the result to <code>this.color()</code>.</p>
+        ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> blur <code>inputImage</code> with a 3×3 box filter — each
         painted pixel is the average of its 3×3 neighborhood, edges clamped.`,
       requirements: [
@@ -533,9 +651,15 @@ render(blur.canvas);
             };
             for (const row of [3, 17, 40, 64, 90, 121]) {
               for (const col of [5, 33, 64, 101, 124]) {
+                // a box blur commutes with the transpose, so a swapped read
+                // paints the average of the neighborhood around [col][row]
+                const swapped =
+                  matches(row, col, ref[col][row]) || matches(row, col, ref[col][127 - row]);
                 ctx.assert(
                   matches(row, col, ref[row][col]) || matches(row, col, ref[127 - row][col]),
-                  `pixel at row ${row}, col ${col} is not the 3×3 average of its neighborhood`
+                  transposePixelHint(swapped, row, col) ||
+                    undividedHint(pixels, row, col, ref[row][col]) ||
+                    `pixel at row ${row}, col ${col} is not the 3×3 average of its neighborhood`
                 );
               }
             }
@@ -560,9 +684,15 @@ render(blur.canvas);
               for (const col of [0, 20, 63, 64, 90, 127]) {
                 const i = (row * 128 + col) * 4;
                 const expected = expectedAt(col) * 255;
-                ctx.assertClose(pixels[i], expected, 2, `red at row ${row}, col ${col}`);
-                ctx.assertClose(pixels[i + 1], expected, 2, `green at row ${row}, col ${col}`);
-                ctx.assertClose(pixels[i + 2], expected, 2, `blue at row ${row}, col ${col}`);
+                // The unblurred image is 0.2 left of the seam and 0.8 right of
+                // it, so a passthrough shows up as the raw half at columns 63/64.
+                const raw = (col < 64 ? 0.2 : 0.8) * 255;
+                const hint = diagnose(pixels[i], expected, 2, [
+                  [raw, 'that is the original pixel — the 3×3 average never happened, so the seam did not soften'],
+                ]);
+                ctx.assertClose(pixels[i], expected, 2, hint || `red at row ${row}, col ${col}`);
+                ctx.assertClose(pixels[i + 1], expected, 2, hint || `green at row ${row}, col ${col}`);
+                ctx.assertClose(pixels[i + 2], expected, 2, hint || `blue at row ${row}, col ${col}`);
               }
             }
           },
@@ -581,7 +711,8 @@ render(blur.canvas);
         gets amplified — edges pop.</p>
         <p>Sharpened values can overshoot right out of the 0–1 range, so this task computes on a
         numeric <strong>luminance map</strong> (<code>gray[y][x]</code>, one number per pixel)
-        and returns raw numbers you can inspect — no color clamping hiding the math.</p>`,
+        and returns raw numbers you can inspect — no color clamping hiding the math.</p>
+        ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> sharpen the 96×96 <code>gray</code> map — each cell becomes
         <code>5·center − left − right − up − down</code>, with neighbor indexes clamped.`,
       requirements: [
@@ -663,7 +794,8 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
             ctx.assert(out[0] && out[0].length === 96, 'each row should hold 96 values');
             for (let y = 0; y < 96; y += 7) {
               for (let x = 0; x < 96; x += 7) {
-                ctx.assertClose(out[y][x], 0.5, 1e-3, `cell [${y}][${x}]`);
+                const hint = diagnose(out[y][x], 0.5, 1e-3, sharpenProbes(flat, y, x));
+                ctx.assertClose(out[y][x], 0.5, 1e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -676,7 +808,11 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
             const ref = sharpenRef(gray);
             const cases = [[0, 0], [0, 48], [11, 60], [48, 48], [77, 3], [95, 95]];
             for (const [y, x] of cases) {
-              ctx.assertClose(out[y][x], ref[y][x], 2e-3, `cell [${y}][${x}]`);
+              // the sharpen cross is symmetric in x and y, so it commutes with
+              // the transpose: a swapped read lands ref[x][y] in this cell
+              const hint = transposeCellHint(out[y][x], ref[x][y], 2e-3, y, x) ||
+                diagnose(out[y][x], ref[y][x], 2e-3, sharpenProbes(gray, y, x));
+              ctx.assertClose(out[y][x], ref[y][x], 2e-3, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -690,7 +826,9 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
             const ref = sharpenRef(gray);
             for (let y = 0; y < 96; y++) {
               for (let x = 0; x < 96; x++) {
-                ctx.assertClose(out[y][x], ref[y][x], 2e-3, `cell [${y}][${x}]`);
+                const hint = transposeCellHint(out[y][x], ref[x][y], 2e-3, y, x) ||
+                  diagnose(out[y][x], ref[y][x], 2e-3, sharpenProbes(gray, y, x));
+                ctx.assertClose(out[y][x], ref[y][x], 2e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -710,7 +848,8 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
         into a luminance map (written for you), then the Sobel pass reads each map cell's eight
         neighbors, applies both weight grids, and paints the magnitude. Border pixels have no
         full neighborhood, so the starter already paints them black — your work lives in the
-        <code>else</code> branch.</p>`,
+        <code>else</code> branch.</p>
+        ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> finish the Sobel kernel — read the 3×3 neighborhood of
         <code>gray</code>, compute <code>gx</code> and <code>gy</code> with the weights shown in
         the starter, and paint <code>Math.sqrt(gx * gx + gy * gy)</code> as a gray value.`,
@@ -862,20 +1001,29 @@ render(sobel.canvas);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
             graphical(numeric(verticalSplitImage(128, 0.1, 0.9)));
             const pixels = graphical.getPixels();
+            const red = (r, c) => pixels[(r * 128 + c) * 4];
+            // Transposed, the picture answers to the row where it should answer
+            // to the column: what belongs at (row, col) sits at (col, row) —
+            // or at (127 - col, row) when the row order is bottom-up.
+            const mirrorHolds = (row, col, ok) => ok(red(col, row)) || ok(red(127 - col, row));
             // Column positions survive any vertical flip of the row order.
             for (const row of [10, 64, 100]) {
               for (const col of [63, 64]) {
                 const i = (row * 128 + col) * 4;
+                const swapped = mirrorHolds(row, col, v => v >= 253);
                 ctx.assert(
                   pixels[i] >= 253,
-                  `the step at col ${col} should saturate white, got ${pixels[i]} (row ${row})`
+                  transposePixelHint(swapped, row, col) ||
+                    `the step at col ${col} should saturate white, got ${pixels[i]} (row ${row})`
                 );
               }
               for (const col of [30, 96]) {
                 const i = (row * 128 + col) * 4;
+                const swapped = mirrorHolds(row, col, v => v <= 1);
                 ctx.assert(
                   pixels[i] <= 1,
-                  `flat area at col ${col} should be black, got ${pixels[i]} (row ${row})`
+                  transposePixelHint(swapped, row, col) ||
+                    `flat area at col ${col} should be black, got ${pixels[i]} (row ${row})`
                 );
               }
             }
@@ -893,19 +1041,28 @@ render(sobel.canvas);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
             graphical(numeric(horizontalSplitImage(128, 0.15, 0.85)));
             const pixels = graphical.getPixels();
+            const red = (r, c) => pixels[(r * 128 + c) * 4];
+            // A transposed paint answers to the column instead of the row: what
+            // belongs at (row, col) sits at (col, row), or at (127 - col, row)
+            // when the row order is bottom-up.
+            const mirrorHolds = (row, col, ok) => ok(red(col, row)) || ok(red(127 - col, row));
             for (const col of [10, 64, 120]) {
               for (const row of [63, 64]) {
                 const i = (row * 128 + col) * 4;
+                const swapped = mirrorHolds(row, col, v => v >= 253);
                 ctx.assert(
                   pixels[i] >= 253,
-                  `the step at row ${row} should saturate white, got ${pixels[i]} (col ${col})`
+                  transposePixelHint(swapped, row, col) ||
+                    `the step at row ${row} should saturate white, got ${pixels[i]} (col ${col})`
                 );
               }
               for (const row of [20, 100]) {
                 const i = (row * 128 + col) * 4;
+                const swapped = mirrorHolds(row, col, v => v <= 1);
                 ctx.assert(
                   pixels[i] <= 1,
-                  `flat area at row ${row} should be black, got ${pixels[i]} (col ${col})`
+                  transposePixelHint(swapped, row, col) ||
+                    `flat area at row ${row} should be black, got ${pixels[i]} (col ${col})`
                 );
               }
             }

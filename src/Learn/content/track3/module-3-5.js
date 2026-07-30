@@ -52,6 +52,73 @@ function redRow32(pixels, x) {
   return pixelAt(pixels, x, 32)[0];
 }
 
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so points where two candidates coincide stay
+// silent, as do observations that match probes disagreeing with each other.
+// A wrong diagnosis is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: the sphere field with its radius forgotten, added, or subtracted
+// from the squared length instead of the length.
+function sdfProbes(wx, wy, cx, cy, r) {
+  const dx = wx - cx;
+  const dy = wy - cy;
+  const squared = dx * dx + dy * dy;
+  return [
+    [Math.sqrt(squared), 'the radius never got subtracted — the field is length(p − center) − r'],
+    [Math.sqrt(squared) + r, 'the radius is added where the field subtracts it — inside the sphere the distance is NEGATIVE'],
+    [squared - r, 'that is the squared distance — take Math.sqrt of it before subtracting r'],
+  ];
+}
+
+// Task 2: the blend left as a hard minimum, or with the dip mis-weighted.
+function sminProbes(d1, d2, k) {
+  const h = Math.max(k - Math.abs(d1 - d2), 0) / k;
+  const floor = Math.min(d1, d2);
+  return [
+    [floor, 'that is the hard minimum — smin has to dip below both fields where they are within k of each other'],
+    [floor - h * h * k, 'the dip is h * h * k * 0.25 — the 0.25 is missing'],
+    [floor - h * k * 0.25, 'h is squared in the dip: h * h * k * 0.25'],
+  ];
+}
+
+// Task 3: a canvas with no hit anywhere means the ray never left its starting
+// plane, which the numbers alone would never say.
+function noHitHint(pixels) {
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (pixels[i] > 180) return null;
+  }
+  return 'not one pixel hit the surface — the ray never leaves its starting plane; each of the 48 passes has to step forward by the distance itself, t += d';
+}
+
+// Task 4: skipping the normalization leaves every component around 2e = 0.02,
+// so n * 0.5 + 0.5 lands on mid-grey in all three channels — where a head-on
+// normal should be painting blue at 0.
+function unnormalizedHint(b32, b31) {
+  return Math.abs(b32 - 128) <= 6 && Math.abs(b31 - 128) <= 6
+    ? 'blue came back mid-grey — the raw differences are tiny, so this normal was never normalized; divide nx, ny and nz by len'
+    : null;
+}
+
+// Task 5: a diffuse term that contributed nothing leaves the lit side sitting
+// on the 0.15 ambient floor (red ≈ 38) — the signature of dotting the light
+// with the un-normalized differences.
+function ambientOnlyHint(red) {
+  return red >= 0.15 * 255 - 4 && red <= 0.2 * 255
+    ? 'this pixel is sitting on the 0.15 ambient floor — the diffuse term added nothing; the dot product needs the UNIT normal, so divide nx, ny, nz by len first'
+    : null;
+}
+
 export default {
   id: '3-5',
   track: 3,
@@ -132,9 +199,14 @@ console.log('far corner (outside):', field[0][0]);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const out = ctx.kernel(0, 0, 1);
             ctx.assert(out && out.length === 64 && out[0].length === 64, 'expected a 64×64 field');
-            ctx.assertClose(out[32][32], -1, 2e-3, 'center of the sphere (inside)');
-            ctx.assertClose(out[32][48], 0, 2e-3, 'one unit right of center (on the surface)');
-            ctx.assertClose(out[0][0], Math.sqrt(8) - 1, 2e-3, 'far corner (outside)');
+            const hint = (y, x, expected) => diagnose(out[y][x], expected, 2e-3,
+              sdfProbes(worldCoord(x), worldCoord(y), 0, 0, 1));
+            ctx.assertClose(out[32][32], -1, 2e-3,
+              hint(32, 32, -1) || 'center of the sphere (inside)');
+            ctx.assertClose(out[32][48], 0, 2e-3,
+              hint(32, 48, 0) || 'one unit right of center (on the surface)');
+            ctx.assertClose(out[0][0], Math.sqrt(8) - 1, 2e-3,
+              hint(0, 0, Math.sqrt(8) - 1) || 'far corner (outside)');
           },
         },
         {
@@ -159,7 +231,9 @@ console.log('far corner (outside):', field[0][0]);
               const dx = worldCoord(x) - 0.5;
               const dy = worldCoord(y) + 0.25;
               const expected = Math.sqrt(dx * dx + dy * dy) - 0.75;
-              ctx.assertClose(out[y][x], expected, 3e-3, `cell [${y}][${x}]`);
+              const hint = diagnose(out[y][x], expected, 3e-3,
+                sdfProbes(worldCoord(x), worldCoord(y), 0.5, -0.25, 0.75));
+              ctx.assertClose(out[y][x], expected, 3e-3, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -251,7 +325,8 @@ console.log('midpoint (should dip to 0.1):', field[32][32]);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const out = ctx.kernel(0.7, 0.5, 0.4);
             // both distances are 0.7 - 0.5 = 0.2 at the midpoint; smin dips by 0.4 / 4
-            ctx.assertClose(out[32][32], 0.1, 3e-3, 'field at the midpoint');
+            const hint = diagnose(out[32][32], 0.1, 3e-3, sminProbes(0.2, 0.2, 0.4));
+            ctx.assertClose(out[32][32], 0.1, 3e-3, hint || 'field at the midpoint');
             ctx.assert(out[32][32] < 0.2 - 0.05, 'the blend should dip clearly below plain min (0.2)');
           },
         },
@@ -283,7 +358,9 @@ console.log('midpoint (should dip to 0.1):', field[32][32]);
                 const wy = worldCoord(y);
                 const d1 = Math.sqrt((wx + sep) * (wx + sep) + wy * wy) - r;
                 const d2 = Math.sqrt((wx - sep) * (wx - sep) + wy * wy) - r;
-                ctx.assertClose(out[y][x], sminJS(d1, d2, k), 3e-3, `cell [${y}][${x}]`);
+                const expected = sminJS(d1, d2, k);
+                const hint = diagnose(out[y][x], expected, 3e-3, sminProbes(d1, d2, k));
+                ctx.assertClose(out[y][x], expected, 3e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -423,9 +500,10 @@ render(marchScene.canvas);
           run: async ctx => {
             ctx.kernel(0.55, 0.5, 0.3);
             const pixels = ctx.getPixels();
+            const missed = noHitHint(pixels);
             for (const x of [22, 32, 42]) {
               const r = redRow32(pixels, x);
-              ctx.assert(r > 180, `pixel (${x}, 32) should be a hit (red > 180), got ${r}`);
+              ctx.assert(r > 180, missed || `pixel (${x}, 32) should be a hit (red > 180), got ${r}`);
             }
           },
         },
@@ -608,7 +686,8 @@ render(showNormals.canvas);
             const b31 = pixelAt(pixels, 32, 31)[2];
             ctx.assert(
               b32 < 40 && b31 < 40,
-              `center blue should be near 0 (nz = -1, facing the camera), got ${b32}/${b31}`
+              unnormalizedHint(b32, b31) ||
+                `center blue should be near 0 (nz = -1, facing the camera), got ${b32}/${b31}`
             );
           },
         },
@@ -806,8 +885,9 @@ render(shadeScene.canvas);
             ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
             const pixels = ctx.getPixels();
             // n = (0, 0, -1), l = (-0.6, 0, -0.8) → diff 0.8 → c 0.83 → red ≈ 212
-            assertCenterRow(ctx, pixels, 32, 0, 212, 14, 'center red');
-            assertCenterRow(ctx, pixels, 32, 1, 131, 14, 'center green (red × 0.62)');
+            const flat = ambientOnlyHint(Math.max(redRow32(pixels, 32), pixelAt(pixels, 32, 31)[0]));
+            assertCenterRow(ctx, pixels, 32, 0, 212, 14, flat || 'center red');
+            assertCenterRow(ctx, pixels, 32, 1, 131, 14, flat || 'center green (red × 0.62)');
           },
         },
         {

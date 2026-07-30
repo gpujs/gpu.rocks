@@ -97,6 +97,103 @@ function spikeGrid(size, y, x, value) {
   return grid;
 }
 
+// The same 5-point Laplacian with clamp-to-edge instead of wrap-around — the
+// filtering habit from track 2, reused here where the world is a torus.
+function laplacianClampedRef(grid) {
+  const size = grid.length;
+  const clamp = i => Math.max(0, Math.min(size - 1, i));
+  const out = new Array(size);
+  for (let y = 0; y < size; y++) {
+    const row = new Array(size);
+    for (let x = 0; x < size; x++) {
+      row[x] = grid[y][clamp(x - 1)] + grid[y][clamp(x + 1)] +
+        grid[clamp(y - 1)][x] + grid[clamp(y + 1)][x] - 4 * grid[y][x];
+    }
+    out[y] = row;
+  }
+  return out;
+}
+
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so cells where two candidates coincide (a flat
+// field, where wrapping and clamping agree) stay silent, as do observations
+// matching probes that disagree with each other. A wrong diagnosis is worse
+// than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: the stencil's three classic slips. `ref` and `clamped` are built once
+// per test; a non-number can only mean an index left the grid unwrapped.
+function laplacianHint(got, grid, ref, clamped, eps, y, x) {
+  if (!Number.isFinite(got)) {
+    return 'that cell read outside the grid — wrap the index instead: below 0 becomes size − 1, past size − 1 becomes 0';
+  }
+  return diagnose(got, ref[y][x], eps, [
+    [ref[y][x] + 4 * grid[y][x],
+      'the −4·center term is missing — the Laplacian is left + right + up + down − 4·center'],
+    [-ref[y][x],
+      'the sign is flipped — it is the four neighbors minus 4·center, not the other way round'],
+    [clamped[y][x],
+      "that edge clamped instead of wrapping — column 0's left neighbor is the last column, not itself"],
+  ]);
+}
+
+// Task 2: the Gray–Scott right-hand side with one term dropped or mis-signed.
+// Uniform grids make lap 0, so these are exact there.
+function stepUProbes(uc, vc, lap) {
+  const uvv = uc * vc * vc;
+  return [
+    [uc + (GS.du * lap + uvv + GS.f * (1 - uc)) * GS.dt,
+      'the reaction term is added to U — V eats U, so u·v·v is subtracted here and added in stepV'],
+    [uc + (GS.du * lap - uvv) * GS.dt,
+      'the feed term is missing — U is replenished everywhere by f · (1 − u)'],
+    [uc + (GS.du * lap + GS.f * (1 - uc)) * GS.dt,
+      'the reaction term u·v·v never got subtracted'],
+    [uc,
+      'U came back unchanged — none of the three terms reached the return value'],
+  ];
+}
+
+function stepVProbes(uc, vc, lap) {
+  const uvv = uc * vc * vc;
+  return [
+    [vc + (GS.dv * lap - uvv - (GS.f + GS.k) * vc) * GS.dt,
+      'the reaction term is subtracted from V — V is what grows on it, so u·v·v is added here'],
+    [vc + (GS.dv * lap + uvv) * GS.dt,
+      'the kill term is missing — V is removed at (f + k) · v'],
+    [vc + (GS.dv * lap - (GS.f + GS.k) * vc) * GS.dt,
+      'the reaction term u·v·v never got added'],
+    [vc,
+      'V came back unchanged — none of the three terms reached the return value'],
+  ];
+}
+
+// Task 4: the palette, mis-scaled or with its channels shuffled. Candidates are
+// converted to canvas bytes so they compare directly with getPixels().
+function paletteProbes(value, channel) {
+  const t = Math.min(1, value * 2.5);
+  const raw = Math.min(1, value);
+  return [
+    [[raw, raw * raw, 0.25 + 0.75 * raw],
+      'the brightness scale is missing — t = Math.min(1, value * 2.5)'],
+    [[t, t, 0.25 + 0.75 * t],
+      'green is t · t, not t — the square is what holds the mid-tones back'],
+    [[0.25 + 0.75 * t, t * t, t],
+      'the 0.25 floor belongs on blue — the order is this.color(t, t * t, 0.25 + 0.75 * t, 1)'],
+    [[t, t * t, t],
+      'blue is missing its 0.25 floor — still water should be deep blue, not black'],
+  ].map(variant => [variant[0][channel] * 255, variant[1]]);
+}
+
 export default {
   id: '3-4',
   track: 3,
@@ -191,11 +288,15 @@ console.log('at a bump:', result[16][16]);
           name: 'a uniform field has zero Laplacian everywhere',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(makeGrid(32, 0.7));
+            const flat = makeGrid(32, 0.7);
+            const out = ctx.kernel(flat);
             ctx.assert(out && out.length === 32 && out[0].length === 32, 'expected a 32×32 result');
+            const ref = laplacianRef(flat);
+            const clamped = laplacianClampedRef(flat);
             for (let y = 0; y < 32; y++) {
               for (let x = 0; x < 32; x++) {
-                ctx.assertClose(out[y][x], 0, 1e-4, `cell [${y}][${x}] of a flat field`);
+                const hint = laplacianHint(out[y][x], flat, ref, clamped, 1e-4, y, x);
+                ctx.assertClose(out[y][x], 0, 1e-4, hint || `cell [${y}][${x}] of a flat field`);
               }
             }
           },
@@ -203,13 +304,17 @@ console.log('at a bump:', result[16][16]);
         {
           name: 'a single spike: <code>−4·s</code> at the peak, <code>+s</code> on each neighbor — even across the wrap',
           run: async ctx => {
-            const out = ctx.kernel(spikeGrid(32, 0, 0, 2));
-            ctx.assertClose(out[0][0], -8, 1e-4, 'the peak itself (−4 × 2)');
-            ctx.assertClose(out[0][1], 2, 1e-4, 'right neighbor');
-            ctx.assertClose(out[1][0], 2, 1e-4, 'neighbor above');
-            ctx.assertClose(out[0][31], 2, 1e-4, 'LEFT neighbor — wraps to column 31');
-            ctx.assertClose(out[31][0], 2, 1e-4, 'neighbor below — wraps to row 31');
-            ctx.assertClose(out[5][5], 0, 1e-4, 'a far-away cell');
+            const spike = spikeGrid(32, 0, 0, 2);
+            const out = ctx.kernel(spike);
+            const ref = laplacianRef(spike);
+            const clamped = laplacianClampedRef(spike);
+            const hint = (y, x) => laplacianHint(out[y][x], spike, ref, clamped, 1e-4, y, x);
+            ctx.assertClose(out[0][0], -8, 1e-4, hint(0, 0) || 'the peak itself (−4 × 2)');
+            ctx.assertClose(out[0][1], 2, 1e-4, hint(0, 1) || 'right neighbor');
+            ctx.assertClose(out[1][0], 2, 1e-4, hint(1, 0) || 'neighbor above');
+            ctx.assertClose(out[0][31], 2, 1e-4, hint(0, 31) || 'LEFT neighbor — wraps to column 31');
+            ctx.assertClose(out[31][0], 2, 1e-4, hint(31, 0) || 'neighbor below — wraps to row 31');
+            ctx.assertClose(out[5][5], 0, 1e-4, hint(5, 5) || 'a far-away cell');
           },
         },
       ],
@@ -222,10 +327,12 @@ console.log('at a bump:', result[16][16]);
             const field = randomGrid(ctx.utils, 32, 909);
             const out = ctx.kernel(field);
             const ref = laplacianRef(field);
+            const clamped = laplacianClampedRef(field);
             let sum = 0;
             for (let y = 0; y < 32; y++) {
               for (let x = 0; x < 32; x++) {
-                ctx.assertClose(out[y][x], ref[y][x], 1e-3, `cell [${y}][${x}]`);
+                const hint = laplacianHint(out[y][x], field, ref, clamped, 1e-3, y, x);
+                ctx.assertClose(out[y][x], ref[y][x], 1e-3, hint || `cell [${y}][${x}]`);
                 sum += out[y][x];
               }
             }
@@ -380,10 +487,14 @@ console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
             const expectedV = 0.3 + (uvv - (GS.f + GS.k) * 0.3) * GS.dt;
             const newU = ctx.kernels[0](u, v);
             const newV = ctx.kernels[1](u, v);
+            const uProbes = stepUProbes(0.6, 0.3, 0);
+            const vProbes = stepVProbes(0.6, 0.3, 0);
             for (let y = 0; y < 32; y += 7) {
               for (let x = 0; x < 32; x += 7) {
-                ctx.assertClose(newU[y][x], expectedU, 1e-4, `U at [${y}][${x}]`);
-                ctx.assertClose(newV[y][x], expectedV, 1e-4, `V at [${y}][${x}]`);
+                ctx.assertClose(newU[y][x], expectedU, 1e-4,
+                  diagnose(newU[y][x], expectedU, 1e-4, uProbes) || `U at [${y}][${x}]`);
+                ctx.assertClose(newV[y][x], expectedV, 1e-4,
+                  diagnose(newV[y][x], expectedV, 1e-4, vProbes) || `V at [${y}][${x}]`);
               }
             }
           },
@@ -401,10 +512,14 @@ console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
             const expectedV = 0.1 + (uvv - (GS.f + GS.k) * 0.1) * GS.dt;
             const newU = ctx.kernels[0](u, v);
             const newV = ctx.kernels[1](u, v);
+            const uProbes = stepUProbes(0.8, 0.1, 0);
+            const vProbes = stepVProbes(0.8, 0.1, 0);
             for (let y = 0; y < 32; y += 3) {
               for (let x = 0; x < 32; x += 3) {
-                ctx.assertClose(newU[y][x], expectedU, 1e-4, `U at [${y}][${x}]`);
-                ctx.assertClose(newV[y][x], expectedV, 1e-4, `V at [${y}][${x}]`);
+                ctx.assertClose(newU[y][x], expectedU, 1e-4,
+                  diagnose(newU[y][x], expectedU, 1e-4, uProbes) || `U at [${y}][${x}]`);
+                ctx.assertClose(newV[y][x], expectedV, 1e-4,
+                  diagnose(newV[y][x], expectedV, 1e-4, vProbes) || `V at [${y}][${x}]`);
               }
             }
           },
@@ -418,10 +533,18 @@ console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
             const [refU, refV] = gsStepRef(seed.u, seed.v);
             const newU = ctx.kernels[0](seed.u, seed.v);
             const newV = ctx.kernels[1](seed.u, seed.v);
+            const lapU = laplacianRef(seed.u);
+            const lapV = laplacianRef(seed.v);
             for (let y = 0; y < 32; y++) {
               for (let x = 0; x < 32; x++) {
-                ctx.assertClose(newU[y][x], refU[y][x], 1e-4, `U at [${y}][${x}]`);
-                ctx.assertClose(newV[y][x], refV[y][x], 1e-4, `V at [${y}][${x}]`);
+                const uc = seed.u[y][x];
+                const vc = seed.v[y][x];
+                ctx.assertClose(newU[y][x], refU[y][x], 1e-4,
+                  diagnose(newU[y][x], refU[y][x], 1e-4, stepUProbes(uc, vc, lapU[y][x])) ||
+                    `U at [${y}][${x}]`);
+                ctx.assertClose(newV[y][x], refV[y][x], 1e-4,
+                  diagnose(newV[y][x], refV[y][x], 1e-4, stepVProbes(uc, vc, lapV[y][x])) ||
+                    `V at [${y}][${x}]`);
               }
             }
           },
@@ -804,16 +927,22 @@ render(paint.canvas);
             paint(makeGrid(64, 0));
             let pixels = paint.getPixels();
             for (let i = 0; i < pixels.length; i += 331 * 4) {
-              ctx.assertClose(pixels[i], 0, 3, `red at byte ${i} for v = 0`);
-              ctx.assertClose(pixels[i + 1], 0, 3, `green at byte ${i} for v = 0`);
-              ctx.assertClose(pixels[i + 2], 0.25 * 255, 3, `blue at byte ${i} for v = 0`);
+              ctx.assertClose(pixels[i], 0, 3,
+                diagnose(pixels[i], 0, 3, paletteProbes(0, 0)) || `red at byte ${i} for v = 0`);
+              ctx.assertClose(pixels[i + 1], 0, 3,
+                diagnose(pixels[i + 1], 0, 3, paletteProbes(0, 1)) || `green at byte ${i} for v = 0`);
+              ctx.assertClose(pixels[i + 2], 0.25 * 255, 3,
+                diagnose(pixels[i + 2], 0.25 * 255, 3, paletteProbes(0, 2)) || `blue at byte ${i} for v = 0`);
             }
             paint(makeGrid(64, 0.2)); // t = 0.5
             pixels = paint.getPixels();
             for (let i = 0; i < pixels.length; i += 331 * 4) {
-              ctx.assertClose(pixels[i], 0.5 * 255, 3, `red at byte ${i} for v = 0.2`);
-              ctx.assertClose(pixels[i + 1], 0.25 * 255, 3, `green at byte ${i} for v = 0.2`);
-              ctx.assertClose(pixels[i + 2], 0.625 * 255, 3, `blue at byte ${i} for v = 0.2`);
+              ctx.assertClose(pixels[i], 0.5 * 255, 3,
+                diagnose(pixels[i], 0.5 * 255, 3, paletteProbes(0.2, 0)) || `red at byte ${i} for v = 0.2`);
+              ctx.assertClose(pixels[i + 1], 0.25 * 255, 3,
+                diagnose(pixels[i + 1], 0.25 * 255, 3, paletteProbes(0.2, 1)) || `green at byte ${i} for v = 0.2`);
+              ctx.assertClose(pixels[i + 2], 0.625 * 255, 3,
+                diagnose(pixels[i + 2], 0.625 * 255, 3, paletteProbes(0.2, 2)) || `blue at byte ${i} for v = 0.2`);
             }
           },
         },
@@ -863,9 +992,12 @@ render(paint.canvas);
             paint(makeGrid(64, 0.1)); // t = 0.25
             pixels = paint.getPixels();
             for (let i = 0; i < pixels.length; i += 449 * 4) {
-              ctx.assertClose(pixels[i], 0.25 * 255, 3, `red at byte ${i} for v = 0.1`);
-              ctx.assertClose(pixels[i + 1], 0.0625 * 255, 3, `green at byte ${i} for v = 0.1`);
-              ctx.assertClose(pixels[i + 2], 0.4375 * 255, 3, `blue at byte ${i} for v = 0.1`);
+              ctx.assertClose(pixels[i], 0.25 * 255, 3,
+                diagnose(pixels[i], 0.25 * 255, 3, paletteProbes(0.1, 0)) || `red at byte ${i} for v = 0.1`);
+              ctx.assertClose(pixels[i + 1], 0.0625 * 255, 3,
+                diagnose(pixels[i + 1], 0.0625 * 255, 3, paletteProbes(0.1, 1)) || `green at byte ${i} for v = 0.1`);
+              ctx.assertClose(pixels[i + 2], 0.4375 * 255, 3,
+                diagnose(pixels[i + 2], 0.4375 * 255, 3, paletteProbes(0.1, 2)) || `blue at byte ${i} for v = 0.1`);
             }
           },
         },

@@ -48,6 +48,89 @@ function rippleRGB(x, y) {
   return [0.4 * v * 255, 0.75 * v * 255, v * 255];
 }
 
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so pixels where two candidates coincide stay
+// silent, as do observations that match probes disagreeing with each other.
+// A wrong diagnosis is worse than none. getPixels() row order is unknown, so
+// probes that depend on the row list both orientations under one message.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: red following the wrong coordinate, or never divided by the canvas
+// size at all (a 0–1 channel saturates the moment this.thread.x reaches 1).
+function rampProbes(x, row) {
+  const swapped = 'red is following the row instead of the column — the horizontal ramp is this.thread.x / 128';
+  return [
+    [(255 * row) / 128, swapped],
+    [(255 * (127 - row)) / 128, swapped],
+    [Math.min(255, x * 255),
+      'color channels run 0–1, so an undivided this.thread.x saturates every column past the first — divide it by 128'],
+  ];
+}
+
+// Task 1: green frozen down the canvas AND sitting exactly where this column's
+// x ramp would put it means the two coordinates are swapped.
+function flatGreenHint(g0, g127, column) {
+  return Math.abs(g0 - g127) <= 2 && Math.abs(g0 - (255 * column) / 128) <= 3
+    ? 'green is constant down the canvas and matches this column\'s x ramp — this.thread.x and this.thread.y are swapped; green rises with this.thread.y'
+    : null;
+}
+
+// Task 2: a learner who divides by the wrong number still paints a perfectly
+// regular board — just with the wrong cell size, which the length of the first
+// run of equal values along a row gives away. A whole uniform row says nothing.
+function cellWidthHint(pixels, row) {
+  const first = pixels[at(128, 0, row)];
+  let width = 1;
+  while (width < 128 && pixels[at(128, width, row)] === first) width++;
+  return width === 16 || width === 128
+    ? null
+    : `your cells are ${width} pixels wide, not 16 — the cell index is Math.floor(coordinate / 16)`;
+}
+
+// Task 3: mis-scaling x before Math.sin. `orient` maps a thread-space height
+// onto the buffer row the caller is reading, so the probes hold under either
+// row order.
+function curveProbes(x, orient) {
+  return [
+    [orient(64 + 40 * Math.sin(x)),
+      'that is Math.sin() of the raw pixel count — one period across 128 px needs x * 2 * Math.PI / 128'],
+    [orient(64 + 40 * Math.sin((x * 2 * Math.PI) / 64)),
+      'two periods fit the canvas — divide x by 128, the full width, for one'],
+    [orient(64 + 40 * Math.sin((x * 360) / 128)),
+      'Math.sin takes radians, not degrees — the scale is 2 * Math.PI / 128'],
+    [orient(64),
+      'the curve is still the constant 64 — it never became a function of x'],
+  ];
+}
+
+// Task 4: v assembled from only half the recipe. Each candidate v is weighted
+// by the channel under test (0.4 red, 0.75 green, 1 blue) and clamped the way
+// this.color() clamps, so the probe matches the byte the test read.
+function rippleProbes(x, y, channel) {
+  const weight = [0.4, 0.75, 1][channel];
+  const dx = x - 63.5;
+  const dy = y - 63.5;
+  const r = Math.sqrt(dx * dx + dy * dy);
+  const wave = 0.5 + 0.5 * Math.cos(r * 0.35);
+  const fade = Math.max(0, 1 - r / 96);
+  return [
+    [wave, 'the fade never got multiplied in — v = wave * fade'],
+    [fade, 'that is the bare fade — the cosine ripple is missing from v'],
+    [Math.max(0, Math.cos(r * 0.35)) * fade,
+      'the cosine still swings negative — remap it with 0.5 + 0.5 * Math.cos(r * 0.35)'],
+  ].map(pair => [Math.min(1, pair[0]) * weight * 255, pair[1]]);
+}
+
 export default {
   id: '3-1',
   track: 3,
@@ -144,11 +227,14 @@ render(gradient.canvas);
             // verify it on a row near each edge of the buffer.
             for (const row of [3, 64, 124]) {
               for (let x = 0; x < 128; x += 7) {
+                const got = pixels[at(128, x, row)];
+                const expected = (255 * x) / 128;
+                const hint = diagnose(got, expected, 2.5, rampProbes(x, row));
                 ctx.assertClose(
-                  pixels[at(128, x, row)],
-                  (255 * x) / 128,
+                  got,
+                  expected,
                   2.5,
-                  `red at column ${x} (buffer row ${row})`
+                  hint || `red at column ${x} (buffer row ${row})`
                 );
               }
             }
@@ -164,7 +250,8 @@ render(gradient.canvas);
             const g127 = pixels[at(128, 20, 127) + 1];
             ctx.assert(
               Math.min(g0, g127) <= 4 && Math.max(g0, g127) >= 248,
-              `green should ramp 0 → 252 across the canvas, got edge values ${g0} and ${g127}`
+              flatGreenHint(g0, g127, 20) ||
+                `green should ramp 0 → 252 across the canvas, got edge values ${g0} and ${g127}`
             );
             for (const [x, row] of [[10, 10], [90, 40], [64, 100]]) {
               ctx.assertClose(pixels[at(128, x, row) + 2], 127.5, 2.5, `blue at (${x}, row ${row})`);
@@ -184,7 +271,8 @@ render(gradient.canvas);
               const y = rowIsThreadY ? row : 127 - row;
               for (let x = 0; x < 128; x += 5) {
                 const i = at(128, x, row);
-                ctx.assertClose(pixels[i], (255 * x) / 128, 2.5, `red at (${x}, y=${y})`);
+                const redHint = diagnose(pixels[i], (255 * x) / 128, 2.5, rampProbes(x, row));
+                ctx.assertClose(pixels[i], (255 * x) / 128, 2.5, redHint || `red at (${x}, y=${y})`);
                 ctx.assertClose(pixels[i + 1], (255 * y) / 128, 2.5, `green at (${x}, y=${y})`);
                 ctx.assertClose(pixels[i + 2], 127.5, 2.5, `blue at (${x}, y=${y})`);
                 ctx.assert(pixels[i + 3] === 255, `alpha at (${x}, y=${y}) should be 255`);
@@ -295,13 +383,15 @@ render(board.canvas);
               const inCellB = pixels[at(128, 13, row)];
               ctx.assert(
                 Math.abs(inCellA - inCellB) <= 1,
-                `columns 2 and 13 share a 16-px cell but differ on buffer row ${row}`
+                cellWidthHint(pixels, row) ||
+                  `columns 2 and 13 share a 16-px cell but differ on buffer row ${row}`
               );
               const left = pixels[at(128, 8, row)];
               const right = pixels[at(128, 24, row)];
               ctx.assert(
                 Math.abs(left - right) >= 250,
-                `columns 8 and 24 are in adjacent cells but match on buffer row ${row} — still stripes?`
+                cellWidthHint(pixels, row) ||
+                  `columns 8 and 24 are in adjacent cells but match on buffer row ${row} — still stripes?`
               );
             }
           },
@@ -481,10 +571,12 @@ render(plot.canvas);
               up || down,
               `at x=32 the curve should sit ~40 px from the middle (y≈104), found its center at buffer row ${peak.toFixed(1)}`
             );
+            const orient = h => (up ? h : 127 - h);
             for (const x of [0, 8, 16, 32, 48, 64, 80, 96, 112, 120]) {
               const center = mean(litRowsInColumn(pixels, 128, x));
-              const expected = up ? curveHeight(x) : 127 - curveHeight(x);
-              ctx.assertClose(center, expected, 3, `curve center in column ${x}`);
+              const expected = orient(curveHeight(x));
+              const hint = diagnose(center, expected, 3, curveProbes(x, orient));
+              ctx.assertClose(center, expected, 3, hint || `curve center in column ${x}`);
             }
           },
         },
@@ -504,8 +596,10 @@ render(plot.canvas);
             for (let x = 0; x < 128; x++) {
               const rows = litRowsInColumn(pixels, 128, x);
               ctx.assert(rows.length >= 1 && rows.length <= 14, `column ${x}: ${rows.length} lit pixels`);
-              const expected = up ? curveHeight(x) : 127 - curveHeight(x);
-              ctx.assertClose(mean(rows), expected, 3, `curve center in column ${x}`);
+              const orient = h => (up ? h : 127 - h);
+              const expected = orient(curveHeight(x));
+              const hint = diagnose(mean(rows), expected, 3, curveProbes(x, orient));
+              ctx.assertClose(mean(rows), expected, 3, hint || `curve center in column ${x}`);
             }
           },
         },
@@ -630,7 +724,9 @@ render(ripples.canvas);
             for (const x of [64, 73, 81, 99, 120]) {
               const i = at(128, x, 63);
               const expected = rippleRGB(x, 63.5 + 0.5);
-              ctx.assertClose(pixels[i + 2], expected[2], 3, `blue in column ${x} of the center row`);
+              const hint = diagnose(pixels[i + 2], expected[2], 3, rippleProbes(x, 64, 2));
+              ctx.assertClose(pixels[i + 2], expected[2], 3,
+                hint || `blue in column ${x} of the center row`);
             }
             const center = pixels[at(128, 64, 63) + 2];
             const trough = pixels[at(128, 73, 63) + 2];
@@ -648,9 +744,12 @@ render(ripples.canvas);
             // ordering must hold, with the exact 0.4 / 0.75 ratios.
             const i = at(128, 81, 63);
             const [er, eg, eb] = rippleRGB(81, 64);
-            ctx.assertClose(pixels[i], er, 3, 'red on the first ring');
-            ctx.assertClose(pixels[i + 1], eg, 3, 'green on the first ring');
-            ctx.assertClose(pixels[i + 2], eb, 3, 'blue on the first ring');
+            ctx.assertClose(pixels[i], er, 3,
+              diagnose(pixels[i], er, 3, rippleProbes(81, 64, 0)) || 'red on the first ring');
+            ctx.assertClose(pixels[i + 1], eg, 3,
+              diagnose(pixels[i + 1], eg, 3, rippleProbes(81, 64, 1)) || 'green on the first ring');
+            ctx.assertClose(pixels[i + 2], eb, 3,
+              diagnose(pixels[i + 2], eb, 3, rippleProbes(81, 64, 2)) || 'blue on the first ring');
             ctx.assert(
               pixels[i + 2] > pixels[i + 1] && pixels[i + 1] > pixels[i],
               'ring pixels should be tinted blue: b > g > r'
@@ -683,9 +782,12 @@ render(ripples.canvas);
               for (let x = 0; x < 128; x += 3) {
                 const i = at(128, x, row);
                 const [er, eg, eb] = rippleRGB(x, row);
-                ctx.assertClose(pixels[i], er, 3, `red at (${x}, row ${row})`);
-                ctx.assertClose(pixels[i + 1], eg, 3, `green at (${x}, row ${row})`);
-                ctx.assertClose(pixels[i + 2], eb, 3, `blue at (${x}, row ${row})`);
+                ctx.assertClose(pixels[i], er, 3,
+                  diagnose(pixels[i], er, 3, rippleProbes(x, row, 0)) || `red at (${x}, row ${row})`);
+                ctx.assertClose(pixels[i + 1], eg, 3,
+                  diagnose(pixels[i + 1], eg, 3, rippleProbes(x, row, 1)) || `green at (${x}, row ${row})`);
+                ctx.assertClose(pixels[i + 2], eb, 3,
+                  diagnose(pixels[i + 2], eb, 3, rippleProbes(x, row, 2)) || `blue at (${x}, row ${row})`);
               }
             }
           },

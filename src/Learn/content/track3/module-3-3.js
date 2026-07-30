@@ -74,13 +74,90 @@ function population(grid) {
   return alive;
 }
 
-function expectGrid(ctx, got, want, label) {
+// `hint` (optional) replaces the label when a whole-grid diagnosis applies —
+// see ruleHint below. The comparison itself is untouched by it.
+function expectGrid(ctx, got, want, label, hint) {
   ctx.assert(got && got.length === want.length, `${label} — expected ${want.length} rows`);
+  const prefix = hint || label;
   for (let y = 0; y < want.length; y++) {
     for (let x = 0; x < want.length; x++) {
-      ctx.assertClose(got[y][x], want[y][x], 1e-3, `${label} — cell [${y}][${x}]`);
+      ctx.assertClose(got[y][x], want[y][x], 1e-3, `${prefix} — cell [${y}][${x}]`);
     }
   }
+}
+
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// Cells here are 0 or 1, so one mismatched cell is a coin flip's worth of
+// evidence: any diagnosis has to fit the ENTIRE grid. ruleHint replays the
+// tick under the most plausible mis-readings of the rulebook and names the one
+// that reproduces the learner's result exactly — otherwise it stays quiet,
+// because a wrong diagnosis is worse than none.
+function sameGrid(got, want) {
+  for (let y = 0; y < want.length; y++) {
+    if (!got[y]) return false;
+    for (let x = 0; x < want.length; x++) {
+      if (!(Math.abs(got[y][x] - want[y][x]) <= 1e-3)) return false;
+    }
+  }
+  return true;
+}
+
+function ruleHint(got, grid, born = B3, stay = S23) {
+  const alternatives = [
+    [refStep(grid, stay, stay),
+      'a dead cell with 2 neighbors came alive — birth is on exactly 3; 2 is what lets an already-live cell survive'],
+    [refStep(grid, born, born),
+      'live cells with 2 neighbors died — survival covers 2 or 3, and only birth is limited to exactly 3'],
+    [refStep(grid, stay, born),
+      'the two rules are swapped — a dead cell follows the birth rule, a live cell the survival rule'],
+    [grid,
+      'the world came back unchanged — the rule never reached the return value'],
+  ];
+  for (const [candidate, message] of alternatives) {
+    if (sameGrid(got, candidate)) return message;
+  }
+  return null;
+}
+
+// Task 1: the 3×3 sum still carrying the cell itself.
+function censusProbes(grid, y, x) {
+  return [
+    [neighborsOf(grid, y, x) + grid[y][x],
+      'your own cell is still inside the 3×3 sum — subtract grid[this.thread.y][this.thread.x] at the end'],
+  ];
+}
+
+// Task 1, wrapped cells only: the first test already proved the census counts
+// ordinary neighbors, so a 0 where a wrapped neighbor belongs can only be the
+// missing + 16 — JavaScript's % yields −1 there, and the GPU's is worse.
+function wrapHint(got) {
+  return Math.abs(got) <= 1e-3
+    ? 'the edge did not wrap — add the width before the modulo, (this.thread.y + dy + 16) % 16, because a bare % can go negative'
+    : null;
+}
+
+// Task 3: logging the population BEFORE the step shifts the whole history by a
+// generation. `before` is the population at the start of generation g.
+function generationHint(ctx, g, before) {
+  const stale = `gen ${g}: ${before} alive`;
+  return ctx.logs.some(line => line.type === 'log' && line.text && line.text.includes(stale))
+    ? 'that generation logged the population from BEFORE its step — count the live cells after current = step(current)'
+    : null;
+}
+
+// Task 4: exactly the pixels that should be dark are lit and vice versa.
+function litHint(lit, alive, total) {
+  return lit === total - alive
+    ? 'the two colors are swapped — live cells take the green, dead cells the dark background'
+    : null;
+}
+
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
 }
 
 // Rule tables, indexed by live-neighbor count 0–8.
@@ -194,11 +271,15 @@ console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
           name: 'a lone cell has zero neighbors — each of its eight neighbors sees one',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const counts = ctx.kernel(withCells([[5, 5]]));
-            ctx.assertClose(counts[5][5], 0, 1e-3, 'the live cell itself (it is not its own neighbor)');
+            const lone = withCells([[5, 5]]);
+            const counts = ctx.kernel(lone);
+            ctx.assertClose(counts[5][5], 0, 1e-3,
+              diagnose(counts[5][5], 0, 1e-3, censusProbes(lone, 5, 5)) ||
+                'the live cell itself (it is not its own neighbor)');
             const ring = [[4, 4], [4, 5], [4, 6], [5, 4], [5, 6], [6, 4], [6, 5], [6, 6]];
             for (const [y, x] of ring) {
-              ctx.assertClose(counts[y][x], 1, 1e-3, `neighbor cell [${y}][${x}]`);
+              const hint = diagnose(counts[y][x], 1, 1e-3, censusProbes(lone, y, x));
+              ctx.assertClose(counts[y][x], 1, 1e-3, hint || `neighbor cell [${y}][${x}]`);
             }
             ctx.assertClose(counts[10][10], 0, 1e-3, 'a far-away cell');
           },
@@ -207,9 +288,12 @@ console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
           name: 'the world wraps: a corner cell is seen across all four edges',
           run: async ctx => {
             const counts = ctx.kernel(withCells([[0, 0]]));
-            ctx.assertClose(counts[15][15], 1, 1e-3, 'diagonal wrap — cell [15][15]');
-            ctx.assertClose(counts[0][15], 1, 1e-3, 'horizontal wrap — cell [0][15]');
-            ctx.assertClose(counts[15][0], 1, 1e-3, 'vertical wrap — cell [15][0]');
+            ctx.assertClose(counts[15][15], 1, 1e-3,
+              wrapHint(counts[15][15]) || 'diagonal wrap — cell [15][15]');
+            ctx.assertClose(counts[0][15], 1, 1e-3,
+              wrapHint(counts[0][15]) || 'horizontal wrap — cell [0][15]');
+            ctx.assertClose(counts[15][0], 1, 1e-3,
+              wrapHint(counts[15][0]) || 'vertical wrap — cell [15][0]');
             ctx.assertClose(counts[1][1], 1, 1e-3, 'ordinary diagonal — cell [1][1]');
             ctx.assertClose(counts[0][0], 0, 1e-3, 'the corner cell itself');
           },
@@ -223,7 +307,9 @@ console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
             const counts = ctx.kernel(grid);
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) {
-                ctx.assertClose(counts[y][x], neighborsOf(grid, y, x), 1e-3, `cell [${y}][${x}]`);
+                const expected = neighborsOf(grid, y, x);
+                const hint = diagnose(counts[y][x], expected, 1e-3, censusProbes(grid, y, x));
+                ctx.assertClose(counts[y][x], expected, 1e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -321,15 +407,18 @@ console.log('after :', Array.from(next[7]).join(''));
           name: 'the blinker: three-in-a-row flips to three-in-a-column',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const next = ctx.kernel(withCells(BLINKER));
-            expectGrid(ctx, next, withCells([[6, 7], [7, 7], [8, 7]]), 'blinker after one tick');
+            const start = withCells(BLINKER);
+            const next = ctx.kernel(start);
+            expectGrid(ctx, next, withCells([[6, 7], [7, 7], [8, 7]]), 'blinker after one tick',
+              ruleHint(next, start));
           },
         },
         {
           name: 'the block: a 2×2 square is a still life — nothing moves',
           run: async ctx => {
-            const next = ctx.kernel(withCells(BLOCK));
-            expectGrid(ctx, next, withCells(BLOCK), 'block after one tick');
+            const start = withCells(BLOCK);
+            const next = ctx.kernel(start);
+            expectGrid(ctx, next, withCells(BLOCK), 'block after one tick', ruleHint(next, start));
           },
         },
         {
@@ -345,14 +434,16 @@ console.log('after :', Array.from(next[7]).join(''));
           name: 'private test #1',
           run: async ctx => {
             const grid = randomGrid(ctx.utils, 4404);
-            expectGrid(ctx, ctx.kernel(grid), refStep(grid), 'random world, one tick');
+            const next = ctx.kernel(grid);
+            expectGrid(ctx, next, refStep(grid), 'random world, one tick', ruleHint(next, grid));
           },
         },
         {
           name: 'private test #2',
           run: async ctx => {
             const grid = randomGrid(ctx.utils, 5505, SIZE, 0.6);
-            expectGrid(ctx, ctx.kernel(grid), refStep(grid), 'crowded world, one tick');
+            const next = ctx.kernel(grid);
+            expectGrid(ctx, next, refStep(grid), 'crowded world, one tick', ruleHint(next, grid));
           },
         },
       ],
@@ -464,12 +555,14 @@ for (let g = 1; g <= 6; g++) {
           run: async ctx => {
             let grid = withCells(R_PENTOMINO);
             for (let g = 1; g <= 6; g++) {
+              const before = population(grid);
               grid = refStep(grid);
               const expected = 'gen ' + g + ': ' + population(grid) + ' alive';
               const found = ctx.logs.some(
                 line => line.type === 'log' && line.text && line.text.includes(expected)
               );
-              ctx.assert(found, `expected a log line containing "${expected}"`);
+              ctx.assert(found, generationHint(ctx, g, before) ||
+                `expected a log line containing "${expected}"`);
             }
           },
         },
@@ -477,8 +570,10 @@ for (let g = 1; g <= 6; g++) {
           name: 'the step kernel is still a faithful B3/S23 tick',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const next = ctx.kernel(withCells(BLINKER));
-            expectGrid(ctx, next, withCells([[6, 7], [7, 7], [8, 7]]), 'blinker after one tick');
+            const start = withCells(BLINKER);
+            const next = ctx.kernel(start);
+            expectGrid(ctx, next, withCells([[6, 7], [7, 7], [8, 7]]), 'blinker after one tick',
+              ruleHint(next, start));
           },
         },
       ],
@@ -641,7 +736,8 @@ render(paint.canvas);
               );
               if (g > 200) lit++;
             }
-            ctx.assert(lit === 5, `a glider is always 5 cells — found ${lit} lit pixels`);
+            ctx.assert(lit === 5, litHint(lit, 5, 16 * 16) ||
+              `a glider is always 5 cells — found ${lit} lit pixels`);
           },
         },
       ],
@@ -662,9 +758,13 @@ render(paint.canvas);
               return lit;
             };
             graphical(numeric(withCells(BLINKER)));
-            ctx.assert(litCount(graphical.getPixels()) === 3, 'stepped blinker should light 3 pixels');
+            const blinkerLit = litCount(graphical.getPixels());
+            ctx.assert(blinkerLit === 3, litHint(blinkerLit, 3, 16 * 16) ||
+              'stepped blinker should light 3 pixels');
             graphical(withCells(BLOCK));
-            ctx.assert(litCount(graphical.getPixels()) === 4, 'block should light 4 pixels');
+            const blockLit = litCount(graphical.getPixels());
+            ctx.assert(blockLit === 4, litHint(blockLit, 4, 16 * 16) ||
+              'block should light 4 pixels');
           },
         },
       ],
@@ -786,8 +886,10 @@ console.log('Life and HighLife disagree on ' + differ + ' cells after one tick')
           name: 'fed the Life tables, it is still Life: the blinker spins',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const next = ctx.kernel(withCells(BLINKER), B3, S23);
-            expectGrid(ctx, next, withCells([[6, 7], [7, 7], [8, 7]]), 'blinker under B3/S23');
+            const start = withCells(BLINKER);
+            const next = ctx.kernel(start, B3, S23);
+            expectGrid(ctx, next, withCells([[6, 7], [7, 7], [8, 7]]), 'blinker under B3/S23',
+              ruleHint(next, start, B3, S23));
           },
         },
         {
@@ -797,8 +899,10 @@ console.log('Life and HighLife disagree on ' + differ + ' cells after one tick')
             const ring = withCells([[4, 4], [4, 5], [4, 6], [5, 4], [5, 6], [6, 4]]);
             const life = ctx.kernel(ring, B3, S23);
             const high = ctx.kernel(ring, B36, S23);
-            ctx.assertClose(life[5][5], 0, 1e-3, 'under Life (B3), 6 neighbors do not give birth');
-            ctx.assertClose(high[5][5], 1, 1e-3, 'under HighLife (B36), 6 neighbors do');
+            ctx.assertClose(life[5][5], 0, 1e-3, ruleHint(life, ring, B3, S23) ||
+              'under Life (B3), 6 neighbors do not give birth');
+            ctx.assertClose(high[5][5], 1, 1e-3, ruleHint(high, ring, B36, S23) ||
+              'under HighLife (B36), 6 neighbors do');
           },
         },
       ],
@@ -810,7 +914,8 @@ console.log('Life and HighLife disagree on ' + differ + ' cells after one tick')
             // honor tables it has never seen before.
             const grid = randomGrid(ctx.utils, 8808, SIZE, 0.5);
             const next = ctx.kernel(grid, B3678, S34678);
-            expectGrid(ctx, next, refStep(grid, B3678, S34678), 'Day & Night, one tick');
+            expectGrid(ctx, next, refStep(grid, B3678, S34678), 'Day & Night, one tick',
+              ruleHint(next, grid, B3678, S34678));
           },
         },
         {
@@ -818,7 +923,8 @@ console.log('Life and HighLife disagree on ' + differ + ' cells after one tick')
           run: async ctx => {
             const grid = randomGrid(ctx.utils, 9909);
             const next = ctx.kernel(grid, B36, S23);
-            expectGrid(ctx, next, refStep(grid, B36, S23), 'HighLife, one tick');
+            expectGrid(ctx, next, refStep(grid, B36, S23), 'HighLife, one tick',
+              ruleHint(next, grid, B36, S23));
           },
         },
       ],

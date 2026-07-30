@@ -12,10 +12,26 @@
 // non-immutable pipeline kernel its own output throws "Source and
 // destination … are the same. Use immutable = true" on BOTH backends.
 
+import { ARRAY_LAYOUT } from '../layoutNote.js';
+
 const LUM = [0.299, 0.587, 0.114];
 
 function luminanceOf(pixel) {
   return LUM[0] * pixel[0] + LUM[1] * pixel[1] + LUM[2] * pixel[2];
+}
+
+// Swapping this.thread.x and this.thread.y reads the transpose of the image —
+// the single most common mistake in the image tasks, and invisible to tests
+// that only check greyness or averages. These results come back as plain 2D
+// arrays, so the cell under test is known exactly: a cell holding the value
+// that belongs to cell [x][y] is that swapped read. Cells on the diagonal
+// (y === x) are their own transpose and can never show it, which is why the
+// case lists below also probe off-diagonal cells.
+function transposeCellHint(got, transposed, eps, y, x) {
+  return Math.abs(got - transposed) <= eps
+    ? `that is the value for cell [${x}][${y}] — this.thread.x and this.thread.y are ` +
+      `swapped. Rows come first: image[this.thread.y][this.thread.x]`
+    : null;
 }
 
 // Mode-safe read of a pipeline result: Texture on GL, plain array on CPU.
@@ -108,6 +124,48 @@ function refBlur3(map) {
 
 function contrastOf(l) {
   return Math.min(Math.max((l - 0.5) * 2 + 0.5, 0), 1);
+}
+
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// The transpose hint above is one instance of a general idea: when a failing
+// value is exactly what some specific mistake would produce, name that mistake
+// instead of reporting two numbers. A probe pairs such a value with its
+// sentence; diagnose() speaks only when the observed value matches a probe
+// within the test's own tolerance AND the correct value does not — so cells
+// where a candidate happens to equal the right answer (a stretch that never
+// left 0–1, where clamping changes nothing) stay silent, as do observations
+// matching probes that disagree with each other. A wrong diagnosis is worse
+// than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 2: the contrast stretch un-clamped, un-centred, or never applied.
+function contrastProbes(l) {
+  return [
+    [(l - 0.5) * 2 + 0.5,
+      'that is the stretch without its clamp — Math.min / Math.max keep the result inside 0–1'],
+    [l,
+      'that is the luminance unchanged — the stretch never reached the return value'],
+    [Math.min(Math.max(l * 2, 0), 1),
+      'the midpoint is missing — subtract 0.5 before doubling and add it back afterwards'],
+  ];
+}
+
+// Task 5: a blur pass that does nothing, or one that never divides by 9. A pass
+// that forgets to clamp reads off the map and comes back as a non-number.
+function blurHint(got, ref, unblurred, eps, y, x) {
+  if (!Number.isFinite(got)) {
+    return 'that cell read past the edge of the map — clamp yy and xx into 0…63 before indexing';
+  }
+  return diagnose(got, ref[y][x], eps, [
+    [unblurred[y][x], 'that is the unblurred luminance — the 3×3 average never happened'],
+    [9 * ref[y][x], 'that is the sum of the nine samples — a mean divides by 9'],
+  ]);
 }
 
 export default {
@@ -256,7 +314,8 @@ console.log('first sample:', values[0]);
         <p>In module 1.2 you chained two kernels through JavaScript: the luminance map came
         back as arrays, then went up again for the second pass. Same chain below — except this
         time <code>luminance</code> is a pipeline kernel, and the second pass eats its texture
-        directly.</p>`,
+        directly.</p>
+        ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> finish the <code>contrast</code> kernel — stretch each
         luminance value around the midpoint with <code>(l − 0.5) × 2 + 0.5</code>, clamped
         to 0–1 — and keep the texture handoff intact.`,
@@ -347,7 +406,13 @@ console.log('center cell:', result[32][32]);
             const out = plain(piped(img));
             const cases = [[0, 0], [7, 41], [32, 32], [63, 63]];
             for (const [y, x] of cases) {
-              ctx.assertClose(out[y][x], contrastOf(luminanceOf(img[y][x])), 3e-3, `cell [${y}][${x}]`);
+              const l = luminanceOf(img[y][x]);
+              const hint = transposeCellHint(
+                out[y][x], contrastOf(luminanceOf(img[x][y])), 3e-3, y, x
+              ) || diagnose(out[y][x], contrastOf(l), 3e-3, contrastProbes(l));
+              ctx.assertClose(
+                out[y][x], contrastOf(luminanceOf(img[y][x])), 3e-3, hint || `cell [${y}][${x}]`
+              );
             }
           },
         },
@@ -362,9 +427,11 @@ console.log('center cell:', result[32][32]);
             const pixel = [0.8, 0.3, 0.5, 1];
             const expected = contrastOf(luminanceOf(pixel));
             const out = plain(piped(constantImage(64, pixel)));
+            const probes = contrastProbes(luminanceOf(pixel));
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
-                ctx.assertClose(out[y][x], expected, 3e-3, `cell [${y}][${x}]`);
+                const hint = diagnose(out[y][x], expected, 3e-3, probes);
+                ctx.assertClose(out[y][x], expected, 3e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -703,7 +770,8 @@ console.log('peak after 12 steps:', heat[64]);
         <p>The missing piece is the blur. Each cell averages its 3×3 neighbourhood — two little
         loops over <code>dy</code>/<code>dx</code>, indices clamped to 0…63 so the edges don't
         read out of bounds. When it works, hit <strong>Benchmark</strong> and watch what
-        keeping data on the card does to the gap.</p>`,
+        keeping data on the card does to the gap.</p>
+        ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> implement the 3×3 box blur so the full three-pass pipeline —
         two texture passes and a graphical finale — runs with zero readbacks.`,
       requirements: [
@@ -827,11 +895,16 @@ render(paint.canvas);
             const [lum, blur] = ctx.kernels;
             const img = ctx.utils.makeTestImage(64);
             const out = toArr(blur(lum(img)));
-            const ref = refBlur3(refLuminanceMap(img));
+            const map = refLuminanceMap(img);
+            const ref = refBlur3(map);
             // interior, all four edges, and a corner
             const cases = [[32, 32], [0, 20], [63, 20], [20, 0], [20, 63], [0, 0], [10, 47]];
             for (const [y, x] of cases) {
-              ctx.assertClose(out[y][x], ref[y][x], 3e-3, `cell [${y}][${x}]`);
+              // a box blur commutes with the transpose, so a swapped read in
+              // either pass lands the blurred cell [x][y] here
+              const hint = transposeCellHint(out[y][x], ref[x][y], 3e-3, y, x) ||
+                blurHint(out[y][x], ref, map, 3e-3, y, x);
+              ctx.assertClose(out[y][x], ref[y][x], 3e-3, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -879,10 +952,13 @@ render(paint.canvas);
             const [lum, blur] = ctx.kernels;
             const img = ctx.utils.makeTestImage(64);
             const out = toArr(blur(lum(img)));
-            const ref = refBlur3(refLuminanceMap(img));
+            const map = refLuminanceMap(img);
+            const ref = refBlur3(map);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
-                ctx.assertClose(out[y][x], ref[y][x], 4e-3, `cell [${y}][${x}]`);
+                const hint = transposeCellHint(out[y][x], ref[x][y], 4e-3, y, x) ||
+                  blurHint(out[y][x], ref, map, 4e-3, y, x);
+                ctx.assertClose(out[y][x], ref[y][x], 4e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },

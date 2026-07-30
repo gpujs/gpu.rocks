@@ -63,6 +63,84 @@ function matmulRef(a, b) {
   return c;
 }
 
+// A matmul that stops after `terms` of the shared dimension — what a learner
+// gets when the loop bound is one of the other two sizes instead of the shared
+// one. Built once per test, never per cell.
+function matmulPartialRef(a, b, terms) {
+  const rows = a.length;
+  const cols = b[0].length;
+  const c = new Array(rows);
+  for (let y = 0; y < rows; y++) {
+    const row = new Array(cols);
+    for (let x = 0; x < cols; x++) {
+      let sum = 0;
+      for (let k = 0; k < terms; k++) sum += a[y][k] * b[k][x];
+      row[x] = sum;
+    }
+    c[y] = row;
+  }
+  return c;
+}
+
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so cells where two candidates coincide stay
+// silent, as do observations that match probes disagreeing with each other.
+// A wrong diagnosis is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: one term instead of the sum, or a loop that stops one pair short.
+function dotProbes(a, b) {
+  const last = a.length - 1;
+  return [
+    [a[0] * b[0], 'that is only the first product — a dot product accumulates all 16 pairs in the loop'],
+    [dotRef(a, b) - a[last] * b[last], `the loop stopped one pair short — with k < ${last} the pair a[${last}]·b[${last}] never gets added`],
+  ];
+}
+
+// Task 2 (square): the elementwise shortcut, and the two ways of seating
+// this.thread.x and this.thread.y in the wrong index. `ref` is A×B and
+// `reversed` is B×A, both precomputed by the caller.
+function matmulProbes(a, b, ref, reversed, y, x) {
+  return [
+    [a[y][x] * b[y][x], 'that is the elementwise product of the two cells — C[y][x] is the whole dot product of row y of A with column x of B'],
+    [ref[x][y], `that is cell [${x}][${y}] of the product — this.thread.y picks A's row and this.thread.x picks B's column`],
+    [reversed[x][y], 'both matrices were read with their indices swapped — the walks are a[this.thread.y][k] across the row and b[k][this.thread.x] down the column'],
+  ];
+}
+
+// Tasks 3 and 5: a loop bound taken from the wrong one of the three sizes.
+// Returns [grid, message] pairs — build them once per test, then read a single
+// cell out of each with partialProbes().
+function loopBoundPairs(a, b, shared, wrongBounds, remedy) {
+  return wrongBounds.map(terms => [
+    matmulPartialRef(a, b, terms),
+    `only the first ${terms} of the ${shared} shared terms were summed — ${remedy}`,
+  ]);
+}
+
+function partialProbes(pairs, y, x) {
+  return pairs.map(pair => [pair[0][y][x], pair[1]]);
+}
+
+// Task 4: reading m[y][x] instead of m[x][y] — no transpose at all. The input
+// has fewer rows than the output, so the un-swapped read only yields a number
+// where y is still inside it; elsewhere there is nothing to match.
+function unswappedProbes(m, y, x) {
+  return y < m.length
+    ? [[m[y][x], `that is the input cell [${y}][${x}] — a transpose reads with the indices swapped: m[this.thread.x][this.thread.y]`]]
+    : [];
+}
+
 export default {
   id: '2-1',
   track: 2,
@@ -151,7 +229,8 @@ console.log(dot(a, b));
               out && out.length === 1,
               `expected 1 output value, got ${out && out.length} — a dot product is one number`
             );
-            ctx.assertClose(out[0], 16, 1e-2, 'dot of two all-ones vectors should be 16');
+            const hint = diagnose(out[0], 16, 1e-2, dotProbes(ones, ones));
+            ctx.assertClose(out[0], 16, 1e-2, hint || 'dot of two all-ones vectors should be 16');
           },
         },
         {
@@ -160,7 +239,8 @@ console.log(dot(a, b));
             const a = makeVector(ctx.utils, 16, 1101);
             const b = makeVector(ctx.utils, 16, 1102);
             const out = ctx.kernel(a, b);
-            ctx.assertClose(out[0], dotRef(a, b), 1e-2, 'dot product of the provided vectors');
+            const hint = diagnose(out[0], dotRef(a, b), 1e-2, dotProbes(a, b));
+            ctx.assertClose(out[0], dotRef(a, b), 1e-2, hint || 'dot product of the provided vectors');
           },
         },
       ],
@@ -171,7 +251,9 @@ console.log(dot(a, b));
             // Fresh vectors, plus a basis vector that picks out one element.
             const a = makeVector(ctx.utils, 16, 1177);
             const b = makeVector(ctx.utils, 16, 1178);
-            ctx.assertClose(ctx.kernel(a, b)[0], dotRef(a, b), 1e-2, 'dot of fresh vectors');
+            const got = ctx.kernel(a, b)[0];
+            const hint = diagnose(got, dotRef(a, b), 1e-2, dotProbes(a, b));
+            ctx.assertClose(got, dotRef(a, b), 1e-2, hint || 'dot of fresh vectors');
             const basis = new Array(16).fill(0);
             basis[11] = 1;
             ctx.assertClose(ctx.kernel(a, basis)[0], a[11], 1e-2, 'dot with a basis vector picks a[11]');
@@ -269,9 +351,12 @@ console.log('C[0][0] =', c[0][0]);
             const b = makeMatrix(ctx.utils, 16, 16, 2102);
             const out = ctx.kernel(a, b);
             const ref = matmulRef(a, b);
+            const reversed = matmulRef(b, a);
             const cases = [[0, 0], [3, 12], [8, 8], [15, 1], [15, 15]];
             for (const [y, x] of cases) {
-              ctx.assertClose(out[y][x], ref[y][x], 1e-2, `cell [${y}][${x}]`);
+              const hint = diagnose(out[y][x], ref[y][x], 1e-2,
+                matmulProbes(a, b, ref, reversed, y, x));
+              ctx.assertClose(out[y][x], ref[y][x], 1e-2, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -296,9 +381,12 @@ console.log('C[0][0] =', c[0][0]);
             const b = makeMatrix(ctx.utils, 16, 16, 2778);
             const out = ctx.kernel(a, b);
             const ref = matmulRef(a, b);
+            const reversed = matmulRef(b, a);
             for (let y = 0; y < 16; y++) {
               for (let x = 0; x < 16; x++) {
-                ctx.assertClose(out[y][x], ref[y][x], 1e-2, `cell [${y}][${x}]`);
+                const hint = diagnose(out[y][x], ref[y][x], 1e-2,
+                  matmulProbes(a, b, ref, reversed, y, x));
+                ctx.assertClose(out[y][x], ref[y][x], 1e-2, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -401,9 +489,12 @@ console.log('rows:', c.length, 'cols:', c[0].length);
             const b = makeMatrix(ctx.utils, 32, 12, 3102);
             const out = ctx.kernel(a, b);
             const ref = matmulRef(a, b);
+            const pairs = loopBoundPairs(a, b, 32, [12, 8],
+              "k has to run over the shared dimension — A's columns and B's rows, not the output's width or height");
             const cases = [[0, 0], [2, 11], [5, 6], [7, 0], [7, 11]];
             for (const [y, x] of cases) {
-              ctx.assertClose(out[y][x], ref[y][x], 2e-2, `cell [${y}][${x}]`);
+              const hint = diagnose(out[y][x], ref[y][x], 2e-2, partialProbes(pairs, y, x));
+              ctx.assertClose(out[y][x], ref[y][x], 2e-2, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -416,9 +507,12 @@ console.log('rows:', c.length, 'cols:', c[0].length);
             const b = makeMatrix(ctx.utils, 32, 12, 3778);
             const out = ctx.kernel(a, b);
             const ref = matmulRef(a, b);
+            const pairs = loopBoundPairs(a, b, 32, [12, 8],
+              "k has to run over the shared dimension — A's columns and B's rows, not the output's width or height");
             for (let y = 0; y < 8; y++) {
               for (let x = 0; x < 12; x++) {
-                ctx.assertClose(out[y][x], ref[y][x], 2e-2, `cell [${y}][${x}]`);
+                const hint = diagnose(out[y][x], ref[y][x], 2e-2, partialProbes(pairs, y, x));
+                ctx.assertClose(out[y][x], ref[y][x], 2e-2, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -508,7 +602,9 @@ console.log('rows:', t.length, 'cols:', t[0].length);
             const out = ctx.kernel(m);
             const cases = [[0, 0], [0, 23], [39, 0], [17, 5], [39, 23]];
             for (const [y, x] of cases) {
-              ctx.assertClose(out[y][x], m[x][y], 1e-3, `cell [${y}][${x}] should hold input [${x}][${y}]`);
+              const hint = diagnose(out[y][x], m[x][y], 1e-3, unswappedProbes(m, y, x));
+              ctx.assertClose(out[y][x], m[x][y], 1e-3,
+                hint || `cell [${y}][${x}] should hold input [${x}][${y}]`);
             }
           },
         },
@@ -521,7 +617,8 @@ console.log('rows:', t.length, 'cols:', t[0].length);
             const out = ctx.kernel(m);
             for (let y = 0; y < 40; y++) {
               for (let x = 0; x < 24; x++) {
-                ctx.assertClose(out[y][x], m[x][y], 1e-3, `cell [${y}][${x}]`);
+                const hint = diagnose(out[y][x], m[x][y], 1e-3, unswappedProbes(m, y, x));
+                ctx.assertClose(out[y][x], m[x][y], 1e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -678,9 +775,12 @@ console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
             const out = ctx.kernel(a, b, 48);
             ctx.assert(out.length === 48 && out[0].length === 48, 'expected a 48×48 result');
             const ref = matmulRef(a, b);
+            const pairs = loopBoundPairs(a, b, 48, [8],
+              'the loop bound has to be the size argument, not the literal the kernel was born with');
             const cases = [[0, 0], [7, 33], [24, 24], [40, 3], [47, 47]];
             for (const [y, x] of cases) {
-              ctx.assertClose(out[y][x], ref[y][x], 5e-2, `cell [${y}][${x}]`);
+              const hint = diagnose(out[y][x], ref[y][x], 5e-2, partialProbes(pairs, y, x));
+              ctx.assertClose(out[y][x], ref[y][x], 5e-2, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -695,9 +795,12 @@ console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
             ctx.kernel.setOutput([32, 32]);
             const out = ctx.kernel(a, b, 32);
             const ref = matmulRef(a, b);
+            const pairs = loopBoundPairs(a, b, 32, [8],
+              'the loop bound has to be the size argument, not the literal the kernel was born with');
             for (let y = 0; y < 32; y++) {
               for (let x = 0; x < 32; x++) {
-                ctx.assertClose(out[y][x], ref[y][x], 5e-2, `cell [${y}][${x}]`);
+                const hint = diagnose(out[y][x], ref[y][x], 5e-2, partialProbes(pairs, y, x));
+                ctx.assertClose(out[y][x], ref[y][x], 5e-2, hint || `cell [${y}][${x}]`);
               }
             }
           },
@@ -707,11 +810,15 @@ console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
           run: async ctx => {
             // Identity at yet another size — 16×16 × I = the matrix itself.
             const a = makeMatrix(ctx.utils, 16, 16, 5888);
+            const identity = identityMatrix(16);
             ctx.kernel.setOutput([16, 16]);
-            const out = ctx.kernel(a, identityMatrix(16), 16);
+            const out = ctx.kernel(a, identity, 16);
+            const pairs = loopBoundPairs(a, identity, 16, [8],
+              'the loop bound has to be the size argument, not the literal the kernel was born with');
             for (let y = 0; y < 16; y++) {
               for (let x = 0; x < 16; x++) {
-                ctx.assertClose(out[y][x], a[y][x], 2e-2, `cell [${y}][${x}] of A × I`);
+                const hint = diagnose(out[y][x], a[y][x], 2e-2, partialProbes(pairs, y, x));
+                ctx.assertClose(out[y][x], a[y][x], 2e-2, hint || `cell [${y}][${x}] of A × I`);
               }
             }
           },

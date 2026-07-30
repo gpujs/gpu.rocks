@@ -84,6 +84,111 @@ function composeBlur(ctx, grid) {
   return ctx.kernels[1](pass1);
 }
 
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so elements where two candidates coincide stay
+// silent, as do observations that match probes disagreeing with each other.
+// A wrong diagnosis is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: the four ways of getting °F = °C × 9/5 + 32 nearly right.
+function fahrenheitProbes(c) {
+  return [
+    [c * 9 / 5, 'the + 32 offset is missing — °F = °C × 9/5 + 32'],
+    [c * 5 / 9 + 32, 'that is the °F → °C ratio — this direction multiplies by 9/5, not 5/9'],
+    [(c + 32) * 9 / 5, 'you added 32 before scaling — the formula scales first, then adds'],
+    [c, 'that reading came back unconverted — the formula never ran on it'],
+  ];
+}
+
+// Task 2: the mirror index n − 1 − i, missed by one or not computed at all.
+function mirrorProbes(arr, i) {
+  const probes = [
+    [arr[i], 'that is your own element — a gather reads the mirrored index, data[n − 1 − this.thread.x]'],
+  ];
+  const pastTheEnd = arr[arr.length - i]; // undefined for i = 0
+  if (Number.isFinite(pastTheEnd)) {
+    probes.push([pastTheEnd, 'that is data[n − this.thread.x] — the last valid index is n − 1, so the mirror of i is n − 1 − i']);
+  }
+  return probes;
+}
+
+// Task 3: pulling from the wrong side, or not pulling at all.
+function rotateProbes(arr, i) {
+  const n = arr.length;
+  return [
+    [arr[(i + 1) % n], 'that value came from your right — rotating right means pulling from the left, index this.thread.x − 1'],
+    [arr[i], 'that is your own element — the shift has to be expressed as a read from the neighbor'],
+  ];
+}
+
+// Task 3, thread 0 only: the wrap is the whole point there. JavaScript keeps
+// the sign of %, so a bare (x - 1) % n asks for index −1. No test input for
+// this task ever contains a 0, so a 0 (or a non-number) in cell 0 can only be
+// that out-of-range read.
+function wrapHint(got) {
+  return Number.isFinite(got) && got !== 0
+    ? null
+    : 'thread 0 read index −1 — % keeps its left operand\'s sign, so add n first: (this.thread.x − 1 + n) % n';
+}
+
+// Task 5: the window a learner gets from the raw loop variable d instead of
+// d − 2 — five taps starting at this thread rather than centered on it.
+function shiftedAverageRef(data) {
+  const n = data.length;
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    for (let d = 0; d < 5; d++) sum += data[clampIndex(i + d, n)];
+    out[i] = sum / 5;
+  }
+  return out;
+}
+
+// Task 5: reading the same tap five times, sliding the window off center, or
+// forgetting that a mean divides. `shifted` and `ref` are computed once per
+// test and passed in — never rebuilt per element.
+function averageProbes(data, shifted, ref, i) {
+  return [
+    [data[i], 'every tap read your own element — the offset d − 2 never reached the index, so you averaged five copies of yourself'],
+    [shifted[i], 'the window is shifted right — the offset d − 2 is what centers the five taps on this.thread.x'],
+    [5 * ref[i], 'that is the window sum — a mean divides by 5'],
+  ];
+}
+
+// Task 6: the compositions a learner lands on when a pass blurs the wrong axis
+// or does nothing at all. Built ONCE per test (never per cell) and read with
+// blurHint below, which also covers a pass that forgot its division by 3.
+function blurAlternatives(grid) {
+  const rows = blurRowsRef(grid);
+  const cols = blurColsRef(grid);
+  return [
+    [blurRowsRef(rows), 'both passes blurred along x — the second one has to walk the column: clamp this.thread.y and read grid[j][this.thread.x]'],
+    [blurColsRef(cols), 'both passes blurred along y — the first one has to walk the row: clamp this.thread.x and read grid[this.thread.y][j]'],
+    [cols, 'the x pass is a passthrough — only the y blur reached this cell'],
+    [rows, 'the y pass is a passthrough — only the x blur reached this cell'],
+  ];
+}
+
+function blurHint(got, ref, alternatives, eps, y, x) {
+  if (!Number.isFinite(got)) {
+    return 'that cell read past the edge of the grid — clamp the index with Math.max(0, Math.min(n − 1, …))';
+  }
+  const probes = alternatives.map(alt => [alt[0][y][x], alt[1]]);
+  const undivided = 'a pass returned the sum of its three taps without dividing by 3';
+  probes.push([3 * ref[y][x], undivided], [9 * ref[y][x], undivided]);
+  return diagnose(got, ref[y][x], eps, probes);
+}
+
 export default {
   id: '1-3',
   track: 1,
@@ -161,7 +266,9 @@ console.log('first reading:', celsius[0], '°C →', result[0], '°F');
             for (let i = 0; i < 64; i++) arr[i] = i * 2 - 20; // includes 0 and 100
             const out = ctx.kernel(arr);
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], arr[i] * 9 / 5 + 32, 1e-2, `reading ${i} (${arr[i]} °C)`);
+              const expected = arr[i] * 9 / 5 + 32;
+              const hint = diagnose(out[i], expected, 1e-2, fahrenheitProbes(arr[i]));
+              ctx.assertClose(out[i], expected, 1e-2, hint || `reading ${i} (${arr[i]} °C)`);
             }
           },
         },
@@ -174,7 +281,9 @@ console.log('first reading:', celsius[0], '°C →', result[0], '°F');
             const out = ctx.kernel(data);
             ctx.assert(out.length === 64, 'expected 64 output values');
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], data[i] * 9 / 5 + 32, 1e-2, `reading ${i}`);
+              const expected = data[i] * 9 / 5 + 32;
+              const hint = diagnose(out[i], expected, 1e-2, fahrenheitProbes(data[i]));
+              ctx.assertClose(out[i], expected, 1e-2, hint || `reading ${i}`);
             }
           },
         },
@@ -253,8 +362,10 @@ console.log('first:', result[0], '(should be the old last:', data[63] + ')');
             for (let i = 0; i < 64; i++) arr[i] = i + 1;
             const out = ctx.kernel(arr);
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
-            ctx.assertClose(out[0], 64, 1e-3, 'out[0] should hold the last input value');
-            ctx.assertClose(out[63], 1, 1e-3, 'out[63] should hold the first input value');
+            const first = diagnose(out[0], 64, 1e-3, mirrorProbes(arr, 0));
+            ctx.assertClose(out[0], 64, 1e-3, first || 'out[0] should hold the last input value');
+            const last = diagnose(out[63], 1, 1e-3, mirrorProbes(arr, 63));
+            ctx.assertClose(out[63], 1, 1e-3, last || 'out[63] should hold the first input value');
           },
         },
         {
@@ -264,7 +375,8 @@ console.log('first:', result[0], '(should be the old last:', data[63] + ')');
             for (let i = 0; i < 64; i++) arr[i] = i * 1.5 + 3;
             const out = ctx.kernel(arr);
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], arr[63 - i], 1e-3, `element ${i}`);
+              const hint = diagnose(out[i], arr[63 - i], 1e-3, mirrorProbes(arr, i));
+              ctx.assertClose(out[i], arr[63 - i], 1e-3, hint || `element ${i}`);
             }
           },
         },
@@ -277,7 +389,8 @@ console.log('first:', result[0], '(should be the old last:', data[63] + ')');
             const out = ctx.kernel(data);
             ctx.assert(out.length === 64, 'expected 64 output values');
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], data[63 - i], 1e-3, `element ${i}`);
+              const hint = diagnose(out[i], data[63 - i], 1e-3, mirrorProbes(data, i));
+              ctx.assertClose(out[i], data[63 - i], 1e-3, hint || `element ${i}`);
             }
           },
         },
@@ -365,7 +478,8 @@ console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', resul
             const out = ctx.kernel(arr);
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
             for (let i = 1; i < 64; i++) {
-              ctx.assertClose(out[i], arr[i - 1], 1e-3, `element ${i} should hold ring[${i - 1}]`);
+              const hint = diagnose(out[i], arr[i - 1], 1e-3, rotateProbes(arr, i));
+              ctx.assertClose(out[i], arr[i - 1], 1e-3, hint || `element ${i} should hold ring[${i - 1}]`);
             }
           },
         },
@@ -375,7 +489,8 @@ console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', resul
             const arr = new Array(64);
             for (let i = 0; i < 64; i++) arr[i] = i + 10;
             const out = ctx.kernel(arr);
-            ctx.assertClose(out[0], arr[63], 1e-3, 'out[0] should hold the last input value');
+            const hint = wrapHint(out[0]) || diagnose(out[0], arr[63], 1e-3, rotateProbes(arr, 0));
+            ctx.assertClose(out[0], arr[63], 1e-3, hint || 'out[0] should hold the last input value');
           },
         },
       ],
@@ -387,7 +502,10 @@ console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', resul
             const out = ctx.kernel(ring);
             ctx.assert(out.length === 64, 'expected 64 output values');
             for (let i = 0; i < 64; i++) {
-              ctx.assertClose(out[i], ring[(i - 1 + 64) % 64], 1e-3, `element ${i}`);
+              const expected = ring[(i - 1 + 64) % 64];
+              const hint = (i === 0 ? wrapHint(out[0]) : null) ||
+                diagnose(out[i], expected, 1e-3, rotateProbes(ring, i));
+              ctx.assertClose(out[i], expected, 1e-3, hint || `element ${i}`);
             }
           },
         },
@@ -471,7 +589,12 @@ console.log('last delta (should be exactly 0):', result[63]);
             const out = ctx.kernel(data);
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
             for (let i = 0; i < 63; i++) {
-              ctx.assertClose(out[i], data[i + 1] - data[i], 1e-3, `element ${i}`);
+              const expected = data[i + 1] - data[i];
+              const hint = diagnose(out[i], expected, 1e-3, [
+                [-expected, 'the sign is flipped — a forward difference is signal[i + 1] − signal[i], next minus current'],
+                [data[i + 1], 'that is the neighbor\'s value, not the jump — subtract your own signal[this.thread.x]'],
+              ]);
+              ctx.assertClose(out[i], expected, 1e-3, hint || `element ${i}`);
             }
           },
         },
@@ -492,7 +615,12 @@ console.log('last delta (should be exactly 0):', result[63]);
             const data = makeSamples(ctx.utils, 64, 6006);
             const out = ctx.kernel(data);
             for (let i = 0; i < 63; i++) {
-              ctx.assertClose(out[i], data[i + 1] - data[i], 1e-3, `element ${i}`);
+              const expected = data[i + 1] - data[i];
+              const hint = diagnose(out[i], expected, 1e-3, [
+                [-expected, 'the sign is flipped — a forward difference is signal[i + 1] − signal[i], next minus current'],
+                [data[i + 1], 'that is the neighbor\'s value, not the jump — subtract your own signal[this.thread.x]'],
+              ]);
+              ctx.assertClose(out[i], expected, 1e-3, hint || `element ${i}`);
             }
             ctx.assertClose(out[63], 0, 1e-4, 'last cell should clamp to 0');
           },
@@ -588,8 +716,10 @@ console.log('raw:', signal[64], '→ smoothed:', result[64]);
             const out = ctx.kernel(data);
             ctx.assert(out && out.length === 128, `expected 128 output values, got ${out && out.length}`);
             const ref = movingAverageRef(data);
+            const shifted = shiftedAverageRef(data);
             for (const i of [2, 17, 64, 99, 125]) {
-              ctx.assertClose(out[i], ref[i], 1e-3, `element ${i}`);
+              const hint = diagnose(out[i], ref[i], 1e-3, averageProbes(data, shifted, ref, i));
+              ctx.assertClose(out[i], ref[i], 1e-3, hint || `element ${i}`);
             }
           },
         },
@@ -599,12 +729,16 @@ console.log('raw:', signal[64], '→ smoothed:', result[64]);
             const data = makeSamples(ctx.utils, 128, 7203);
             const out = ctx.kernel(data);
             const n = data.length;
-            ctx.assertClose(out[0], (3 * data[0] + data[1] + data[2]) / 5, 1e-3, 'left edge');
+            const ref = movingAverageRef(data);
+            const shifted = shiftedAverageRef(data);
+            const left = diagnose(out[0], ref[0], 1e-3, averageProbes(data, shifted, ref, 0));
+            ctx.assertClose(out[0], (3 * data[0] + data[1] + data[2]) / 5, 1e-3, left || 'left edge');
+            const right = diagnose(out[n - 1], ref[n - 1], 1e-3, averageProbes(data, shifted, ref, n - 1));
             ctx.assertClose(
               out[n - 1],
               (3 * data[n - 1] + data[n - 2] + data[n - 3]) / 5,
               1e-3,
-              'right edge'
+              right || 'right edge'
             );
           },
         },
@@ -616,8 +750,10 @@ console.log('raw:', signal[64], '→ smoothed:', result[64]);
             const data = makeSamples(ctx.utils, 128, 9090);
             const out = ctx.kernel(data);
             const ref = movingAverageRef(data);
+            const shifted = shiftedAverageRef(data);
             for (let i = 0; i < 128; i++) {
-              ctx.assertClose(out[i], ref[i], 1e-3, `element ${i}`);
+              const hint = diagnose(out[i], ref[i], 1e-3, averageProbes(data, shifted, ref, i));
+              ctx.assertClose(out[i], ref[i], 1e-3, hint || `element ${i}`);
             }
           },
         },
@@ -727,8 +863,10 @@ console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
             const grid = makeGrid(ctx.utils, 48);
             const out = composeBlur(ctx, grid);
             const ref = blurColsRef(blurRowsRef(grid));
+            const alts = blurAlternatives(grid);
             for (const [y, x] of [[1, 1], [10, 30], [24, 24], [40, 7], [46, 46]]) {
-              ctx.assertClose(out[y][x], ref[y][x], 2e-3, `cell [${y}][${x}]`);
+              const hint = blurHint(out[y][x], ref, alts, 2e-3, y, x);
+              ctx.assertClose(out[y][x], ref[y][x], 2e-3, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -738,8 +876,10 @@ console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
             const grid = makeGrid(ctx.utils, 48);
             const out = composeBlur(ctx, grid);
             const ref = blurColsRef(blurRowsRef(grid));
+            const alts = blurAlternatives(grid);
             for (const [y, x] of [[0, 0], [0, 47], [47, 0], [47, 47], [0, 20], [20, 0]]) {
-              ctx.assertClose(out[y][x], ref[y][x], 2e-3, `cell [${y}][${x}]`);
+              const hint = blurHint(out[y][x], ref, alts, 2e-3, y, x);
+              ctx.assertClose(out[y][x], ref[y][x], 2e-3, hint || `cell [${y}][${x}]`);
             }
           },
         },
@@ -751,9 +891,11 @@ console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
             const grid = makeGrid(ctx.utils, 48, 555);
             const out = composeBlur(ctx, grid);
             const ref = blurColsRef(blurRowsRef(grid));
+            const alts = blurAlternatives(grid);
             for (let y = 0; y < 48; y++) {
               for (let x = 0; x < 48; x++) {
-                ctx.assertClose(out[y][x], ref[y][x], 2e-3, `cell [${y}][${x}]`);
+                const hint = blurHint(out[y][x], ref, alts, 2e-3, y, x);
+                ctx.assertClose(out[y][x], ref[y][x], 2e-3, hint || `cell [${y}][${x}]`);
               }
             }
           },

@@ -100,6 +100,91 @@ function referencePrice(normals) {
   return Math.exp(-OPT.rate * OPT.t) * (sum / normals.length);
 }
 
+// Float64 reference for the un-floored payoff — the price a learner gets when
+// Math.max is missing, which the task's own hint puts near −1.9.
+function referencePriceUnfloored(normals) {
+  let sum = 0;
+  for (let i = 0; i < normals.length; i++) {
+    const st = OPT.s0 * Math.exp(OPT_DRIFT + OPT_VOLT * normals[i]);
+    sum += st - OPT.strike;
+  }
+  return Math.exp(-OPT.rate * OPT.t) * (sum / normals.length);
+}
+
+// ---- near-miss diagnosis --------------------------------------------------
+//
+// A failing assert that reports only two numbers tells a learner nothing about
+// WHICH slip produced them. A probe pairs the value one specific known mistake
+// would produce with a sentence naming that mistake; diagnose() speaks only
+// when the observed value matches a probe within the test's own tolerance AND
+// the correct value does not — so samples where two candidates coincide stay
+// silent, as do observations that match probes disagreeing with each other.
+// A wrong diagnosis is worse than none.
+function diagnose(got, expected, eps, probes) {
+  const hits = probes
+    .filter(p => Math.abs(got - p[0]) <= eps && Math.abs(expected - p[0]) > eps)
+    .map(p => p[1]);
+  return hits.length && hits.every(m => m === hits[0]) ? hits[0] : null;
+}
+
+// Task 1: verdicts are 0 or 1, so any single dart is a coin flip's worth of
+// evidence — these patterns are matched across ALL the planted darts at once,
+// which is what tells "x + y ≤ 1" apart from "inverted".
+function verdictHint(out, xs, ys, expected) {
+  const matchesAll = predict => expected.every((_, i) => Math.abs(out[i] - predict(i)) <= 1e-6);
+  if (matchesAll(i => (xs[i] + ys[i] <= 1 ? 1 : 0))) {
+    return 'those verdicts are x + y ≤ 1 — the inside test compares squared distance: x * x + y * y <= 1';
+  }
+  if (matchesAll(i => 1 - expected[i])) {
+    return 'the verdicts are inverted — return 1 when the dart lands inside, 0 when it misses';
+  }
+  return null;
+}
+
+// Tasks 2 and 3: a thread's slice, summed as-is or through a function.
+function sliceSum(arr, start, len, f) {
+  let s = 0;
+  for (let i = 0; i < len; i++) {
+    const v = arr[start + i];
+    s += f ? f(v) : v;
+  }
+  return s;
+}
+
+// Task 2: the slice offset, and not summing a slice at all.
+function sliceProbes(arr, t, len) {
+  const probes = [
+    [arr[t], 'that is a single verdict — this thread has to total all 256 in its own slice'],
+  ];
+  if (t + len <= arr.length) {
+    probes.push([sliceSum(arr, t, len),
+      'the slice starts at this.thread.x * 256 — with this.thread.x alone every thread walks an overlapping window']);
+  }
+  return probes;
+}
+
+// Task 3: accumulating the wrong thing inside the fused loop.
+function integrandProbes(arr, start, len) {
+  return [
+    [sliceSum(arr, start, len),
+      'that is the sum of the samples themselves — the accumulator wants Math.exp(-x * x)'],
+    [sliceSum(arr, start, len, v => Math.exp(-v)),
+      'that is e^(−x), not e^(−x²) — square x inside the exponent'],
+    [sliceSum(arr, start, len, v => Math.exp(v * v)),
+      'the exponent is missing its minus sign — e^(−x²) falls off as x grows'],
+  ];
+}
+
+// Task 4: the payoff floor, dropped or pointed the wrong way.
+function payoffProbes(st, strike) {
+  return [
+    [st - strike,
+      'that is st − strike with no floor — a losing path pays exactly 0, never a negative amount'],
+    [Math.max(strike - st, 0),
+      'that is the put payoff — a call pays max(st − strike, 0)'],
+  ];
+}
+
 export default {
   id: '2-4',
   track: 2,
@@ -196,8 +281,10 @@ console.log(count, 'of 4096 darts hit — π ≈', (4 * count) / 4096);
             const out = ctx.kernel(xs, ys);
             ctx.assert(out && out.length === 4096, `expected 4096 verdicts, got ${out && out.length}`);
             const expected = [1, 0, 1, 0, 1];
+            const hint = verdictHint(out, xs, ys, expected);
             for (let i = 0; i < expected.length; i++) {
-              ctx.assertClose(out[i], expected[i], 1e-6, `dart ${i} at (${xs[i]}, ${ys[i]})`);
+              ctx.assertClose(out[i], expected[i], 1e-6,
+                hint || `dart ${i} at (${xs[i]}, ${ys[i]})`);
             }
           },
         },
@@ -341,7 +428,8 @@ console.log('π ≈', (4 * total) / 65536);
             for (const t of [0, 1, 17, 128, 255]) {
               let expected = 0;
               for (let i = 0; i < 256; i++) expected += (t * 256 + i) % 3;
-              ctx.assertClose(partials[t], expected, 0.5, `partial sum for thread ${t}`);
+              const hint = diagnose(partials[t], expected, 0.5, sliceProbes(fake, t, 256));
+              ctx.assertClose(partials[t], expected, 0.5, hint || `partial sum for thread ${t}`);
             }
           },
         },
@@ -478,7 +566,8 @@ console.log('∫₀¹ e^(−x²) dx ≈', total / 16384, '(truth ≈ 0.746824)')
             ctx.assert(out && out.length === 256, `expected 256 partial sums, got ${out && out.length}`);
             for (const t of [0, 3, 100, 255]) {
               const slice = grid.slice(t * 64, t * 64 + 64);
-              ctx.assertClose(out[t], gaussSum(slice), 0.05, `partial sum for thread ${t}`);
+              const hint = diagnose(out[t], gaussSum(slice), 0.05, integrandProbes(grid, t * 64, 64));
+              ctx.assertClose(out[t], gaussSum(slice), 0.05, hint || `partial sum for thread ${t}`);
             }
           },
         },
@@ -489,7 +578,10 @@ console.log('∫₀¹ e^(−x²) dx ≈', total / 16384, '(truth ≈ 0.746824)')
             const out = ctx.kernel(samples);
             let total = 0;
             for (let i = 0; i < out.length; i++) total += out[i];
-            ctx.assertClose(total / 16384, 0.7468241328124271, 0.01, 'Monte Carlo integral estimate');
+            const hint = diagnose(total / 16384, 0.7468241328124271, 0.01,
+              integrandProbes(samples, 0, 16384).map(p => [p[0] / 16384, p[1]]));
+            ctx.assertClose(total / 16384, 0.7468241328124271, 0.01,
+              hint || 'Monte Carlo integral estimate');
           },
         },
       ],
@@ -501,7 +593,10 @@ console.log('∫₀¹ e^(−x²) dx ≈', total / 16384, '(truth ≈ 0.746824)')
             const out = ctx.kernel(samples);
             let total = 0;
             for (let i = 0; i < out.length; i++) total += out[i];
-            ctx.assertClose(total / 16384, gaussSum(samples) / 16384, 2e-3, 'estimate vs float64 reference');
+            const hint = diagnose(total / 16384, gaussSum(samples) / 16384, 2e-3,
+              integrandProbes(samples, 0, 16384).map(p => [p[0] / 16384, p[1]]));
+            ctx.assertClose(total / 16384, gaussSum(samples) / 16384, 2e-3,
+              hint || 'estimate vs float64 reference');
             ctx.assertClose(total / 16384, 0.7468241328124271, 0.01, 'estimate vs the true integral');
           },
         },
@@ -598,7 +693,9 @@ console.log('Monte Carlo price:', price, '— Black–Scholes says ≈ 7.13');
             ctx.assert(out && out.length === 16384, `expected 16384 payoffs, got ${out && out.length}`);
             for (const i of [0, 1, 2, 3]) {
               const st = OPT.s0 * Math.exp(OPT_DRIFT + OPT_VOLT * shocks[i]);
-              ctx.assertClose(out[i], Math.max(st - OPT.strike, 0), 0.05, `payoff for shock z = ${shocks[i]}`);
+              const expected = Math.max(st - OPT.strike, 0);
+              const hint = diagnose(out[i], expected, 0.05, payoffProbes(st, OPT.strike));
+              ctx.assertClose(out[i], expected, 0.05, hint || `payoff for shock z = ${shocks[i]}`);
               ctx.assert(out[i] >= 0, `payoff for z = ${shocks[i]} is negative (${out[i]}) — options never go below zero`);
             }
           },
@@ -611,7 +708,12 @@ console.log('Monte Carlo price:', price, '— Black–Scholes says ≈ 7.13');
             let sum = 0;
             for (let i = 0; i < out.length; i++) sum += out[i];
             const price = Math.exp(-OPT.rate * OPT.t) * (sum / out.length);
-            ctx.assertClose(price, referencePrice(normals), 0.05, 'price vs float64 reference simulation');
+            const hint = diagnose(price, referencePrice(normals), 0.05, [
+              [referencePriceUnfloored(normals),
+                'that is the average of st − strike with no floor — every losing path dragged the mean below zero'],
+            ]);
+            ctx.assertClose(price, referencePrice(normals), 0.05,
+              hint || 'price vs float64 reference simulation');
             ctx.assertClose(price, blackScholesCall(), 0.4, 'price vs the Black–Scholes closed form');
           },
         },
@@ -625,7 +727,12 @@ console.log('Monte Carlo price:', price, '— Black–Scholes says ≈ 7.13');
             let sum = 0;
             for (let i = 0; i < out.length; i++) sum += out[i];
             const price = Math.exp(-OPT.rate * OPT.t) * (sum / out.length);
-            ctx.assertClose(price, referencePrice(normals), 0.05, 'price vs float64 reference on unseen shocks');
+            const hint = diagnose(price, referencePrice(normals), 0.05, [
+              [referencePriceUnfloored(normals),
+                'that is the average of st − strike with no floor — every losing path dragged the mean below zero'],
+            ]);
+            ctx.assertClose(price, referencePrice(normals), 0.05,
+              hint || 'price vs float64 reference on unseen shocks');
             ctx.assertClose(price, blackScholesCall(), 0.5, 'price vs Black–Scholes on unseen shocks');
           },
         },
