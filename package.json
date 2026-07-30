@@ -12,6 +12,7 @@
     "@gpujs/benchmark": "^3.2.1",
     "@nivo/line": "^0.99.0",
     "@uiw/react-codemirror": "^4.25.11",
+    "canvas-confetti": "^1.9.4",
     "gpu.js": "^2.19.9",
     "material-icons": "^0.3.1",
     "materialize-css": "^1.0.0-rc.2",

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import TaskDots from '../components/TaskDots';
+import Confetti from './Confetti';
 import { FEEDBACK_URL } from '../feedback';
 
 // Completion celebration dialog — opened by TaskWorkspace when Next is clicked
@@ -77,6 +78,12 @@ function CompletionModal({
 
   return (
     <div className="cmodal-overlay" onMouseDown={handleBackdrop} onKeyDown={handleKeyDown}>
+      {/* fires from the panel's top corners; aria-hidden and click-through, so
+          it stays out of the focus trap and off the buttons underneath */}
+      <Confetti
+        milestone={courseEnd ? 'course' : kind}
+        anchorRef={panelRef}
+      />
       <div
         className="cmodal"
         role="dialog"
