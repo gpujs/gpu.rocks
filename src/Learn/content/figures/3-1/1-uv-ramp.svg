@@ -1,0 +1,40 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Each thread reads its x and y coordinates, divides them by the canvas size to get 0-to-1 ramps, and paints them into the red and green channels of its own pixel.">
+  <text x="10" y="14" class="lbl-up">CANVAS 128 × 128 — ONE THREAD PER PIXEL</text>
+
+  <!-- pixel grid -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="30" y="26" width="24" height="24" rx="3"/><rect x="54" y="26" width="24" height="24" rx="3"/><rect x="78" y="26" width="24" height="24" rx="3"/><rect x="102" y="26" width="24" height="24" rx="3"/>
+    <rect x="30" y="50" width="24" height="24" rx="3"/><rect x="54" y="50" width="24" height="24" rx="3"/><rect x="78" y="50" width="24" height="24" rx="3"/><rect x="102" y="50" width="24" height="24" rx="3"/>
+    <rect x="30" y="74" width="24" height="24" rx="3"/><rect x="54" y="74" width="24" height="24" rx="3"/><rect x="78" y="74" width="24" height="24" rx="3"/><rect x="102" y="74" width="24" height="24" rx="3"/>
+    <rect x="30" y="98" width="24" height="24" rx="3"/><rect x="54" y="98" width="24" height="24" rx="3"/><rect x="78" y="98" width="24" height="24" rx="3"/><rect x="102" y="98" width="24" height="24" rx="3"/>
+  </g>
+  <!-- this pixel: (96, 32) -->
+  <rect x="102" y="74" width="24" height="24" rx="3" fill="none" stroke="var(--pink)" stroke-width="2.5"/>
+
+  <!-- axes -->
+  <path class="arrow" d="M30 132 H 119" stroke="var(--blue)" stroke-width="1.5"/>
+  <path d="M126 132 l -7 -4 v 8 z" fill="var(--blue)"/>
+  <text x="30" y="146" class="lbl">this.thread.x → red</text>
+  <path class="arrow" d="M22 122 V 33" stroke="var(--blue)" stroke-width="1.5"/>
+  <path d="M22 26 l -4 7 h 8 z" fill="var(--blue)"/>
+  <text transform="rotate(-90 14 146)" x="14" y="146" class="lbl">y → green, bottom-up</text>
+
+  <!-- arrow to formula -->
+  <path class="arrow" d="M130 86 H 158" stroke-width="1.5"/>
+  <path class="arrowhead" d="M164 86 l -7 -4 v 8 z"/>
+
+  <!-- formula box -->
+  <rect x="170" y="56" width="138" height="60" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="239" y="75" text-anchor="middle" class="formula">r = 96/128 = .75</text>
+  <text x="239" y="90" text-anchor="middle" class="formula">g = 32/128 = .25</text>
+  <text x="239" y="105" text-anchor="middle" class="formula">b = .5</text>
+
+  <!-- arrow to output -->
+  <path class="arrow" d="M308 86 H 330" stroke-width="1.5"/>
+  <path class="arrowhead" d="M336 86 l -7 -4 v 8 z"/>
+
+  <!-- output pixel -->
+  <text x="342" y="66" class="lbl-up">OUT</text>
+  <rect x="342" y="74" width="24" height="24" rx="3" fill="none" stroke="var(--teal)" stroke-width="2"/>
+  <text x="354" y="118" text-anchor="middle" class="lbl">this.color(r,g,b,1)</text>
+</svg>

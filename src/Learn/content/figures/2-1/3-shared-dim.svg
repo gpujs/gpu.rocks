@@ -1,0 +1,32 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="An 8 by 32 matrix times a 32 by 12 matrix: 8 and 12 set the output shape, while the shared dimension 32 is the only one the inner loop runs over.">
+  <text x="10" y="14" class="lbl-up">(8×32) · (32×12) → 8×12</text>
+
+  <!-- A: wide and short -->
+  <rect x="20" y="62" width="96" height="24" rx="4" fill="none" stroke="var(--line)"/>
+  <text x="68" y="78" text-anchor="middle" class="lbl">A</text>
+  <text x="12" y="79" text-anchor="end" class="lbl">8</text>
+  <path d="M20 92 H116" fill="none" stroke="var(--pink)" stroke-width="1.4"/>
+  <text x="68" y="106" text-anchor="middle" style="font-size:10px" fill="var(--pink)">32</text>
+
+  <text x="130" y="79" text-anchor="middle" class="formula">×</text>
+
+  <!-- B: tall and narrow -->
+  <rect x="146" y="26" width="36" height="96" rx="4" fill="none" stroke="var(--line)"/>
+  <text x="164" y="78" text-anchor="middle" class="lbl">B</text>
+  <text x="164" y="136" text-anchor="middle" class="lbl">12</text>
+  <path d="M188 26 V122" fill="none" stroke="var(--pink)" stroke-width="1.4"/>
+  <text x="196" y="78" text-anchor="start" style="font-size:10px" fill="var(--pink)">32</text>
+
+  <text x="224" y="79" text-anchor="middle" class="formula">=</text>
+
+  <!-- C: the result -->
+  <rect x="240" y="62" width="36" height="24" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.5"/>
+  <text x="258" y="78" text-anchor="middle" style="font-size:10px" fill="var(--teal)">C</text>
+  <text x="258" y="106" text-anchor="middle" style="font-size:10px" fill="var(--teal)">8×12</text>
+
+  <!-- who gets which size -->
+  <text x="300" y="50" class="formula">output: [12, 8]</text>
+  <text x="300" y="66" class="lbl">cols of B, rows of A</text>
+  <text x="300" y="96" class="formula">for (k &lt; 32)</text>
+  <text x="300" y="112" class="lbl">the shared dimension</text>
+</svg>

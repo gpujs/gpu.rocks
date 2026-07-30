@@ -1,0 +1,33 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="On the GPU lane, the luminance kernel hands a texture straight to the contrast kernel and only the final result drops down to JavaScript as an array; the old round trip through JavaScript between the kernels is crossed out.">
+  <text x="10" y="16" class="lbl-up">GPU</text>
+
+  <!-- the on-card chain -->
+  <rect x="48" y="26" width="92" height="30" rx="8" fill="var(--surface)" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="94" y="45" text-anchor="middle" style="font-size:10px;fill:var(--blue)">luminance</text>
+  <path class="arrow" d="M140 41 H 160" stroke-width="1.5"/>
+  <path class="arrowhead" d="M166 41 l -7 -4 v 8 z"/>
+  <rect x="168" y="26" width="76" height="30" rx="8" fill="var(--teal)" fill-opacity=".12" stroke="var(--teal)" stroke-width="1.5"/>
+  <text x="206" y="45" text-anchor="middle" style="font-size:10px;fill:var(--teal)">texture</text>
+  <path class="arrow" d="M244 41 H 264" stroke-width="1.5"/>
+  <path class="arrowhead" d="M270 41 l -7 -4 v 8 z"/>
+  <rect x="272" y="26" width="88" height="30" rx="8" fill="var(--surface)" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="316" y="45" text-anchor="middle" style="font-size:10px;fill:var(--blue)">contrast</text>
+  <text x="206" y="74" text-anchor="middle" class="lbl">never leaves the card</text>
+
+  <!-- the one download, at the very end -->
+  <path class="arrow" d="M360 41 H 392 V 98" stroke-width="1.5"/>
+  <path class="arrowhead" d="M392 104 l -4 -7 h 8 z"/>
+
+  <line x1="10" y1="88" x2="430" y2="88" class="cellline"/>
+  <text x="10" y="104" class="lbl-up">JAVASCRIPT</text>
+
+  <rect x="364" y="108" width="56" height="24" rx="6" fill="none" stroke="var(--line)"/>
+  <text x="392" y="123" text-anchor="middle" class="lbl">array</text>
+  <text x="392" y="146" text-anchor="middle" class="lbl">the one download</text>
+
+  <!-- the module-1.2 round trip, retired -->
+  <path d="M94 60 V 116 H 316 V 66" fill="none" stroke="var(--lred)" stroke-width="1.3" stroke-dasharray="5 4" opacity=".8"/>
+  <path fill="var(--lred)" d="M316 66 l -4 7 h 8 z" opacity=".8"/>
+  <text x="205" y="112" text-anchor="middle" style="font-size:10px;fill:var(--lred)">✗</text>
+  <text x="205" y="132" text-anchor="middle" class="lbl">the 1.2 way — down and back up, gone</text>
+</svg>

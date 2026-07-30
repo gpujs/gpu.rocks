@@ -1,0 +1,29 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Around a hit point on the surface, the field is sampled a tiny epsilon to each side on every axis; the differences form the gradient — an arrow pointing straight off the surface, the normal.">
+  <text x="10" y="14" class="lbl-up">NORMALS BY NUDGING</text>
+
+  <!-- the surface (arc of a big circle) -->
+  <circle cx="70" cy="164" r="95" fill="none" stroke="var(--teal)" stroke-width="1.6"/>
+
+  <!-- hit point + the six taps -->
+  <g fill="var(--blue)">
+    <circle cx="129" cy="97" r="2"/>
+    <circle cx="145" cy="97" r="2"/>
+    <circle cx="137" cy="89" r="2"/>
+    <circle cx="137" cy="105" r="2"/>
+  </g>
+  <circle cx="137" cy="97" r="3.5" fill="var(--pink)"/>
+  <text x="112" y="116" style="font-size:10px" fill="var(--pink)">hit</text>
+  <text x="30" y="40" style="font-size:10px" fill="var(--blue)">sample ± e on each axis</text>
+
+  <!-- the normal -->
+  <path class="arrow" d="M142 92 L 169 65" stroke="var(--teal)" stroke-width="1.6"/>
+  <path d="M0 0 l -7 -4 v 8 z" transform="translate(174 60) rotate(-45)" fill="var(--teal)"/>
+  <text x="180" y="54" style="font-size:10px" fill="var(--teal)">n</text>
+
+  <!-- formulas -->
+  <rect x="236" y="40" width="190" height="62" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="331" y="58" text-anchor="middle" class="formula">nx = d(x+e) − d(x−e)</text>
+  <text x="331" y="74" text-anchor="middle" class="lbl">ny, nz: same on y, z</text>
+  <text x="331" y="90" text-anchor="middle" class="formula">n = (nx,ny,nz) ÷ len</text>
+  <text x="331" y="126" text-anchor="middle" style="font-size:10px" fill="var(--teal)">gradient = the surface normal</text>
+</svg>

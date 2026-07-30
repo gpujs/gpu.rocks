@@ -328,6 +328,66 @@
     font-size: .82rem;
   }
 
+  /* ---- instructional diagrams (figures/) ---- */
+  .brief figure.diagram {
+    margin: 1.2rem 0;
+    padding: 1rem .9rem .7rem;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+
+  .brief figure.diagram svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .brief figure.diagram figcaption {
+    font-size: .72rem;
+    color: var(--muted);
+    text-align: center;
+    margin-top: .6rem;
+    font-family: ui-monospace, Menlo, monospace;
+    letter-spacing: .02em;
+  }
+
+  // one typography for every figure — svg files carry NO font-family of
+  // their own, they inherit these classes (see figures/ + the mockup)
+  .diagram svg text {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    fill: var(--ink);
+  }
+
+  .diagram svg .lbl {
+    fill: var(--muted);
+    font-size: 10px;
+  }
+
+  .diagram svg .lbl-up {
+    fill: var(--muted);
+    font-size: 9px;
+    letter-spacing: .12em;
+  }
+
+  .diagram svg .formula {
+    fill: var(--ink);
+    font-size: 11px;
+  }
+
+  .diagram svg .cellline {
+    stroke: var(--line);
+  }
+
+  .diagram svg .arrow {
+    stroke: var(--muted);
+    fill: none;
+  }
+
+  .diagram svg .arrowhead {
+    fill: var(--muted);
+  }
+
   .transfer {
     margin-top: 1.4rem;
     padding: .8rem .9rem;

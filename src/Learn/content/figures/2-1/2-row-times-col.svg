@@ -1,0 +1,41 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Cell y,x of the result matrix C is computed by one thread as the dot product of row y of matrix A with column x of matrix B.">
+  <text x="18" y="12" class="lbl-up">A</text>
+  <text x="168" y="12" class="lbl-up">B</text>
+  <text x="330" y="12" class="lbl-up">C = A × B</text>
+
+  <!-- matrix A: 4×4, row 1 highlighted -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="18" y="22" width="20" height="20" rx="3"/><rect x="40" y="22" width="20" height="20" rx="3"/><rect x="62" y="22" width="20" height="20" rx="3"/><rect x="84" y="22" width="20" height="20" rx="3"/>
+    <rect x="18" y="44" width="20" height="20" rx="3"/><rect x="40" y="44" width="20" height="20" rx="3"/><rect x="62" y="44" width="20" height="20" rx="3"/><rect x="84" y="44" width="20" height="20" rx="3"/>
+    <rect x="18" y="66" width="20" height="20" rx="3"/><rect x="40" y="66" width="20" height="20" rx="3"/><rect x="62" y="66" width="20" height="20" rx="3"/><rect x="84" y="66" width="20" height="20" rx="3"/>
+    <rect x="18" y="88" width="20" height="20" rx="3"/><rect x="40" y="88" width="20" height="20" rx="3"/><rect x="62" y="88" width="20" height="20" rx="3"/><rect x="84" y="88" width="20" height="20" rx="3"/>
+  </g>
+  <rect x="15" y="41" width="92" height="26" rx="5" fill="none" stroke="var(--blue)" stroke-width="1.6"/>
+  <text x="61" y="124" text-anchor="middle" style="font-size:9px" fill="var(--blue)">row y</text>
+
+  <text x="136" y="70" text-anchor="middle" class="formula">×</text>
+
+  <!-- matrix B: 4×4, column 2 highlighted -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="168" y="22" width="20" height="20" rx="3"/><rect x="190" y="22" width="20" height="20" rx="3"/><rect x="212" y="22" width="20" height="20" rx="3"/><rect x="234" y="22" width="20" height="20" rx="3"/>
+    <rect x="168" y="44" width="20" height="20" rx="3"/><rect x="190" y="44" width="20" height="20" rx="3"/><rect x="212" y="44" width="20" height="20" rx="3"/><rect x="234" y="44" width="20" height="20" rx="3"/>
+    <rect x="168" y="66" width="20" height="20" rx="3"/><rect x="190" y="66" width="20" height="20" rx="3"/><rect x="212" y="66" width="20" height="20" rx="3"/><rect x="234" y="66" width="20" height="20" rx="3"/>
+    <rect x="168" y="88" width="20" height="20" rx="3"/><rect x="190" y="88" width="20" height="20" rx="3"/><rect x="212" y="88" width="20" height="20" rx="3"/><rect x="234" y="88" width="20" height="20" rx="3"/>
+  </g>
+  <rect x="209" y="19" width="26" height="92" rx="5" fill="none" stroke="var(--blue)" stroke-width="1.6"/>
+  <text x="222" y="124" text-anchor="middle" style="font-size:9px" fill="var(--blue)">col x</text>
+
+  <text x="292" y="70" text-anchor="middle" class="formula">=</text>
+
+  <!-- matrix C: 4×4, cell [1][2] is the result -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="330" y="22" width="20" height="20" rx="3"/><rect x="352" y="22" width="20" height="20" rx="3"/><rect x="374" y="22" width="20" height="20" rx="3"/><rect x="396" y="22" width="20" height="20" rx="3"/>
+    <rect x="330" y="44" width="20" height="20" rx="3"/><rect x="352" y="44" width="20" height="20" rx="3"/><rect x="396" y="44" width="20" height="20" rx="3"/>
+    <rect x="330" y="66" width="20" height="20" rx="3"/><rect x="352" y="66" width="20" height="20" rx="3"/><rect x="374" y="66" width="20" height="20" rx="3"/><rect x="396" y="66" width="20" height="20" rx="3"/>
+    <rect x="330" y="88" width="20" height="20" rx="3"/><rect x="352" y="88" width="20" height="20" rx="3"/><rect x="374" y="88" width="20" height="20" rx="3"/><rect x="396" y="88" width="20" height="20" rx="3"/>
+  </g>
+  <rect x="374" y="44" width="20" height="20" rx="3" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <text x="373" y="124" text-anchor="middle" style="font-size:9px" fill="var(--teal)">c[y][x]</text>
+
+  <text x="220" y="144" text-anchor="middle" class="formula">sum += a[y][k] · b[k][x]&#160;&#160;&#160;k = 0…15</text>
+</svg>

@@ -1,0 +1,35 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Uniform random samples measure the height of e to the minus x squared on the unit interval; the average of those heights equals the integral, about 0.7468.">
+  <text x="10" y="14" class="lbl-up">AVERAGE HEIGHT × WIDTH = AREA</text>
+
+  <!-- area under the curve -->
+  <path d="M60 30 L97.5 31.6 L135 36.1 L172.5 43.1 L210 52.1 L247.5 62.3 L285 73 L322.5 83.5 L360 93.2 L360 130 L60 130 Z"
+    fill="var(--teal)" fill-opacity=".10"/>
+  <path d="M60 30 L97.5 31.6 L135 36.1 L172.5 43.1 L210 52.1 L247.5 62.3 L285 73 L322.5 83.5 L360 93.2"
+    fill="none" stroke="var(--teal)" stroke-width="1.6" stroke-linejoin="round"/>
+  <text x="64" y="26" style="font-size:9px" fill="var(--teal)">e^(−x²)</text>
+
+  <!-- axis -->
+  <line x1="55" y1="130" x2="375" y2="130" class="cellline"/>
+  <text x="60" y="144" text-anchor="middle" class="lbl" style="font-size:9px">0</text>
+  <text x="360" y="144" text-anchor="middle" class="lbl" style="font-size:9px">1</text>
+
+  <!-- the sample sticks -->
+  <g stroke="var(--blue)" stroke-width="1.4">
+    <line x1="81" y1="130" x2="81" y2="30.5"/><line x1="114" y1="130" x2="114" y2="33.2"/><line x1="159" y1="130" x2="159" y2="40.3"/>
+    <line x1="234" y1="130" x2="234" y2="58.6"/><line x1="273" y1="130" x2="273" y2="69.6"/><line x1="318" y1="130" x2="318" y2="82.3"/><line x1="345" y1="130" x2="345" y2="89.4"/>
+  </g>
+  <g fill="var(--blue)">
+    <circle cx="81" cy="30.5" r="2.2"/><circle cx="114" cy="33.2" r="2.2"/><circle cx="159" cy="40.3" r="2.2"/>
+    <circle cx="234" cy="58.6" r="2.2"/><circle cx="273" cy="69.6" r="2.2"/><circle cx="318" cy="82.3" r="2.2"/><circle cx="345" cy="89.4" r="2.2"/>
+  </g>
+  <line x1="198" y1="130" x2="198" y2="49.1" stroke="var(--pink)" stroke-width="1.8"/>
+  <circle cx="198" cy="49.1" r="2.8" fill="var(--pink)"/>
+  <text x="206" y="45" style="font-size:9px" fill="var(--pink)">f(x) = e^(−x²)</text>
+
+  <!-- the mean of the sticks -->
+  <path d="M60 55.3 H360" fill="none" stroke="var(--teal)" stroke-width="1.2" stroke-dasharray="4 3" opacity=".75"/>
+  <text x="368" y="58" style="font-size:9px" fill="var(--teal)">mean ≈</text>
+  <text x="368" y="70" style="font-size:9px" fill="var(--teal)">0.7468</text>
+
+  <text x="220" y="148" text-anchor="middle" class="formula">∫₀¹ f = avg of 16,384 sticks ≈ 0.7468</text>
+</svg>

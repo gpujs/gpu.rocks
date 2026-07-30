@@ -1,0 +1,51 @@
+<svg viewBox="0 0 440 170" role="img" aria-label="An 8 by 8 grid of threads addressed by this.thread.x across and this.thread.y down; the highlighted cell at x 7, y 2 computes (7 + 2) % 2 = 1, and the grid comes back as result[y][x].">
+  <text x="10" y="12" class="lbl-up">OUTPUT: [8, 8] · 64 THREADS</text>
+
+  <!-- column indexes (x) and row indexes (y) -->
+  <g style="font-size:8px" fill="var(--muted)" text-anchor="middle">
+    <text x="53" y="24" class="lbl" style="font-size:8px">0</text><text x="69" y="24" class="lbl" style="font-size:8px">1</text><text x="85" y="24" class="lbl" style="font-size:8px">2</text><text x="101" y="24" class="lbl" style="font-size:8px">3</text>
+    <text x="117" y="24" class="lbl" style="font-size:8px">4</text><text x="133" y="24" class="lbl" style="font-size:8px">5</text><text x="149" y="24" class="lbl" style="font-size:8px">6</text><text x="165" y="24" class="lbl" style="font-size:8px">7</text>
+  </g>
+  <text x="180" y="24" class="lbl" style="font-size:8px">x</text>
+  <g text-anchor="end">
+    <text x="38" y="38" class="lbl" style="font-size:8px">0</text><text x="38" y="54" class="lbl" style="font-size:8px">1</text><text x="38" y="70" class="lbl" style="font-size:8px">2</text><text x="38" y="86" class="lbl" style="font-size:8px">3</text>
+    <text x="38" y="102" class="lbl" style="font-size:8px">4</text><text x="38" y="118" class="lbl" style="font-size:8px">5</text><text x="38" y="134" class="lbl" style="font-size:8px">6</text><text x="38" y="150" class="lbl" style="font-size:8px">7</text>
+  </g>
+  <text x="38" y="166" text-anchor="end" class="lbl" style="font-size:8px">y</text>
+
+  <!-- checkerboard: (x + y) % 2 — shaded cells are the 1s -->
+  <g stroke="var(--line)" fill="var(--ink)" fill-opacity=".12">
+    <rect x="62" y="28" width="14" height="14" rx="3"/><rect x="94" y="28" width="14" height="14" rx="3"/><rect x="126" y="28" width="14" height="14" rx="3"/><rect x="158" y="28" width="14" height="14" rx="3"/>
+    <rect x="46" y="44" width="14" height="14" rx="3"/><rect x="78" y="44" width="14" height="14" rx="3"/><rect x="110" y="44" width="14" height="14" rx="3"/><rect x="142" y="44" width="14" height="14" rx="3"/>
+    <rect x="62" y="60" width="14" height="14" rx="3"/><rect x="94" y="60" width="14" height="14" rx="3"/><rect x="126" y="60" width="14" height="14" rx="3"/><rect x="158" y="60" width="14" height="14" rx="3"/>
+    <rect x="46" y="76" width="14" height="14" rx="3"/><rect x="78" y="76" width="14" height="14" rx="3"/><rect x="110" y="76" width="14" height="14" rx="3"/><rect x="142" y="76" width="14" height="14" rx="3"/>
+    <rect x="62" y="92" width="14" height="14" rx="3"/><rect x="94" y="92" width="14" height="14" rx="3"/><rect x="126" y="92" width="14" height="14" rx="3"/><rect x="158" y="92" width="14" height="14" rx="3"/>
+    <rect x="46" y="108" width="14" height="14" rx="3"/><rect x="78" y="108" width="14" height="14" rx="3"/><rect x="110" y="108" width="14" height="14" rx="3"/><rect x="142" y="108" width="14" height="14" rx="3"/>
+    <rect x="62" y="124" width="14" height="14" rx="3"/><rect x="94" y="124" width="14" height="14" rx="3"/><rect x="126" y="124" width="14" height="14" rx="3"/><rect x="158" y="124" width="14" height="14" rx="3"/>
+    <rect x="46" y="140" width="14" height="14" rx="3"/><rect x="78" y="140" width="14" height="14" rx="3"/><rect x="110" y="140" width="14" height="14" rx="3"/><rect x="142" y="140" width="14" height="14" rx="3"/>
+  </g>
+  <g stroke="var(--line)" fill="none">
+    <rect x="46" y="28" width="14" height="14" rx="3"/><rect x="78" y="28" width="14" height="14" rx="3"/><rect x="110" y="28" width="14" height="14" rx="3"/><rect x="142" y="28" width="14" height="14" rx="3"/>
+    <rect x="62" y="44" width="14" height="14" rx="3"/><rect x="94" y="44" width="14" height="14" rx="3"/><rect x="126" y="44" width="14" height="14" rx="3"/><rect x="158" y="44" width="14" height="14" rx="3"/>
+    <rect x="46" y="60" width="14" height="14" rx="3"/><rect x="78" y="60" width="14" height="14" rx="3"/><rect x="110" y="60" width="14" height="14" rx="3"/><rect x="142" y="60" width="14" height="14" rx="3"/>
+    <rect x="62" y="76" width="14" height="14" rx="3"/><rect x="94" y="76" width="14" height="14" rx="3"/><rect x="126" y="76" width="14" height="14" rx="3"/><rect x="158" y="76" width="14" height="14" rx="3"/>
+    <rect x="46" y="92" width="14" height="14" rx="3"/><rect x="78" y="92" width="14" height="14" rx="3"/><rect x="110" y="92" width="14" height="14" rx="3"/><rect x="142" y="92" width="14" height="14" rx="3"/>
+    <rect x="62" y="108" width="14" height="14" rx="3"/><rect x="94" y="108" width="14" height="14" rx="3"/><rect x="126" y="108" width="14" height="14" rx="3"/><rect x="158" y="108" width="14" height="14" rx="3"/>
+    <rect x="46" y="124" width="14" height="14" rx="3"/><rect x="78" y="124" width="14" height="14" rx="3"/><rect x="110" y="124" width="14" height="14" rx="3"/><rect x="142" y="124" width="14" height="14" rx="3"/>
+    <rect x="62" y="140" width="14" height="14" rx="3"/><rect x="94" y="140" width="14" height="14" rx="3"/><rect x="126" y="140" width="14" height="14" rx="3"/><rect x="158" y="140" width="14" height="14" rx="3"/>
+  </g>
+
+  <!-- this one, follow it -->
+  <rect x="158" y="60" width="14" height="14" rx="3" fill="none" stroke="var(--pink)" stroke-width="2"/>
+
+  <path class="arrow" d="M176 67 H 228" stroke-width="1.5"/>
+  <path class="arrowhead" d="M234 67 l -7 -4 v 8 z"/>
+
+  <rect x="240" y="44" width="170" height="46" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="325" y="62" text-anchor="middle" class="formula">x = 7, y = 2</text>
+  <text x="325" y="78" text-anchor="middle" class="formula">(7 + 2) % 2 → 1</text>
+
+  <text x="240" y="112" class="lbl">same body in every cell —</text>
+  <text x="240" y="126" class="lbl">only the coordinates differ</text>
+  <text x="240" y="150" class="formula">result[2][7] → 1</text>
+</svg>

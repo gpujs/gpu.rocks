@@ -1,0 +1,50 @@
+<svg viewBox="0 0 440 155" role="img" aria-label="A five-cell window centered on a thread's own cell funnels into sum divided by five, and the single averaged value is written back to that thread's cell only.">
+  <text x="10" y="14" class="lbl-up">STENCIL</text>
+
+  <!-- the window bracket -->
+  <text x="205" y="16" text-anchor="middle" class="lbl">x−2 … x+2</text>
+  <path d="M98 28 V 22 H 312 V 28" fill="none" stroke="var(--muted)" stroke-width="1"/>
+
+  <!-- the signal -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="10" y="34" width="38" height="22" rx="4"/>
+    <rect x="54" y="34" width="38" height="22" rx="4"/>
+    <rect x="318" y="34" width="38" height="22" rx="4"/>
+    <rect x="362" y="34" width="38" height="22" rx="4"/>
+  </g>
+  <g fill="none" stroke="var(--blue)" stroke-width="1.5">
+    <rect x="98" y="34" width="38" height="22" rx="4"/>
+    <rect x="142" y="34" width="38" height="22" rx="4"/>
+    <rect x="230" y="34" width="38" height="22" rx="4"/>
+    <rect x="274" y="34" width="38" height="22" rx="4"/>
+  </g>
+  <rect x="186" y="34" width="38" height="22" rx="4" fill="none" stroke="var(--pink)" stroke-width="2"/>
+  <g style="font-size:9px" text-anchor="middle">
+    <text x="29" y="49" class="lbl" style="font-size:9px">4.1</text>
+    <text x="73" y="49" class="lbl" style="font-size:9px">2.0</text>
+    <text x="117" y="49">7.3</text>
+    <text x="161" y="49">5.2</text>
+    <text x="205" y="49">6.4</text>
+    <text x="249" y="49">1.8</text>
+    <text x="293" y="49">3.5</text>
+    <text x="337" y="49" class="lbl" style="font-size:9px">8.0</text>
+    <text x="381" y="49" class="lbl" style="font-size:9px">2.6</text>
+  </g>
+
+  <!-- five reads funnel into one thread -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.2">
+    <path d="M117 56 V 70 M161 56 V 70 M205 56 V 70 M249 56 V 70 M293 56 V 70"/>
+    <path d="M117 70 H 293"/>
+    <path d="M205 70 V 80"/>
+  </g>
+  <path fill="var(--blue)" d="M205 86 l -4 -7 h 8 z"/>
+  <rect x="166" y="88" width="78" height="24" rx="8" fill="var(--surface)" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="205" y="103" text-anchor="middle" style="font-size:10px;fill:var(--blue)">sum / 5</text>
+
+  <!-- one write -->
+  <path d="M205 112 V 120" fill="none" stroke="var(--teal)" stroke-width="1.4"/>
+  <path fill="var(--teal)" d="M205 126 l -4 -7 h 8 z"/>
+  <rect x="186" y="128" width="38" height="22" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <text x="205" y="143" text-anchor="middle" style="font-size:9px;fill:var(--teal)">4.84</text>
+  <text x="232" y="143" class="lbl">out[x] — its own cell, only</text>
+</svg>

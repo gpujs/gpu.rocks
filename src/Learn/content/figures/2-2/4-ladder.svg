@@ -1,0 +1,36 @@
+<svg viewBox="0 0 320 150" role="img" aria-label="Parallel reduction: eight values halve to four, then two, then one, in log2 steps.">
+  <text x="10" y="14" class="lbl-up">REDUCTION LADDER</text>
+  <g>
+    <!-- row of 8 -->
+    <g>
+      <rect x="24" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="37" y="38" text-anchor="middle" style="font-size:10px">7</text>
+      <rect x="58" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="71" y="38" text-anchor="middle" style="font-size:10px">1</text>
+      <rect x="92" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="105" y="38" text-anchor="middle" style="font-size:10px">4</text>
+      <rect x="126" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="139" y="38" text-anchor="middle" style="font-size:10px">2</text>
+      <rect x="160" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--line)"/><text x="173" y="38" text-anchor="middle" class="lbl">6</text>
+      <rect x="194" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--line)"/><text x="207" y="38" text-anchor="middle" class="lbl">3</text>
+      <rect x="228" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--line)"/><text x="241" y="38" text-anchor="middle" class="lbl">5</text>
+      <rect x="262" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--line)"/><text x="275" y="38" text-anchor="middle" class="lbl">8</text>
+    </g>
+    <text x="296" y="38" class="lbl">n=8</text>
+    <!-- pair arrows to row of 4 -->
+    <path class="arrow" d="M37 46 v 8 m 136 -8 v 8 M 37 54 H 173 M 105 62 V 54 M 105 62 v 0" stroke-width="1.2"/>
+    <path class="arrow" d="M71 46 v 4 m 136 -4 v 4 M 71 50 H 207" stroke-width="1.2" opacity=".5"/>
+    <!-- row of 4 -->
+    <g transform="translate(0,42)">
+      <rect x="58" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="71" y="38" text-anchor="middle" style="font-size:10px">13</text>
+      <rect x="92" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="105" y="38" text-anchor="middle" style="font-size:10px">4</text>
+      <rect x="126" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--line)"/><text x="139" y="38" text-anchor="middle" class="lbl">9</text>
+      <rect x="160" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--line)"/><text x="173" y="38" text-anchor="middle" class="lbl">10</text>
+      <text x="196" y="38" class="lbl">stride 4</text>
+    </g>
+    <!-- row of 2 + 1 -->
+    <g transform="translate(0,84)">
+      <rect x="92" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="105" y="38" text-anchor="middle" style="font-size:10px">17</text>
+      <rect x="126" y="24" width="26" height="20" rx="4" fill="none" stroke="var(--line)"/><text x="139" y="38" text-anchor="middle" class="lbl">19</text>
+      <rect x="196" y="24" width="30" height="20" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+      <text x="211" y="38" text-anchor="middle" style="font-size:10px" fill="var(--teal)">36</text>
+      <text x="234" y="38" class="lbl">log₂(n) steps</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,42 @@
+<svg viewBox="0 0 440 140" role="img" aria-label="Thread 63's forward-difference read of signal[64] is out of bounds and forbidden; clamping with min(x + 1, 63) redirects the read back to cell 63, so the last output is exactly zero.">
+  <text x="10" y="14" class="lbl-up">READING PAST THE END</text>
+
+  <!-- the signal, ending at cell 63 — and the cell that isn't there -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="10" y="40" width="30" height="24" rx="4"/>
+    <rect x="46" y="40" width="30" height="24" rx="4"/>
+    <rect x="106" y="40" width="30" height="24" rx="4"/>
+    <rect x="142" y="40" width="30" height="24" rx="4"/>
+    <rect x="178" y="40" width="30" height="24" rx="4"/>
+  </g>
+  <rect x="214" y="40" width="30" height="24" rx="4" fill="none" stroke="var(--lred)" stroke-dasharray="4 3"/>
+  <text x="88" y="56" class="lbl">…</text>
+  <g style="font-size:9px" text-anchor="middle">
+    <text x="25" y="56">0</text><text x="61" y="56">1</text><text x="121" y="56">61</text><text x="157" y="56">62</text><text x="193" y="56">63</text>
+  </g>
+  <text x="229" y="56" text-anchor="middle" style="font-size:9px;fill:var(--lred)">64</text>
+  <text x="229" y="30" text-anchor="middle" style="font-size:8px;fill:var(--lred)">doesn't exist</text>
+
+  <!-- thread 62: a normal in-bounds neighbour read -->
+  <rect x="136" y="90" width="34" height="20" rx="6" fill="none" stroke="var(--blue)" stroke-width="1.4"/>
+  <text x="153" y="103" text-anchor="middle" style="font-size:8px;fill:var(--blue)">x=62</text>
+  <path d="M153 90 L 189 69" fill="none" stroke="var(--blue)" stroke-width="1.2"/>
+  <path fill="var(--blue)" d="M193 66 L 188.5 73.7 L 184.1 67 z"/>
+
+  <!-- thread 63: the out-of-bounds read, and the clamped one -->
+  <rect x="176" y="90" width="34" height="20" rx="6" fill="none" stroke="var(--blue)" stroke-width="1.4"/>
+  <text x="193" y="103" text-anchor="middle" style="font-size:8px;fill:var(--blue)">x=63</text>
+  <path d="M203 90 L 224 69" fill="none" stroke="var(--lred)" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <path fill="var(--lred)" d="M227 66 L 224.1 74.5 L 218.5 68.9 z"/>
+  <text x="234" y="84" style="font-size:10px;fill:var(--lred)">✗</text>
+  <path d="M183 90 C 176 82, 176 74, 183 68" fill="none" stroke="var(--teal)" stroke-width="1.4"/>
+  <path fill="var(--teal)" d="M183 66 l -4 7 h 8 z"/>
+
+  <text x="10" y="132" class="lbl">every thread reads x+1 — only x = 63 needs the clamp</text>
+
+  <!-- the fix -->
+  <rect x="270" y="40" width="160" height="46" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="350" y="58" text-anchor="middle" class="formula">j = min(x + 1, 63)</text>
+  <text x="350" y="74" text-anchor="middle" class="formula">signal[j] − signal[x]</text>
+  <text x="350" y="106" text-anchor="middle" class="lbl">thread 63: j = 63 → 0</text>
+</svg>

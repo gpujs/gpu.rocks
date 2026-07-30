@@ -1,0 +1,33 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="A ray marches toward a blob: at each point the distance field gives a safe step radius, drawn as circles that shrink while grazing one lobe, grow again, and land exactly on the second lobe's surface.">
+  <text x="10" y="14" class="lbl-up">SPHERE TRACING</text>
+
+  <!-- the scene: two lobes -->
+  <circle cx="170" cy="10" r="40" fill="var(--teal)" fill-opacity=".12" stroke="var(--teal)" stroke-width="1.5"/>
+  <circle cx="400" cy="75" r="55" fill="var(--teal)" fill-opacity=".12" stroke="var(--teal)" stroke-width="1.5"/>
+
+  <!-- safe-step circles (radius = SDF value) -->
+  <g fill="none" stroke="var(--line)">
+    <circle cx="100" cy="75" r="55.5"/>
+    <circle cx="155.5" cy="75" r="26.6"/>
+    <circle cx="182" cy="75" r="26.1"/>
+    <circle cx="208" cy="75" r="35.4"/>
+    <circle cx="243.6" cy="75" r="58.2"/>
+    <circle cx="301.8" cy="75" r="43.2"/>
+  </g>
+
+  <!-- the ray and its steps -->
+  <path class="arrow" d="M20 75 H 345" stroke="var(--blue)" stroke-width="1.4"/>
+  <path d="M66 75 l -7 -4 v 8 z" fill="var(--blue)"/>
+  <g fill="var(--blue)">
+    <circle cx="100" cy="75" r="2.5"/>
+    <circle cx="155.5" cy="75" r="2.5"/>
+    <circle cx="182" cy="75" r="2.5"/>
+    <circle cx="208" cy="75" r="2.5"/>
+    <circle cx="243.6" cy="75" r="2.5"/>
+    <circle cx="301.8" cy="75" r="2.5"/>
+  </g>
+  <circle cx="345" cy="75" r="4" fill="var(--pink)"/>
+  <text x="352" y="58" style="font-size:10px" fill="var(--pink)">d &lt; 0.01 → hit</text>
+  <text x="352" y="142" style="font-size:10px" fill="var(--teal)">the scene</text>
+  <text x="14" y="146" class="lbl">circle = sdf value = safe hop</text>
+</svg>

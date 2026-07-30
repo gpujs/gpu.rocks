@@ -1,0 +1,53 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="A CPU loop fills 64 cells one tick at a time, while the GPU launches 64 threads that each fill one cell in a single tick — the loop variable i becomes this.thread.x.">
+  <!-- left panel: the CPU loop -->
+  <text x="10" y="14" class="lbl-up">CPU · ONE THREAD</text>
+  <g fill="none">
+    <rect x="10" y="46" width="30" height="22" rx="4" fill="var(--ink)" fill-opacity=".12" stroke="var(--line)"/>
+    <rect x="52" y="46" width="30" height="22" rx="4" fill="var(--ink)" fill-opacity=".12" stroke="var(--line)"/>
+    <rect x="94" y="46" width="30" height="22" rx="4" stroke="var(--blue)" stroke-width="1.5"/>
+    <rect x="136" y="46" width="30" height="22" rx="4" stroke="var(--line)"/>
+  </g>
+  <g class="arrow" stroke-width="1.2">
+    <path d="M42 57 H 47"/><path d="M84 57 H 89"/><path d="M126 57 H 131"/>
+  </g>
+  <g class="arrowhead">
+    <path d="M50 57 l -6 -3.5 v 7 z"/><path d="M92 57 l -6 -3.5 v 7 z"/><path d="M134 57 l -6 -3.5 v 7 z"/>
+  </g>
+  <text x="176" y="61" class="lbl">…</text>
+  <g style="font-size:8px" fill="var(--muted)" text-anchor="middle">
+    <text x="25" y="82" class="lbl" style="font-size:8px">i=0</text>
+    <text x="67" y="82" class="lbl" style="font-size:8px">i=1</text>
+    <text x="109" y="82" style="font-size:8px;fill:var(--blue)">i=2</text>
+    <text x="151" y="82" class="lbl" style="font-size:8px">i=3</text>
+  </g>
+  <path class="arrow" d="M10 100 H 184" stroke-width="1.2"/>
+  <path class="arrowhead" d="M190 100 l -7 -4 v 8 z"/>
+  <text x="10" y="118" class="lbl">64 ticks, one after another</text>
+
+  <line x1="200" y1="18" x2="200" y2="124" class="cellline"/>
+
+  <!-- right panel: the GPU launch -->
+  <text x="214" y="14" class="lbl-up">GPU · 64 THREADS</text>
+  <g fill="none" stroke="var(--blue)" stroke-width="1.2">
+    <path d="M229 30 H 397"/>
+    <path d="M229 30 V 38 M271 30 V 38 M313 30 V 38 M355 30 V 38 M397 30 V 38"/>
+  </g>
+  <g fill="var(--blue)">
+    <path d="M229 44 l -3.5 -6 h 7 z"/><path d="M271 44 l -3.5 -6 h 7 z"/><path d="M313 44 l -3.5 -6 h 7 z"/><path d="M355 44 l -3.5 -6 h 7 z"/><path d="M397 44 l -3.5 -6 h 7 z"/>
+  </g>
+  <g fill="none" stroke="var(--blue)" stroke-width="1.5">
+    <rect x="214" y="46" width="30" height="22" rx="4"/>
+    <rect x="256" y="46" width="30" height="22" rx="4"/>
+    <rect x="298" y="46" width="30" height="22" rx="4"/>
+    <rect x="340" y="46" width="30" height="22" rx="4"/>
+    <rect x="382" y="46" width="30" height="22" rx="4"/>
+  </g>
+  <g style="font-size:8px;fill:var(--blue)" text-anchor="middle">
+    <text x="229" y="82">x=0</text><text x="271" y="82">x=1</text><text x="313" y="82">x=2</text><text x="355" y="82">x=3</text><text x="397" y="82">x=4</text>
+  </g>
+  <path class="arrow" d="M214 100 H 402" stroke-width="1.2"/>
+  <path class="arrowhead" d="M408 100 l -7 -4 v 8 z"/>
+  <text x="214" y="118" class="lbl">one tick — all 64 at once</text>
+
+  <text x="220" y="144" text-anchor="middle" class="formula">i → this.thread.x</text>
+</svg>

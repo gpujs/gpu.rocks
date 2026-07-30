@@ -1,0 +1,29 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="A pixel's offset from the canvas center forms a right triangle whose hypotenuse is the radius r; all pixels on the same circle share that r and therefore the same color.">
+  <text x="10" y="14" class="lbl-up">POLAR: POSITION → RADIUS</text>
+
+  <!-- canvas square with rings -->
+  <rect x="20" y="26" width="104" height="104" rx="4" fill="none" stroke="var(--line)"/>
+  <circle cx="72" cy="78" r="18" fill="none" stroke="var(--line)"/>
+  <circle cx="72" cy="78" r="35" fill="none" stroke="var(--line)"/>
+  <circle cx="72" cy="78" r="52" fill="none" stroke="var(--teal)" stroke-width="1.6"/>
+  <circle cx="72" cy="78" r="2" fill="var(--ink)" fill-opacity=".55"/>
+
+  <!-- triangle: dx, dy, r -->
+  <line x1="72" y1="78" x2="112" y2="78" class="cellline"/>
+  <line x1="112" y1="78" x2="112" y2="45" class="cellline"/>
+  <path class="arrow" d="M72 78 L 108 48.3" stroke="var(--blue)" stroke-width="1.6"/>
+  <path d="M0 0 l -7 -4 v 8 z" transform="translate(112 45) rotate(-39.5)" fill="var(--blue)"/>
+  <circle cx="112" cy="45" r="3.5" fill="var(--pink)"/>
+  <text x="88" y="91" class="lbl">dx</text>
+  <text x="98" y="66" class="lbl">dy</text>
+  <text x="82" y="56" style="font-size:10px" fill="var(--blue)">r</text>
+  <text x="72" y="144" text-anchor="middle" class="lbl">center (63.5, 63.5)</text>
+
+  <!-- formulas -->
+  <rect x="215" y="40" width="150" height="60" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="290" y="58" text-anchor="middle" class="formula">dx = x − 63.5</text>
+  <text x="290" y="73" text-anchor="middle" class="formula">dy = y − 63.5</text>
+  <text x="290" y="88" text-anchor="middle" class="formula">r = √(dx²+dy²)</text>
+  <text x="290" y="122" text-anchor="middle" style="font-size:10px" fill="var(--teal)">same r → same color</text>
+  <text x="290" y="138" text-anchor="middle" class="lbl">cos(r·0.35) makes the ripples</text>
+</svg>

@@ -1,0 +1,47 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Random darts land in a unit square; each dart gets its own thread, which returns 1 when x squared plus y squared is at most 1, and the hit fraction approaches pi over four.">
+  <text x="10" y="14" class="lbl-up">HITS / THROWS → π/4</text>
+
+  <!-- unit square with the quarter disc -->
+  <rect x="30" y="20" width="120" height="120" fill="none" stroke="var(--line)"/>
+  <path d="M30 140 H150 A120 120 0 0 0 30 20 Z" fill="var(--teal)" fill-opacity=".12" stroke="var(--teal)" stroke-width="1.4"/>
+  <text x="40" y="112" class="formula">area = π/4</text>
+  <text x="24" y="148" class="lbl" style="font-size:9px">0</text>
+  <text x="148" y="148" class="lbl" style="font-size:9px">1</text>
+  <text x="18" y="26" class="lbl" style="font-size:9px">1</text>
+
+  <!-- darts: inside teal, outside muted -->
+  <g fill="var(--teal)">
+    <circle cx="55" cy="120" r="3"/><circle cx="85" cy="95" r="3"/><circle cx="60" cy="60" r="3"/><circle cx="110" cy="120" r="3"/>
+    <circle cx="45" cy="85" r="3"/><circle cx="95" cy="55" r="3"/><circle cx="120" cy="90" r="3"/><circle cx="70" cy="35" r="3"/>
+  </g>
+  <g fill="var(--ink)" fill-opacity=".35">
+    <circle cx="135" cy="45" r="3"/><circle cx="125" cy="30" r="3"/><circle cx="140" cy="70" r="3"/><circle cx="115" cy="50" r="3"/>
+  </g>
+  <circle cx="105" cy="75" r="3.5" fill="var(--pink)"/>
+
+  <!-- one dart, one thread, one verdict -->
+  <circle cx="185" cy="48" r="3.5" fill="var(--pink)"/>
+  <path class="arrow" d="M195 48 H 222" stroke-width="1.4"/>
+  <path class="arrowhead" d="M226 48 l -7 -4 v 8 z"/>
+  <rect x="230" y="34" width="86" height="28" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="273" y="52" text-anchor="middle" style="font-size:10px" fill="var(--blue)">one thread</text>
+  <path class="arrow" d="M320 48 H 344" stroke-width="1.4"/>
+  <path class="arrowhead" d="M348 48 l -7 -4 v 8 z"/>
+  <rect x="352" y="36" width="24" height="24" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.5"/>
+  <text x="364" y="52" text-anchor="middle" style="font-size:10px" fill="var(--teal)">1</text>
+  <text x="384" y="52" class="lbl">inside</text>
+
+  <circle cx="185" cy="92" r="3" fill="var(--ink)" fill-opacity=".35"/>
+  <path class="arrow" d="M195 92 H 222" stroke-width="1.4"/>
+  <path class="arrowhead" d="M226 92 l -7 -4 v 8 z"/>
+  <rect x="230" y="78" width="86" height="28" rx="8" fill="none" stroke="var(--line)"/>
+  <text x="273" y="96" text-anchor="middle" class="lbl">one thread</text>
+  <path class="arrow" d="M320 92 H 344" stroke-width="1.4"/>
+  <path class="arrowhead" d="M348 92 l -7 -4 v 8 z"/>
+  <rect x="352" y="80" width="24" height="24" rx="4" fill="none" stroke="var(--line)"/>
+  <text x="364" y="96" text-anchor="middle" class="lbl">0</text>
+  <text x="384" y="96" class="lbl">outside</text>
+
+  <text x="185" y="128" class="formula">if (x·x + y·y &lt;= 1)</text>
+  <text x="185" y="145" class="formula">π ≈ 4 · hits / 4096</text>
+</svg>

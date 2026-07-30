@@ -1,0 +1,38 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Each output sample is a weighted average of its three input neighbours: 0.25 times the left, 0.5 times the center, 0.25 times the right.">
+  <text x="10" y="14" class="lbl-up">A WINDOW OF WEIGHTS</text>
+
+  <!-- weights over the window -->
+  <g style="font-size:9px" text-anchor="middle" fill="var(--pink)">
+    <text x="184" y="36">×.25</text><text x="220" y="36">×.5</text><text x="256" y="36">×.25</text>
+  </g>
+
+  <!-- input signal -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="25" y="44" width="30" height="22" rx="4"/><rect x="61" y="44" width="30" height="22" rx="4"/><rect x="97" y="44" width="30" height="22" rx="4"/><rect x="133" y="44" width="30" height="22" rx="4"/>
+    <rect x="169" y="44" width="30" height="22" rx="4"/><rect x="205" y="44" width="30" height="22" rx="4"/><rect x="241" y="44" width="30" height="22" rx="4"/>
+    <rect x="277" y="44" width="30" height="22" rx="4"/><rect x="313" y="44" width="30" height="22" rx="4"/><rect x="349" y="44" width="30" height="22" rx="4"/><rect x="385" y="44" width="30" height="22" rx="4"/>
+  </g>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="40" y="58">2</text><text x="76" y="58">4</text><text x="112" y="58">3</text><text x="148" y="58">5</text>
+    <text x="184" y="58">6</text><text x="220" y="58">4</text><text x="256" y="58">2</text>
+    <text x="292" y="58">3</text><text x="328" y="58">5</text><text x="364" y="58">2</text><text x="400" y="58">4</text>
+  </g>
+  <rect x="166" y="41" width="112" height="28" rx="6" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <text x="422" y="58" class="lbl">in</text>
+
+  <!-- one thread, one weighted sum -->
+  <path class="arrow" d="M220 72 V 98" stroke-width="1.5"/>
+  <path class="arrowhead" d="M220 102 l -4 -7 h 8 z"/>
+
+  <!-- output -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="25" y="104" width="30" height="22" rx="4"/><rect x="61" y="104" width="30" height="22" rx="4"/><rect x="97" y="104" width="30" height="22" rx="4"/><rect x="133" y="104" width="30" height="22" rx="4"/>
+    <rect x="169" y="104" width="30" height="22" rx="4"/><rect x="241" y="104" width="30" height="22" rx="4"/>
+    <rect x="277" y="104" width="30" height="22" rx="4"/><rect x="313" y="104" width="30" height="22" rx="4"/><rect x="349" y="104" width="30" height="22" rx="4"/><rect x="385" y="104" width="30" height="22" rx="4"/>
+  </g>
+  <rect x="205" y="104" width="30" height="22" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <text x="220" y="118" text-anchor="middle" style="font-size:10px" fill="var(--teal)">4</text>
+  <text x="422" y="118" class="lbl">out</text>
+
+  <text x="220" y="146" text-anchor="middle" class="formula">.25·6 + .5·4 + .25·2 = 4&#160;&#160;&#160;× 128 threads at once</text>
+</svg>

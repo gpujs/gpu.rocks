@@ -1,0 +1,61 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="A blinker grid is stepped by the kernel to its vertical phase, stepped again back to horizontal, and an arrow feeds each output grid back in as the next input.">
+  <text x="10" y="14" class="lbl-up">THE FEEDBACK LOOP</text>
+  <text x="59" y="34" text-anchor="middle" class="lbl">gen 0</text>
+  <text x="221" y="34" text-anchor="middle" class="lbl">gen 1</text>
+  <text x="383" y="34" text-anchor="middle" class="lbl">gen 2</text>
+
+  <!-- gen 0: horizontal blinker -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="24" y="40" width="14" height="14" rx="2"/><rect x="38" y="40" width="14" height="14" rx="2"/><rect x="52" y="40" width="14" height="14" rx="2"/><rect x="66" y="40" width="14" height="14" rx="2"/><rect x="80" y="40" width="14" height="14" rx="2"/>
+    <rect x="24" y="54" width="14" height="14" rx="2"/><rect x="38" y="54" width="14" height="14" rx="2"/><rect x="52" y="54" width="14" height="14" rx="2"/><rect x="66" y="54" width="14" height="14" rx="2"/><rect x="80" y="54" width="14" height="14" rx="2"/>
+    <rect x="24" y="68" width="14" height="14" rx="2"/><rect x="80" y="68" width="14" height="14" rx="2"/>
+    <rect x="24" y="82" width="14" height="14" rx="2"/><rect x="38" y="82" width="14" height="14" rx="2"/><rect x="52" y="82" width="14" height="14" rx="2"/><rect x="66" y="82" width="14" height="14" rx="2"/><rect x="80" y="82" width="14" height="14" rx="2"/>
+    <rect x="24" y="96" width="14" height="14" rx="2"/><rect x="38" y="96" width="14" height="14" rx="2"/><rect x="52" y="96" width="14" height="14" rx="2"/><rect x="66" y="96" width="14" height="14" rx="2"/><rect x="80" y="96" width="14" height="14" rx="2"/>
+  </g>
+  <g fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.2">
+    <rect x="38" y="68" width="14" height="14" rx="2"/><rect x="52" y="68" width="14" height="14" rx="2"/><rect x="66" y="68" width="14" height="14" rx="2"/>
+  </g>
+
+  <path class="arrow" d="M98 75 H 102" stroke-width="1.4"/>
+  <path class="arrowhead" d="M108 75 l -7 -4 v 8 z"/>
+  <rect x="110" y="63" width="54" height="24" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="137" y="79" text-anchor="middle" style="font-size:10px" fill="var(--blue)">step</text>
+  <path class="arrow" d="M166 75 H 178" stroke-width="1.4"/>
+  <path class="arrowhead" d="M184 75 l -7 -4 v 8 z"/>
+
+  <!-- gen 1: vertical blinker -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="186" y="40" width="14" height="14" rx="2"/><rect x="200" y="40" width="14" height="14" rx="2"/><rect x="214" y="40" width="14" height="14" rx="2"/><rect x="228" y="40" width="14" height="14" rx="2"/><rect x="242" y="40" width="14" height="14" rx="2"/>
+    <rect x="186" y="54" width="14" height="14" rx="2"/><rect x="200" y="54" width="14" height="14" rx="2"/><rect x="228" y="54" width="14" height="14" rx="2"/><rect x="242" y="54" width="14" height="14" rx="2"/>
+    <rect x="186" y="68" width="14" height="14" rx="2"/><rect x="200" y="68" width="14" height="14" rx="2"/><rect x="228" y="68" width="14" height="14" rx="2"/><rect x="242" y="68" width="14" height="14" rx="2"/>
+    <rect x="186" y="82" width="14" height="14" rx="2"/><rect x="200" y="82" width="14" height="14" rx="2"/><rect x="228" y="82" width="14" height="14" rx="2"/><rect x="242" y="82" width="14" height="14" rx="2"/>
+    <rect x="186" y="96" width="14" height="14" rx="2"/><rect x="200" y="96" width="14" height="14" rx="2"/><rect x="214" y="96" width="14" height="14" rx="2"/><rect x="228" y="96" width="14" height="14" rx="2"/><rect x="242" y="96" width="14" height="14" rx="2"/>
+  </g>
+  <g fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.2">
+    <rect x="214" y="54" width="14" height="14" rx="2"/><rect x="214" y="68" width="14" height="14" rx="2"/><rect x="214" y="82" width="14" height="14" rx="2"/>
+  </g>
+
+  <path class="arrow" d="M260 75 H 264" stroke-width="1.4"/>
+  <path class="arrowhead" d="M270 75 l -7 -4 v 8 z"/>
+  <rect x="272" y="63" width="54" height="24" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="299" y="79" text-anchor="middle" style="font-size:10px" fill="var(--blue)">step</text>
+  <path class="arrow" d="M328 75 H 340" stroke-width="1.4"/>
+  <path class="arrowhead" d="M346 75 l -7 -4 v 8 z"/>
+
+  <!-- gen 2: horizontal again -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="348" y="40" width="14" height="14" rx="2"/><rect x="362" y="40" width="14" height="14" rx="2"/><rect x="376" y="40" width="14" height="14" rx="2"/><rect x="390" y="40" width="14" height="14" rx="2"/><rect x="404" y="40" width="14" height="14" rx="2"/>
+    <rect x="348" y="54" width="14" height="14" rx="2"/><rect x="362" y="54" width="14" height="14" rx="2"/><rect x="376" y="54" width="14" height="14" rx="2"/><rect x="390" y="54" width="14" height="14" rx="2"/><rect x="404" y="54" width="14" height="14" rx="2"/>
+    <rect x="348" y="82" width="14" height="14" rx="2"/><rect x="362" y="82" width="14" height="14" rx="2"/><rect x="376" y="82" width="14" height="14" rx="2"/><rect x="390" y="82" width="14" height="14" rx="2"/><rect x="404" y="82" width="14" height="14" rx="2"/>
+    <rect x="348" y="96" width="14" height="14" rx="2"/><rect x="362" y="96" width="14" height="14" rx="2"/><rect x="376" y="96" width="14" height="14" rx="2"/><rect x="390" y="96" width="14" height="14" rx="2"/><rect x="404" y="96" width="14" height="14" rx="2"/>
+    <rect x="348" y="68" width="14" height="14" rx="2"/><rect x="404" y="68" width="14" height="14" rx="2"/>
+  </g>
+  <g fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.2">
+    <rect x="362" y="68" width="14" height="14" rx="2"/><rect x="376" y="68" width="14" height="14" rx="2"/><rect x="390" y="68" width="14" height="14" rx="2"/>
+  </g>
+
+  <!-- the loop back -->
+  <path class="arrow" d="M383 112 V 128 H 59 V 120" stroke-width="1.4"/>
+  <path class="arrowhead" d="M59 114 l -4 7 h 8 z"/>
+  <text x="221" y="144" text-anchor="middle" class="lbl">current = step(current) — output back in</text>
+</svg>

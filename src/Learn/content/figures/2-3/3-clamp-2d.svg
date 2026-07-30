@@ -1,0 +1,50 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Each pixel averages its 3 by 3 neighbourhood; windows that hang off the image edge reuse the nearest border pixel instead of reading out of bounds.">
+  <text x="10" y="14" class="lbl-up">CLAMP AT THE EDGES</text>
+
+  <!-- image grid 8×5 -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="140" y="36" width="18" height="18" rx="3"/><rect x="160" y="36" width="18" height="18" rx="3"/><rect x="180" y="36" width="18" height="18" rx="3"/><rect x="200" y="36" width="18" height="18" rx="3"/><rect x="220" y="36" width="18" height="18" rx="3"/><rect x="240" y="36" width="18" height="18" rx="3"/><rect x="260" y="36" width="18" height="18" rx="3"/><rect x="280" y="36" width="18" height="18" rx="3"/>
+    <rect x="140" y="56" width="18" height="18" rx="3"/><rect x="160" y="56" width="18" height="18" rx="3"/><rect x="180" y="56" width="18" height="18" rx="3"/><rect x="200" y="56" width="18" height="18" rx="3"/><rect x="220" y="56" width="18" height="18" rx="3"/><rect x="240" y="56" width="18" height="18" rx="3"/><rect x="260" y="56" width="18" height="18" rx="3"/><rect x="280" y="56" width="18" height="18" rx="3"/>
+    <rect x="140" y="76" width="18" height="18" rx="3"/><rect x="160" y="76" width="18" height="18" rx="3"/><rect x="180" y="76" width="18" height="18" rx="3"/><rect x="200" y="76" width="18" height="18" rx="3"/><rect x="220" y="76" width="18" height="18" rx="3"/><rect x="240" y="76" width="18" height="18" rx="3"/><rect x="260" y="76" width="18" height="18" rx="3"/><rect x="280" y="76" width="18" height="18" rx="3"/>
+    <rect x="140" y="96" width="18" height="18" rx="3"/><rect x="160" y="96" width="18" height="18" rx="3"/><rect x="180" y="96" width="18" height="18" rx="3"/><rect x="200" y="96" width="18" height="18" rx="3"/><rect x="220" y="96" width="18" height="18" rx="3"/><rect x="240" y="96" width="18" height="18" rx="3"/><rect x="260" y="96" width="18" height="18" rx="3"/><rect x="280" y="96" width="18" height="18" rx="3"/>
+    <rect x="140" y="116" width="18" height="18" rx="3"/><rect x="160" y="116" width="18" height="18" rx="3"/><rect x="180" y="116" width="18" height="18" rx="3"/><rect x="200" y="116" width="18" height="18" rx="3"/><rect x="220" y="116" width="18" height="18" rx="3"/><rect x="240" y="116" width="18" height="18" rx="3"/><rect x="260" y="116" width="18" height="18" rx="3"/><rect x="280" y="116" width="18" height="18" rx="3"/>
+  </g>
+
+  <!-- interior window: 9 reads, 1 average -->
+  <rect x="220" y="76" width="18" height="18" rx="3" fill="var(--blue)" fill-opacity=".18" stroke="var(--blue)" stroke-width="1.4"/>
+  <rect x="198" y="54" width="62" height="62" rx="6" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+
+  <!-- corner window hangs off: phantom cells clamp back -->
+  <g fill="none" stroke="var(--line)" stroke-dasharray="3 3">
+    <rect x="120" y="16" width="18" height="18" rx="3"/><rect x="140" y="16" width="18" height="18" rx="3"/><rect x="160" y="16" width="18" height="18" rx="3"/>
+    <rect x="120" y="36" width="18" height="18" rx="3"/><rect x="120" y="56" width="18" height="18" rx="3"/>
+  </g>
+  <rect x="140" y="36" width="18" height="18" rx="3" fill="var(--amber)" fill-opacity=".20" stroke="var(--amber)" stroke-width="1.4"/>
+  <rect x="117" y="13" width="66" height="66" rx="6" fill="none" stroke="var(--amber)" stroke-width="1.2" stroke-dasharray="4 3" opacity=".85"/>
+  <!-- each out-of-bounds read points at the border cell it reuses -->
+  <g fill="none" stroke="var(--amber)" stroke-width="1.3">
+    <path d="M149 21 V 27"/>
+    <path d="M169 21 V 27"/>
+    <path d="M124 20.5 L 129 25.5"/>
+    <path d="M124 45 H 130"/>
+    <path d="M124 65 H 130"/>
+  </g>
+  <g fill="var(--amber)">
+    <path d="M149 31 l -3.5 -6 h 7 z"/>
+    <path d="M169 31 l -3.5 -6 h 7 z"/>
+    <path transform="translate(132.5,29) rotate(45)" d="M0 0 l -6 -3.5 v 7 z"/>
+    <path d="M134 45 l -6 -3.5 v 7 z"/>
+    <path d="M134 65 l -6 -3.5 v 7 z"/>
+  </g>
+  <text x="10" y="42" style="font-size:9px" fill="var(--amber)">off the edge?</text>
+  <text x="10" y="54" class="lbl">reuse the border</text>
+
+  <!-- output pixel -->
+  <path class="arrow" d="M262 85 H 378" stroke-width="1.5"/>
+  <path class="arrowhead" d="M382 85 l -7 -4 v 8 z"/>
+  <rect x="386" y="76" width="18" height="18" rx="3" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.5"/>
+  <text x="395" y="68" text-anchor="middle" class="lbl">out</text>
+  <text x="320" y="80" text-anchor="middle" class="lbl">avg of 9</text>
+
+  <text x="230" y="148" text-anchor="middle" class="formula">this.color(r/9, g/9, b/9, 1)</text>
+</svg>

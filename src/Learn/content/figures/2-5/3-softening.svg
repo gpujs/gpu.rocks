@@ -1,0 +1,29 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Force against distance: the bare inverse-square law diverges as two bodies approach, while the Plummer-softened version flattens to a finite peak.">
+  <text x="10" y="14" class="lbl-up">PLUMMER: r² → r² + ε²</text>
+
+  <!-- axes -->
+  <line x1="60" y1="22" x2="60" y2="135" class="cellline"/>
+  <line x1="60" y1="135" x2="400" y2="135" class="cellline"/>
+  <text x="60" y="148" text-anchor="middle" class="lbl" style="font-size:9px">0</text>
+  <text x="392" y="148" class="lbl" style="font-size:9px">r →</text>
+  <text x="14" y="30" class="lbl" style="font-size:9px">pull</text>
+
+  <!-- bare 1/r²: off to infinity -->
+  <path d="M134.5 22 L140 37 L148 53.9 L156 66.9 L164 77 L172 85 L188 96.7 L204 104.8 L220 110.5 L252 118 L300 124.1 L340 127 L380 128.9 L396 129.4"
+    fill="none" stroke="var(--lred)" stroke-width="1.6" stroke-linejoin="round"/>
+  <text x="146" y="26" class="lbl" style="font-size:9px" fill="var(--lred)">→ ~10⁶ for the 0.001 pair</text>
+
+  <!-- softened: finite everywhere -->
+  <path d="M60 37 L80 42.9 L100 56.6 L120 72.3 L140 86 L160 95.8 L180 104.8 L220 115.4 L260 121.5 L300 125 L380 129.2 L396 129.7"
+    fill="none" stroke="var(--teal)" stroke-width="1.6" stroke-linejoin="round"/>
+
+  <!-- legend -->
+  <line x1="250" y1="45" x2="268" y2="45" stroke="var(--lred)" stroke-width="1.6"/>
+  <text x="274" y="48" style="font-size:9px" fill="var(--lred)">1/r² — blows up</text>
+  <line x1="250" y1="62" x2="268" y2="62" stroke="var(--teal)" stroke-width="1.6"/>
+  <text x="274" y="65" style="font-size:9px" fill="var(--teal)">1/(r²+ε²) — finite</text>
+
+  <!-- where ε lives -->
+  <line x1="140" y1="131" x2="140" y2="139" stroke="var(--amber)" stroke-width="1.5"/>
+  <text x="140" y="149" text-anchor="middle" style="font-size:9px" fill="var(--amber)">ε</text>
+</svg>

@@ -1,0 +1,31 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Two orbits of z squared plus c: with c = −1 the orbit bounces between 0 and −1 inside the radius-2 circle forever and the count hits 100; with c = 0.5 the orbit races past the circle after five steps.">
+  <text x="14" y="14" class="lbl-up">C = −1 — BOUNDED</text>
+  <text x="232" y="14" class="lbl-up">C = 0.5 — ESCAPES</text>
+  <line x1="220" y1="24" x2="220" y2="130" class="cellline"/>
+
+  <!-- bounded: 2-cycle 0 <-> -1 -->
+  <circle cx="110" cy="78" r="44" fill="none" stroke="var(--line)"/>
+  <text x="146" y="44" class="lbl">|z| = 2</text>
+  <circle cx="110" cy="78" r="3" fill="var(--teal)"/>
+  <circle cx="88" cy="78" r="3" fill="var(--teal)"/>
+  <text x="112" y="94" text-anchor="middle" class="lbl">0</text>
+  <text x="86" y="94" text-anchor="middle" class="lbl">−1</text>
+  <path class="arrow" d="M106 73 Q 99 65 92 73" stroke="var(--teal)" stroke-width="1.4"/>
+  <path d="M0 0 l -7 -4 v 8 z" transform="translate(92 73) rotate(131)" fill="var(--teal)"/>
+  <path class="arrow" d="M92 83 Q 99 91 106 83" stroke="var(--teal)" stroke-width="1.4"/>
+  <path d="M0 0 l -7 -4 v 8 z" transform="translate(106 83) rotate(-49)" fill="var(--teal)"/>
+  <text x="110" y="142" text-anchor="middle" style="font-size:10px" fill="var(--teal)">count = 100 → in the set</text>
+
+  <!-- escaping: 0, .5, .75, 1.06, 1.63, 3.15 -->
+  <circle cx="330" cy="78" r="44" fill="none" stroke="var(--line)"/>
+  <path class="arrow" d="M330 78 H 391" stroke="var(--blue)" stroke-width="1.4"/>
+  <path d="M397 78 l -7 -4 v 8 z" fill="var(--blue)"/>
+  <circle cx="330" cy="78" r="2.5" fill="var(--blue)"/>
+  <circle cx="341" cy="78" r="2.5" fill="var(--blue)"/>
+  <circle cx="346.5" cy="78" r="2.5" fill="var(--blue)"/>
+  <circle cx="353.4" cy="78" r="2.5" fill="var(--blue)"/>
+  <circle cx="365.8" cy="78" r="2.5" fill="var(--blue)"/>
+  <path d="M395 74 L 403 82 M403 74 L 395 82" stroke="var(--lred)" stroke-width="1.6" fill="none"/>
+  <text x="399" y="66" text-anchor="middle" style="font-size:10px" fill="var(--lred)">gone</text>
+  <text x="330" y="142" text-anchor="middle" style="font-size:10px" fill="var(--blue)">count = 5 → shade 5/100</text>
+</svg>

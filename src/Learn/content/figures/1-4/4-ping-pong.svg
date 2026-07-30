@@ -1,0 +1,40 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="A pipeline kernel reading the very texture it is writing is forbidden; with immutable true each call renders a fresh texture — state 0 to state 1 to state 2 and so on — so the previous step's output stays readable.">
+  <text x="10" y="14" class="lbl-up">FEEDBACK: STATE n → STATE n+1</text>
+
+  <!-- the crime: read what you're writing -->
+  <rect x="36" y="26" width="76" height="26" rx="8" fill="var(--surface)" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="74" y="43" text-anchor="middle" style="font-size:10px;fill:var(--blue)">step</text>
+  <path d="M112 32 C 148 22, 148 56, 112 46" fill="none" stroke="var(--lred)" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <path fill="var(--lred)" d="M112 46 l 8 -4 v 8 z"/>
+  <text x="152" y="43" style="font-size:11px;fill:var(--lred)">✗</text>
+  <text x="168" y="38" class="lbl">reads the very texture it's writing —</text>
+  <text x="168" y="52" class="lbl">gpu.js: “use immutable = true”</text>
+
+  <line x1="10" y1="68" x2="430" y2="68" class="cellline"/>
+
+  <!-- the fix: a fresh texture per call -->
+  <g fill="var(--teal)" fill-opacity=".12" stroke="var(--teal)" stroke-width="1.4">
+    <rect x="10" y="84" width="58" height="24" rx="8"/>
+    <rect x="104" y="84" width="58" height="24" rx="8"/>
+    <rect x="198" y="84" width="58" height="24" rx="8"/>
+    <rect x="306" y="84" width="68" height="24" rx="8"/>
+  </g>
+  <g style="font-size:9px;fill:var(--teal)" text-anchor="middle">
+    <text x="39" y="99">state₀</text>
+    <text x="133" y="99">state₁</text>
+    <text x="227" y="99">state₂</text>
+    <text x="340" y="99">state₁₂</text>
+  </g>
+  <g class="arrow" stroke-width="1.2">
+    <path d="M72 96 H 94"/><path d="M166 96 H 188"/><path d="M260 96 H 268"/><path d="M292 96 H 298"/>
+  </g>
+  <g class="arrowhead">
+    <path d="M100 96 l -7 -4 v 8 z"/><path d="M194 96 l -7 -4 v 8 z"/><path d="M274 96 l -7 -4 v 8 z"/><path d="M302 96 l -7 -4 v 8 z"/>
+  </g>
+  <text x="86" y="88" text-anchor="middle" style="font-size:8px;fill:var(--blue)">step</text>
+  <text x="180" y="88" text-anchor="middle" style="font-size:8px;fill:var(--blue)">step</text>
+  <text x="282" y="99" class="lbl">…</text>
+
+  <text x="10" y="128" class="lbl">immutable: true — every call renders a fresh texture,</text>
+  <text x="10" y="142" class="lbl">so last step's output stays safe to read</text>
+</svg>

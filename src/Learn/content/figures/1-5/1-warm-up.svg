@@ -1,0 +1,32 @@
+<svg viewBox="0 0 440 148" role="img" aria-label="Call one's timeline bar is dominated by transpile, driver compile and allocate segments before a tiny run segment; calls two, three and four are only the tiny run segment — the steady state worth measuring.">
+  <text x="10" y="14" class="lbl-up">EVERY CALL, TIMED</text>
+
+  <!-- call 1: the compiler's bar -->
+  <text x="321" y="20" text-anchor="middle" style="font-size:8px;fill:var(--blue)">run</text>
+  <g fill="var(--amber)" fill-opacity=".35" stroke="var(--amber)" stroke-width="1">
+    <rect x="70" y="24" width="80" height="18" rx="2"/>
+    <rect x="150" y="24" width="120" height="18" rx="2"/>
+    <rect x="270" y="24" width="40" height="18" rx="2"/>
+  </g>
+  <rect x="310" y="24" width="22" height="18" rx="2" fill="var(--blue)"/>
+  <g style="font-size:8px" text-anchor="middle">
+    <text x="110" y="36">transpile</text>
+    <text x="210" y="36">driver compile</text>
+    <text x="290" y="36">alloc</text>
+  </g>
+  <text x="10" y="37" class="lbl">call 1</text>
+  <text x="340" y="36" class="lbl">→ discard</text>
+
+  <!-- warm calls: just the run -->
+  <rect x="70" y="52" width="22" height="18" rx="2" fill="var(--blue)"/>
+  <text x="10" y="65" class="lbl">call 2</text>
+  <rect x="70" y="76" width="22" height="18" rx="2" fill="var(--blue)"/>
+  <text x="10" y="89" class="lbl">call 3</text>
+  <rect x="70" y="100" width="22" height="18" rx="2" fill="var(--blue)"/>
+  <text x="10" y="113" class="lbl">call 4</text>
+  <text x="104" y="89" class="lbl">steady state — measure these</text>
+
+  <path class="arrow" d="M70 128 H 414" stroke-width="1.2"/>
+  <path class="arrowhead" d="M420 128 l -7 -4 v 8 z"/>
+  <text x="70" y="142" class="lbl">time →</text>
+</svg>

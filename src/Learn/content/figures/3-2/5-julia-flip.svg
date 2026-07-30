@@ -1,0 +1,41 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Mandelbrot and Julia run the same loop with roles swapped: Mandelbrot starts z at 0 and takes c from the pixel; Julia starts z at the pixel and shares one c — a dial — across all threads.">
+  <text x="14" y="14" class="lbl-up">MANDELBROT</text>
+  <text x="232" y="14" class="lbl-up">JULIA</text>
+  <line x1="220" y1="24" x2="220" y2="132" class="cellline"/>
+
+  <!-- mandelbrot: c comes from the pixel -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="14" y="30" width="18" height="18" rx="3"/><rect x="32" y="30" width="18" height="18" rx="3"/><rect x="50" y="30" width="18" height="18" rx="3"/>
+    <rect x="14" y="48" width="18" height="18" rx="3"/><rect x="32" y="48" width="18" height="18" rx="3"/><rect x="50" y="48" width="18" height="18" rx="3"/>
+    <rect x="14" y="66" width="18" height="18" rx="3"/><rect x="32" y="66" width="18" height="18" rx="3"/><rect x="50" y="66" width="18" height="18" rx="3"/>
+  </g>
+  <rect x="32" y="48" width="18" height="18" rx="3" fill="none" stroke="var(--pink)" stroke-width="2"/>
+  <path class="arrow" d="M72 60 L 94 71" stroke-width="1.4"/>
+  <path class="arrowhead" d="M0 0 l -7 -4 v 8 z" transform="translate(98 73) rotate(26)"/>
+  <rect x="102" y="32" width="104" height="22" rx="6" fill="none" stroke="var(--line)"/>
+  <text x="154" y="47" text-anchor="middle" class="lbl">z₀ = 0</text>
+  <rect x="102" y="62" width="104" height="22" rx="6" fill="none" stroke="var(--pink)" stroke-width="1.5"/>
+  <text x="154" y="77" text-anchor="middle" style="font-size:10px" fill="var(--pink)">c ← my pixel</text>
+  <rect x="102" y="100" width="104" height="24" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="154" y="116" text-anchor="middle" style="font-size:10px" fill="var(--blue)">z → z² + c</text>
+  <text x="110" y="144" text-anchor="middle" class="lbl">a different c per thread</text>
+
+  <!-- julia: z0 comes from the pixel, c is a dial -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="232" y="30" width="18" height="18" rx="3"/><rect x="250" y="30" width="18" height="18" rx="3"/><rect x="268" y="30" width="18" height="18" rx="3"/>
+    <rect x="232" y="48" width="18" height="18" rx="3"/><rect x="250" y="48" width="18" height="18" rx="3"/><rect x="268" y="48" width="18" height="18" rx="3"/>
+    <rect x="232" y="66" width="18" height="18" rx="3"/><rect x="250" y="66" width="18" height="18" rx="3"/><rect x="268" y="66" width="18" height="18" rx="3"/>
+  </g>
+  <rect x="250" y="48" width="18" height="18" rx="3" fill="none" stroke="var(--pink)" stroke-width="2"/>
+  <path class="arrow" d="M290 57 L 312 47" stroke-width="1.4"/>
+  <path class="arrowhead" d="M0 0 l -7 -4 v 8 z" transform="translate(316 45) rotate(-24)"/>
+  <rect x="320" y="32" width="110" height="22" rx="6" fill="none" stroke="var(--pink)" stroke-width="1.5"/>
+  <text x="375" y="47" text-anchor="middle" style="font-size:10px" fill="var(--pink)">z₀ ← my pixel</text>
+  <circle cx="303" cy="73" r="7" fill="none" stroke="var(--amber)" stroke-width="1.5"/>
+  <line x1="303" y1="73" x2="307" y2="68" stroke="var(--amber)" stroke-width="1.5"/>
+  <rect x="320" y="62" width="110" height="22" rx="6" fill="none" stroke="var(--amber)" stroke-width="1.5"/>
+  <text x="375" y="77" text-anchor="middle" style="font-size:10px" fill="var(--amber)">c = the dial</text>
+  <rect x="320" y="100" width="110" height="24" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="375" y="116" text-anchor="middle" style="font-size:10px" fill="var(--blue)">z → z² + c</text>
+  <text x="330" y="144" text-anchor="middle" class="lbl">one shared c — turn it, redraw</text>
+</svg>

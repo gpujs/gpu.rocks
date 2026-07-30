@@ -1,0 +1,31 @@
+<svg viewBox="0 0 440 140" role="img" aria-label="Two timing bars for the same plus-one kernel: 1,024 values spend little time in upload and download, 65,536 values spend far longer moving bytes — while the blue compute sliver stays the same size in both.">
+  <text x="10" y="14" class="lbl-up">SAME KERNEL, 64× THE DATA</text>
+
+  <!-- small payload -->
+  <g fill="var(--amber)" fill-opacity=".35" stroke="var(--amber)" stroke-width="1">
+    <rect x="70" y="28" width="50" height="18" rx="2"/>
+    <rect x="134" y="28" width="50" height="18" rx="2"/>
+  </g>
+  <rect x="120" y="28" width="14" height="18" rx="2" fill="var(--blue)"/>
+  <text x="10" y="41" class="lbl">small</text>
+  <text x="196" y="41" class="lbl">1,024 values</text>
+
+  <!-- big payload: same math, 64× the ride -->
+  <g fill="var(--amber)" fill-opacity=".35" stroke="var(--amber)" stroke-width="1">
+    <rect x="70" y="62" width="165" height="18" rx="2"/>
+    <rect x="249" y="62" width="165" height="18" rx="2"/>
+  </g>
+  <rect x="235" y="62" width="14" height="18" rx="2" fill="var(--blue)"/>
+  <g style="font-size:8px" text-anchor="middle">
+    <text x="152" y="74">upload</text>
+    <text x="331" y="74">download</text>
+  </g>
+  <text x="10" y="75" class="lbl">big</text>
+  <text x="414" y="94" text-anchor="end" class="lbl">65,536 values</text>
+
+  <path class="arrow" d="M70 106 H 414" stroke-width="1.2"/>
+  <path class="arrowhead" d="M420 106 l -7 -4 v 8 z"/>
+  <text x="70" y="120" class="lbl">ms/call →</text>
+
+  <text x="10" y="136" class="lbl">the blue sliver — the actual +1 — never grows</text>
+</svg>

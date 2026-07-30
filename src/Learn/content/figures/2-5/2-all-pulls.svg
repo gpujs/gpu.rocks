@@ -1,0 +1,41 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="One body feels a pull from every other body; a single thread loops over all of them, summing mass times offset over r cubed into one net acceleration.">
+  <text x="10" y="14" class="lbl-up">EVERY BODY PULLS ON EVERY BODY</text>
+
+  <!-- the other bodies -->
+  <g fill="var(--ink)" fill-opacity=".35">
+    <circle cx="45" cy="40" r="5"/><circle cx="205" cy="38" r="4"/><circle cx="95" cy="132" r="5"/>
+    <circle cx="250" cy="95" r="5"/><circle cx="60" cy="105" r="4"/><circle cx="150" cy="22" r="3"/>
+  </g>
+
+  <!-- their pulls on me -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.3">
+    <path d="M51 42.5 L 123 72.9"/>
+    <path d="M198.9 41.5 L 147.2 71.1"/>
+    <path d="M99.2 126.4 L 126.7 89.2"/>
+    <path d="M242.6 93.9 L 148.9 80"/>
+    <path d="M66.6 102.6 L 121.8 82.7"/>
+    <path d="M148.2 28.8 L 138.6 64.5"/>
+  </g>
+  <g fill="var(--blue)">
+    <path transform="translate(125.8,74.1) rotate(22.9)" d="M0 0 l -8 -3.5 v 7 z"/>
+    <path transform="translate(143.7,73) rotate(150.3)" d="M0 0 l -8 -3.5 v 7 z"/>
+    <path transform="translate(129,86) rotate(-53.5)" d="M0 0 l -8 -3.5 v 7 z"/>
+    <path transform="translate(144.9,79.5) rotate(-171.6)" d="M0 0 l -8 -3.5 v 7 z"/>
+    <path transform="translate(125.6,81.4) rotate(-19.8)" d="M0 0 l -8 -3.5 v 7 z"/>
+    <path transform="translate(137.6,68.3) rotate(105)" d="M0 0 l -8 -3.5 v 7 z"/>
+  </g>
+
+  <!-- me, and the summed pull -->
+  <circle cx="135" cy="78" r="6" fill="var(--pink)" fill-opacity=".25" stroke="var(--pink)" stroke-width="1.6"/>
+  <text x="112" y="70" style="font-size:9px" fill="var(--pink)">me</text>
+  <path d="M140 85 L 163 103" fill="none" stroke="var(--teal)" stroke-width="2"/>
+  <path transform="translate(168,107) rotate(38)" d="M0 0 l -9 -4 v 8 z" fill="var(--teal)"/>
+  <text x="174" y="111" style="font-size:9px" fill="var(--teal)">net a</text>
+
+  <!-- the loop that sums them -->
+  <rect x="270" y="32" width="160" height="44" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="280" y="50" class="formula">for (j of n):</text>
+  <text x="280" y="66" class="formula">a += m[j]·d / r³</text>
+  <text x="280" y="96" class="lbl">63 pulls, one thread</text>
+  <text x="280" y="112" class="lbl">× 64 threads at once</text>
+</svg>

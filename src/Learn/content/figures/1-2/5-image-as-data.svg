@@ -1,0 +1,55 @@
+<svg viewBox="0 0 440 130" role="img" aria-label="One highlighted pixel of a photo expands into its four channel numbers r, g, b, a; the average formula (r + g + b) / 3 turns them into a single number instead of a color.">
+  <text x="10" y="14" class="lbl-up">A PIXEL IS FOUR NUMBERS</text>
+
+  <!-- the photo -->
+  <g>
+    <rect x="10" y="26" width="20" height="20" rx="3" fill="#5fae5c"/>
+    <rect x="32" y="26" width="20" height="20" rx="3" fill="#5d8fd6"/>
+    <rect x="54" y="26" width="20" height="20" rx="3" fill="#d9a441"/>
+    <rect x="10" y="48" width="20" height="20" rx="3" fill="#9a67c9"/>
+    <rect x="32" y="48" width="20" height="20" rx="3" fill="#e0635f"/>
+    <rect x="54" y="48" width="20" height="20" rx="3" fill="#4fb8a5"/>
+    <rect x="10" y="70" width="20" height="20" rx="3" fill="#d9a441"/>
+    <rect x="32" y="70" width="20" height="20" rx="3" fill="#5d8fd6"/>
+    <rect x="54" y="70" width="20" height="20" rx="3" fill="#5fae5c"/>
+    <!-- this thread's pixel -->
+    <rect x="32" y="48" width="20" height="20" rx="3" fill="#e0635f" stroke="var(--pink)" stroke-width="2.5"/>
+  </g>
+  <text x="10" y="116" class="lbl">photo[y][x]</text>
+
+  <path class="arrow" d="M78 58 H 104" stroke-width="1.5"/>
+  <path class="arrowhead" d="M110 58 l -7 -4 v 8 z"/>
+
+  <!-- the four channels -->
+  <g style="font-size:8px" text-anchor="middle">
+    <text x="133" y="41" class="lbl" style="font-size:8px">r</text>
+    <text x="171" y="41" class="lbl" style="font-size:8px">g</text>
+    <text x="209" y="41" class="lbl" style="font-size:8px">b</text>
+    <text x="247" y="41" class="lbl" style="font-size:8px">a</text>
+  </g>
+  <g fill="none" stroke="var(--line)">
+    <rect x="116" y="47" width="34" height="22" rx="4"/>
+    <rect x="154" y="47" width="34" height="22" rx="4"/>
+    <rect x="192" y="47" width="34" height="22" rx="4"/>
+    <rect x="230" y="47" width="34" height="22" rx="4"/>
+  </g>
+  <g style="font-size:9px" text-anchor="middle">
+    <text x="133" y="62">.88</text><text x="171" y="62">.39</text><text x="209" y="62">.37</text><text x="247" y="62">1.0</text>
+  </g>
+  <text x="116" y="116" class="lbl">[r, g, b, a] · each 0–1</text>
+
+  <path class="arrow" d="M268 58 H 292" stroke-width="1.5"/>
+  <path class="arrowhead" d="M298 58 l -7 -4 v 8 z"/>
+
+  <!-- the formula -->
+  <rect x="302" y="44" width="86" height="28" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="345" y="62" text-anchor="middle" class="formula">(r+g+b)/3</text>
+
+  <path class="arrow" d="M392 58 H 404" stroke-width="1.5"/>
+  <path class="arrowhead" d="M410 58 l -7 -4 v 8 z"/>
+
+  <!-- a number, not a color -->
+  <rect x="412" y="47" width="26" height="22" rx="3" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <text x="425" y="62" text-anchor="middle" style="font-size:9px;fill:var(--teal)">.55</text>
+  <text x="438" y="116" text-anchor="end" class="lbl">a number, not a color</text>
+</svg>

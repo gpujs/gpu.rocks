@@ -1,0 +1,44 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="One halving step: each element adds its partner one output-width away, folding eight values into four while preserving the total.">
+  <text x="10" y="14" class="lbl-up">ONE RUNG</text>
+  <text x="157" y="16" text-anchor="middle" class="lbl">partner = x + this.output.x</text>
+  <path class="arrow" d="M73 30 v -5 h 168 v 5" stroke-width="1.1"/>
+
+  <!-- top row: 8 values -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="98" y="32" width="34" height="22" rx="4"/><rect x="140" y="32" width="34" height="22" rx="4"/><rect x="182" y="32" width="34" height="22" rx="4"/>
+    <rect x="266" y="32" width="34" height="22" rx="4"/><rect x="308" y="32" width="34" height="22" rx="4"/><rect x="350" y="32" width="34" height="22" rx="4"/>
+  </g>
+  <rect x="56" y="32" width="34" height="22" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <rect x="224" y="32" width="34" height="22" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="73" y="46">3</text><text x="115" y="46">1</text><text x="157" y="46">4</text><text x="199" y="46">1</text>
+    <text x="241" y="46">5</text><text x="283" y="46">9</text><text x="325" y="46">2</text><text x="367" y="46">6</text>
+  </g>
+  <text x="398" y="46" class="lbl">8 in</text>
+
+  <!-- fold arrows -->
+  <g class="arrow" stroke-width="1.1" opacity=".45">
+    <path d="M115 56 L 199 98"/><path d="M283 56 L 199 98"/>
+    <path d="M157 56 L 241 98"/><path d="M325 56 L 241 98"/>
+    <path d="M199 56 L 283 98"/><path d="M367 56 L 283 98"/>
+  </g>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.3">
+    <path d="M73 56 L 154 96.5"/><path d="M241 56 L 160 96.5"/>
+  </g>
+  <g fill="var(--pink)">
+    <path d="M157 98 L 148.4 97.6 L 151.5 91.2 Z"/>
+    <path d="M157 98 L 165.7 97.6 L 162.6 91.2 Z"/>
+  </g>
+
+  <!-- bottom row: 4 pair sums -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="182" y="100" width="34" height="22" rx="4"/><rect x="224" y="100" width="34" height="22" rx="4"/><rect x="266" y="100" width="34" height="22" rx="4"/>
+  </g>
+  <rect x="140" y="100" width="34" height="22" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="157" y="114" fill="var(--teal)">8</text><text x="199" y="114">10</text><text x="241" y="114">6</text><text x="283" y="114">7</text>
+  </g>
+  <text x="312" y="114" class="lbl">total still 31</text>
+
+  <text x="220" y="142" text-anchor="middle" class="formula">return data[x] + data[x + this.output.x]</text>
+</svg>

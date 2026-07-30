@@ -10,6 +10,7 @@ import LearnNav from '../components/LearnNav';
 import TaskDots from '../components/TaskDots';
 import { useTheme } from '../ThemeContext';
 import { tracks, modules, getTask } from '../content/index';
+import { getFigures } from '../content/figures/index';
 import { runUserCode, runTests, snapshotCanvas, utils } from '../engine/runner';
 import { runBenchmark } from '../engine/benchmark';
 import {
@@ -184,15 +185,28 @@ function TestsPanel({ task, report, active }) {
 // ---- brief pane ------------------------------------------------------------
 
 // All HTML fragments here are trusted: course content authored in this repo.
-function BriefPane({ task, taskNum, total }) {
+// That includes the figure SVGs — in-repo markup, injected verbatim.
+function Figures({ figures }) {
+  return figures.map((fig, i) => (
+    <figure className="diagram" key={i}>
+      <div dangerouslySetInnerHTML={{ __html: fig.svg }} />
+      <figcaption>{fig.caption}</figcaption>
+    </figure>
+  ));
+}
+
+function BriefPane({ moduleId, task, taskNum, total }) {
+  const figures = getFigures(moduleId, taskNum);
   return (
     <aside className="brief">
       <p className="eyebrow">Task {taskNum} of {total}</p>
       <h2>{task.title}</h2>
       <div dangerouslySetInnerHTML={{ __html: task.intro || '' }} />
+      <Figures figures={figures.filter(f => f.placement === 'intro')} />
       {task.goal && (
         <div className="goal" dangerouslySetInnerHTML={{ __html: task.goal }} />
       )}
+      <Figures figures={figures.filter(f => f.placement === 'goal')} />
       {Array.isArray(task.requirements) && task.requirements.length > 0 && (
         <ul className="reqs">
           {task.requirements.map((req, i) => (
@@ -481,7 +495,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
       </div>
 
       <div className="workspace">
-        <BriefPane task={task} taskNum={taskNum} total={total} />
+        <BriefPane moduleId={module.id} task={task} taskNum={taskNum} total={total} />
 
         <div className="editpane">
           <div className={fullscreen ? 'editor editor-fullscreen' : 'editor'}>

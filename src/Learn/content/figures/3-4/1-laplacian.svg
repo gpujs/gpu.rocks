@@ -1,0 +1,29 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="The five-point Laplacian gathers the left, right, up and down values, subtracts four times the center, and yields −0.4 here — the center sits above its neighbors' average, so it flows out.">
+  <text x="10" y="14" class="lbl-up">READ 5, WRITE 1</text>
+
+  <!-- cross stencil -->
+  <g text-anchor="middle" style="font-size:10px">
+    <rect x="65" y="22" width="30" height="30" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="80" y="41">0.6</text>
+    <rect x="32" y="55" width="30" height="30" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="47" y="74">0.2</text>
+    <rect x="65" y="55" width="30" height="30" rx="4" fill="none" stroke="var(--pink)" stroke-width="2"/><text x="80" y="74">0.4</text>
+    <rect x="98" y="55" width="30" height="30" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="113" y="74">0.3</text>
+    <rect x="65" y="88" width="30" height="30" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="80" y="107">0.1</text>
+  </g>
+
+  <!-- formula -->
+  <path class="arrow" d="M132 70 H 146" stroke-width="1.5"/>
+  <path class="arrowhead" d="M152 70 l -7 -4 v 8 z"/>
+  <rect x="158" y="48" width="176" height="44" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="246" y="66" text-anchor="middle" class="formula">lap = 0.2+0.3+0.6+0.1</text>
+  <text x="246" y="82" text-anchor="middle" class="formula">− 4·0.4 = −0.4</text>
+
+  <!-- result -->
+  <path class="arrow" d="M338 70 H 350" stroke-width="1.5"/>
+  <path class="arrowhead" d="M356 70 l -7 -4 v 8 z"/>
+  <rect x="362" y="56" width="64" height="28" rx="8" fill="none" stroke="var(--teal)" stroke-width="1.6"/>
+  <text x="394" y="74" text-anchor="middle" style="font-size:10px" fill="var(--teal)">−0.4</text>
+  <text x="394" y="104" text-anchor="middle" class="lbl">flows out</text>
+  <text x="394" y="118" text-anchor="middle" class="lbl">(above avg)</text>
+
+  <text x="32" y="142" class="lbl">torus: left of column 0 is column 31</text>
+</svg>

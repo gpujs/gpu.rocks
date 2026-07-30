@@ -1,0 +1,41 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="One kernel function fans out into sixteen threads, each filling its own output cell with 42 at the same instant.">
+  <text x="10" y="14" class="lbl-up">ONE FUNCTION, 16 THREADS</text>
+
+  <!-- the kernel function, written once -->
+  <rect x="130" y="22" width="180" height="30" rx="8" fill="var(--surface)" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="220" y="41" text-anchor="middle" style="font-size:10px;fill:var(--blue)">function () { return 42 }</text>
+
+  <!-- one launch -->
+  <path class="arrow" d="M220 52 V 65" stroke-width="1.5"/>
+  <path class="arrowhead" d="M220 72 l -4 -7 h 8 z"/>
+
+  <!-- the launch comb: 16 simultaneous threads -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.2">
+    <path d="M40 76 H 400"/>
+    <path d="M40 76 V 86 M64 76 V 86 M88 76 V 86 M112 76 V 86 M136 76 V 86 M160 76 V 86 M184 76 V 86 M208 76 V 86 M232 76 V 86 M256 76 V 86 M280 76 V 86 M304 76 V 86 M328 76 V 86 M352 76 V 86 M376 76 V 86 M400 76 V 86"/>
+  </g>
+  <g fill="var(--blue)">
+    <path d="M40 92 l -3.5 -6 h 7 z"/><path d="M64 92 l -3.5 -6 h 7 z"/><path d="M88 92 l -3.5 -6 h 7 z"/><path d="M112 92 l -3.5 -6 h 7 z"/>
+    <path d="M136 92 l -3.5 -6 h 7 z"/><path d="M160 92 l -3.5 -6 h 7 z"/><path d="M184 92 l -3.5 -6 h 7 z"/><path d="M208 92 l -3.5 -6 h 7 z"/>
+    <path d="M232 92 l -3.5 -6 h 7 z"/><path d="M256 92 l -3.5 -6 h 7 z"/><path d="M280 92 l -3.5 -6 h 7 z"/><path d="M304 92 l -3.5 -6 h 7 z"/>
+    <path d="M328 92 l -3.5 -6 h 7 z"/><path d="M352 92 l -3.5 -6 h 7 z"/><path d="M376 92 l -3.5 -6 h 7 z"/><path d="M400 92 l -3.5 -6 h 7 z"/>
+  </g>
+  <text x="400" y="66" text-anchor="end" style="font-size:9px;fill:var(--blue)">16 threads</text>
+
+  <!-- the 16 output cells -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="30" y="94" width="20" height="22" rx="3"/><rect x="54" y="94" width="20" height="22" rx="3"/><rect x="78" y="94" width="20" height="22" rx="3"/><rect x="102" y="94" width="20" height="22" rx="3"/>
+    <rect x="126" y="94" width="20" height="22" rx="3"/><rect x="150" y="94" width="20" height="22" rx="3"/><rect x="174" y="94" width="20" height="22" rx="3"/><rect x="198" y="94" width="20" height="22" rx="3"/>
+    <rect x="222" y="94" width="20" height="22" rx="3"/><rect x="246" y="94" width="20" height="22" rx="3"/><rect x="270" y="94" width="20" height="22" rx="3"/><rect x="294" y="94" width="20" height="22" rx="3"/>
+    <rect x="318" y="94" width="20" height="22" rx="3"/><rect x="342" y="94" width="20" height="22" rx="3"/><rect x="366" y="94" width="20" height="22" rx="3"/><rect x="390" y="94" width="20" height="22" rx="3"/>
+  </g>
+  <g style="font-size:9px" text-anchor="middle">
+    <text x="40" y="109">42</text><text x="64" y="109">42</text><text x="88" y="109">42</text><text x="112" y="109">42</text>
+    <text x="136" y="109">42</text><text x="160" y="109">42</text><text x="184" y="109">42</text><text x="208" y="109">42</text>
+    <text x="232" y="109">42</text><text x="256" y="109">42</text><text x="280" y="109">42</text><text x="304" y="109">42</text>
+    <text x="328" y="109">42</text><text x="352" y="109">42</text><text x="376" y="109">42</text><text x="400" y="109">42</text>
+  </g>
+
+  <text x="30" y="136" class="lbl">output: [16]</text>
+  <text x="410" y="136" text-anchor="end" class="lbl">one call → 16 values</text>
+</svg>

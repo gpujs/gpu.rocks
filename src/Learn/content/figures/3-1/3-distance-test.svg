@@ -1,0 +1,25 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="A sine curve crosses the canvas; a pixel far from the curve measures vertical distance 43 and stays background, while a pixel within 2 pixels of the curve lights up amber.">
+  <text x="10" y="14" class="lbl-up">ONE QUESTION PER PIXEL: HOW FAR IS THE CURVE?</text>
+
+  <!-- the curve y = f(x) -->
+  <path d="M24 84 C 52 66, 64 50, 92 50 C 120 50, 132 66, 160 84 C 188 102, 200 118, 228 118 C 256 118, 268 102, 296 84"
+    fill="none" stroke="var(--amber)" stroke-width="2"/>
+
+  <!-- a lit pixel, sitting on the curve -->
+  <rect x="86" y="44" width="12" height="12" rx="2" fill="var(--amber)"/>
+  <text x="12" y="40" style="font-size:10px" fill="var(--amber)">d &lt; 2 → lit</text>
+
+  <!-- a distant pixel, measuring -->
+  <rect x="148" y="26" width="12" height="12" rx="2" fill="none" stroke="var(--pink)" stroke-width="2"/>
+  <path class="arrow" d="M154 42 V 71" stroke="var(--pink)" stroke-width="1.5"/>
+  <path d="M154 78 l -4 -7 h 8 z" fill="var(--pink)"/>
+  <text x="162" y="60" style="font-size:10px" fill="var(--pink)">d = 43 → background</text>
+
+  <!-- formula box -->
+  <rect x="304" y="38" width="130" height="46" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="369" y="56" text-anchor="middle" class="formula">curveY = 64 +</text>
+  <text x="369" y="71" text-anchor="middle" class="formula">40·sin(2πx/128)</text>
+  <text x="369" y="106" text-anchor="middle" class="lbl">|y − curveY| &lt; 2</text>
+
+  <text x="24" y="146" class="lbl">every column, every row — 16,384 answers at once</text>
+</svg>

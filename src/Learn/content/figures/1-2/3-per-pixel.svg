@@ -1,0 +1,46 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Each pixel of the input image is processed by its own thread, which applies the luminance formula and writes one gray output pixel.">
+  <!-- input image grid -->
+  <text x="10" y="14" class="lbl-up">IMAGE[Y][X]</text>
+  <g>
+    <rect x="10" y="22" width="24" height="24" rx="3" fill="#e0635f"/>
+    <rect x="38" y="22" width="24" height="24" rx="3" fill="#5fae5c"/>
+    <rect x="10" y="50" width="24" height="24" rx="3" fill="#5d8fd6"/>
+    <rect x="38" y="50" width="24" height="24" rx="3" fill="#d9a441"/>
+    <rect x="10" y="78" width="24" height="24" rx="3" fill="#9a67c9"/>
+    <rect x="38" y="78" width="24" height="24" rx="3" fill="#4fb8a5"/>
+    <!-- highlighted pixel -->
+    <rect x="38" y="50" width="24" height="24" rx="3" fill="#d9a441" stroke="var(--pink)" stroke-width="2.5"/>
+  </g>
+  <text x="10" y="122" class="lbl">512 × 512 pixels</text>
+
+  <!-- arrow into thread -->
+  <path class="arrow" d="M70 62 H 108" stroke-width="1.5"/>
+  <path class="arrowhead" d="M108 62 l -7 -4 v 8 z"/>
+
+  <!-- thread chip -->
+  <rect x="114" y="44" width="106" height="36" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="167" y="60" text-anchor="middle" style="font-size:10px" fill="var(--blue)">one thread</text>
+  <text x="167" y="73" text-anchor="middle" class="lbl">this.thread.x, y</text>
+  <!-- 262,143 siblings hint -->
+  <rect x="120" y="86" width="106" height="12" rx="4" fill="none" stroke="var(--line)"/>
+  <rect x="126" y="102" width="106" height="12" rx="4" fill="none" stroke="var(--line)"/>
+  <text x="238" y="112" class="lbl">× 262,144 at once</text>
+
+  <!-- arrow to formula -->
+  <path class="arrow" d="M226 62 H 258 " stroke-width="1.5"/>
+  <path class="arrowhead" d="M258 62 l -7 -4 v 8 z"/>
+
+  <!-- formula box -->
+  <rect x="264" y="40" width="104" height="44" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="316" y="58" text-anchor="middle" class="formula">L = .299R</text>
+  <text x="316" y="72" text-anchor="middle" class="formula">+ .587G + .114B</text>
+
+  <!-- arrow to output -->
+  <path class="arrow" d="M374 62 H 400" stroke-width="1.5"/>
+  <path class="arrowhead" d="M400 62 l -7 -4 v 8 z"/>
+
+  <!-- output pixel -->
+  <text x="404" y="34" class="lbl-up">OUT</text>
+  <rect x="404" y="50" width="24" height="24" rx="3" fill="var(--ink)" fill-opacity=".55" stroke="var(--teal)" stroke-width="2"/>
+  <text x="404" y="96" class="lbl">this.color(L,L,L,1)</text>
+</svg>

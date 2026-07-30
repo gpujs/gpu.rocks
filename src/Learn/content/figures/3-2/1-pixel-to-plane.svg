@@ -1,0 +1,34 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Pixel (48, 32) is mapped by xMin, yMin and step onto the complex plane, landing at the point c = 1 + 0i.">
+  <text x="10" y="14" class="lbl-up">PIXELS 0…63</text>
+  <text x="170" y="14" class="lbl-up">COMPLEX PLANE</text>
+
+  <!-- pixel grid -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="14" y="26" width="24" height="24" rx="3"/><rect x="38" y="26" width="24" height="24" rx="3"/><rect x="62" y="26" width="24" height="24" rx="3"/><rect x="86" y="26" width="24" height="24" rx="3"/>
+    <rect x="14" y="50" width="24" height="24" rx="3"/><rect x="38" y="50" width="24" height="24" rx="3"/><rect x="62" y="50" width="24" height="24" rx="3"/><rect x="86" y="50" width="24" height="24" rx="3"/>
+    <rect x="14" y="74" width="24" height="24" rx="3"/><rect x="38" y="74" width="24" height="24" rx="3"/><rect x="62" y="74" width="24" height="24" rx="3"/><rect x="86" y="74" width="24" height="24" rx="3"/>
+    <rect x="14" y="98" width="24" height="24" rx="3"/><rect x="38" y="98" width="24" height="24" rx="3"/><rect x="62" y="98" width="24" height="24" rx="3"/><rect x="86" y="98" width="24" height="24" rx="3"/>
+  </g>
+  <rect x="86" y="50" width="24" height="24" rx="3" fill="none" stroke="var(--pink)" stroke-width="2.5"/>
+  <text x="62" y="140" text-anchor="middle" style="font-size:10px" fill="var(--pink)">(x, y) = (48, 32)</text>
+
+  <!-- arrow -->
+  <path class="arrow" d="M114 74 H 146" stroke-width="1.5"/>
+  <path class="arrowhead" d="M152 74 l -7 -4 v 8 z"/>
+
+  <!-- the plane view -->
+  <rect x="170" y="26" width="96" height="96" rx="4" fill="none" stroke="var(--line)"/>
+  <line x1="170" y1="74" x2="266" y2="74" class="cellline"/>
+  <line x1="218" y1="26" x2="218" y2="122" class="cellline"/>
+  <text x="252" y="86" class="lbl">Re</text>
+  <text x="222" y="36" class="lbl">Im</text>
+  <circle cx="242" cy="74" r="3.5" fill="var(--pink)"/>
+  <text x="242" y="64" text-anchor="middle" style="font-size:10px" fill="var(--pink)">c = 1 + 0i</text>
+  <text x="170" y="136" class="lbl">(xMin, yMin)</text>
+
+  <!-- formulas -->
+  <rect x="296" y="40" width="136" height="46" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="364" y="58" text-anchor="middle" class="formula">cr = xMin + x·step</text>
+  <text x="364" y="73" text-anchor="middle" class="formula">ci = yMin + y·step</text>
+  <text x="364" y="106" text-anchor="middle" class="lbl">step = 4/64 per pixel</text>
+</svg>

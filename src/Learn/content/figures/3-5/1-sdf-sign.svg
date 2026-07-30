@@ -1,0 +1,27 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="A circle-shaped surface with three probe points: a point outside reads a positive distance, a point on the surface reads zero, and a point inside reads negative.">
+  <text x="10" y="14" class="lbl-up">A SPHERE AS ONE NUMBER</text>
+
+  <!-- the surface -->
+  <circle cx="120" cy="80" r="46" fill="none" stroke="var(--teal)" stroke-width="1.6"/>
+
+  <!-- outside probe -->
+  <circle cx="218" cy="48" r="3" fill="var(--blue)"/>
+  <path class="arrow" d="M218 48 L 172 63" stroke="var(--blue)" stroke-width="1.4"/>
+  <path d="M0 0 l -7 -4 v 8 z" transform="translate(166 65) rotate(162)" fill="var(--blue)"/>
+  <text x="218" y="38" text-anchor="middle" style="font-size:10px" fill="var(--blue)">d = +0.9</text>
+
+  <!-- surface probe -->
+  <circle cx="85" cy="110" r="3" fill="var(--teal)"/>
+  <text x="85" y="128" text-anchor="middle" style="font-size:10px" fill="var(--teal)">d = 0</text>
+
+  <!-- inside probe -->
+  <circle cx="135" cy="72" r="3" fill="var(--amber)"/>
+  <text x="135" y="60" text-anchor="middle" style="font-size:10px" fill="var(--amber)">d = −0.6</text>
+
+  <!-- formula + legend -->
+  <rect x="272" y="40" width="148" height="30" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="346" y="59" text-anchor="middle" class="formula">d = √(dx²+dy²) − r</text>
+  <text x="278" y="96" style="font-size:10px" fill="var(--blue)">+ outside</text>
+  <text x="278" y="114" style="font-size:10px" fill="var(--teal)">0 on the surface</text>
+  <text x="278" y="132" style="font-size:10px" fill="var(--amber)">− inside</text>
+</svg>

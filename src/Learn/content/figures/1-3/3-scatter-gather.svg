@@ -1,0 +1,35 @@
+<svg viewBox="0 0 320 160" role="img" aria-label="Scatter — a thread writing to other cells — is not allowed. Gather — a thread reading many cells to write its own — is the GPU pattern.">
+  <text x="10" y="14" class="lbl-up">SCATTER VS GATHER</text>
+  <!-- scatter panel -->
+  <g>
+    <rect x="60" y="58" width="28" height="22" rx="4" fill="none" stroke="var(--lred)" stroke-width="1.6"/>
+    <g fill="none" stroke="var(--lred)" stroke-width="1.4" opacity=".85">
+      <path d="M74 56 V 36"/><path d="M90 62 L 116 46"/><path d="M90 74 L 116 90"/>
+    </g>
+    <g fill="var(--lred)">
+      <path d="M74 32 l -4 7 h 8 z"/><path d="M120 44 l -8 0 4 7 z"/><path d="M120 92 l -8 -1 3 8 z"/>
+    </g>
+    <g fill="none" stroke="var(--line)">
+      <rect x="62" y="18" width="24" height="16" rx="3"/><rect x="112" y="36" width="24" height="16" rx="3"/><rect x="112" y="86" width="24" height="16" rx="3"/>
+    </g>
+    <text x="74" y="122" text-anchor="middle" style="font-size:10px;fill:var(--lred)">✗ scatter</text>
+    <text x="74" y="136" text-anchor="middle" class="lbl">writes anywhere</text>
+  </g>
+  <line x1="160" y1="24" x2="160" y2="126" class="cellline"/>
+  <!-- gather panel -->
+  <g>
+    <rect x="232" y="58" width="28" height="22" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+    <g fill="none" stroke="var(--teal)" stroke-width="1.4" opacity=".85">
+      <path d="M246 36 V 54"/><path d="M216 46 L 240 58"/><path d="M216 90 L 240 78"/>
+    </g>
+    <g fill="var(--teal)">
+      <path d="M246 58 l -4 -7 h 8 z"/><path d="M243 60 l -3 -8 -5 6 z"/><path d="M243 76 l -8 1 4 6 z"/>
+    </g>
+    <g fill="none" stroke="var(--line)">
+      <rect x="234" y="18" width="24" height="16" rx="3"/><rect x="192" y="38" width="24" height="16" rx="3"/><rect x="192" y="84" width="24" height="16" rx="3"/>
+    </g>
+    <text x="246" y="122" text-anchor="middle" style="font-size:10px;fill:var(--teal)">✓ gather</text>
+    <text x="246" y="136" text-anchor="middle" class="lbl">reads anywhere,</text>
+    <text x="246" y="149" text-anchor="middle" class="lbl">writes its own cell</text>
+  </g>
+</svg>
