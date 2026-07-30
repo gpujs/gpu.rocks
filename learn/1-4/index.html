@@ -28,6 +28,46 @@
         }
       })();
     </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
     <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
          built shell and injects the full per-route set (routeMeta.js values). -->
     <!--
