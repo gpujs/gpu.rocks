@@ -107,10 +107,14 @@ jobs:
           diff dist/index.html /tmp/live.html || true
           exit 1
 
-      - name: Purge the Cloudflare cache
-        # the origin is now serving the new build (previous step), but Cloudflare
-        # caches HTML for max-age=600 — purge so visitors see the deploy at once.
-        # Assets are content-hashed, so purge_everything is safe.
+      - name: Purge the Cloudflare cache (HTML only)
+        # HTML must be purged: it names the new content-hashed chunks, and a
+        # stale page would ask for assets this deploy replaced. The assets
+        # themselves must NOT be — their names change whenever their bytes do,
+        # so they are immutable, and purge_everything just forces every visitor
+        # to re-pull ~2 MB from GitHub Pages cold. Doing that on back-to-back
+        # deploys is what turned this site into 8-17 s origin fetches and edge
+        # 520s. Cloudflare takes at most 30 URLs per call, hence the batching.
         env:
           CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -119,14 +123,44 @@ jobs:
             echo "Cloudflare secrets not configured — skipping purge (stale HTML expires within ~10 min)"
             exit 0
           fi
-          response=$(curl -s -X POST \
-            "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            --data '{"purge_everything":true}')
-          if echo "$response" | grep -q '"success": *true'; then
-            echo "Cloudflare cache purged"
-          else
-            echo "::error::Cloudflare purge failed: $response"
-            exit 1
-          fi
+          # Every prerendered page, in both the slashless and trailing-slash
+          # forms GitHub Pages serves — Cloudflare keys the cache on the exact
+          # URL, so both need purging. Only index.html files name real URLs:
+          # prerender also writes a <route>.html twin so GitHub Pages serves the
+          # slashless path without a redirect, but nobody requests that name —
+          # purging it would be 95 wasted origin fetches. dist/api is the
+          # vendored gpu.js reference: it changes only on a version bump, is not
+          # coupled to our hashed chunks, and can expire on its own max-age.
+          find dist -name 'index.html' -not -path 'dist/api/*' | while read -r file; do
+            rel=${file#dist/}
+            if [ "$rel" = "index.html" ]; then
+              echo "https://gpu.rocks/"
+            else
+              dir=${rel%/index.html}
+              echo "https://gpu.rocks/$dir"
+              echo "https://gpu.rocks/$dir/"
+            fi
+          done | sort -u > /tmp/purge-urls.txt
+          printf '%s\n' \
+            "https://gpu.rocks/404.html" \
+            "https://gpu.rocks/sitemap.xml" \
+            "https://gpu.rocks/robots.txt" >> /tmp/purge-urls.txt
+          echo "purging $(wc -l < /tmp/purge-urls.txt) HTML URLs (assets left warm)"
+          split -l 30 /tmp/purge-urls.txt /tmp/purge-batch-
+          failed=0
+          for batch in /tmp/purge-batch-*; do
+            payload=$(jq -R -s -c 'split("\n") | map(select(length > 0)) | {files: .}' < "$batch")
+            response=$(curl -s -X POST \
+              "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data "$payload")
+            if echo "$response" | grep -q '"success": *true'; then
+              echo "  purged $(wc -l < "$batch") URLs"
+            else
+              echo "::error::Cloudflare purge failed: $response"
+              failed=1
+            fi
+          done
+          [ "$failed" -eq 0 ] || exit 1
+          echo "Cloudflare HTML cache purged"
