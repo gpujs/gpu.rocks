@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Doubling Ladder · Prefix Sums (Scan) — GPU.js Learn</title>
     <meta name="description" content="Goal: write the one-pass kernel, drive ten passes from JavaScript with the stride doubling each time, and log scan[511] and the grand total.">
@@ -114,9 +114,93 @@
     <meta name="twitter:description" content="Goal: write the one-pass kernel, drive ten passes from JavaScript with the stride doubling each time, and log scan[511] and the grand total.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Doubling Ladder","description":"Goal: write the one-pass kernel, drive ten passes from JavaScript with the stride doubling each time, and log scan[511] and the grand total.","url":"https://gpu.rocks/learn/prefix-sum-351cfa41/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Prefix Sums (Scan)","url":"https://gpu.rocks/learn/prefix-sum-351cfa41","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/prefix-sum-351cfa41/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/prefix-sum-351cfa41">Prefix Sums (Scan)</a></nav>
+<p class="ssg-eyebrow">Task 3 of 6</p>
+<h1>The Doubling Ladder</h1>
+<p>Half a million additions for a thousand-element scan is a lot. Here is the trick
+        that gets it down to ten thousand: run <strong>log₂(n) passes</strong>, and on pass
+        <code>d</code> have every cell add the value <code>2^d</code> places to its left. Stride 1,
+        then 2, then 4, 8, … After pass <code>d</code> every cell holds the sum of the
+        <code>2^(d+1)</code> elements ending at it, so ten passes over 1,024 cells leave each one
+        holding its whole prefix. This is the <strong>Hillis-Steele</strong> scan — the same
+        stride ladder the Reductions module climbs to collapse an array, run the other way:
+        doubling instead of halving, and keeping every partial answer instead of only the
+        last.</p>
+        <p>One kernel, called ten times from a plain JavaScript loop with the stride as an
+        <em>argument</em>. That multi-pass gather formulation is the point: gpu.js gives you no
+        atomics and no shared memory, so a pass boundary is the only synchronisation there is —
+        and it is the same shape as the barrier-separated steps a CUDA or WebGPU scan uses.</p>
+        <p>It also hands you something for free. An in-place scan has a famous race: cell 7 reads
+        cell 6 while cell 6 is busy overwriting itself, and back comes somebody's half-finished
+        answer. Real GPU code prevents that with a barrier or a second buffer
+        (<em>ping-pong</em> buffering). Here a kernel cannot write into the array it is reading —
+        each pass <strong>returns a new array</strong> and the next pass consumes it, so the race
+        is simply unavailable. As long as you really do feed each pass the previous pass's
+        result.</p>
+<figure><figcaption>1, 2, 4 — every pass reaches twice as far, and cell 7 collects the lot</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write the one-pass kernel, drive ten passes from JavaScript
+        with the stride doubling each time, and log <code>scan[511]</code> and the grand total.</div>
+
+<h2>Requirements</h2><ul><li>The kernel takes <code>(data, stride)</code> and returns <code>data[x] + data[x − stride]</code></li><li>Threads below <code>stride</code> have no partner — they pass their own value through</li><li>Drive the passes from JS: <code>stride</code> = 1, 2, 4, … while <code>stride &lt; 1024</code></li><li>Each pass reads the array the <em>previous</em> pass returned</li></ul>
+<details><summary>Hint 1 — one pass</summary><p>Every cell wants the value <code>stride</code> places to its left — but cells
+            <code>0 … stride − 1</code> have no such cell. They keep what they already have:</p>
+<pre><code>if (this.thread.x &gt;= stride) {
+  return data[this.thread.x] + data[this.thread.x - stride];
+}
+return data[this.thread.x];</code></pre></details>
+<details><summary>Hint 2 — the driver</summary><p>Ten passes, and the stride <em>doubles</em> — <code>1, 2, 4, 8, …</code>, not
+            <code>1, 2, 3</code>. The reassignment is what makes pass <code>d</code> read what
+            pass <code>d − 1</code> returned:</p>
+<pre><code>for (let stride = 1; stride &lt; N; stride *= 2) {
+  v = scanStep(v, stride);
+}</code></pre></details>
+<details><summary>Hint 3 — why Float32Array</summary><p>gpu.js locks an argument's type on a kernel's first call, and every pass hands
+            back a <code>Float32Array</code>. Start the ladder from one —
+            <code>Float32Array.from(values)</code> — so pass 1 sees the same type as passes
+            2 … 10.</p></details>
+<h2>Same idea elsewhere</h2>This exact ladder is burned into GPU silicon at warp scale. Metal's
+        <code>simd_prefix_inclusive_sum</code>, WGSL's <code>subgroupInclusiveAdd</code> and the
+        CUDA idiom built from <code>__shfl_up_sync</code> are all Hillis-Steele over 32 or 64
+        lanes, with a lane-id comparison playing the part of your <code>if (x &gt;= stride)</code>
+        guard. What you are writing by hand across kernel launches, the hardware does in five
+        instructions inside a warp.
+<h2>All tasks in Prefix Sums (Scan)</h2>
+<ol class="ssg-tasks"><li><a href="/learn/prefix-sum-351cfa41/1">The Sum So Far</a></li><li><a href="/learn/prefix-sum-351cfa41/2">Everyone Sums Their Own Prefix</a></li><li><a href="/learn/prefix-sum-351cfa41/3">The Doubling Ladder</a></li><li><a href="/learn/prefix-sum-351cfa41/4">Inclusive, Exclusive, and Why It Matters</a></li><li><a href="/learn/prefix-sum-351cfa41/5">Work-Efficient: Upsweep, Downsweep</a></li><li><a href="/learn/prefix-sum-351cfa41/6">Payoff: Offsets Place the Data</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/prefix-sum-351cfa41/2">← previous task</a> · <a href="/learn/prefix-sum-351cfa41/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

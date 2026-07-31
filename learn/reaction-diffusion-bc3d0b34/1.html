@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Laplacian: Ask Your Neighbors · Reaction–Diffusion — GPU.js Learn</title>
     <meta name="description" content="Goal: complete the gather kernel so it returns the 5-point Laplacian of field with wrap-around edges.">
@@ -114,9 +114,73 @@
     <meta name="twitter:description" content="Goal: complete the gather kernel so it returns the 5-point Laplacian of field with wrap-around edges.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Laplacian: Ask Your Neighbors","description":"Goal: complete the gather kernel so it returns the 5-point Laplacian of field with wrap-around edges.","url":"https://gpu.rocks/learn/reaction-diffusion-bc3d0b34/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Reaction–Diffusion","url":"https://gpu.rocks/learn/reaction-diffusion-bc3d0b34","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/reaction-diffusion-bc3d0b34/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/reaction-diffusion-bc3d0b34">Reaction–Diffusion</a></nav>
+<p class="ssg-eyebrow">Task 1 of 4</p>
+<h1>The Laplacian: Ask Your Neighbors</h1>
+<p>Diffusion is gossip: every cell drifts toward the average of its neighbors.
+        The operator that measures "how far am I from my neighbors' average" is the
+        <strong>Laplacian</strong>, and on a grid it's a five-read gather:
+        <code>left + right + up + down − 4·center</code>. Positive means the neighbors are
+        higher and stuff will flow in; negative means it flows out.</p>
+        <p>One wrinkle: simulations hate edges. Instead of clamping like the convolution
+        filters in track 2, we <strong>wrap around</strong> — the left neighbor of column 0 is
+        column 31. The world becomes a torus and every cell has exactly four neighbors,
+        no special cases.</p>
+<figure><figcaption>five reads, one number — how far am i from my neighbors' average?</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> complete the gather kernel so it returns the 5-point
+        Laplacian of <code>field</code> with wrap-around edges.</div>
+
+<h2>Requirements</h2><ul><li>Wrap all four neighbor indexes — below <code>0</code> becomes <code>size − 1</code>, past <code>size − 1</code> becomes <code>0</code></li><li>Read exactly five cells: the four direct neighbors and the center</li><li>Return <code>left + right + up + down − 4·center</code></li></ul>
+<details><summary>Hint 1 — the wrap is an if</summary><p>Same trick as clamping, different else:</p>
+<pre><code>let xr = this.thread.x + 1;
+if (xr &gt; this.constants.size - 1) xr = 0;</code></pre>
+<p>The starter already wrote <code>xl</code> for you — mirror it three times.</p></details>
+<details><summary>Hint 2 — five reads</summary><p>The neighbors sit at <code>field[y][xl]</code>, <code>field[y][xr]</code>,
+            <code>field[yd][x]</code> and <code>field[yu][x]</code> — only ever vary
+            <em>one</em> coordinate at a time. The center is <code>field[y][x]</code>.</p></details>
+<details><summary>Hint 3 — the whole return</summary><pre><code>return field[y][xl] + field[y][xr] + field[yd][x]
+  + field[yu][x] - 4 * field[y][x];</code></pre></details>
+<h2>Same idea elsewhere</h2>The 5-point Laplacian stencil is the beating heart of PDE solvers on every
+        platform — heat, waves, pressure projection in fluids. On big CUDA/ROCm clusters the
+        wrap you just wrote becomes a <em>halo exchange</em>: each GPU ships its border rows to
+        the neighbor that needs them before every step.
+<h2>All tasks in Reaction–Diffusion</h2>
+<ol class="ssg-tasks"><li><a href="/learn/reaction-diffusion-bc3d0b34/1">The Laplacian: Ask Your Neighbors</a></li><li><a href="/learn/reaction-diffusion-bc3d0b34/2">One Step of Gray–Scott</a></li><li><a href="/learn/reaction-diffusion-bc3d0b34/3">Feed It Back: 100 Steps</a></li><li><a href="/learn/reaction-diffusion-bc3d0b34/4">Paint the Pattern</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/reaction-diffusion-bc3d0b34/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

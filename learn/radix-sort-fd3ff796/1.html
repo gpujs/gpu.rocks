@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Sort by One Digit · Radix Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: for every element of digits , return the index it lands on in a stable one-digit pass.">
@@ -114,9 +114,85 @@
     <meta name="twitter:description" content="Goal: for every element of digits , return the index it lands on in a stable one-digit pass.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Sort by One Digit","description":"Goal: for every element of digits , return the index it lands on in a stable one-digit pass.","url":"https://gpu.rocks/learn/radix-sort-fd3ff796/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Radix Sort","url":"https://gpu.rocks/learn/radix-sort-fd3ff796","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/radix-sort-fd3ff796/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/radix-sort-fd3ff796">Radix Sort</a></nav>
+<p class="ssg-eyebrow">Task 1 of 6</p>
+<h1>Sort by One Digit</h1>
+<p>Radix sort never compares two keys. It sorts by <strong>one digit at a time</strong>,
+        starting with the least significant, and after enough passes the array is sorted — which
+        reads like a card trick until you watch it happen:</p>
+<pre><code>  start    by ones    by tens
+    34        21         13
+    21        13         21  ← tie
+    13        34         27  ← tie
+    27        27         34</code></pre>
+        <p>The tens pass never looks at the ones digit. All it knows is that 21 and 27 both have
+        a 2 — and the only reason 21 still comes out first is that the pass is
+        <strong>stable</strong>: it leaves equal digits in the order it found them, and the ones
+        pass had already put 21 first. Break that and the earlier pass's work is destroyed. An
+        unstable tens pass may emit <code>13, 27, 21, 34</code>: perfectly ordered by tens digit,
+        and not sorted.</p>
+        <p>So each pass has to answer one question per element: <em>how many elements belong in
+        front of me?</em> Everything with a smaller digit, plus everything with the same digit
+        that started earlier. That second clause <strong>is</strong> stability.</p>
+<figure><figcaption>equal digits keep the order they arrived in — cross those arrows and the previous pass was wasted</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> for every element of <code>digits</code>, return the index it
+        lands on in a stable one-digit pass.</div>
+
+<h2>Requirements</h2><ul><li>Loop over all <code>this.constants.n</code> digits — one pass over the array per thread</li><li>Count every digit strictly smaller than yours</li><li>Break ties by original position: count an equal digit only when its index is before <code>this.thread.x</code></li><li>Return the count — that count <em>is</em> the destination</li></ul>
+<details><summary>Hint 1 — two counts, one loop</summary><p>Walk every <code>j</code> from 0 to <code>n − 1</code> and ask two questions
+            about <code>digits[j]</code>: is it smaller than mine? and if it is <em>equal</em> to
+            mine, did it start before me? Either one puts that element in front of you.</p></details>
+<details><summary>Hint 2 — the tie-break</summary><pre><code>const other = digits[j];
+if (other &lt; mine) {
+  before++;
+} else if (other === mine &amp;&amp; j &lt; this.thread.x) {
+  before++;
+}</code></pre>
+<p>The <code>j &lt; this.thread.x</code> is the entire stability guarantee. Turn it
+            round and the pass still sorts by digit — and still destroys everything the previous
+            pass did.</p></details>
+<h2>Same idea elsewhere</h2>Every production GPU radix sort is a <em>stable</em> sort, and not by accident:
+        NVIDIA's CUB ranks each key inside its digit with <code>BlockRadixRank</code>, AMD's
+        rocPRIM and Metal's sort primitives do the same. Stability is what makes multi-pass radix
+        sorting work at all, and it is also what lets you sort key–value pairs, or sort by one
+        field and then another, and trust the result.
+<h2>All tasks in Radix Sort</h2>
+<ol class="ssg-tasks"><li><a href="/learn/radix-sort-fd3ff796/1">Sort by One Digit</a></li><li><a href="/learn/radix-sort-fd3ff796/2">One Bit at a Time</a></li><li><a href="/learn/radix-sort-fd3ff796/3">Widen the Radix</a></li><li><a href="/learn/radix-sort-fd3ff796/4">Whose Value Lands Here?</a></li><li><a href="/learn/radix-sort-fd3ff796/5">The Whole Sort</a></li><li><a href="/learn/radix-sort-fd3ff796/6">Keys That Aren't Plain Integers</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/radix-sort-fd3ff796/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

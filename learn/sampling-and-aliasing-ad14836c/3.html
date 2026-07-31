@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>What Happened Between the Samples? · Sampling &amp; Aliasing — GPU.js Learn</title>
     <meta name="description" content="Goal: reconstruct the signal at 4× the sample rate — 256 output points from 64 samples — with a 17-tap Lanczos-windowed sinc gather.">
@@ -114,9 +114,90 @@
     <meta name="twitter:description" content="Goal: reconstruct the signal at 4× the sample rate — 256 output points from 64 samples — with a 17-tap Lanczos-windowed sinc gather.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"What Happened Between the Samples?","description":"Goal: reconstruct the signal at 4× the sample rate — 256 output points from 64 samples — with a 17-tap Lanczos-windowed sinc gather.","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Sampling & Aliasing","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/sampling-and-aliasing-ad14836c">Sampling &amp; Aliasing</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>What Happened Between the Samples?</h1>
+<p>You have 64 numbers. The signal they came from existed at every instant in between. Can
+        you get it back?</p>
+        <p>The obvious answer — join the dots with straight lines — is wrong, and not by a little. A
+        sinusoid does not lie on the chords between its own samples, so linear interpolation shaves every
+        peak; on the signal below it misses by about <strong>0.026 RMS</strong>. The right answer is
+        stranger and much better: if nothing in the signal was above Nyquist, the samples determine it
+        <em>completely</em>, and the formula that rebuilds it sums a <strong>sinc</strong> centred on
+        every sample:</p>
+<pre><code>x(t) = Σ  x[k] · sinc(t · fs − k)          sinc(u) = sin(πu) / (πu),  sinc(0) = 1</code></pre>
+        <p>sinc is 1 at its own sample and exactly 0 at every other whole offset, so the curve threads
+        every sample point and interpolates smoothly between them. In principle the sum runs over all
+        <em>k</em>; in practice you stop after a handful of taps and <strong>window</strong> what is
+        left, or the abrupt cut rings. The Lanczos window is the classic: multiply by
+        <code>sinc(u / a)</code>, with <code>a</code> the half-width in samples.</p>
+        <p>On a GPU this is a <strong>gather</strong>, the shape "Thinking in Parallel" makes the case
+        for: each output point pulls the 17 samples around it and weights them. Nothing is written
+        anywhere but this thread's own cell, so 256 output points cost one pass, no coordination and no
+        ordering.</p>
+        <p>The ends are honestly ragged — near the edges the window runs off the array and the sum is
+        missing terms, so the tests only judge the interior. Real resamplers pad, mirror or taper the
+        edges; the middle is where the idea lives.</p>
+<figure><figcaption>every sample gets a sinc; the sum threads all of them</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> reconstruct the signal at 4× the sample rate — 256 output points from
+        64 samples — with a 17-tap Lanczos-windowed sinc gather.</div>
+
+<h2>Requirements</h2><ul><li>Output point <code>j</code> sits at sample position <code>p = j / this.constants.up</code></li><li>Gather <code>this.constants.width</code> taps centred on <code>Math.floor(p)</code>, skipping indices outside the array</li><li>Weight tap <code>k</code> by <code>sinc(p − k) · sinc((p − k) / a)</code>, and by <code>1</code> when <code>p − k</code> is 0</li><li>Return the weighted sum — <code>output: [256]</code></li></ul>
+<details><summary>Hint 1 — which samples are mine?</summary><p><code>p</code> is generally between two samples. Take
+            <code>centre = Math.floor(p)</code> and walk <code>k</code> from
+            <code>centre - a</code> to <code>centre + a</code> — that is
+            <code>this.constants.width</code> = 17 taps. Guard each one:
+            <code>if (k &gt;= 0 &amp;&amp; k &lt; this.constants.n)</code>.</p></details>
+<details><summary>Hint 2 — the weight, carefully</summary><p><code>x = p - k</code> is exactly 0 when the output point lands on a sample, and
+            <code>sin(πx) / (πx)</code> is 0/0 there — special-case it to 1. Outside
+            <code>±a</code> the window is 0, so those taps contribute nothing.</p></details>
+<details><summary>Hint 3 — the whole weight</summary><pre><code>const px = Math.PI * x;
+w = (Math.sin(px) / px) * (Math.sin(px / this.constants.a) / (px / this.constants.a));</code></pre>
+<p>— the first factor is the sinc, the second is the Lanczos taper that lets you stop after
+            17 taps.</p></details>
+<h2>Same idea elsewhere</h2>Windowed-sinc resampling is what every audio SRC (libsamplerate, SoX, WebAudio's own
+        <code>playbackRate</code>) and every image resizer's Lanczos option actually does. On a GPU it
+        is the same gather a separable convolution uses — CUDA reads the taps through the texture cache,
+        WebGPU binds the sample buffer as read-only storage, and a fragment shader gets a cheap 2-tap
+        version for free in <code>textureSample</code>'s bilinear filter, which is precisely the
+        straight-line guess this task rejects.
+<h2>All tasks in Sampling &amp; Aliasing</h2>
+<ol class="ssg-tasks"><li><a href="/learn/sampling-and-aliasing-ad14836c/1">One Thread, One Sample</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/2">Above Nyquist</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/3">What Happened Between the Samples?</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/4">The Other Axis Is Discrete Too</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/5">Payoff: Keep One Sample in Four</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/sampling-and-aliasing-ad14836c/2">← previous task</a> · <a href="/learn/sampling-and-aliasing-ad14836c/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

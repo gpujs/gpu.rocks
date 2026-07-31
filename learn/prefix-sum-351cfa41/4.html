@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Inclusive, Exclusive, and Why It Matters · Prefix Sums (Scan) — GPU.js Learn</title>
     <meta name="description" content="Goal: turn the prewired inclusive scan into the exclusive scan — the starting offset of every session — and log the total number of seats.">
@@ -114,9 +114,83 @@
     <meta name="twitter:description" content="Goal: turn the prewired inclusive scan into the exclusive scan — the starting offset of every session — and log the total number of seats.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Inclusive, Exclusive, and Why It Matters","description":"Goal: turn the prewired inclusive scan into the exclusive scan — the starting offset of every session — and log the total number of seats.","url":"https://gpu.rocks/learn/prefix-sum-351cfa41/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Prefix Sums (Scan)","url":"https://gpu.rocks/learn/prefix-sum-351cfa41","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/prefix-sum-351cfa41/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/prefix-sum-351cfa41">Prefix Sums (Scan)</a></nav>
+<p class="ssg-eyebrow">Task 4 of 6</p>
+<h1>Inclusive, Exclusive, and Why It Matters</h1>
+<p>Scans come in two flavours. The <strong>inclusive</strong> scan you just built
+        answers <em>"everything up to and including me"</em>. The <strong>exclusive</strong> scan
+        answers <em>"everything strictly before me"</em>: cell 0 is <code>0</code>, and every
+        other cell is the inclusive scan shifted one place right.</p>
+        <p>Exclusive is the one everything downstream actually wants, because it answers a
+        different question — <strong>where does my run of output start?</strong> Here
+        <code>counts</code> is a sign-up sheet: <code>counts[i]</code> people booked session
+        <code>i</code>, and you are laying all of them out in one flat seating list. Session
+        <code>i</code>'s block begins at <code>exclusive[i]</code>. The inclusive scan would tell
+        you where that block <em>ends</em>, which is exactly one seat too late.</p>
+        <p>Converting is a one-line gather: cell <code>i</code> reads <code>inclusive[i − 1]</code>,
+        and cell 0 returns <code>0</code> because it has nothing before it. One wrinkle worth
+        knowing — an exclusive scan <em>throws the grand total away</em>. Its last cell holds
+        everything except the last element, so keep the total separately:
+        <code>exclusive[n − 1] + counts[n − 1]</code>.</p>
+<figure><figcaption>a zero goes in the front, the grand total drops off the back</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> turn the prewired inclusive scan into the exclusive scan — the
+        starting offset of every session — and log the total number of seats.</div>
+
+<h2>Requirements</h2><ul><li>One kernel, taking the inclusive scan as its single argument</li><li>Cell 0 returns <code>0</code>; cell <code>i</code> returns <code>inclusive[i − 1]</code></li><li>Log the grand total, which the exclusive scan on its own no longer knows</li></ul>
+<details><summary>Hint 1 — a shift is a gather</summary><p>"Move everything one cell right" is a scatter, and kernels cannot scatter. Ask
+            the inverted question instead — <em>whose value lands in MY cell?</em> — and it is a
+            one-line read from <code>this.thread.x - 1</code>.</p></details>
+<details><summary>Hint 2 — the edge</summary><p>Thread 0 must not read <code>inclusive[-1]</code>:</p>
+<pre><code>if (this.thread.x === 0) {
+  return 0;
+}
+return inclusive[this.thread.x - 1];</code></pre></details>
+<details><summary>Hint 3 — the total that got away</summary><p><code>offsets[31]</code> is where the LAST session starts, so the seat count is
+            <code>offsets[31] + counts[31]</code>. (The inclusive scan's last cell had it all
+            along — that is the reduction hiding inside every scan.)</p></details>
+<h2>Same idea elsewhere</h2>Exclusive is the library default for exactly this reason:
+        <code>cub::DeviceScan::ExclusiveSum</code>, <code>thrust::exclusive_scan</code>, WGSL's
+        <code>subgroupExclusiveAdd</code> and Metal's <code>simd_prefix_exclusive_sum</code> all
+        answer "where does my output begin?". And they all share the same wrinkle — CUB hands the
+        aggregate back through a separate output, because the exclusive scan itself cannot carry
+        it.
+<h2>All tasks in Prefix Sums (Scan)</h2>
+<ol class="ssg-tasks"><li><a href="/learn/prefix-sum-351cfa41/1">The Sum So Far</a></li><li><a href="/learn/prefix-sum-351cfa41/2">Everyone Sums Their Own Prefix</a></li><li><a href="/learn/prefix-sum-351cfa41/3">The Doubling Ladder</a></li><li><a href="/learn/prefix-sum-351cfa41/4">Inclusive, Exclusive, and Why It Matters</a></li><li><a href="/learn/prefix-sum-351cfa41/5">Work-Efficient: Upsweep, Downsweep</a></li><li><a href="/learn/prefix-sum-351cfa41/6">Payoff: Offsets Place the Data</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/prefix-sum-351cfa41/3">← previous task</a> · <a href="/learn/prefix-sum-351cfa41/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Midpoint of 350° and 10° · Colour Spaces — GPU.js Learn</title>
     <meta name="description" content="Goal: return the midpoint of hueA[i] and hueB[i] the short way round, as an angle in 0 … 360 .">
@@ -114,9 +114,86 @@
     <meta name="twitter:description" content="Goal: return the midpoint of hueA[i] and hueB[i] the short way round, as an angle in 0 … 360 .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Midpoint of 350° and 10°","description":"Goal: return the midpoint of hueA[i] and hueB[i] the short way round, as an angle in 0 … 360 .","url":"https://gpu.rocks/learn/colour-spaces-8d79c6af/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Colour Spaces","url":"https://gpu.rocks/learn/colour-spaces-8d79c6af","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/colour-spaces-8d79c6af/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/colour-spaces-8d79c6af">Colour Spaces</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>The Midpoint of 350° and 10°</h1>
+<p>Hue is an angle, and angles wrap. That one fact quietly breaks arithmetic you have
+        been doing safely your entire career.</p>
+        <p>Take two readings of the same pixel, from two frames: 350° and 10°. Both are red. They are
+        20° apart on the wheel. Average them the obvious way and you get 180° — cyan. Not a
+        slightly-off red: the <em>opposite colour</em>, out of two inputs that were nearly identical.
+        Every mean, every interpolation, every blur that touches a hue channel has this hole in
+        it.</p>
+        <p>The repair is to stop pretending the number line has no seam. Take <code>b − a</code>,
+        fold it onto the short way round by adding or subtracting 360 until it lands in
+        −180 … 180, walk half of it from <code>a</code>, and fold the answer back into 0 … 360.
+        Four lines, no cleverness — just refusing to subtract two angles as if they were
+        distances.</p>
+<figure><figcaption>far apart on a line, neighbours on a wheel — and only one of those is true</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> return the midpoint of <code>hueA[i]</code> and
+        <code>hueB[i]</code> the short way round, as an angle in <code>0 … 360</code>.</div>
+
+<h2>Requirements</h2><ul><li>One thread per pair — <code>output: [64]</code>, indexed with <code>this.thread.x</code></li><li>Fold <code>b − a</code> into <code>−180 … 180</code> <em>before</em> you halve it</li><li>Fold the answer back: every output must land in <code>0 … 360</code>, none negative and none <code>360</code> or more</li><li>The first pair, <code>350</code> and <code>10</code>, must come out at <code>0</code> — not <code>180</code></li></ul>
+<details><summary>Hint 1 — the short way round</summary><p>The difference between two angles is only ever at most 180°. If the plain
+            subtraction gives you more than that, you went the long way round:</p>
+<pre><code>let d = b[this.thread.x] - a[this.thread.x];
+if (d &gt; 180) { d = d - 360; }
+if (d &lt; -180) { d = d + 360; }</code></pre></details>
+<details><summary>Hint 2 — half a step, then home</summary><p>Walk half of that difference from <code>a</code>, then bring the result back
+            onto the wheel. One check each way is enough, because <code>a</code> is already in
+            range and you moved it by at most 90°:</p>
+<pre><code>let m = a[this.thread.x] + d / 2;
+if (m &lt; 0) { m = m + 360; }
+if (m &gt;= 360) { m = m - 360; }
+return m;</code></pre></details>
+<details><summary>Hint 3 — check the first four</summary><p>The first eight pairs of the input straddle the seam deliberately.
+            <code>(350, 10)</code> and <code>(10, 350)</code> must both give <code>0</code>,
+            <code>(358.5, 4.5)</code> gives <code>1.5</code>, and <code>(340, 20)</code> gives
+            <code>0</code> as well. If those four come out near 180, the fold is missing.</p></details>
+<h2>Same idea elsewhere</h2>Wrapping quantities are everywhere in vision and nowhere in your standard library:
+        gradient orientation in HOG and SIFT, optical-flow direction, the phase channel of an FFT,
+        compass bearings, the time of day. The standard fix for averaging <em>many</em> of them is
+        prettier than this one and just as parallel — turn each angle into a unit vector, sum the
+        vectors (which is a plain reduction), and take <code>atan2</code> of the total. That is what
+        circular statistics libraries do, what CUDA and WGSL kernels do, and it removes the branches
+        entirely, which on a GPU is worth having.
+<h2>All tasks in Colour Spaces</h2>
+<ol class="ssg-tasks"><li><a href="/learn/colour-spaces-8d79c6af/1">Three Greys, One Pixel</a></li><li><a href="/learn/colour-spaces-8d79c6af/2">Hue, Saturation, Value</a></li><li><a href="/learn/colour-spaces-8d79c6af/3">The Midpoint of 350° and 10°</a></li><li><a href="/learn/colour-spaces-8d79c6af/4">Select by Colour</a></li><li><a href="/learn/colour-spaces-8d79c6af/5">Payoff: What Colour Is This Picture?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/colour-spaces-8d79c6af/2">← previous task</a> · <a href="/learn/colour-spaces-8d79c6af/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

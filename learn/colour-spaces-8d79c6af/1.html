@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Three Greys, One Pixel · Colour Spaces — GPU.js Learn</title>
     <meta name="description" content="Goal: compute a 64 × 64 relative-luminance map of photo , and log that map's value for the one pixel the starter already prints two other ways.">
@@ -114,9 +114,105 @@
     <meta name="twitter:description" content="Goal: compute a 64 × 64 relative-luminance map of photo , and log that map's value for the one pixel the starter already prints two other ways.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Three Greys, One Pixel","description":"Goal: compute a 64 × 64 relative-luminance map of photo , and log that map's value for the one pixel the starter already prints two other ways.","url":"https://gpu.rocks/learn/colour-spaces-8d79c6af/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Colour Spaces","url":"https://gpu.rocks/learn/colour-spaces-8d79c6af","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/colour-spaces-8d79c6af/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/colour-spaces-8d79c6af">Colour Spaces</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>Three Greys, One Pixel</h1>
+<p>Nearly every vision algorithm's first move is to leave RGB, because RGB tangles
+        together the two things you usually want to reason about separately: what colour something
+        is, and how bright it is. Brightness is the easier half, and the one most often got wrong.</p>
+        <p>There are three answers to "how bright is this pixel", and they do not agree. The channel
+        average <code>(r + g + b) / 3</code> is what everyone writes first, and it is simply false —
+        the eye is roughly five times more sensitive to green than to blue, so a pure green and a
+        pure blue that "average" the same are nowhere near equally bright. Weighting the channels
+        fixes that: <code>0.299r + 0.587g + 0.114b</code> is Rec. 601 <strong>luma</strong>, the
+        recipe Data In, Data Out had you write.</p>
+        <p>But luma weights the numbers <em>as stored</em>, and sRGB channels are
+        <strong>gamma-encoded</strong>: 0.5 in a PNG is not half the light of 1.0, it is about 21% of
+        it. Relative luminance undoes that encoding first and then weights the actual light. It is
+        the number a photometer would agree with, and the one every contrast-ratio rule is built
+        on.</p>
+<pre><code>t = (c + 0.055) / 1.055
+
+c &lt;= 0.04045  linear = c / 12.92
+otherwise     linear = Math.pow(t, 2.4)
+
+Y = 0.2126*R + 0.7152*G + 0.0722*B</code></pre>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+
+<div class="ssg-goal"><strong>Goal:</strong> compute a 64 × 64 relative-luminance map of <code>photo</code>,
+        and log that map's value for the one pixel the starter already prints two other ways.</div>
+
+<h2>Requirements</h2><ul><li>Keep the kernel numeric — <code>output: [64, 64]</code>, one thread per pixel</li><li>Linearise <em>each</em> of r, g and b with the sRGB transfer function above, before any weighting</li><li>Weight the linear channels <code>0.2126 R + 0.7152 G + 0.0722 B</code></li><li><code>console.log</code> the relative luminance of <code>photo[1][35]</code> beside the two greys already printed</li></ul>
+<details><summary>Hint 1 — one channel at a time</summary><p>The transfer function is a two-case branch, and it is the same branch three
+            times over. Pull the channels into <code>let</code> variables so you can rewrite them
+            in place:</p>
+<pre><code>let r = pixel[0];
+if (r &lt;= 0.04045) {
+  r = r / 12.92;
+} else {
+  r = Math.pow((r + 0.055) / 1.055, 2.4);
+}</code></pre></details>
+<details><summary>Hint 2 — then the weights</summary><p>Once <code>r</code>, <code>g</code> and <code>b</code> hold linear light, the
+            last line is just the weighted sum:</p>
+<pre><code>return 0.2126 * r + 0.7152 * g + 0.0722 * b;</code></pre>
+          <p>Note that these are <em>not</em> the 0.299 / 0.587 / 0.114 of the earlier module. Those
+            weights belong to gamma-encoded channels; these belong to linear ones. Mixing the two
+            pairs up is the classic version of this bug.</p></details>
+<details><summary>Hint 3 — reading the answer</summary><p><code>map[1][35]</code> is the pixel the starter prints. Expect all three
+            numbers to differ, and the linearised one to be much the smallest: most of what looks
+            like brightness in an sRGB file is the encoding, not the light.</p></details>
+<h2>Same idea elsewhere</h2>Every graphics API knows about this and will do it for you if you ask: an
+        <code>rgba8unorm-srgb</code> texture in WebGPU, <code>GL_SRGB8_ALPHA8</code> in OpenGL and
+        <code>MTLPixelFormatRGBA8Unorm_sRGB</code> in Metal all linearise on read and re-encode on
+        write, in fixed-function hardware, for free. Blending or filtering in gamma space because
+        you forgot to ask is one of the oldest bugs in rendering — it is why badly-resized images
+        get darker, and why naive alpha compositing leaves dark fringes.
+<h2>All tasks in Colour Spaces</h2>
+<ol class="ssg-tasks"><li><a href="/learn/colour-spaces-8d79c6af/1">Three Greys, One Pixel</a></li><li><a href="/learn/colour-spaces-8d79c6af/2">Hue, Saturation, Value</a></li><li><a href="/learn/colour-spaces-8d79c6af/3">The Midpoint of 350° and 10°</a></li><li><a href="/learn/colour-spaces-8d79c6af/4">Select by Colour</a></li><li><a href="/learn/colour-spaces-8d79c6af/5">Payoff: What Colour Is This Picture?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/colour-spaces-8d79c6af/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

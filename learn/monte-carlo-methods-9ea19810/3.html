@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Integrate the Un-integrable · Monte Carlo Methods — GPU.js Learn</title>
     <meta name="description" content="Goal: make each thread return the sum of e^(−x²) over its 64-sample slice of samples , so the logged mean lands on ≈ 0.7468 .">
@@ -114,9 +114,69 @@
     <meta name="twitter:description" content="Goal: make each thread return the sum of e^(−x²) over its 64-sample slice of samples , so the logged mean lands on ≈ 0.7468 .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Integrate the Un-integrable","description":"Goal: make each thread return the sum of e^(−x²) over its 64-sample slice of samples , so the logged mean lands on ≈ 0.7468 .","url":"https://gpu.rocks/learn/monte-carlo-methods-9ea19810/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Monte Carlo Methods","url":"https://gpu.rocks/learn/monte-carlo-methods-9ea19810","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/monte-carlo-methods-9ea19810/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/monte-carlo-methods-9ea19810">Monte Carlo Methods</a></nav>
+<p class="ssg-eyebrow">Task 3 of 4</p>
+<h1>Integrate the Un-integrable</h1>
+<p><code>e^(−x²)</code> — the bell curve — famously has <strong>no elementary
+        antiderivative</strong>. No substitution, no parts, no closed form. Monte Carlo doesn't
+        care: for uniform samples on [0, 1], the <em>average</em> of <code>f(x)</code> converges
+        to <code>∫₀¹ f(x) dx</code>. Sampling beats symbolic calculus.</p>
+        <p>And here's the efficiency move over last task: instead of one kernel to evaluate and
+        another to reduce, <strong>fuse them</strong>. Each of 256 threads walks its own 64-sample
+        slice, evaluating <code>e^(−x²)</code> and accumulating in one pass — 16,384 evaluations,
+        one launch, 256 numbers back.</p>
+<figure><figcaption>no antiderivative, no problem — average enough heights and it’s the area</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> make each thread return the sum of <code>e^(−x²)</code> over
+        its 64-sample slice of <code>samples</code>, so the logged mean lands on
+        <code>≈ 0.7468</code>.</div>
+
+<h2>Requirements</h2><ul><li>Thread <code>x</code> owns the slice starting at <code>this.thread.x * 64</code></li><li>Evaluate <code>Math.exp(-x * x)</code> for each sample — inside the loop, inside the kernel</li><li>Return the slice sum; JavaScript divides the grand total by 16384</li></ul>
+<details><summary>Hint 1 — mean value, not area sampling</summary><p>No darts this time: the estimator is just the average height of the curve,
+            <code>(1/N) Σ f(xᵢ)</code>, times the interval width (here 1). You only need
+            <code>f</code>, not a hit test.</p></details>
+<details><summary>Hint 2 — one line changes</summary><p>The loop skeleton is last task's reduction. Swap what you accumulate:</p>
+<pre><code>const x = xs[base + i];
+sum += Math.exp(-x * x);</code></pre></details>
+<h2>Same idea elsewhere</h2>Fusing the map into the reduction halves the memory traffic — the same reasoning
+        behind kernel fusion in CUDA and ROCm, and behind doing per-workgroup sums in a single
+        WebGPU compute pass instead of two. Bandwidth, not arithmetic, is usually the bill.
+<h2>All tasks in Monte Carlo Methods</h2>
+<ol class="ssg-tasks"><li><a href="/learn/monte-carlo-methods-9ea19810/1">Darts at a Quarter Circle</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/2">Reduce 65,536 Hits to π</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/3">Integrate the Un-integrable</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/4">Price an Option</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/monte-carlo-methods-9ea19810/2">← previous task</a> · <a href="/learn/monte-carlo-methods-9ea19810/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Learning the Empty Room · Video Filters — GPU.js Learn</title>
     <meta name="description" content="Goal: write the exponential update in learn and the subtraction in foreground , then run the model over the sequence.">
@@ -114,9 +114,100 @@
     <meta name="twitter:description" content="Goal: write the exponential update in learn and the subtraction in foreground , then run the model over the sequence.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Learning the Empty Room","description":"Goal: write the exponential update in learn and the subtraction in foreground , then run the model over the sequence.","url":"https://gpu.rocks/learn/video-filters-4d39e404/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Video Filters","url":"https://gpu.rocks/learn/video-filters-4d39e404","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/video-filters-4d39e404/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/video-filters-4d39e404">Video Filters</a></nav>
+<p class="ssg-eyebrow">Task 4 of 6</p>
+<h1>Learning the Empty Room</h1>
+<p>Frame differencing has a blind spot you can see in its own output: it only ever
+        finds the <em>edges</em> of a moving object. The middle of a large uniform blob looks
+        identical from one frame to the next, so it reports as still. And an object that stops
+        moving vanishes entirely.</p>
+        <p>The fix is to stop comparing against the last frame and start comparing against a
+        <strong>model of the empty scene</strong> — an estimate of what each pixel looks like when
+        nothing is happening there. Keep that model as a running average with a <em>very</em> small
+        <code>alpha</code>, the same one-liner as the last task with the dial turned right down:</p>
+<pre><code>model = (1 - alpha) * model + alpha * now</code></pre>
+        <p>At <code>alpha = 0.05</code> the model needs about twenty frames to accept a change, so
+        an object crossing the frame in eight never gets absorbed — but the sun going behind a
+        cloud eventually does. That is the entire trade, and it is worth saying out loud:
+        <strong>too fast</strong> and a person who stops moving is quietly re-labelled as furniture;
+        <strong>too slow</strong> and every genuine change — a chair moved, a light switched on —
+        leaves a ghost burning in the mask for a minute. Nobody has a principled way to pick it.
+        People measure.</p>
+        <p>Then foreground is whatever the current frame disagrees with the model about — the same
+        absolute difference and threshold as before, against a different reference. Watch what comes
+        out: a solid object, not a pair of crescents.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+<figure><figcaption>subtract the room you already know, and what is left is what arrived</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write the exponential update in <code>learn</code> and the
+        subtraction in <code>foreground</code>, then run the model over the sequence.</div>
+
+<h2>Requirements</h2><ul><li>In <code>learn</code>, return <code>(1 - alpha) * model + alpha * now</code> — <code>alpha</code> on the new frame</li><li>In <code>foreground</code>, return <code>1</code> when <code>|now - model|</code> exceeds the threshold, else <code>0</code></li><li>Segment each frame against the model as it stands, <em>then</em> fold that frame in</li></ul>
+<details><summary>Hint 1 — which term wears the alpha</summary><p>The model is mostly memory and only slightly news, so the big weight sits on the
+            model:</p>
+<pre><code>return (1 - this.constants.alpha) * model[this.thread.y][this.thread.x]
+     + this.constants.alpha * now;</code></pre>
+<p>Put <code>alpha</code> on the wrong term and the model becomes the current frame in about one
+            frame flat — after which nothing is ever foreground again.</p></details>
+<details><summary>Hint 2 — the subtraction</summary><p>Identical in shape to the frame difference from the last task, only the
+            reference changed:</p>
+<pre><code>if (Math.abs(now - model[this.thread.y][this.thread.x]) &gt; this.constants.threshold) {
+  return 1;
+}
+return 0;</code></pre></details>
+<details><summary>Hint 3 — order inside the loop</summary><p>Detect first, learn second. If you fold the frame in before you compare against
+            it, the model has already moved a little way toward the object you are trying to find —
+            you are grading your own homework.</p></details>
+<h2>Same idea elsewhere</h2>Every serious background subtractor is this line with more machinery on top: OpenCV's
+        <code>MOG2</code> keeps a mixture of Gaussians per pixel instead of one mean,
+        <code>KNN</code> keeps a sample history, and both still expose a learning rate that behaves
+        exactly like this <code>alpha</code>. On a GPU the appeal never changes — one number of state
+        per pixel, one multiply-add per frame, perfectly parallel, and no history buffer to carry.
+<h2>All tasks in Video Filters</h2>
+<ol class="ssg-tasks"><li><a href="/learn/video-filters-4d39e404/1">Sixteen Milliseconds</a></li><li><a href="/learn/video-filters-4d39e404/2">Averaging Across Time</a></li><li><a href="/learn/video-filters-4d39e404/3">What Moved?</a></li><li><a href="/learn/video-filters-4d39e404/4">Learning the Empty Room</a></li><li><a href="/learn/video-filters-4d39e404/5">The Payoff: A Virtual Background</a></li><li><a href="/learn/video-filters-4d39e404/6">Going Live, Honestly</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/video-filters-4d39e404/3">← previous task</a> · <a href="/learn/video-filters-4d39e404/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

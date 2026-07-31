@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Above Nyquist · Sampling &amp; Aliasing — GPU.js Learn</title>
     <meta name="description" content="Goal: fold six frequencies into the base band with one kernel, then use a second kernel to sample 200 Hz and its alias into two planes and show they are the…">
@@ -114,9 +114,93 @@
     <meta name="twitter:description" content="Goal: fold six frequencies into the base band with one kernel, then use a second kernel to sample 200 Hz and its alias into two planes and show they are the…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Above Nyquist","description":"Goal: fold six frequencies into the base band with one kernel, then use a second kernel to sample 200 Hz and its alias into two planes and show they are the…","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Sampling & Aliasing","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/sampling-and-aliasing-ad14836c">Sampling &amp; Aliasing</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>Above Nyquist</h1>
+<p>Here is the part that surprises people. Sample a 200 Hz tone at 256 Hz and you do not
+        get a bad 200 Hz tone, or a warning, or noise. You get a <strong>perfectly good tone at a
+        different frequency</strong> — and there is no way to tell from the samples that anything went
+        wrong, because the samples of the two are <em>the same numbers</em>.</p>
+        <p>The arithmetic is one line. Sampling at <code>fs</code> adds a whole turn to the phase every
+        time <code>f</code> moves by <code>fs</code>, and a whole turn is invisible. So every frequency
+        in the family <code>f, f ± fs, f ± 2fs, …</code> produces an identical sample sequence, and the
+        one you actually perceive is the member nearest zero — fold <code>f</code> into the
+        <strong>base band</strong> −fs/2 … +fs/2:</p>
+<pre><code>alias = f - Math.round(f / fs) * fs
+//  300 Hz at fs = 256 →  +44 Hz     (the picture above)
+//  200 Hz at fs = 256 →  −56 Hz     (what you are about to sample)</code></pre>
+        <p>Round to the <em>nearest</em> multiple, and keep the sign. A negative alias is not a mistake:
+        a sine at −56 Hz is a sine at 56 Hz mirrored in time, and it is genuinely what you hear and see.
+        (It is also why a filmed wagon wheel turns backwards, which task 5 comes back to.) Writing
+        <code>fs - f</code> instead of <code>f - fs</code> flips that mirror — and goes negative for the
+        wrong reason the moment <code>f</code> exceeds <code>fs</code>.</p>
+        <p>fs/2 is <strong>Nyquist</strong>, the highest frequency a rate can carry. Exactly <em>at</em>
+        it the rule is degenerate, which is why the safe test is <code>f &gt;= fs / 2</code> and not
+        <code>f &gt; fs / 2</code>: a 128 Hz sine sampled at 256 Hz gives you sin(φ), −sin(φ), sin(φ), …
+        — two samples per period, forever, so you can never recover both amplitude and phase. And if φ
+        happens to be 0 you get 256 zeros and the tone disappears completely. Watch what the fold does
+        to the 128 Hz entry in <code>freqs</code>.</p>
+        <p>The second kernel writes <strong>two planes</strong>: <code>output: [256, 2]</code> is indexed
+        <code>result[plane][i]</code>, the shape this track carries a complex signal in (plane 0 real,
+        plane 1 imaginary) once the DFT arrives. Here the planes are simply two ordinary real signals,
+        side by side, so you can compare them sample for sample.</p>
+<figure><figcaption>two tones, one set of samples — nothing downstream can tell them apart</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> fold six frequencies into the base band with one kernel, then use a
+        second kernel to sample <code>200 Hz</code> and its alias into two planes and show they are the
+        same numbers.</div>
+
+<h2>Requirements</h2><ul><li>The fold kernel returns <code>f - Math.round(f / fs) * fs</code> — one thread per frequency, sign kept</li><li>The sample kernel uses <code>output: [256, 2]</code> and picks its frequency with <code>this.thread.y</code></li><li>Feed the folded 200 Hz alias into the second kernel and <code>console.log</code> it</li></ul>
+<details><summary>Hint 1 — which multiple to subtract</summary><p><code>f / fs</code> says how many whole sample rates fit inside <code>f</code>.
+            Rounding it to the nearest integer (not flooring it) is what lands the answer inside
+            −fs/2 … +fs/2 rather than 0 … fs.</p></details>
+<details><summary>Hint 2 — two planes, one kernel</summary><p>With <code>output: [256, 2]</code>, <code>this.thread.y</code> is 0 or 1 and
+            <code>this.thread.x</code> is the sample index. Pick the frequency with the plane index and
+            everything else is task 1 again:</p>
+<pre><code>const f = pair[this.thread.y];
+const t = this.thread.x / this.constants.sampleRate;
+return Math.sin(2 * Math.PI * f * t + this.constants.phase);</code></pre></details>
+<h2>Same idea elsewhere</h2>Every sampled system on every platform has this hazard and the same fix: filter above
+        Nyquist <em>before</em> you sample, never after. Graphics calls it the same thing —
+        a texture minified without mipmaps aliases, and MSAA/anisotropic filtering are anti-aliasing in
+        the literal signal-processing sense. GPU texture units implement that filter in hardware
+        precisely because doing it afterwards is impossible.
+<h2>All tasks in Sampling &amp; Aliasing</h2>
+<ol class="ssg-tasks"><li><a href="/learn/sampling-and-aliasing-ad14836c/1">One Thread, One Sample</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/2">Above Nyquist</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/3">What Happened Between the Samples?</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/4">The Other Axis Is Discrete Too</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/5">Payoff: Keep One Sample in Four</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/sampling-and-aliasing-ad14836c/1">← previous task</a> · <a href="/learn/sampling-and-aliasing-ad14836c/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

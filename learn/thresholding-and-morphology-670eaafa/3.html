@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>A Threshold Per Neighbourhood · Thresholding &amp; Morphology — GPU.js Learn</title>
     <meta name="description" content="Goal: return 1 where gray[y][x] exceeds the mean of its clamped 9×9 neighbourhood by more than this.constants.c , and 0 everywhere else.">
@@ -114,9 +114,87 @@
     <meta name="twitter:description" content="Goal: return 1 where gray[y][x] exceeds the mean of its clamped 9×9 neighbourhood by more than this.constants.c , and 0 everywhere else.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"A Threshold Per Neighbourhood","description":"Goal: return 1 where gray[y][x] exceeds the mean of its clamped 9×9 neighbourhood by more than this.constants.c , and 0 everywhere else.","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Thresholding & Morphology","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/thresholding-and-morphology-670eaafa">Thresholding &amp; Morphology</a></nav>
+<p class="ssg-eyebrow">Task 3 of 6</p>
+<h1>A Threshold Per Neighbourhood</h1>
+<p>Task 1's failure was not bad luck, and no cleverer <em>single</em> number fixes
+        it: Otsu would pick the best one that exists and the lit corner would still saturate.
+        The premise is what is wrong. One number cannot describe an image whose brightness
+        changes across the frame.</p>
+        <p>So stop asking for one. <strong>Adaptive thresholding</strong> compares every pixel
+        against the mean of <em>its own</em> neighbourhood — a 9×9 box average, which is the
+        clamped sweep the box blur in Convolution &amp; Filters already makes — plus a small
+        bias <code>c</code>. A pixel is foreground when it is at least <code>c</code> brighter
+        than its surroundings. That is a statement about local contrast, and it says nothing
+        whatever about the lamp.</p>
+        <p>The window size is the one real choice. It has to be comfortably bigger than the
+        things you are hunting, or the mean drowns in them and a mark declares itself average;
+        and comfortably smaller than the lighting changes, or it stops tracking them and you are
+        back to task 1. Here the marks are 5 pixels across and the light drifts over tens of
+        pixels, so 9×9 sits nicely in between.</p>
+        <p><code>gray</code> is the same scene's luminance, one number per pixel. A luminance
+        pass produces it in a real pipeline — module 1.2's finale is exactly that pass — and it
+        is handed over here so the sweep is the only thing you write.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> return <code>1</code> where <code>gray[y][x]</code> exceeds
+        the mean of its clamped 9×9 neighbourhood by more than <code>this.constants.c</code>,
+        and <code>0</code> everywhere else.</div>
+
+<h2>Requirements</h2><ul><li>Sum the <code>this.constants.win</code> × <code>this.constants.win</code> neighbourhood, both coordinates clamped to <code>0…this.constants.last</code></li><li>Centre the window: sample <code>this.thread.y + dy - this.constants.radius</code>, likewise for x</li><li>Divide by <code>this.constants.area</code> to get the mean</li><li>Return <code>1</code> when this pixel is above <code>mean + this.constants.c</code>, otherwise <code>0</code></li></ul>
+<details><summary>Hint 1 — it is a box blur that ends in a question</summary><p>The loop is the one from the 3×3 box blur, widened to 9×9 and reading a
+            single number per cell instead of three channels. The only new line is the last
+            one: instead of painting the mean, compare against it.</p></details>
+<details><summary>Hint 2 — the clamped sample</summary><pre><code>let sy = this.thread.y + dy - this.constants.radius;
+if (sy &lt; 0) sy = 0;
+if (sy &gt; this.constants.last) sy = this.constants.last;</code></pre>
+<p>— the same four lines for <code>sx</code>, then <code>sum += gray[sy][sx];</code>.</p></details>
+<details><summary>Hint 3 — the finish</summary><pre><code>const mean = sum / this.constants.area;
+if (gray[this.thread.y][this.thread.x] &gt; mean + this.constants.c) return 1;
+return 0;</code></pre>
+<p>The bias goes on the <em>mean</em>, raising the bar. Subtract it instead and flat
+            ground starts reporting itself as foreground.</p></details>
+<h2>Same idea elsewhere</h2>Every vision toolkit ships this: OpenCV's <code>adaptiveThreshold</code>,
+        Sauvola and Niblack binarisation in document scanning, and the local-contrast test at
+        the front of most feature detectors. On a GPU the box average is separable and can be
+        done in two passes, or in one with a summed-area table — the same trick that makes
+        real-time adaptive thresholding cheap on a phone.
+<h2>All tasks in Thresholding &amp; Morphology</h2>
+<ol class="ssg-tasks"><li><a href="/learn/thresholding-and-morphology-670eaafa/1">One Number for the Whole Image</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/2">Let the Histogram Pick the Number</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/3">A Threshold Per Neighbourhood</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/4">Erode and Dilate: the Sweep, With Min and Max</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/5">Opening and Closing: Order Is the Answer</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/6">Payoff: Clean the Mask, Count What Is Left</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/thresholding-and-morphology-670eaafa/2">← previous task</a> · <a href="/learn/thresholding-and-morphology-670eaafa/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

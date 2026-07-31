@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Which Way Does My Pair Sort? · Bitonic Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: write one full bitonic pass over 8 values — the kernel takes (data, stage, stride) and returns each thread's new value.">
@@ -114,9 +114,90 @@
     <meta name="twitter:description" content="Goal: write one full bitonic pass over 8 values — the kernel takes (data, stage, stride) and returns each thread's new value.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Which Way Does My Pair Sort?","description":"Goal: write one full bitonic pass over 8 values — the kernel takes (data, stage, stride) and returns each thread's new value.","url":"https://gpu.rocks/learn/bitonic-sort-84e0728e/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Bitonic Sort","url":"https://gpu.rocks/learn/bitonic-sort-84e0728e","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/bitonic-sort-84e0728e/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/bitonic-sort-84e0728e">Bitonic Sort</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Which Way Does My Pair Sort?</h1>
+<p>Every pass so far sorted every pair the same way. A bitonic network does not, and
+        that is the whole trick. A sequence that rises and then falls is called <strong>bitonic</strong>,
+        and a bitonic sequence is the one thing this network can merge into sorted order in log n
+        passes. So the early passes exist to <em>build</em> bitonic runs: neighbouring blocks are
+        deliberately sorted in opposite directions, so that gluing two of them together gives up
+        then down.</p>
+        <p>Which way your block goes is another bit of your index — the one named by
+        <code>stage</code>, the size of the block currently being merged:</p>
+<pre><code>const dirBit = Math.floor(i / stage) % 2;   // 0 → my block sorts ascending</code></pre>
+        <p>So a thread now holds two bits. <code>strideBit</code> says whether it is the low or the
+        high member of its pair; <code>dirBit</code> says which way its block is sorting. And the
+        rule is as small as it could be: <strong>keep the smaller value exactly when the two bits
+        agree.</strong> Low member of an ascending block, or high member of a descending one —
+        either way, minimum.</p>
+        <p>One detail makes that legal: <code>stride</code> is always smaller than
+        <code>stage</code>, so flipping the stride bit never disturbs the direction bit. Both
+        members of a pair read the same <code>dirBit</code> and agree about which way they are
+        sorting — without exchanging a word.</p>
+<figure><figcaption>neighbouring blocks sort opposite ways, and your index already knows which</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write one full bitonic pass over 8 values — the kernel takes
+        <code>(data, stage, stride)</code> and returns each thread's new value.</div>
+
+<h2>Requirements</h2><ul><li>Compute both bits: <code>strideBit</code> from <code>stride</code>, <code>dirBit</code> from <code>stage</code></li><li>The partner still comes from <code>strideBit</code>, exactly as in the last task</li><li>Return <code>Math.min</code> when the two bits agree and <code>Math.max</code> when they differ</li></ul>
+<details><summary>Hint 1 — reading the rule off the table</summary><p>Four cases, and they collapse to one comparison:</p>
+<pre><code>low  + ascending  → min      (0, 0) agree
+high + ascending  → max      (1, 0) differ
+low  + descending → max      (0, 1) differ
+high + descending → min      (1, 1) agree</code></pre></details>
+<details><summary>Hint 2 — the whole body</summary><pre><code>const i = this.thread.x;
+const strideBit = Math.floor(i / stride) % 2;
+const dirBit = Math.floor(i / stage) % 2;
+
+let partner = i - stride;
+if (strideBit === 0) partner = i + stride;
+
+const me = data[i];
+const other = data[partner];
+if (strideBit === dirBit) return Math.min(me, other);
+return Math.max(me, other);</code></pre></details>
+<h2>Same idea elsewhere</h2>Every bitonic implementation on every platform carries this pair of bit tests —
+        CUDA samples write <code>(i &amp; k) == 0</code>, WGSL compute shaders write the same thing
+        with <code>&amp;</code>, and the arithmetic spelling here says exactly the same. What none
+        of them need is communication: the direction is a property of your index, so a thread can
+        work it out alone, which is what makes the whole network barrier-free within a pass.
+<h2>All tasks in Bitonic Sort</h2>
+<ol class="ssg-tasks"><li><a href="/learn/bitonic-sort-84e0728e/1">The Compare-Exchange, as a Gather</a></li><li><a href="/learn/bitonic-sort-84e0728e/2">Who Is My Partner?</a></li><li><a href="/learn/bitonic-sort-84e0728e/3">Which Way Does My Pair Sort?</a></li><li><a href="/learn/bitonic-sort-84e0728e/4">Drive the Whole Network</a></li><li><a href="/learn/bitonic-sort-84e0728e/5">Payoff: Sort a Real Array</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/bitonic-sort-84e0728e/2">← previous task</a> · <a href="/learn/bitonic-sort-84e0728e/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

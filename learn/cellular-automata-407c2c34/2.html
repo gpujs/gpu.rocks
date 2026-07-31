@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Tick of Life · Cellular Automata — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the kernel so it computes one full generation of Conway's Life — birth on 3, survival on 2 or 3, death otherwise.">
@@ -114,9 +114,68 @@
     <meta name="twitter:description" content="Goal: finish the kernel so it computes one full generation of Conway's Life — birth on 3, survival on 2 or 3, death otherwise.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Tick of Life","description":"Goal: finish the kernel so it computes one full generation of Conway's Life — birth on 3, survival on 2 or 3, death otherwise.","url":"https://gpu.rocks/learn/cellular-automata-407c2c34/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Cellular Automata","url":"https://gpu.rocks/learn/cellular-automata-407c2c34","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/cellular-automata-407c2c34/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/cellular-automata-407c2c34">Cellular Automata</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>One Tick of Life</h1>
+<p>In 1970 John Conway picked the simplest rules he could find that make a world worth
+        watching. <strong>Birth:</strong> a dead cell with exactly 3 live neighbors comes alive.
+        <strong>Survival:</strong> a live cell with 2 or 3 neighbors stays alive. Everything else —
+        lonely or overcrowded — dies. That's the whole game (the notation is B3/S23).</p>
+        <p>There's a classic bug in CPU implementations: update the grid <em>in place</em> and
+        cells start reading half-new, half-old neighbors. A kernel is immune by construction —
+        every thread reads the old <code>world</code> argument and writes into a brand-new output.
+        The double buffer isn't a technique here; it's what a kernel <em>is</em>.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> finish the kernel so it computes one full generation of
+        Conway's Life — birth on 3, survival on 2 or 3, death otherwise.</div>
+
+<h2>Requirements</h2><ul><li>Keep the wrapped neighbor census from the last task (already in place)</li><li>A dead cell returns <code>1</code> exactly when <code>count === 3</code></li><li>A live cell returns <code>1</code> exactly when <code>count === 2 || count === 3</code></li><li>Everything else returns <code>0</code></li></ul>
+<details><summary>Hint 1 — start dead</summary><p>Declare <code>let next = 0;</code>, flip it to <code>1</code> in the cases
+            that live, and <code>return next;</code> once at the end. Two <code>if</code>s cover
+            the whole rulebook.</p></details>
+<details><summary>Hint 2 — the two ifs</summary><pre><code>if (self === 1 &amp;&amp; (count === 2 || count === 3)) next = 1;
+if (self === 0 &amp;&amp; count === 3) next = 1;</code></pre></details>
+<h2>Same idea elsewhere</h2>Reading one buffer while writing another is <em>ping-ponging</em>, and every
+        platform institutionalizes it: WebGPU simulations bind two storage buffers and swap their
+        roles each dispatch, and CUDA solvers keep <code>d_old</code>/<code>d_new</code> device
+        pointers and trade them every launch.
+<h2>All tasks in Cellular Automata</h2>
+<ol class="ssg-tasks"><li><a href="/learn/cellular-automata-407c2c34/1">The Neighbor Census</a></li><li><a href="/learn/cellular-automata-407c2c34/2">One Tick of Life</a></li><li><a href="/learn/cellular-automata-407c2c34/3">Generations: Feed It Back</a></li><li><a href="/learn/cellular-automata-407c2c34/4">Watch the Glider Fly</a></li><li><a href="/learn/cellular-automata-407c2c34/5">One Kernel, Every Universe</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/cellular-automata-407c2c34/1">← previous task</a> · <a href="/learn/cellular-automata-407c2c34/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

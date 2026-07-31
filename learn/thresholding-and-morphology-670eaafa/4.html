@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Erode and Dilate: the Sweep, With Min and Max · Thresholding &amp; Morphology — GPU.js Learn</title>
     <meta name="description" content="Goal: two kernels over the same clamped 3×3 sweep — an eroder that returns the smallest sample in the window, then a dilator that returns the largest.">
@@ -114,9 +114,95 @@
     <meta name="twitter:description" content="Goal: two kernels over the same clamped 3×3 sweep — an eroder that returns the smallest sample in the window, then a dilator that returns the largest.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Erode and Dilate: the Sweep, With Min and Max","description":"Goal: two kernels over the same clamped 3×3 sweep — an eroder that returns the smallest sample in the window, then a dilator that returns the largest.","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Thresholding & Morphology","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/thresholding-and-morphology-670eaafa">Thresholding &amp; Morphology</a></nav>
+<p class="ssg-eyebrow">Task 4 of 6</p>
+<h1>Erode and Dilate: the Sweep, With Min and Max</h1>
+<p>A fresh mask is never clean. Stray single pixels where a highlight caught the
+        sensor; single missing pixels where a shape had a dark fleck. <strong>Morphology</strong>
+        is the repair kit, and it is built out of two operations you have, in a real sense,
+        already written.</p>
+        <p>In Convolution &amp; Filters the 3×3 window read nine samples, multiplied them by
+        nine weights and added them up. Keep the window, keep the nine reads, keep the clamped
+        edges — and replace the weighted sum with a <strong>minimum</strong>. That is
+        <strong>erosion</strong>: a pixel survives only if <em>every</em> one of its neighbours
+        is foreground, so shapes lose a one-pixel rind and lone specks vanish. Replace it with a
+        <strong>maximum</strong> and you have <strong>dilation</strong>: a pixel lights up if
+        <em>any</em> neighbour does, so shapes gain a rind and small holes close over.</p>
+        <p>Same access pattern, different reduction operator. That is worth saying out loud,
+        because it generalises: a neighbourhood sweep is a <em>shape</em>, and what you do with
+        the nine values you gathered is a separate decision. Sum them and you have a filter;
+        take their extreme and you have morphology.</p>
+        <p>The window has a name — the <strong>structuring element</strong> — and a 3×3 square is
+        the plainest one there is. <strong>Edges:</strong> this module <em>clamps</em>, so a
+        sample that falls off the frame reuses the nearest in-bounds cell, exactly as the box
+        blur did. Treating out-of-bounds as background is just as defensible, and it is a
+        different answer: a shape lying flush against the frame erodes away along that edge
+        instead of surviving it. Four of the shapes in <code>mask</code> run to the frame, so the
+        tests can tell which rule you picked.</p>
+<figure><figcaption>gather the same nine samples, then decide what to do with them</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> two kernels over the same clamped 3×3 sweep — an
+        <strong>eroder</strong> that returns the smallest sample in the window, then a
+        <strong>dilator</strong> that returns the largest.</div>
+
+<h2>Requirements</h2><ul><li>Create the eroder <em>first</em> and the dilator <em>second</em> — the tests read them in that order</li><li>Sweep the 3×3 neighbourhood with both coordinates clamped to <code>0…this.constants.last</code></li><li>Erosion keeps the minimum (start at <code>1</code>, <code>Math.min</code>); dilation keeps the maximum (start at <code>0</code>, <code>Math.max</code>)</li><li>Nothing else changes — a min or max of 1s and 0s is still exactly 1 or 0</li></ul>
+<details><summary>Hint 1 — the same nine reads</summary><p>Copy the box blur's double loop verbatim, clamps and all. Replace the three
+            channel sums with one accumulator, and replace <code>+=</code> with
+            <code>Math.min</code> or <code>Math.max</code>.</p></details>
+<details><summary>Hint 2 — the accumulator</summary><p>Start the minimum at the largest value a mask can hold and the maximum at the
+            smallest, so the first sample always wins:</p>
+<pre><code>let lo = 1;
+// … inside the loops …
+lo = Math.min(lo, mask[sy][sx]);</code></pre>
+<p>and the mirror image — <code>let hi = 0;</code> with <code>Math.max</code> — for
+            dilation.</p></details>
+<details><summary>Hint 3 — which way round?</summary><p>Say it as a sentence. Erosion: "I stay foreground only if <em>all</em> of my
+            neighbours are" — that is an AND over the window, and the AND of 1s and 0s is their
+            minimum. Dilation: "I become foreground if <em>any</em> neighbour is" — an OR, which
+            is their maximum. If your shapes are growing when you asked them to shrink, these
+            two are the wrong way round.</p></details>
+<h2>Same idea elsewhere</h2>Morphology is a first-class citizen everywhere: NVIDIA's NPP has
+        <code>nppiErode</code>/<code>nppiDilate</code>, Metal Performance Shaders has
+        <code>MPSImageAreaMin</code> and <code>MPSImageAreaMax</code>, and every WGSL post-process
+        chain grows one eventually. The optimisation is the same as for a box blur — a rectangular
+        structuring element is separable, so an <em>n</em>×<em>n</em> erosion is a horizontal
+        pass followed by a vertical one.
+<h2>All tasks in Thresholding &amp; Morphology</h2>
+<ol class="ssg-tasks"><li><a href="/learn/thresholding-and-morphology-670eaafa/1">One Number for the Whole Image</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/2">Let the Histogram Pick the Number</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/3">A Threshold Per Neighbourhood</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/4">Erode and Dilate: the Sweep, With Min and Max</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/5">Opening and Closing: Order Is the Answer</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/6">Payoff: Clean the Mask, Count What Is Left</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/thresholding-and-morphology-670eaafa/3">← previous task</a> · <a href="/learn/thresholding-and-morphology-670eaafa/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

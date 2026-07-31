@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Magnitude, Phase and the Mirror · The DFT, Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: write two kernels over signal , each output: [256] — one returning the magnitude of every bin, one returning the phase — then confirm the mirror in…">
@@ -114,9 +114,102 @@
     <meta name="twitter:description" content="Goal: write two kernels over signal , each output: [256] — one returning the magnitude of every bin, one returning the phase — then confirm the mirror in…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Magnitude, Phase and the Mirror","description":"Goal: write two kernels over signal , each output: [256] — one returning the magnitude of every bin, one returning the phase — then confirm the mirror in…","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The DFT, Honestly","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/the-dft-7b1e3f9b/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/the-dft-7b1e3f9b">The DFT, Honestly</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Magnitude, Phase and the Mirror</h1>
+<p>Two planes of numbers are rarely what you want to look at. The pair
+        <code>(re, im)</code> is a point, and its two natural readings are the <strong>magnitude</strong>
+        <code>√(re² + im²)</code> — how much of that frequency is present, immune to any shift —
+        and the <strong>phase</strong> <code>atan2(im, re)</code> — where in its cycle it started.
+        Task 2's delay moved the phase by a quarter turn and left the magnitude untouched; that is
+        the same fact, seen from the other end.</p>
+        <p>Then the part worth knowing: for a <strong>real</strong> input the spectrum is
+        conjugate-symmetric. Bin <code>n − k</code> always holds the mirror of bin <code>k</code> —
+        same magnitude, opposite phase — so the top half of every spectrum in this module has been
+        redundant all along. Bins 0…n/2, and only those, decide everything. That redundancy is
+        exactly what a real-input FFT sells when it claims to be twice as fast.</p>
+        <p>A magnitude spectrum is also what a live analyser hands you. In a page (not here — a
+        Web Worker has no <code>AudioContext</code> and no microphone, so every signal in this
+        module is built in the content file instead) the wiring is:</p>
+<pre><code>const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+const audio = new AudioContext();
+const analyser = audio.createAnalyser();
+audio.createMediaStreamSource(stream).connect(analyser);
+
+const samples = new Float32Array(analyser.fftSize);
+analyser.getFloatTimeDomainData(samples);
+const magnitudes = magnitude(Array.from(samples)); // ← this task's kernel</code></pre>
+<figure><figcaption>half of every real spectrum is news you already have</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write two kernels over <code>signal</code>, each
+        <code>output: [256]</code> — one returning the magnitude of every bin, one returning the
+        phase — then confirm the mirror in JavaScript and log how many bins are genuinely
+        independent.</div>
+
+<h2>Requirements</h2><ul><li>Both kernels keep <strong>two</strong> accumulators, <code>re</code> and <code>im</code>, in one loop</li><li><code>magnitude</code> returns <code>Math.sqrt(re * re + im * im)</code>; <code>phase</code> returns <code>Math.atan2(im, re)</code></li><li>Check the mirror in JavaScript: <code>mag[k]</code> against <code>mag[256 - k]</code></li><li>Log the count of independent bins — 0…128 inclusive, so <code>129</code></li></ul>
+<details><summary>Hint 1 — two accumulators, one pass</summary><p>Nothing needs a second loop: the cosine and the sine share an angle, so read
+            the sample once and feed both totals.</p>
+<pre><code>let re = 0;
+let im = 0;
+for (let i = 0; i &lt; this.constants.n; i++) {
+  const angle = 2 * Math.PI * this.thread.x * i / this.constants.n;
+  re += signal[i] * Math.cos(angle);
+  im -= signal[i] * Math.sin(angle);
+}</code></pre></details>
+<details><summary>Hint 2 — the magnitude goes last</summary><p>Take the square root <em>after</em> the loop, on the finished pair. Doing it
+            inside — accumulating <code>√(…)</code> per term — throws the phase away before the sum
+            can use it, and every bin ends up holding the same number.
+            <code>Math.hypot</code> is not on gpu.js's whitelist, so write
+            <code>Math.sqrt(re * re + im * im)</code>.</p></details>
+<details><summary>Hint 3 — checking the mirror</summary><p>A plain loop over the bottom half, comparing each bin with its partner:</p>
+<pre><code>let worst = 0;
+for (let k = 1; k &lt; 128; k++) {
+  worst = Math.max(worst, Math.abs(mag[k] - mag[256 - k]));
+}
+console.log('largest mirror difference:', worst);</code></pre>
+<p>Bins 0 and 128 are their own partners, which is why the independent count is
+            <code>128 + 1</code> and not 128.</p></details>
+<h2>Same idea elsewhere</h2>Every serious FFT library sells this symmetry as an API: FFTW's
+        <code>r2c</code> plans, cuFFT's <code>R2C</code> transform and rocFFT's real-to-complex
+        mode all return n/2 + 1 bins and refuse to compute the rest, halving both the work and the
+        memory. Reading a spectrum as magnitude and phase instead of real and imaginary is the same
+        change of coordinates Colour Spaces makes when it trades RGB for hue and value.
+<h2>All tasks in The DFT, Honestly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/the-dft-7b1e3f9b/1">One Bin, One Thread</a></li><li><a href="/learn/the-dft-7b1e3f9b/2">One Number Is Not Enough</a></li><li><a href="/learn/the-dft-7b1e3f9b/3">Every Bin, One Thread Each</a></li><li><a href="/learn/the-dft-7b1e3f9b/4">Magnitude, Phase and the Mirror</a></li><li><a href="/learn/the-dft-7b1e3f9b/5">There and Back Again</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/the-dft-7b1e3f9b/3">← previous task</a> · <a href="/learn/the-dft-7b1e3f9b/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

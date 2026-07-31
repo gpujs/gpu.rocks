@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Smooth Out the Bands · Escape-Time Fractals — GPU.js Learn</title>
     <meta name="description" content="Goal: return a fractional escape value — interior points return exactly 100, escaped points return count + 1 − Math.log2(0.5 * Math.log2(zr² + zi²)) .">
@@ -114,9 +114,74 @@
     <meta name="twitter:description" content="Goal: return a fractional escape value — interior points return exactly 100, escaped points return count + 1 − Math.log2(0.5 * Math.log2(zr² + zi²)) .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Smooth Out the Bands","description":"Goal: return a fractional escape value — interior points return exactly 100, escaped points return count + 1 − Math.log2(0.5 * Math.log2(zr² + zi²)) .","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Escape-Time Fractals","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/escape-time-fractals-0de4764c/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/escape-time-fractals-0de4764c">Escape-Time Fractals</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Smooth Out the Bands</h1>
+<p>Look closely at task 3's exterior and you'll see hard rings: iteration counts are
+        integers, so neighboring pixels jump from shade 6 straight to shade 7. But the kernel knows
+        more than the count — it knows <strong>how far past the escape radius</strong> z flew on its
+        final step. A barely-escaped z and one that rocketed to |z| = 50 both count the same pass;
+        that overshoot is the missing fraction.</p>
+        <p>The classic fix is the <em>normalized iteration count</em>:
+        <code>count + 1 − log2(log2|z|)</code>. When z barely clears the radius the correction is
+        near 1, when it overshoots hugely it's near 0 — and the bands blend into a continuous ramp.
+        (With <code>|z|² = zr² + zi²</code> in hand, use <code>log2|z| = 0.5 · log2(zr² + zi²)</code>
+        and skip the square root.)</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> return a <em>fractional</em> escape value — interior points
+        return exactly 100, escaped points return
+        <code>count + 1 − Math.log2(0.5 * Math.log2(zr² + zi²))</code>.</div>
+
+<h2>Requirements</h2><ul><li>Keep the guarded loop; after it, branch on <code>count &lt; 100</code></li><li>Escaped: return the fractional escape value — the normalized iteration count from the intro</li><li>Interior: return <code>100</code> exactly — no correction for points that never escaped</li></ul>
+<details><summary>Hint 1 — why z is still usable after the loop</summary><p>The guard freezes z the moment it escapes, so after the loop <code>zr, zi</code>
+            hold the <em>first</em> value with <code>|z|² ≥ 4</code> — exactly the overshoot the
+            formula needs. Math.log2 works inside kernels on both backends.</p></details>
+<details><summary>Hint 2 — the ending</summary><pre><code>if (count &lt; 100) {
+  return count + 1
+    - Math.log2(0.5 * Math.log2(zr * zr + zi * zi));
+}
+return 100;</code></pre></details>
+<h2>Same idea elsewhere</h2>Fighting quantization with a fractional correction is a graphics evergreen:
+        trilinear blending between mipmap levels, <code>smoothstep</code> edges, ordered dithering.
+        The same normalized-iteration formula runs unchanged in a CUDA kernel or a WGSL fragment
+        shader — it's pure float math.
+<h2>All tasks in Escape-Time Fractals</h2>
+<ol class="ssg-tasks"><li><a href="/learn/escape-time-fractals-0de4764c/1">Map Pixels to the Complex Plane</a></li><li><a href="/learn/escape-time-fractals-0de4764c/2">The Escape-Time Loop</a></li><li><a href="/learn/escape-time-fractals-0de4764c/3">Paint by Iteration Count</a></li><li><a href="/learn/escape-time-fractals-0de4764c/4">Smooth Out the Bands</a></li><li><a href="/learn/escape-time-fractals-0de4764c/5">Julia Sets: Turn the Dial</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/escape-time-fractals-0de4764c/3">← previous task</a> · <a href="/learn/escape-time-fractals-0de4764c/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

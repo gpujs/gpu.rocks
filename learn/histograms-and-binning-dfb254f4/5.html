@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: An Image's Tone Histogram · Histograms &amp; Binning — GPU.js Learn</title>
     <meta name="description" content="Goal: compute a 64 × 64 luminance map of photo , histogram it into 32 tone bins, and log the total.">
@@ -114,9 +114,99 @@
     <meta name="twitter:description" content="Goal: compute a 64 × 64 luminance map of photo , histogram it into 32 tone bins, and log the total.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: An Image's Tone Histogram","description":"Goal: compute a 64 × 64 luminance map of photo , histogram it into 32 tone bins, and log the total.","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Histograms & Binning","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/histograms-and-binning-dfb254f4/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/histograms-and-binning-dfb254f4">Histograms &amp; Binning</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Payoff: An Image's Tone Histogram</h1>
+<p>The payoff, and the histogram everybody has actually seen: an image's
+        <strong>tone histogram</strong> — how many pixels are dark, how many mid, how many bright.
+        Every photo editor draws one, because it tells you a shot is underexposed before your eyes
+        do.</p>
+        <p>Two kernels, and the reason for two is worth a sentence. Luminance is a per-pixel
+        calculation and there are 4,096 pixels — but there are 32 bins, so a single histogram kernel
+        would recompute every pixel's luminance <em>32 times over</em>, once per bin thread. Compute
+        it once into a 64 × 64 map, then histogram the map. Map first, bin second; the map pass is
+        4,096 luminance evaluations instead of 131,072.</p>
+        <p>Luminance runs 0 … 1, so 32 bins over that range is a bin every 0.03125 — the same
+        clamped <code>floor</code> as task 3, with <code>lo = 0</code> and <code>span = 1</code>
+        doing nothing visible. And the same smoke alarm: 4,096 pixels in, 4,096 counted out.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+
+<div class="ssg-goal"><strong>Goal:</strong> compute a 64 × 64 luminance map of <code>photo</code>, histogram
+        it into 32 tone bins, and log the total.</div>
+
+<h2>Requirements</h2><ul><li><code>luminance</code>: <code>output: [64, 64]</code>, each cell <code>0.299r + 0.587g + 0.114b</code> of that pixel</li><li><code>histogram</code>: <code>output: [32]</code>, each thread scans the whole map</li><li>Bin with the clamped index from task 3: <code>Math.min(bins - 1, Math.floor(l * bins))</code></li><li><code>console.log</code> the total of the 32 counts — it must be <code>4096</code></li></ul>
+<details><summary>Hint 1 — the map pass</summary><p>Straight out of any grayscale kernel — read this thread's pixel and return a
+            number instead of painting it:</p>
+<pre><code>const pixel = photo[this.thread.y][this.thread.x];
+return 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2];</code></pre></details>
+<details><summary>Hint 2 — scanning a 2D map from a 1D kernel</summary><p>The histogram kernel has 32 threads and a 64 × 64 map, so each thread runs two
+            nested loops over the map. Both bounds are constants, which is what the WebGL backend
+            needs:</p>
+<pre><code>for (let y = 0; y &lt; this.constants.size; y++) {
+  for (let x = 0; x &lt; this.constants.size; x++) {
+    const bin = Math.min(
+      this.constants.bins - 1,
+      Math.floor(map[y][x] * this.constants.bins)
+    );
+    if (bin === this.thread.x) count++;
+  }
+}</code></pre></details>
+<details><summary>Hint 3 — read the shape of the answer</summary><p>Once it runs, look at the counts: the first bins and the last bins are empty.
+            This image never gets truly black or truly white — which is precisely the thing a tone
+            histogram exists to tell you.</p></details>
+<h2>Same idea elsewhere</h2>Tone histograms are load-bearing infrastructure, not a readout: auto-exposure,
+        auto-contrast and histogram equalization all start here, and phone ISPs compute one in fixed
+        function hardware on every frame. The two-pass shape generalizes past images — derive the
+        quantity once into a buffer, then bin the buffer — and it is the same reason CUDA and WebGPU
+        pipelines materialize an intermediate rather than recomputing inside an inner loop. Turning
+        these counts into a cumulative curve (the next step of equalization) is a prefix sum, which
+        is the one parallel primitive this module does not need.
+<h2>All tasks in Histograms &amp; Binning</h2>
+<ol class="ssg-tasks"><li><a href="/learn/histograms-and-binning-dfb254f4/1">The Increment That Vanishes</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/2">One Thread Per Bin</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/3">Where Does 7.35 Go?</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/4">Partial Histograms, Then Merge</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/5">Payoff: An Image's Tone Histogram</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/histograms-and-binning-dfb254f4/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

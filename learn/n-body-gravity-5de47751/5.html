@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Put It Together: 128 Bodies · N-Body Gravity — GPU.js Learn</title>
     <meta name="description" content="Goal: write the simulation loop — ten ticks of accel → stepVel → stepPos , carrying the new arrays forward each time.">
@@ -114,9 +114,81 @@
     <meta name="twitter:description" content="Goal: write the simulation loop — ten ticks of accel → stepVel → stepPos , carrying the new arrays forward each time.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Put It Together: 128 Bodies","description":"Goal: write the simulation loop — ten ticks of accel → stepVel → stepPos , carrying the new arrays forward each time.","url":"https://gpu.rocks/learn/n-body-gravity-5de47751/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"N-Body Gravity","url":"https://gpu.rocks/learn/n-body-gravity-5de47751","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/n-body-gravity-5de47751/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/n-body-gravity-5de47751">N-Body Gravity</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Put It Together: 128 Bodies</h1>
+<p>Everything from this module, running as one machine. The three kernels below are
+        your last three tasks — softened O(n²) acceleration, the velocity tick, the position tick.
+        What's missing is the <strong>conductor</strong>: a JavaScript loop that runs ten full
+        ticks, feeding each kernel's output into the next and carrying the new state into the next
+        tick.</p>
+        <p>Notice who does what: JavaScript never touches a single interaction — it just passes
+        arrays around. The GPU grinds through 128 × 128 = 16,384 interactions per tick, 163,840
+        across the run. Swap 128 for 100,000 and this exact structure is a galaxy simulator; the
+        loop you're about to write wouldn't change by a character.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> write the simulation loop — ten ticks of
+        <code>accel → stepVel → stepPos</code>, carrying the new arrays forward each time.</div>
+
+<h2>Requirements</h2><ul><li>Each tick: accelerations first — <code>accel(px, py, mass, SOFT)</code></li><li>Unpack the pairs, then <code>stepVel(vx, vy, ax, ay, DT)</code>, then <code>stepPos</code> with the <em>new</em> velocities</li><li>Reassign <code>px, py, vx, vy</code> so the next tick starts from the new state</li><li>Run exactly <code>STEPS</code> ticks, then log body 0's final position</li></ul>
+<details><summary>Hint 1 — the shape of one tick</summary><p>Inside the loop: call <code>accel</code>, unpack its pairs into
+            <code>ax, ay</code> arrays (the <code>unpack</code> helper is right there), call
+            <code>stepVel</code>, unpack, call <code>stepPos</code>, unpack.</p></details>
+<details><summary>Hint 2 — carrying the state</summary><p>End every tick by overwriting the state:</p>
+<pre><code>vx = newVx;
+vy = newVy;
+px = newPx;
+py = newPy;</code></pre>
+<p>— next tick's
+            <code>accel</code> must see the moved bodies, or time never advances.</p></details>
+<details><summary>Hint 3 — the whole loop</summary><pre><code>for (let step = 0; step &lt; STEPS; step++) {
+  const [ax, ay] = unpack(accel(px, py, mass, SOFT));
+  const [nvx, nvy] = unpack(stepVel(vx, vy, ax, ay, DT));
+  const [npx, npy] = unpack(stepPos(px, py, nvx, nvy, DT));
+  px = npx; py = npy; vx = nvx; vy = nvy;
+}</code></pre></details>
+<h2>Same idea elsewhere</h2>A host loop launching device kernels in sequence is the universal skeleton of GPU
+        simulation: CUDA streams queueing kernel after kernel per timestep, WebGPU building one
+        command encoder per frame, Metal committing a command buffer per tick. Production codes
+        differ mainly in never reading the arrays back between passes — that's what track 2's
+        pipeline textures are for.
+<h2>All tasks in N-Body Gravity</h2>
+<ol class="ssg-tasks"><li><a href="/learn/n-body-gravity-5de47751/1">The Pull of One Star</a></li><li><a href="/learn/n-body-gravity-5de47751/2">Every Body Pulls on Every Body</a></li><li><a href="/learn/n-body-gravity-5de47751/3">Softening the Singularity</a></li><li><a href="/learn/n-body-gravity-5de47751/4">One Tick of the Clock</a></li><li><a href="/learn/n-body-gravity-5de47751/5">Put It Together: 128 Bodies</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/n-body-gravity-5de47751/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

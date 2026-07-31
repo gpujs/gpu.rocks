@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Thread Per Bin · Histograms &amp; Binning — GPU.js Learn</title>
     <meta name="description" content="Goal: produce all 16 counts in one kernel launch, then total them in plain JavaScript and log the total.">
@@ -114,9 +114,82 @@
     <meta name="twitter:description" content="Goal: produce all 16 counts in one kernel launch, then total them in plain JavaScript and log the total.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Thread Per Bin","description":"Goal: produce all 16 counts in one kernel launch, then total them in plain JavaScript and log the total.","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Histograms & Binning","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/histograms-and-binning-dfb254f4/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/histograms-and-binning-dfb254f4">Histograms &amp; Binning</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>One Thread Per Bin</h1>
+<p>Run the last task sixteen times over, once per bin, and you have the whole
+        histogram. <code>output: [16]</code> launches sixteen threads; thread <em>x</em> owns bin
+        <em>x</em>, scans the entire array, and counts the codes that belong to it. Nobody writes
+        into anybody else's cell, so there is nothing left to race over. The scatter became a
+        gather — the same move <em>Thinking in Parallel</em> makes, wearing its most useful
+        disguise.</p>
+        <p>Say the price out loud, because it is real: every one of the 16 threads reads all 4,096
+        codes, so this histogram costs <strong>n × bins</strong> reads where the CPU's cost
+        <strong>n</strong>. You bought correctness with redundant work. On a GPU that is very often
+        the right trade — the redundant reads run in parallel and hit cache, while the
+        serialization an atomic costs does not parallelize at all — but it stops being the right
+        trade as the bin count grows, and task 4 fixes the other end of it.</p>
+        <p>One check catches almost every histogram bug ever written, so build the habit now:
+        <strong>the counts must sum to the number of inputs.</strong> Every input belongs to exactly
+        one bin, so 4,096 codes must produce counts totalling 4,096. Anything else means values are
+        being dropped or double-counted, and the size of the gap usually tells you which.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> produce all 16 counts in one kernel launch, then total them in
+        plain JavaScript and log the total.</div>
+
+<h2>Requirements</h2><ul><li><code>output: [16]</code> — one thread per bin, no loop over the bins</li><li>Each thread scans all <code>this.constants.n</code> codes and counts only the ones equal to <code>this.thread.x</code></li><li>Sum the 16 returned counts in ordinary JavaScript and <code>console.log</code> the total (it should come to <code>4096</code>)</li></ul>
+<details><summary>Hint 1 — which bin am I?</summary><p><code>this.thread.x</code> is both this thread's output cell <em>and</em> the
+            code it is counting. That coincidence is the entire kernel: thread 5 counts the 5s.</p></details>
+<details><summary>Hint 2 — the loop body</summary><pre><code>if (codes[i] === this.thread.x) count++;</code></pre></details>
+<details><summary>Hint 3 — the total</summary><p>A plain loop after the kernel call:</p>
+<pre><code>let total = 0;
+for (let b = 0; b &lt; counts.length; b++) {
+  total += counts[b];
+}</code></pre>
+<p>If that is not 4096, stop and find out why before you trust a single bar.</p></details>
+<h2>Same idea elsewhere</h2>"One thread per output bucket, each scanning the input" is the shape shaders used
+        for histograms for years before compute shaders and atomics existed, and it is still what
+        libraries fall back to when the bin count is small and contention would be brutal. The
+        general lesson outlives the example: when a parallel algorithm wants to write where it
+        cannot, re-derive it so each output owner reads what it needs. CUDA, WGSL and Metal all
+        reward that reformulation even where they would have let you scatter.
+<h2>All tasks in Histograms &amp; Binning</h2>
+<ol class="ssg-tasks"><li><a href="/learn/histograms-and-binning-dfb254f4/1">The Increment That Vanishes</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/2">One Thread Per Bin</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/3">Where Does 7.35 Go?</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/4">Partial Histograms, Then Merge</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/5">Payoff: An Image's Tone Histogram</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/histograms-and-binning-dfb254f4/1">← previous task</a> · <a href="/learn/histograms-and-binning-dfb254f4/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

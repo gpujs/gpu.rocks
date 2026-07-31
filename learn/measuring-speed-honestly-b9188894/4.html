@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>When the CPU Wins · Measuring Speed Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: double tiny both ways — kernel and plain loop — verify they agree within a tolerance, time both fairly, and log the winner.">
@@ -114,9 +114,71 @@
     <meta name="twitter:description" content="Goal: double tiny both ways — kernel and plain loop — verify they agree within a tolerance, time both fairly, and log the winner.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"When the CPU Wins","description":"Goal: double tiny both ways — kernel and plain loop — verify they agree within a tolerance, time both fairly, and log the winner.","url":"https://gpu.rocks/learn/measuring-speed-honestly-b9188894/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Measuring Speed Honestly","url":"https://gpu.rocks/learn/measuring-speed-honestly-b9188894","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/measuring-speed-honestly-b9188894/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/measuring-speed-honestly-b9188894">Measuring Speed Honestly</a></nav>
+<p class="ssg-eyebrow">Task 4 of 4</p>
+<h1>When the CPU Wins</h1>
+<p>Sixteen numbers, doubled. The GPU <em>can</em> do it — but every kernel call pays
+        a fixed toll before any math happens: dispatch through the graphics API, upload 16 values,
+        read 16 back. A plain JavaScript loop finishes the whole job in nanoseconds, before the
+        GPU has cleared its throat.</p>
+        <p>This is the module's payoff — the full honest-measurement checklist in one run:
+        <strong>warm up first</strong> (task 1), <strong>remember the transfer toll</strong>
+        (task 2), <strong>compare results with a tolerance</strong> (task 3), and then
+        <strong>declare the true winner</strong> — even when it isn't the GPU. Parallel hardware
+        pays off on big workloads; on tiny ones, the honest answer is a for-loop.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> double <code>tiny</code> both ways — kernel and plain loop —
+        verify they agree within a tolerance, time both fairly, and log the winner.</div>
+
+<h2>Requirements</h2><ul><li>Kernel returns <code>data[this.thread.x] * 2</code> for all 16 threads</li><li>Compare <code>fromKernel</code> to <code>fromLoop</code> element-wise with tolerance <code>1e-4</code> and log <code>match: true</code></li><li>Time 200 warmed-up rounds of each contender and log both as <code>ms/round</code></li><li>Log <code>winner:</code> with whichever contender was faster</li></ul>
+<details><summary>Hint 1 — the tolerant match</summary><p>Task 3's move, in a loop: start with <code>let allMatch = true;</code> and flip
+            it to <code>false</code> whenever <code>Math.abs(fromKernel[i] - fromLoop[i]) &gt; 1e-4</code>.</p></details>
+<details><summary>Hint 2 — a fair fight</summary><p>The first <code>doubleTiny(tiny)</code> call already warmed the kernel up, so
+            both timed loops measure steady state. Time 200 rounds of <code>doubleTiny(tiny)</code>,
+            then 200 rounds of the JS loop, and divide each total by 200.</p></details>
+<details><summary>Hint 3 — declaring the winner</summary><pre><code>console.log('winner:', kernelMs &lt; loopMs ? 'gpu kernel' : 'plain js');</code></pre>
+<p>On a job this small, expect the loop to take it. That's the honest answer.</p></details>
+<h2>Same idea elsewhere</h2>Kernel-launch overhead runs to microseconds on CUDA and ROCm — thousands of
+        CPU instructions' worth per launch. It's why serious frameworks batch and fuse tiny
+        operations instead of dispatching them one at a time, and why "is this workload big
+        enough?" is the first question asked in any GPU port.
+<h2>All tasks in Measuring Speed Honestly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/measuring-speed-honestly-b9188894/1">The First Call Is a Lie</a></li><li><a href="/learn/measuring-speed-honestly-b9188894/2">Pay the Transfer Tax</a></li><li><a href="/learn/measuring-speed-honestly-b9188894/3">Two Machines, Two Answers</a></li><li><a href="/learn/measuring-speed-honestly-b9188894/4">When the CPU Wins</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/measuring-speed-honestly-b9188894/3">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

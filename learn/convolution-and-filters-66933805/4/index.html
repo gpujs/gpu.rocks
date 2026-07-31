@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Sharpen: Negative Weights · Convolution &amp; Filters — GPU.js Learn</title>
     <meta name="description" content="Goal: sharpen the 96×96 gray map — each cell becomes 5·center − left − right − up − down , with neighbor indexes clamped.">
@@ -114,9 +114,83 @@
     <meta name="twitter:description" content="Goal: sharpen the 96×96 gray map — each cell becomes 5·center − left − right − up − down , with neighbor indexes clamped.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Sharpen: Negative Weights","description":"Goal: sharpen the 96×96 gray map — each cell becomes 5·center − left − right − up − down , with neighbor indexes clamped.","url":"https://gpu.rocks/learn/convolution-and-filters-66933805/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Convolution & Filters","url":"https://gpu.rocks/learn/convolution-and-filters-66933805","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/convolution-and-filters-66933805/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/convolution-and-filters-66933805">Convolution &amp; Filters</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Sharpen: Negative Weights</h1>
+<p>Filters are not all averages. Give the window <strong>negative weights</strong>
+        and it starts measuring <em>differences</em>. The classic sharpen filter is a cross:
+        <code>5</code> at the center, <code>−1</code> at each direct neighbor. Where the image is
+        flat, the terms cancel to exactly the original value; where it changes, the difference
+        gets amplified — edges pop.</p>
+        <p>Sharpened values can overshoot right out of the 0–1 range, so this task computes on a
+        numeric <strong>luminance map</strong> (<code>gray[y][x]</code>, one number per pixel)
+        and returns raw numbers you can inspect — no color clamping hiding the math.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+
+<div class="ssg-goal"><strong>Goal:</strong> sharpen the 96×96 <code>gray</code> map — each cell becomes
+        <code>5·center − left − right − up − down</code>, with neighbor indexes clamped.</div>
+
+<h2>Requirements</h2><ul><li>Clamp all four neighbor indexes to <code>0…this.constants.last</code></li><li>Return <code>5 * gray[y][x]</code> minus the four clamped neighbor samples</li><li>Keep the kernel numeric — no <code>graphical: true</code>, values may leave 0–1</li></ul>
+<details><summary>Hint 1 — why 5 and −1?</summary><p>The weights sum to 1, so flat regions pass through unchanged:
+            <code>5c − 4c = c</code>. Everything the filter adds comes purely from
+            center-vs-neighbor <em>differences</em>.</p></details>
+<details><summary>Hint 2 — four clamps, one return</summary><pre><code>let left = x - 1;
+if (left &lt; 0) left = 0;</code></pre>
+<p>— repeat for
+            <code>right</code>, <code>up</code>, <code>down</code> against
+            <code>this.constants.last</code>, then a single return with the five terms:</p>
+<pre><code>return 5 * gray[y][x] - gray[y][left] - gray[y][right]
+  - gray[up][x] - gray[down][x];</code></pre></details>
+<h2>Same idea elsewhere</h2>A convolution with learned weights is a CNN layer — cuDNN (CUDA) and MIOpen
+        (ROCm) are entire libraries for running this exact multiply-accumulate window fast.
+        Your sharpen filter is the same arithmetic with the weights picked by hand instead of
+        by gradient descent.
+<h2>All tasks in Convolution &amp; Filters</h2>
+<ol class="ssg-tasks"><li><a href="/learn/convolution-and-filters-66933805/1">Slide a Window: 1D Convolution</a></li><li><a href="/learn/convolution-and-filters-66933805/2">Any Filter, One Kernel</a></li><li><a href="/learn/convolution-and-filters-66933805/3">Box Blur: the Window Goes 2D</a></li><li><a href="/learn/convolution-and-filters-66933805/4">Sharpen: Negative Weights</a></li><li><a href="/learn/convolution-and-filters-66933805/5">Sobel Edge Detection</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/convolution-and-filters-66933805/3">← previous task</a> · <a href="/learn/convolution-and-filters-66933805/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

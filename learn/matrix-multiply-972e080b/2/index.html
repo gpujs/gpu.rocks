@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Full Grid: Matrix × Matrix · Matrix Multiply — GPU.js Learn</title>
     <meta name="description" content="Goal: compute the 16×16 product matA × matB — each thread returns the dot product of its row of a with its column of b .">
@@ -114,9 +114,71 @@
     <meta name="twitter:description" content="Goal: compute the 16×16 product matA × matB — each thread returns the dot product of its row of a with its column of b .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Full Grid: Matrix × Matrix","description":"Goal: compute the 16×16 product matA × matB — each thread returns the dot product of its row of a with its column of b .","url":"https://gpu.rocks/learn/matrix-multiply-972e080b/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Matrix Multiply","url":"https://gpu.rocks/learn/matrix-multiply-972e080b","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/matrix-multiply-972e080b/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/matrix-multiply-972e080b">Matrix Multiply</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>The Full Grid: Matrix × Matrix</h1>
+<p>On the CPU, <code>C = A × B</code> is the classic triple loop: over rows, over
+        columns, over <code>k</code>. On the GPU the outer two loops <strong>vanish into the
+        launch</strong> — <code>output: [16, 16]</code> starts 256 threads, one per cell of
+        <code>C</code>, and only the innermost loop survives inside the kernel.</p>
+        <p>Cell <code>C[y][x]</code> is the dot product of <strong>row y of A</strong> with
+        <strong>column x of B</strong>: walk <code>k</code> across the row
+        <code>a[y][k]</code> and down the column <code>b[k][x]</code>. Same loop as task 1 —
+        now every thread aims it at its own row/column pair.</p>
+<figure><figcaption>row y across, column x down — 256 threads, each owning one dot product</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> compute the 16×16 product <code>matA × matB</code> — each
+        thread returns the dot product of its row of <code>a</code> with its column of
+        <code>b</code>.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>output: [16, 16]</code> — one thread per cell of C</li><li>Loop <code>k</code> over the 16 shared elements</li><li>Accumulate <code>a[this.thread.y][k] * b[k][this.thread.x]</code> and return the sum</li></ul>
+<details><summary>Hint 1 — row and column</summary><p><code>this.thread.y</code> picks the row of <code>a</code>,
+            <code>this.thread.x</code> picks the column of <code>b</code>, and <code>k</code> is
+            the only index that moves during the loop.</p></details>
+<details><summary>Hint 2 — the inner loop</summary><pre><code>let sum = 0;
+for (let k = 0; k &lt; 16; k++) {
+  sum += a[this.thread.y][k] * b[k][this.thread.x];
+}
+return sum;</code></pre></details>
+<h2>Same idea elsewhere</h2>This one-thread-per-output-cell matmul is the "naive kernel" every WebGPU and
+        CUDA tutorial starts from — and the baseline that tiled, shared-memory versions are
+        measured against. The structure you just wrote is their starting point too.
+<h2>All tasks in Matrix Multiply</h2>
+<ol class="ssg-tasks"><li><a href="/learn/matrix-multiply-972e080b/1">One Cell, One Dot Product</a></li><li><a href="/learn/matrix-multiply-972e080b/2">The Full Grid: Matrix × Matrix</a></li><li><a href="/learn/matrix-multiply-972e080b/3">Rectangular: Three Different Sizes</a></li><li><a href="/learn/matrix-multiply-972e080b/4">Transpose: Swap the Axes</a></li><li><a href="/learn/matrix-multiply-972e080b/5">One Kernel, Any Size</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/matrix-multiply-972e080b/1">← previous task</a> · <a href="/learn/matrix-multiply-972e080b/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

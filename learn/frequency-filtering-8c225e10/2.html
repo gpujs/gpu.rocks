@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Brick Wall Rings · Filtering in the Frequency Domain — GPU.js Learn</title>
     <meta name="description" content="Goal: finish lowPass so that every bin more than 20 bins from DC is zeroed on both planes and every other bin passes through untouched — then read the…">
@@ -114,9 +114,91 @@
     <meta name="twitter:description" content="Goal: finish lowPass so that every bin more than 20 bins from DC is zeroed on both planes and every other bin passes through untouched — then read the…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Brick Wall Rings","description":"Goal: finish lowPass so that every bin more than 20 bins from DC is zeroed on both planes and every other bin passes through untouched — then read the…","url":"https://gpu.rocks/learn/frequency-filtering-8c225e10/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Filtering in the Frequency Domain","url":"https://gpu.rocks/learn/frequency-filtering-8c225e10","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/frequency-filtering-8c225e10/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/frequency-filtering-8c225e10">Filtering in the Frequency Domain</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>The Brick Wall Rings</h1>
+<p>If multiplying by a spectrum is a filter, then just <em>choose</em> the spectrum.
+        Want a low-pass? Set every bin above a cutoff to zero and transform back. Nothing in signal
+        processing is simpler, and nothing punishes simplicity faster.</p>
+        <p>What comes back is not a smoothed square wave. It is a square wave with
+        <strong>ringing</strong>: an overshoot at every edge, plus ripples running the whole length
+        of the buffer. Widening the cutoff does not help: it squeezes the ripple closer to the edge,
+        but the height of that first overshoot sits at about <strong>9% of the jump</strong> however
+        many bins you keep — right up until you keep them all and there is no filter left. This is
+        the <strong>Gibbs phenomenon</strong>, and it is not a bug in your arithmetic: a rectangle in
+        frequency is a <code>sinc</code> in time, and a sinc rings forever.</p>
+        <p>One structural detail first, because it is the most common way this task goes wrong.
+        The signal is real, which makes its spectrum <strong>conjugate-symmetric</strong>: bin
+        <code>n − k</code> always holds the conjugate of bin <code>k</code>. Those upper bins are
+        not extra high frequencies — they are the mirror halves of the low ones. Bin 250 of 256 is
+        <em>six</em> bins from DC. Zero a bin without zeroing its mirror and the inverse transform
+        comes back complex, so fold the index before you compare it to the cutoff:</p>
+<pre><code>const k = this.thread.x;
+const dist = Math.min(k, this.constants.n - k);</code></pre>
+        <p>The starter below forgets that fold, on purpose. Run it and look at the second log line:
+        a real signal has come back with an imaginary part bigger than 1.</p>
+<figure><figcaption>you cut the spectrum with a cliff; the cliff hands you back a ripple</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> finish <code>lowPass</code> so that every bin more than
+        <code>20</code> bins from DC is zeroed on <em>both</em> planes and every other bin passes
+        through untouched — then read the overshoot off the console.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>output: [256, 2]</code>; the incoming spectrum is read as <code>spec[0][k]</code> and <code>spec[1][k]</code></li><li>Measure a bin's distance from DC as <code>Math.min(k, this.constants.n - k)</code> — never the raw index</li><li>Return <code>0</code> on both planes when that distance exceeds <code>this.constants.cut</code></li><li>Otherwise return the bin unchanged, real part on plane 0 and imaginary part on plane 1</li></ul>
+<details><summary>Hint 1 — the fold, and why</summary><p>For a real signal the spectrum is a palindrome of conjugates: bin
+            <code>255</code> is the mirror of bin <code>1</code>, bin <code>236</code> the mirror of
+            bin <code>20</code>. Keeping a bin and dropping its mirror keeps half of a cosine and
+            throws the other half away, and what is left is a complex exponential. So:</p>
+<pre><code>const k = this.thread.x;
+const dist = Math.min(k, this.constants.n - k);
+if (dist &gt; this.constants.cut) return 0;</code></pre></details>
+<details><summary>Hint 2 — one return per plane</summary><p>The zero is the same on both planes, so it can be returned before you ever
+            look at <code>this.thread.y</code>. What survives is a straight pass-through:</p>
+<pre><code>if (this.thread.y === 0) return spec[0][k];
+return spec[1][k];</code></pre></details>
+<details><summary>Hint 3 — reading the answer</summary><p>The console prints the peak as a fraction of the wave's 2-unit jump. You are
+            looking for about <code>9.2</code>%. Gibbs' constant is 8.95%; the difference is only
+            that our samples do not land exactly on the peak of the ripple.</p></details>
+<h2>Same idea elsewhere</h2>Every real filter design is a negotiation with this fact. An ideal low-pass has an
+        infinitely long, non-causal impulse response, so hardware and DSP libraries ship windowed
+        approximations instead — <code>scipy.signal.firwin</code>, MATLAB's <code>fir1</code>, the
+        biquad cascades in Web Audio. It is also why a JPEG rings around sharp edges: quantising
+        away a block's high-frequency DCT coefficients is exactly the brick wall you just built.
+<h2>All tasks in Filtering in the Frequency Domain</h2>
+<ol class="ssg-tasks"><li><a href="/learn/frequency-filtering-8c225e10/1">Convolution Becomes Multiplication</a></li><li><a href="/learn/frequency-filtering-8c225e10/2">The Brick Wall Rings</a></li><li><a href="/learn/frequency-filtering-8c225e10/3">Trade the Ringing for a Softer Edge</a></li><li><a href="/learn/frequency-filtering-8c225e10/4">A Tone Buried in Noise</a></li><li><a href="/learn/frequency-filtering-8c225e10/5">Multiplying Spectra Convolves in a Circle</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/frequency-filtering-8c225e10/1">← previous task</a> · <a href="/learn/frequency-filtering-8c225e10/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

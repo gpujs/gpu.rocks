@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Kernel, Any Size · Matrix Multiply — GPU.js Learn</title>
     <meta name="description" content="Goal: make multiply(a, b) work for any square size up to 64 using a single kernel — verify it on the 8×8 and 48×48 pairs provided.">
@@ -114,9 +114,90 @@
     <meta name="twitter:description" content="Goal: make multiply(a, b) work for any square size up to 64 using a single kernel — verify it on the 8×8 and 48×48 pairs provided.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Kernel, Any Size","description":"Goal: make multiply(a, b) work for any square size up to 64 using a single kernel — verify it on the 8×8 and 48×48 pairs provided.","url":"https://gpu.rocks/learn/matrix-multiply-972e080b/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Matrix Multiply","url":"https://gpu.rocks/learn/matrix-multiply-972e080b","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/matrix-multiply-972e080b/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/matrix-multiply-972e080b">Matrix Multiply</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>One Kernel, Any Size</h1>
+<p>Every kernel so far had its size welded on: <code>output: [16, 16]</code>, loop
+        to 16. Real code multiplies whatever matrices show up. gpu.js has three switches for
+        that: <code>dynamicOutput: true</code> lets you call <code>kernel.setOutput([n, n])</code>
+        before each run, <code>dynamicArguments: true</code> lets the input arrays change size
+        between calls, and <code>loopMaxIterations</code> raises the safety cap so the loop bound
+        can be a <em>runtime argument</em> instead of a constant.</p>
+        <p>Pass the size in as a plain number, loop <code>k &lt; size</code>, and one kernel
+        object serves an 8×8 and a 48×48 multiply back to back. This is the payoff of the module:
+        the naive triple loop from task 2, now packaged as a function that scales.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> make <code>multiply(a, b)</code> work for any square size up
+        to 64 using a <em>single</em> kernel — verify it on the 8×8 and 48×48 pairs provided.</div>
+
+<h2>Requirements</h2><ul><li>Kernel options: <code>dynamicOutput</code>, <code>dynamicArguments</code>, and <code>loopMaxIterations: 64</code></li><li>Take <code>size</code> as a third kernel argument and loop <code>k &lt; size</code></li><li>In <code>multiply</code>, call <code>matmul.setOutput([n, n])</code> before invoking</li><li>Exactly one <code>createKernel</code> call serves both sizes</li></ul>
+<details><summary>Hint 1 — why the cap?</summary><p>On the GPU backend a loop bound that isn't a compile-time constant becomes</p>
+<pre><code>for (i = 0; i &lt; LOOP_MAX; i++) {
+  if (!(i &lt; size)) break;
+  // …
+}</code></pre>
+<p>in the shader — <code>loopMaxIterations</code> <em>is</em> that LOOP_MAX. Set it to the
+            largest size you'll ever pass: 64 here.</p></details>
+<details><summary>Hint 2 — sizing per call</summary><p>Inside <code>multiply</code>:</p>
+<pre><code>const n = a.length;
+matmul.setOutput([n, n]);
+return matmul(a, b, n);</code></pre>
+<p>— set the launch shape first,
+            then invoke with the size as the last argument.</p></details>
+<details><summary>Hint 3 — the kernel</summary><pre><code>function (a, b, size) {
+  let sum = 0;
+  for (let k = 0; k &lt; size; k++) {
+    sum += a[this.thread.y][k] * b[k][this.thread.x];
+  }
+  return sum;
+}</code></pre>
+<p>with options</p>
+<pre><code>{
+  dynamicOutput: true,
+  dynamicArguments: true,
+  loopMaxIterations: 64,
+}</code></pre></details>
+<h2>Same idea elsewhere</h2>Shipping one kernel that covers a size range is standard practice everywhere:
+        CUDA kernels take M, N, K as launch parameters and pick grid dimensions at call time,
+        WebGPU dispatches a runtime-computed number of workgroups, and Metal binds sizes through
+        a constant buffer. Compile once, launch at any size — exactly what you just built.
+<h2>All tasks in Matrix Multiply</h2>
+<ol class="ssg-tasks"><li><a href="/learn/matrix-multiply-972e080b/1">One Cell, One Dot Product</a></li><li><a href="/learn/matrix-multiply-972e080b/2">The Full Grid: Matrix × Matrix</a></li><li><a href="/learn/matrix-multiply-972e080b/3">Rectangular: Three Different Sizes</a></li><li><a href="/learn/matrix-multiply-972e080b/4">Transpose: Swap the Axes</a></li><li><a href="/learn/matrix-multiply-972e080b/5">One Kernel, Any Size</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/matrix-multiply-972e080b/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

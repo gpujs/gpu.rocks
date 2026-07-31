@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Multiplying Spectra Convolves in a Circle · Filtering in the Frequency Domain — GPU.js Learn</title>
     <meta name="description" content="Goal: pick a PAD long enough to hold the whole answer, and finish pad so it copies the first 32 samples and zeroes the rest.">
@@ -114,9 +114,99 @@
     <meta name="twitter:description" content="Goal: pick a PAD long enough to hold the whole answer, and finish pad so it copies the first 32 samples and zeroes the rest.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Multiplying Spectra Convolves in a Circle","description":"Goal: pick a PAD long enough to hold the whole answer, and finish pad so it copies the first 32 samples and zeroes the rest.","url":"https://gpu.rocks/learn/frequency-filtering-8c225e10/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Filtering in the Frequency Domain","url":"https://gpu.rocks/learn/frequency-filtering-8c225e10","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/frequency-filtering-8c225e10/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/frequency-filtering-8c225e10">Filtering in the Frequency Domain</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Multiplying Spectra Convolves in a Circle</h1>
+<p>Task 1 had an accident built into it: the signal occupied 20 of 64 samples and the
+        filter 5, so the 24-sample answer had room to spare. Take the room away and the theorem
+        bites.</p>
+        <p>Multiplying two length-<code>n</code> spectra does not produce the convolution you want.
+        It produces the <strong>circular</strong> convolution — the one that treats both buffers as
+        loops, so whatever runs off the end comes back on at the beginning:</p>
+<pre><code>circular[i] = linear[i] + linear[i + n]</code></pre>
+        <p>Here <code>sig</code> is 32 samples and <code>filt</code> carries 9 taps, so the honest
+        answer is <code>32 + 9 − 1 = 40</code> samples long. Multiply their 32-bin spectra and the
+        last 8 samples fold back onto the first 8, corrupting them by as much as
+        <strong>0.37</strong> against a signal whose largest value is 0.66. The signature is
+        unmistakable once you have seen it: <em>the tail of the answer appears at its head</em>.</p>
+        <p>The fix is to give the answer somewhere to live. Zero-pad both buffers to at least
+        <code>n + m − 1</code> before transforming — 40 here, and since every real FFT wants a
+        power of two, <strong>64</strong>. The overhang then lands on padding instead of on your
+        data. The starter transforms at 32 and prints the damage; fix <code>PAD</code> and the
+        guard inside <code>pad</code>, and the error should collapse to float32 rounding — a few
+        millionths on a GPU, a few hundred-thousandths on a software renderer.</p>
+        <p>This is also where the cost story gets honest. Padding to a power of two means
+        transforming 64 points to convolve 32 with 9 — and 9 taps is short enough that the sliding
+        window wins outright, on any hardware. Frequency-domain convolution starts paying somewhere
+        around a few dozen taps, and exactly where depends on the machine. The Benchmark button will
+        price this pipeline for you on both backends; Measuring Speed Honestly owns the rest of the
+        methodology, including why a single timing is a rumour.</p>
+<figure><figcaption>eight samples with nowhere to go, and they do not go quietly</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> pick a <code>PAD</code> long enough to hold the whole answer,
+        and finish <code>pad</code> so it copies the first 32 samples and zeroes the rest.</div>
+
+<h2>Requirements</h2><ul><li>Set <code>PAD</code> to at least <code>32 + 9 − 1 = 40</code>; round up to <code>64</code>, the next power of two</li><li>Inside <code>pad</code>, return <code>src[this.thread.x]</code> only while <code>this.thread.x</code> is below <code>this.constants.src</code>, and <code>0</code> beyond it</li><li>Guard that read: past the end of the source there is nothing to read, and gpu.js answers <code>NaN</code> on the CPU backend and garbage on WebGL</li><li>Leave the rest of the pipeline alone — the transforms and the complex multiply are task 1's, unchanged</li></ul>
+<details><summary>Hint 1 — how long is the answer?</summary><p>Convolving <code>n</code> samples with <code>m</code> taps produces
+            <code>n + m − 1</code> samples: the filter's last tap is still hanging over the
+            signal's last sample <code>m − 1</code> steps after the signal has ended. With 32 and
+            9 that is 40. Any transform length of 40 or more works; 64 is what you would use in
+            practice, because that is what an FFT wants.</p></details>
+<details><summary>Hint 2 — the guard</summary><p>Two lines, and the <code>if</code> matters — a ternary would still describe an
+            out-of-range read to the GLSL compiler:</p>
+<pre><code>if (this.thread.x &lt; this.constants.src) {
+  return src[this.thread.x];
+}
+return 0;</code></pre>
+          <p><code>filt</code> already arrives in a 32-sample buffer with 9 taps and 23 zeros, so
+            the same kernel pads it correctly with no special case.</p></details>
+<details><summary>Hint 3 — what wrapping looks like</summary><p>Before you fix it, compare the first eight samples the starter prints against
+            the last eight of <code>direct</code>. They are the same numbers. That is not a
+            coincidence and it is not rounding — it is the tail of the convolution, delivered to
+            the front of the buffer.</p></details>
+<h2>Same idea elsewhere</h2>Every FFT convolution in production carries this bookkeeping. cuFFT, FFTW and
+        <code>scipy.signal.fftconvolve</code> all pad internally and hand back the
+        <code>n + m − 1</code> answer; <code>numpy.fft</code> does not, which is why the "why is my
+        filtered audio clicking at the block boundaries" question outlives every generation of
+        programmers. Streaming filters solve the same problem with overlap-add or overlap-save:
+        pad each block, convolve, and add the overhang into the next block instead of throwing it
+        at the start of this one.
+<h2>All tasks in Filtering in the Frequency Domain</h2>
+<ol class="ssg-tasks"><li><a href="/learn/frequency-filtering-8c225e10/1">Convolution Becomes Multiplication</a></li><li><a href="/learn/frequency-filtering-8c225e10/2">The Brick Wall Rings</a></li><li><a href="/learn/frequency-filtering-8c225e10/3">Trade the Ringing for a Softer Edge</a></li><li><a href="/learn/frequency-filtering-8c225e10/4">A Tone Buried in Noise</a></li><li><a href="/learn/frequency-filtering-8c225e10/5">Multiplying Spectra Convolves in a Circle</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/frequency-filtering-8c225e10/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

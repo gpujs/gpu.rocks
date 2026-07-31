@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Turn On the Light · Ray-Marched Metaballs — GPU.js Learn</title>
     <meta name="description" content="Goal: light each hit point with c = 0.15 + 0.85 * Math.max(nx * lx + ny * ly + nz * lz, 0) and paint this.color(c, c * 0.62, c * 0.86, 1) .">
@@ -114,9 +114,69 @@
     <meta name="twitter:description" content="Goal: light each hit point with c = 0.15 + 0.85 * Math.max(nx * lx + ny * ly + nz * lz, 0) and paint this.color(c, c * 0.62, c * 0.86, 1) .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Turn On the Light","description":"Goal: light each hit point with c = 0.15 + 0.85 * Math.max(nx * lx + ny * ly + nz * lz, 0) and paint this.color(c, c * 0.62, c * 0.86, 1) .","url":"https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Ray-Marched Metaballs","url":"https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/ray-marched-metaballs-8b1282bd">Ray-Marched Metaballs</a></nav>
+<p class="ssg-eyebrow">Task 5 of 6</p>
+<h1>Turn On the Light</h1>
+<p>With normals in hand, lighting is one dot product. <strong>Lambert's law</strong>:
+        a surface facing a light head-on catches full brightness; tilt it away and brightness falls
+        with the cosine of the angle — which is exactly <code>n · l</code>, the dot product of the
+        unit normal and the unit direction <em>toward</em> the light. Clamp it at zero so surfaces
+        facing away go dark instead of negative.</p>
+        <p>Two finishing touches make it look right: an <strong>ambient floor</strong> of
+        <code>0.15</code> so shadowed sides stay readable, and an albedo tint — multiply the final
+        brightness into the metaball's pink <code>(1.0, 0.62, 0.86)</code>.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> light each hit point with
+        <code>c = 0.15 + 0.85 * Math.max(nx * lx + ny * ly + nz * lz, 0)</code> and paint
+        <code>this.color(c, c * 0.62, c * 0.86, 1)</code>.</div>
+
+<h2>Requirements</h2><ul><li>Take the dot product of the normal with the light direction <code>(lx, ly, lz)</code></li><li>Clamp with <code>Math.max(dot, 0.0)</code> — no negative light</li><li>Apply the ambient floor: <code>c = 0.15 + 0.85 * diff</code></li><li>Tint by the albedo: <code>this.color(c, c * 0.62, c * 0.86, 1)</code></li></ul>
+<details><summary>Hint 1 — sanity-check the center</summary><p>The center pixel's normal is <code>(0, 0, -1)</code> and the light is
+            <code>(-0.6, 0, -0.8)</code>, so the dot product is <code>0.8</code> and
+            <code>c = 0.15 + 0.85 × 0.8 = 0.83</code> — a bright, not-quite-white pink.</p></details>
+<details><summary>Hint 2 — the two lines</summary><pre><code>const diff = Math.max(nx / len * lx + ny / len * ly
+  + nz / len * lz, 0.0);
+const c = 0.15 + 0.85 * diff;</code></pre></details>
+<h2>Same idea elsewhere</h2><code>max(dot(n, l), 0.0)</code> is character-for-character the same in GLSL,
+        WGSL, HLSL and Metal Shading Language — Lambert diffuse may be the single most portable
+        line of shading code in existence.
+<h2>All tasks in Ray-Marched Metaballs</h2>
+<ol class="ssg-tasks"><li><a href="/learn/ray-marched-metaballs-8b1282bd/1">The Sphere as a Number</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/2">Two Spheres Melt Into One</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/3">March Until You Hit Something</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/4">Normals Without Geometry</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/5">Turn On the Light</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/6">Soft Shadows, Full Scene</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/ray-marched-metaballs-8b1282bd/4">← previous task</a> · <a href="/learn/ray-marched-metaballs-8b1282bd/6">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Hue, Saturation, Value · Colour Spaces — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the two kernels — hue , in degrees, with -1 where there is no hue, and saturation . The graphical kernel below is already written and will paint…">
@@ -114,9 +114,113 @@
     <meta name="twitter:description" content="Goal: finish the two kernels — hue , in degrees, with -1 where there is no hue, and saturation . The graphical kernel below is already written and will paint…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Hue, Saturation, Value","description":"Goal: finish the two kernels — hue , in degrees, with -1 where there is no hue, and saturation . The graphical kernel below is already written and will paint…","url":"https://gpu.rocks/learn/colour-spaces-8d79c6af/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Colour Spaces","url":"https://gpu.rocks/learn/colour-spaces-8d79c6af","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/colour-spaces-8d79c6af/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/colour-spaces-8d79c6af">Colour Spaces</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>Hue, Saturation, Value</h1>
+<p>RGB says how much of each light to mix. It does not say what colour something
+        <em>is</em>. <strong>HSV</strong> does, by splitting the question three ways: hue (which
+        colour), saturation (how far from grey), value (how bright). Two of the three take one line
+        each. The third is where the interesting code lives.</p>
+        <p>Start from the largest and smallest channel. <code>V = max</code>. The gap between them is
+        the <strong>chroma</strong>, <code>C = max − min</code> — how far this pixel is from grey —
+        and saturation is that gap as a fraction of the value, <code>C / V</code>.</p>
+        <p>Hue is an <em>angle</em>: red at 0°, green at 120°, blue at 240°, round to red again at
+        360°. Which channel is the max picks a 60° wedge of that wheel, and the other two channels
+        say where you sit inside it. When the chroma is zero there is no wedge at all: a grey pixel
+        has no hue. Not "hue 0" — 0 is red. No hue, and it needs a value that is not an angle, which
+        here is <code>-1</code>.</p>
+<pre><code>V = max(r, g, b)
+C = V - min(r, g, b)
+S = C / V
+
+V is r   H = 60 * ((g - b) / C)
+         + 360 when that comes out negative
+V is g   H = 60 * ((b - r) / C + 2)
+V is b   H = 60 * ((r - g) / C + 4)</code></pre>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+<figure><figcaption>grey lives in the hole in the middle, where none of the three formulas apply</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> finish the two kernels — <code>hue</code>, in degrees, with
+        <code>-1</code> where there is no hue, and <code>saturation</code>. The graphical kernel
+        below is already written and will paint whatever hue channel you produce.</div>
+
+<h2>Requirements</h2><ul><li><code>hue</code>: return <code>-1</code> when the chroma is <code>0</code>, and otherwise the angle in degrees</li><li>The red wedge is the one that can come out negative — add <code>360</code> to bring it back onto the wheel</li><li><code>saturation</code>: return <code>(max − min) / max</code>, and <code>0</code> when <code>max</code> is <code>0</code> rather than dividing by it</li><li>Leave <code>paintHue</code> alone — it renders your hue channel at full strength so you can see it</li></ul>
+<details><summary>Hint 1 — the three quantities first</summary><p>Every branch below is written in terms of the same three numbers, so name them
+            once at the top of the kernel:</p>
+<pre><code>const v = Math.max(pixel[0], Math.max(pixel[1], pixel[2]));
+const m = Math.min(pixel[0], Math.min(pixel[1], pixel[2]));
+const c = v - m;</code></pre></details>
+<details><summary>Hint 2 — which wedge am I in?</summary><p><code>v</code> is one of the three channels exactly — <code>Math.max</code>
+            returns one of its arguments, it does not compute a new number — so you can compare
+            against it directly:</p>
+<pre><code>if (c === 0) {
+  return -1;
+}
+if (v === pixel[0]) {
+  const h = 60 * ((pixel[1] - pixel[2]) / c);
+  if (h &lt; 0) { return h + 360; }
+  return h;
+}
+if (v === pixel[1]) {
+  return 60 * ((pixel[2] - pixel[0]) / c + 2);
+}
+return 60 * ((pixel[0] - pixel[1]) / c + 4);</code></pre></details>
+<details><summary>Hint 3 — the two zeros</summary><p>Both kernels have a divide-by-nothing case and they are not the same case.
+            Hue divides by the <em>chroma</em>, which is zero for any grey. Saturation divides by
+            the <em>value</em>, which is zero only for black. Test before you divide in both, or
+            those pixels come back <code>NaN</code> and quietly poison everything downstream.</p></details>
+<h2>Same idea elsewhere</h2>This is <code>cvtColor(src, dst, COLOR_BGR2HSV)</code>, and on a GPU it is exactly
+        what you just wrote: per-pixel, no communication, embarrassingly parallel. Watch the shape
+        of it, though — the wedge is chosen by a branch, and threads in the same warp (CUDA) or
+        subgroup (WebGPU/Metal) execute in lockstep, so a tile containing several wedges pays for
+        every branch it contains rather than just its own. Branch <em>divergence</em> is the cost
+        model here, and it is why production colour-conversion shaders are often written
+        branch-free with <code>step()</code> and <code>mix()</code> instead.
+<h2>All tasks in Colour Spaces</h2>
+<ol class="ssg-tasks"><li><a href="/learn/colour-spaces-8d79c6af/1">Three Greys, One Pixel</a></li><li><a href="/learn/colour-spaces-8d79c6af/2">Hue, Saturation, Value</a></li><li><a href="/learn/colour-spaces-8d79c6af/3">The Midpoint of 350° and 10°</a></li><li><a href="/learn/colour-spaces-8d79c6af/4">Select by Colour</a></li><li><a href="/learn/colour-spaces-8d79c6af/5">Payoff: What Colour Is This Picture?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/colour-spaces-8d79c6af/1">← previous task</a> · <a href="/learn/colour-spaces-8d79c6af/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

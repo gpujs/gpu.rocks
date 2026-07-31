@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Who Is My Partner? · Bitonic Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: return the partner index for each of 16 threads at a given power-of-two stride — no data involved, pure index arithmetic.">
@@ -114,9 +114,83 @@
     <meta name="twitter:description" content="Goal: return the partner index for each of 16 threads at a given power-of-two stride — no data involved, pure index arithmetic.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Who Is My Partner?","description":"Goal: return the partner index for each of 16 threads at a given power-of-two stride — no data involved, pure index arithmetic.","url":"https://gpu.rocks/learn/bitonic-sort-84e0728e/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Bitonic Sort","url":"https://gpu.rocks/learn/bitonic-sort-84e0728e","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/bitonic-sort-84e0728e/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/bitonic-sort-84e0728e">Bitonic Sort</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>Who Is My Partner?</h1>
+<p>Adjacent pairs are only the first pass. The network also compares at distance 2,
+        4, 8, 16 — always a power of two, always the same pattern regardless of what the values
+        are. The classic way to write it is one character long:</p>
+<pre><code>partner = i ^ stride;</code></pre>
+        <p>XOR with a power of two flips exactly one bit of the index — bit
+        <code>log₂(stride)</code>. If your bit is 0 you move forward across the gap; if it is 1 you
+        move back. Do it twice and you are home, which is why the pairing is always mutual: no
+        thread is anybody's partner twice, and nobody is left over.</p>
+        <p><code>^</code> does work in gpu.js — but it is worth knowing what you are buying. Both
+        WebGL backends compile it to a helper function that walks up to 32 bits of both operands in
+        a loop; the native GLSL integer operator is never emitted. One character of JavaScript, a
+        32-iteration loop in the shader. On CUDA or WebGPU, XOR is a single instruction. Here it is
+        not, so this module spells the flip out in arithmetic instead — two operations, and it
+        hands you something XOR hides: the <em>value</em> of the bit you are flipping.</p>
+<pre><code>const bit = Math.floor(i / stride) % 2;   // 0 or 1 — my bit at log2(stride)
+partner = bit === 0 ? i + stride : i - stride;</code></pre>
+        <p>Hold on to that <code>bit</code>. The next task needs it, and needs a second one just
+        like it.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> return the <em>partner index</em> for each of 16 threads at a
+        given power-of-two <code>stride</code> — no data involved, pure index arithmetic.</div>
+
+<h2>Requirements</h2><ul><li>The kernel takes <code>stride</code> as an argument and returns an index, not a value</li><li>Work for <em>any</em> power-of-two stride — 1, 2, 4 and 8 all have to come out right</li><li>Pairing must be mutual: the partner of your partner is you</li></ul>
+<details><summary>Hint 1 — which bit?</summary><p>At <code>stride = 4</code> the indices 0…7 split into 0–3 (bit clear, step
+            forward) and 4–7 (bit set, step back). <code>Math.floor(i / 4) % 2</code> is exactly
+            that split: 0, 0, 0, 0, 1, 1, 1, 1.</p></details>
+<details><summary>Hint 2 — the whole kernel</summary><pre><code>const i = this.thread.x;
+const bit = Math.floor(i / stride) % 2;
+if (bit === 0) return i + stride;
+return i - stride;</code></pre>
+<p><code>return i ^ stride;</code> gives the same answers, at the cost of that
+            32-iteration loop — and it will not help you with the next task.</p></details>
+<h2>Same idea elsewhere</h2>The XOR partner is the canonical spelling of a sorting network everywhere:
+        CUDA's <code>__shfl_xor_sync(mask, value, laneMask)</code> takes the lane XOR mask
+        directly, and WGSL's <code>subgroupShuffleXor</code> is named after it. Both are one
+        instruction on the hardware — worth remembering that the arithmetic form you write here is
+        a gpu.js accommodation, not a universal truth.
+<h2>All tasks in Bitonic Sort</h2>
+<ol class="ssg-tasks"><li><a href="/learn/bitonic-sort-84e0728e/1">The Compare-Exchange, as a Gather</a></li><li><a href="/learn/bitonic-sort-84e0728e/2">Who Is My Partner?</a></li><li><a href="/learn/bitonic-sort-84e0728e/3">Which Way Does My Pair Sort?</a></li><li><a href="/learn/bitonic-sort-84e0728e/4">Drive the Whole Network</a></li><li><a href="/learn/bitonic-sort-84e0728e/5">Payoff: Sort a Real Array</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/bitonic-sort-84e0728e/1">← previous task</a> · <a href="/learn/bitonic-sort-84e0728e/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

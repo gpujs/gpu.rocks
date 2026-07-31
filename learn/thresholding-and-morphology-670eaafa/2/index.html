@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Let the Histogram Pick the Number · Thresholding &amp; Morphology — GPU.js Learn</title>
     <meta name="description" content="Goal: one thread per candidate threshold — return the between-class variance of the cut at t = this.thread.x , with class 0 being bins 0…t inclusive .">
@@ -114,9 +114,92 @@
     <meta name="twitter:description" content="Goal: one thread per candidate threshold — return the between-class variance of the cut at t = this.thread.x , with class 0 being bins 0…t inclusive .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Let the Histogram Pick the Number","description":"Goal: one thread per candidate threshold — return the between-class variance of the cut at t = this.thread.x , with class 0 being bins 0…t inclusive .","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Thresholding & Morphology","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/thresholding-and-morphology-670eaafa">Thresholding &amp; Morphology</a></nav>
+<p class="ssg-eyebrow">Task 2 of 6</p>
+<h1>Let the Histogram Pick the Number</h1>
+<p>Picking <code>0.49</code> by hand was a cheat. <strong>Otsu's method</strong>
+        reads the number off the data instead: try every cut, keep the one whose two sides are
+        furthest apart.</p>
+        <p>"Furthest apart" has a precise meaning — the <strong>between-class variance</strong>.
+        Cut the tone histogram at bin <code>t</code>; let <code>p0</code> and <code>p1</code> be
+        the fraction of pixels on each side and <code>mu0</code>, <code>mu1</code> their mean bin
+        numbers. Then</p>
+<pre><code>score(t) = p0 * p1 * (mu0 - mu1) * (mu0 - mu1)</code></pre>
+        <p>and the winner is the <code>t</code> that maximises it. <code>tones</code> is the
+        256-bin tone histogram of an <em>evenly</em> lit scene — the same one-thread-per-bin
+        build Histograms &amp; Binning finishes on, handed over here rather than counted again.</p>
+        <p>The parallel shape is the good part: 256 candidate thresholds, 256 threads, each
+        sweeping all 256 bins for itself. 65,536 reads that happen at once, and then a single
+        tiny argmax over the answers. (Task 3 is the reminder that Otsu picks the best possible
+        single number, and that on a badly lit frame the best possible single number is still
+        not good enough.)</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> one thread per candidate threshold — return the between-class
+        variance of the cut at <code>t = this.thread.x</code>, with class 0 being bins
+        <code>0…t</code> <strong>inclusive</strong>.</div>
+
+<h2>Requirements</h2><ul><li>Output <code>[256]</code>: one thread per candidate threshold, <code>t = this.thread.x</code></li><li>Sweep all <code>this.constants.bins</code> bins, accumulating each class's count and its count-weighted bin sum</li><li>Class 0 is bins <code>0…t</code> <strong>inclusive</strong> — a bin equal to <code>t</code> belongs below the cut</li><li>Return <code>p0 * p1 * (mu0 - mu1)²</code>, or <code>0</code> when either class is empty</li></ul>
+<details><summary>Hint 1 — one thread, one candidate</summary><p>Thread <code>t</code> owns exactly one question: <em>what if I cut here?</em>
+            It reads the whole histogram to answer it, which is fine — 256 reads is nothing, and
+            all 256 threads are doing it at the same time.</p></details>
+<details><summary>Hint 2 — four running totals</summary><p>One pass, four accumulators: the count and the bin-weighted sum on each side.</p>
+<pre><code>for (let i = 0; i &lt; this.constants.bins; i++) {
+  if (i &lt;= t) {
+    w0 += tones[i];
+    s0 += i * tones[i];
+  } else {
+    w1 += tones[i];
+    s1 += i * tones[i];
+  }
+}</code></pre>
+<p>The class means are then <code>s0 / w0</code> and <code>s1 / w1</code>.</p></details>
+<details><summary>Hint 3 — the empty class</summary><p>At <code>t = 0</code> class 0 may hold no pixels at all, and
+            <code>s0 / w0</code> is then <code>0 / 0</code> — a NaN that poisons the whole
+            comparison. Guard it: a cut with an empty side separates nothing, so its score is
+            <code>0</code>.</p>
+<pre><code>if (w0 === 0 || w1 === 0) return 0;</code></pre></details>
+<h2>Same idea elsewhere</h2>This is the classic "try every candidate in parallel, reduce afterwards" shape:
+        one CUDA thread per hypothesis, one WGSL invocation per bin, one Metal thread per
+        candidate. OpenCV's <code>THRESH_OTSU</code> runs the same arithmetic serially over 256
+        bins because on a CPU that is already free — on a GPU it is free <em>and</em> it fuses
+        into whatever pass produced the histogram.
+<h2>All tasks in Thresholding &amp; Morphology</h2>
+<ol class="ssg-tasks"><li><a href="/learn/thresholding-and-morphology-670eaafa/1">One Number for the Whole Image</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/2">Let the Histogram Pick the Number</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/3">A Threshold Per Neighbourhood</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/4">Erode and Dilate: the Sweep, With Min and Max</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/5">Opening and Closing: Order Is the Answer</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/6">Payoff: Clean the Mask, Count What Is Left</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/thresholding-and-morphology-670eaafa/1">← previous task</a> · <a href="/learn/thresholding-and-morphology-670eaafa/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

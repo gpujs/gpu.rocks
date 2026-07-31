@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Widen the Radix · Radix Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: write both kernels — histogram counts the keys in each of the 16 digit buckets at a given place , and offsets turns those counts into starting slots…">
@@ -114,9 +114,83 @@
     <meta name="twitter:description" content="Goal: write both kernels — histogram counts the keys in each of the 16 digit buckets at a given place , and offsets turns those counts into starting slots…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Widen the Radix","description":"Goal: write both kernels — histogram counts the keys in each of the 16 digit buckets at a given place , and offsets turns those counts into starting slots…","url":"https://gpu.rocks/learn/radix-sort-fd3ff796/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Radix Sort","url":"https://gpu.rocks/learn/radix-sort-fd3ff796","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/radix-sort-fd3ff796/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/radix-sort-fd3ff796">Radix Sort</a></nav>
+<p class="ssg-eyebrow">Task 3 of 6</p>
+<h1>Widen the Radix</h1>
+<p>One bit per pass means 32 passes for a 32-bit key. Four bits per pass means
+        <strong>16 buckets</strong> and eight passes — the same total work rearranged, with far
+        fewer round trips. That is the real engineering trade in radix sorting, and every library
+        picks a number here (4 and 8 bits are the usual answers).</p>
+        <p>The price is that the bucket table stops being a single number. You need a
+        <strong>histogram</strong> — how many keys carry each of the 16 digits — and then a
+        running total across the buckets to turn those counts into <strong>starting offsets</strong>:
+        bucket <code>b</code> begins after every key whose digit is smaller than <code>b</code>.
+        Both of those are primitives in their own right (and each has a module of its own); at 16
+        buckets they are small enough to write out in a loop.</p>
+        <p>Note the word <em>smaller</em>. The scan is <strong>exclusive</strong>: bucket 0 starts
+        at slot 0, and bucket <code>b</code>'s offset stops at <code>b − 1</code>. Include your own
+        count and every bucket starts one whole bucket too far along.</p>
+<figure><figcaption>count, scan, and every key knows its slot without comparing itself to anything (four buckets here, sixteen in the code)</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write both kernels — <code>histogram</code> counts the keys in
+        each of the 16 digit buckets at a given <code>place</code>, and <code>offsets</code> turns
+        those counts into starting slots with an exclusive scan.</div>
+
+<h2>Requirements</h2><ul><li>The digit of a key at <code>place</code> is <code>Math.floor(key / place) % this.constants.radix</code></li><li><code>histogram</code>: 16 threads, thread <code>b</code> counts the keys whose digit is <code>b</code></li><li><code>offsets</code>: thread <code>b</code> totals <code>counts[0 … b−1]</code> — exclusive, so <code>offsets[0]</code> is <code>0</code></li></ul>
+<details><summary>Hint 1 — extracting a digit</summary><p><code>place</code> selects which digit you want: <code>1</code> for the ones
+            digit, <code>16</code> for the sixteens, <code>256</code> for the next. Divide it away,
+            then take what is left modulo the radix:</p>
+<pre><code>const d = Math.floor(keys[i] / place) % this.constants.radix;</code></pre>
+<p>Skip the <code>% 16</code> and <code>d</code> is the whole quotient, not a digit.</p></details>
+<details><summary>Hint 2 — the histogram is a gather, not a scatter</summary><p>You cannot walk the keys and bump a counter — that is 64 threads fighting over
+            16 cells. Invert it: each of the 16 threads owns one bucket and walks the whole key
+            array counting its own digit. <code>if (d === this.thread.x) count++;</code></p></details>
+<details><summary>Hint 3 — exclusive means stop early</summary><pre><code>for (let b = 0; b &lt; this.constants.radix; b++) {
+  if (b &lt; this.thread.x) start += counts[b];
+}</code></pre>
+<p>Sixteen values is far too few to be worth a clever scan; the point is the
+            <code>b &lt; this.thread.x</code>.</p></details>
+<h2>Same idea elsewhere</h2>Count, scan, scatter is the skeleton of every real GPU radix sort: CUB and
+        rocPRIM histogram each tile of keys locally, scan the per-tile histograms into global
+        digit offsets, then move the keys. Choosing the radix is a genuine tuning knob — wider
+        digits mean fewer passes over memory but a bigger bucket table to keep on chip, which is
+        why 4 and 8 bits win in practice and 16 does not.
+<h2>All tasks in Radix Sort</h2>
+<ol class="ssg-tasks"><li><a href="/learn/radix-sort-fd3ff796/1">Sort by One Digit</a></li><li><a href="/learn/radix-sort-fd3ff796/2">One Bit at a Time</a></li><li><a href="/learn/radix-sort-fd3ff796/3">Widen the Radix</a></li><li><a href="/learn/radix-sort-fd3ff796/4">Whose Value Lands Here?</a></li><li><a href="/learn/radix-sort-fd3ff796/5">The Whole Sort</a></li><li><a href="/learn/radix-sort-fd3ff796/6">Keys That Aren't Plain Integers</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/radix-sort-fd3ff796/2">← previous task</a> · <a href="/learn/radix-sort-fd3ff796/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

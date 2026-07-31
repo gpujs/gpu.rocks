@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>toArray() Is a Tollbooth · Pipelines &amp; Textures — GPU.js Learn</title>
     <meta name="description" content="Goal: refactor the chain so stages 1 and 2 keep their results on the GPU, the final stage returns numbers, and the output is bit-for-bit the same idea — just…">
@@ -114,9 +114,72 @@
     <meta name="twitter:description" content="Goal: refactor the chain so stages 1 and 2 keep their results on the GPU, the final stage returns numbers, and the output is bit-for-bit the same idea — just…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"toArray() Is a Tollbooth","description":"Goal: refactor the chain so stages 1 and 2 keep their results on the GPU, the final stage returns numbers, and the output is bit-for-bit the same idea — just…","url":"https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Pipelines & Textures","url":"https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/pipelines-and-textures-9f4aeaa5">Pipelines &amp; Textures</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>toArray() Is a Tollbooth</h1>
+<p>Here's the mental model that makes GPU code fast: computation on the card is
+        nearly free — it's the <strong>transfers</strong> that cost. Every kernel that is
+        <em>not</em> <code>pipeline: true</code> ends with an implicit download, and passing
+        that array to the next kernel triggers a re-upload. A three-stage chain without
+        pipelines pays the toll <strong>four times</strong> for one result.</p>
+        <p>The starter below is a fully working three-stage audio chain — normalize, gamma,
+        smooth — and every hop goes through JavaScript. Your job isn't to fix the math.
+        It's to fix the traffic: intermediates become pipeline kernels, and only the
+        <em>final</em> stage returns plain numbers. The chain call itself shouldn't change
+        by a single character.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> refactor the chain so stages 1 and 2 keep their results on
+        the GPU, the final stage returns numbers, and the output is bit-for-bit the same idea —
+        just without the round trips.</div>
+
+<h2>Requirements</h2><ul><li>Make <code>normalize</code> and <code>gamma</code> pipeline kernels</li><li>Leave <code>smooth</code> as a plain kernel — the one download you actually want</li><li>Do not change the chain: <code>smooth(gamma(normalize(signal)))</code> stays as-is</li></ul>
+<details><summary>Hint 1 — where is the readback hiding?</summary><p>There's no <code>.toArray()</code> in the starter, but the readbacks are
+            still there: a non-pipeline kernel's <em>return value</em> is the readback.
+            Count them: normalize downloads, gamma re-uploads and downloads, smooth re-uploads.</p></details>
+<details><summary>Hint 2 — a two-line diff</summary><p>Add <code>pipeline: true</code> to the settings of <code>normalize</code>
+            and <code>gamma</code>. That's the entire refactor — the chain line already does
+            the right thing once textures flow through it.</p></details>
+<h2>Same idea elsewhere</h2>Profile any real CUDA or ROCm app and the widest bars are often
+        <code>cudaMemcpy</code> DtoH/HtoD, not kernels; in WebGPU the same toll is
+        <code>mapAsync</code> plus staging-buffer copies. "Keep data resident, read back once
+        at the end" is performance rule number one on every GPU platform.
+<h2>All tasks in Pipelines &amp; Textures</h2>
+<ol class="ssg-tasks"><li><a href="/learn/pipelines-and-textures-9f4aeaa5/1">Flip On the Pipeline</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/2">Chain Kernels, Skip the Round Trip</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/3">toArray() Is a Tollbooth</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/4">Feedback Loops: immutable Textures</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/5">The Payoff: Photo to Screen, Zero Readbacks</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/pipelines-and-textures-9f4aeaa5/2">← previous task</a> · <a href="/learn/pipelines-and-textures-9f4aeaa5/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

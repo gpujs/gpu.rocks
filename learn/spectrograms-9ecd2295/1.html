@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Spectrum, No Clock · Spectrograms — GPU.js Learn</title>
     <meta name="description" content="Goal: fill in both planes of the spectrum — plane 0 the real part, plane 1 the imaginary part, each divided by this.constants.n .">
@@ -114,9 +114,88 @@
     <meta name="twitter:description" content="Goal: fill in both planes of the spectrum — plane 0 the real part, plane 1 the imaginary part, each divided by this.constants.n .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Spectrum, No Clock","description":"Goal: fill in both planes of the spectrum — plane 0 the real part, plane 1 the imaginary part, each divided by this.constants.n .","url":"https://gpu.rocks/learn/spectrograms-9ecd2295/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Spectrograms","url":"https://gpu.rocks/learn/spectrograms-9ecd2295","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/spectrograms-9ecd2295/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/spectrograms-9ecd2295">Spectrograms</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>One Spectrum, No Clock</h1>
+<p>The discrete Fourier transform asks one question per <strong>bin</strong>: how much
+        of this signal looks like a wave that fits exactly <em>k</em> whole cycles into the buffer?
+        Answering it is a sum over every sample, and every bin's sum is independent of every other
+        one — so it is one thread per bin, each pulling the whole signal. The answer is a
+        <em>complex</em> number: how much, and at what phase.</p>
+        <p>gpu.js has no complex type, so this track carries complex data as <strong>two planes of
+        floats</strong>. <code>output: [n, 2]</code> is read <code>result[p][i]</code> — plane
+        <code>p = 0</code> is the real part, plane 1 the imaginary part, <code>i</code> the bin. (A
+        2D output <code>[w, h]</code> is indexed <code>[y][x]</code>, so <code>[n, 2]</code> gives
+        exactly <code>[plane][bin]</code>.) What you usually plot is the <strong>magnitude</strong>,
+        <code>√(re² + im²)</code>: how much of that frequency is present, phase discarded.</p>
+        <p>Two signals here. <code>orderAB</code> plays a 256 Hz tone and then a quieter 640 Hz
+        one. <code>orderBA</code> plays the same two tones the other way round — it <em>is</em>
+        <code>orderAB</code> read backwards. Transform both. The two spectra will not merely look
+        alike; they agree to the last bit, and that is a theorem rather than a coincidence:
+        reversing a signal conjugates its spectrum, and conjugating does not change a magnitude.
+        A spectrum knows what is in a signal. It has no idea when.</p>
+<figure><figcaption>two signals, one spectrum — the transform never asks what happened first</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> fill in both planes of the spectrum — plane 0 the real part,
+        plane 1 the imaginary part, each divided by <code>this.constants.n</code>.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>output: [256, 2]</code> — 256 bins across, two planes; the result is read <code>spectrum[plane][bin]</code></li><li>Sum over all <code>this.constants.n</code> samples with <code>angle = -2 * Math.PI * k * i / this.constants.n</code></li><li>Accumulate <code>re += signal[i] * Math.cos(angle)</code> and <code>im += signal[i] * Math.sin(angle)</code></li><li>Divide both sums by <code>this.constants.n</code>, and return <code>re</code> on plane 0, <code>im</code> on plane 1</li></ul>
+<details><summary>Hint 1 — which cell is mine?</summary><p><code>this.thread.x</code> is the bin (0…255) and <code>this.thread.y</code> is
+            the plane (0 or 1). Both threads of a bin do the <em>same</em> sum and each keeps half
+            of it — wasteful, and at 512 samples not worth caring about. An FFT is the version that
+            stops paying for it.</p></details>
+<details><summary>Hint 2 — the loop</summary><pre><code>for (let i = 0; i &lt; this.constants.n; i++) {
+  const angle = (-2 * Math.PI * k * i) / this.constants.n;
+  re += signal[i] * Math.cos(angle);
+  im += signal[i] * Math.sin(angle);
+}
+re = re / this.constants.n;
+im = im / this.constants.n;</code></pre></details>
+<details><summary>Hint 3 — the sign</summary><p>The forward transform winds <em>clockwise</em>: the angle is negative. Drop the
+            minus and every bin comes back conjugated — the imaginary plane flips sign while the
+            magnitudes stay exactly right, which is what makes this one so good at hiding.</p></details>
+<h2>Same idea elsewhere</h2>Split-complex — one array of real parts, one of imaginary — is how cuFFT, rocFFT,
+        Apple's vDSP and NumPy's <code>.real</code>/<code>.imag</code> views all lay complex data
+        out, and it is what you just wrote. Nobody ships a naive DFT, though: it is O(n²), and the
+        FFT rebuilds it as a log₂ n ladder of butterflies — the same halving-ladder shape the
+        Reductions module climbs, driven by a JS loop over a stride-taking kernel. At n = 512 the
+        naive version is 262,144 multiply-adds, which a GPU eats without noticing.
+<h2>All tasks in Spectrograms</h2>
+<ol class="ssg-tasks"><li><a href="/learn/spectrograms-9ecd2295/1">One Spectrum, No Clock</a></li><li><a href="/learn/spectrograms-9ecd2295/2">Slice, Window, Transform</a></li><li><a href="/learn/spectrograms-9ecd2295/3">Fine in Time, or Fine in Frequency</a></li><li><a href="/learn/spectrograms-9ecd2295/4">Decibels, Then Colour</a></li><li><a href="/learn/spectrograms-9ecd2295/5">Payoff: Read the Sweep Off the Picture</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/spectrograms-9ecd2295/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

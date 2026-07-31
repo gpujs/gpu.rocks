@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Pass Something In · Hello, Kernel — GPU.js Learn</title>
     <meta name="description" content="Goal: make ramp return scale * this.thread.x , then call it twice — once with 2.5 , once with 0.5 .">
@@ -114,9 +114,68 @@
     <meta name="twitter:description" content="Goal: make ramp return scale * this.thread.x , then call it twice — once with 2.5 , once with 0.5 .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Pass Something In","description":"Goal: make ramp return scale * this.thread.x , then call it twice — once with 2.5 , once with 0.5 .","url":"https://gpu.rocks/learn/hello-kernel-f1399353/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Hello, Kernel","url":"https://gpu.rocks/learn/hello-kernel-f1399353","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/hello-kernel-f1399353/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/hello-kernel-f1399353">Hello, Kernel</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Pass Something In</h1>
+<p>So far every kernel has conjured its output from thread coordinates alone. Real
+        kernels also take <strong>arguments</strong> — declare a parameter on the kernel function,
+        pass a value when you call it, and every thread sees that same value. Combine it with
+        <code>this.thread.x</code> and each thread computes something different from shared
+        input.</p>
+        <p>Here's the payoff: a compiled kernel is <strong>reusable</strong>. Build it once, call it
+        with <code>2.5</code>, call it again with <code>0.5</code> — two parallel launches, zero
+        recompiles. That build-once/call-many rhythm is how all real GPU code is structured.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> make <code>ramp</code> return <code>scale * this.thread.x</code>,
+        then call it twice — once with <code>2.5</code>, once with <code>0.5</code>.</div>
+
+<h2>Requirements</h2><ul><li>Give the kernel function a <code>scale</code> parameter</li><li>Multiply the shared argument by this thread's index — shared argument × thread identity</li><li>Call the kernel twice with different scales (already wired up)</li></ul>
+<details><summary>Hint 1 — where arguments come from</summary><p>Kernel arguments are ordinary function parameters:
+            <code>function (scale) { … }</code>, called as <code>ramp(3)</code>. Every one of the
+            64 threads receives the same <code>3</code>.</p></details>
+<details><summary>Hint 2 — the body</summary><p><code>return scale * this.thread.x;</code> — the argument is shared, the
+            index is per-thread, the product is different in every cell.</p></details>
+<h2>Same idea elsewhere</h2>A value shared by all threads is a <em>uniform</em>: WebGPU binds it as a uniform
+        buffer, CUDA and ROCm pass it as a kernel launch parameter, Metal hands it over with
+        <code>setBytes</code>. And build-once/dispatch-many is universal too — shader and kernel
+        compilation is expensive everywhere, so it's paid once up front.
+<h2>All tasks in Hello, Kernel</h2>
+<ol class="ssg-tasks"><li><a href="/learn/hello-kernel-f1399353/1">Your First Kernel</a></li><li><a href="/learn/hello-kernel-f1399353/2">Who Am I? this.thread.x</a></li><li><a href="/learn/hello-kernel-f1399353/3">From For-Loop to Formula</a></li><li><a href="/learn/hello-kernel-f1399353/4">A Second Dimension: this.thread.y</a></li><li><a href="/learn/hello-kernel-f1399353/5">Pass Something In</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/hello-kernel-f1399353/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

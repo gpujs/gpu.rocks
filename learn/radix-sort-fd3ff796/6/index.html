@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Keys That Aren't Plain Integers · Radix Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: sort readings , which run from −2048 to 2047, by biasing them into non-negative integers, sorting, and taking the bias back off.">
@@ -114,9 +114,87 @@
     <meta name="twitter:description" content="Goal: sort readings , which run from −2048 to 2047, by biasing them into non-negative integers, sorting, and taking the bias back off.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Keys That Aren't Plain Integers","description":"Goal: sort readings , which run from −2048 to 2047, by biasing them into non-negative integers, sorting, and taking the bias back off.","url":"https://gpu.rocks/learn/radix-sort-fd3ff796/6","position":6,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Radix Sort","url":"https://gpu.rocks/learn/radix-sort-fd3ff796","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/radix-sort-fd3ff796/6.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/radix-sort-fd3ff796">Radix Sort</a></nav>
+<p class="ssg-eyebrow">Task 6 of 6</p>
+<h1>Keys That Aren't Plain Integers</h1>
+<p>The sort has a requirement it never had to say out loud: the key must be a
+        <strong>non-negative integer</strong>, because <code>Math.floor(key / place) % 16</code>
+        is only a digit for those. Hand it <code>−5</code> and the "digit" is <code>−5</code>,
+        <code>starts[−5]</code> is off the front of the bucket table, and the pass returns junk.</p>
+        <p>Signed integers have a clean fix that costs one map each way: <strong>bias</strong>
+        them. Add 2,048 and the range −2048…2047 becomes 0…4095 — same order, all non-negative.
+        Sort, then subtract the 2,048 back off. Production libraries call this step encoding the
+        key, and the rule is the only one that matters: any order-preserving, invertible map into
+        the unsigned integers makes radix sort work on your type.</p>
+        <p>Floats are the same idea and a harder map — and this is where gpu.js stops. A float's
+        ordering <em>is</em> its bit pattern's ordering, for positives; IEEE-754 negatives carry a
+        sign bit on top and sort backwards under an unsigned comparison, so real implementations
+        reinterpret the 32 bits and flip them (<code>x ^ 0x80000000</code> for a positive,
+        <code>~x</code> for a negative) before sorting and flip back after. gpu.js does have
+        <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&lt;&lt;</code> and
+        <code>&gt;&gt;</code> inside kernels, but the WebGL backend emulates them with GLSL integer
+        loops and they part company with JavaScript the moment an operand goes negative
+        (<code>-8 &amp; 15</code> is 8 in JavaScript and on the CPU backend, and 0 on WebGL). More
+        to the point, there is no way to <em>see</em> a float's bits at all: GLSL ES 1.00 has no
+        <code>floatBitsToInt</code> and gpu.js exposes none, so <code>key &amp; 15</code> truncates
+        the value to an integer first — <code>3.5 &amp; 15</code> is 3, the number's integer part,
+        never its bit pattern. This course therefore sorts non-negative integer keys, and signed
+        ones through the bias below; a CUDA or WebGPU implementation runs the same six kernels with
+        a bit-flipping encoder in front.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> sort <code>readings</code>, which run from −2048 to 2047, by
+        biasing them into non-negative integers, sorting, and taking the bias back off.</div>
+
+<h2>Requirements</h2><ul><li><code>encode</code> adds <code>this.constants.bias</code> to every reading</li><li><code>decode</code> subtracts it again</li><li>Run the given <code>radixSort</code> on the <em>encoded</em> values, and decode the result</li><li><code>console.log</code> the sorted readings' smallest and largest values</li></ul>
+<details><summary>Hint 1 — the two maps</summary><p>Both kernels are one-line maps over their own cell — one adds
+            <code>this.constants.bias</code>, the other subtracts it. Nothing about the sort
+            changes.</p></details>
+<details><summary>Hint 2 — the wiring</summary><pre><code>const sorted = decode(radixSort(encode(readings)));</code></pre>
+<p>Encode on the way in, decode on the way out. Miss the decode and every value
+            comes back 2,048 too high; miss the encode and the negative keys index off the front
+            of the bucket table.</p></details>
+<h2>Same idea elsewhere</h2>Every serious sorting library has this seam. CUB twiddles a key's bits in and out
+        around the sort so that floats, signed integers and custom types all reduce to unsigned
+        digits; rocPRIM and Thrust do the same, and newer CUB versions let you hand it a
+        <em>decomposer</em> for your own struct. The sort never changes — only the map into
+        unsigned integers does.
+<h2>All tasks in Radix Sort</h2>
+<ol class="ssg-tasks"><li><a href="/learn/radix-sort-fd3ff796/1">Sort by One Digit</a></li><li><a href="/learn/radix-sort-fd3ff796/2">One Bit at a Time</a></li><li><a href="/learn/radix-sort-fd3ff796/3">Widen the Radix</a></li><li><a href="/learn/radix-sort-fd3ff796/4">Whose Value Lands Here?</a></li><li><a href="/learn/radix-sort-fd3ff796/5">The Whole Sort</a></li><li><a href="/learn/radix-sort-fd3ff796/6">Keys That Aren't Plain Integers</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/radix-sort-fd3ff796/5">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

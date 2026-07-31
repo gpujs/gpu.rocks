@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Where Do I Land? · Stream Compaction — GPU.js Learn</title>
     <meta name="description" content="Goal: for every index, return how many of the flags strictly before it are 1 .">
@@ -114,9 +114,79 @@
     <meta name="twitter:description" content="Goal: for every index, return how many of the flags strictly before it are 1 .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Where Do I Land?","description":"Goal: for every index, return how many of the flags strictly before it are 1 .","url":"https://gpu.rocks/learn/stream-compaction-0aed2e43/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Stream Compaction","url":"https://gpu.rocks/learn/stream-compaction-0aed2e43","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/stream-compaction-0aed2e43/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/stream-compaction-0aed2e43">Stream Compaction</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>Where Do I Land?</h1>
+<p>A survivor's output slot has a very short definition: <strong>how many survivors
+        are in front of me</strong>. Element 9 with four survivors before it lands at index 4.
+        That number, for every element at once, is the <strong>exclusive prefix sum</strong> — a
+        <em>scan</em> — of the flags: cell <code>i</code> holds the total of flags
+        <code>0 … i−1</code>, <em>not counting its own</em>.</p>
+        <p>Scan is a whole subject of its own, and the Prefix Sums module derives the log-time
+        ladder version properly. Sixty-four elements do not need it: every thread can simply walk
+        the flags and count. That is <code>n</code> reads per thread — blunt, but perfectly
+        parallel, and right now what matters is what the number <em>means</em>, not how fast you
+        can get it.</p>
+        <p>Exclusive, not inclusive. Count yourself and every survivor lands one slot too far,
+        with the first one shoved off the front of the array.</p>
+<figure><figcaption>flags say who survives; the scan under them says where each one lands</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> for every index, return how many of the flags
+        <em>strictly before</em> it are <code>1</code>.</div>
+
+<h2>Requirements</h2><ul><li>Loop the full fixed range — <code>for (let i = 0; i &lt; this.constants.n; i++)</code></li><li>Add <code>flags[i]</code> only when <code>i</code> is strictly less than <code>this.thread.x</code></li><li>Cell <code>0</code> is always <code>0</code>, whatever <code>flags[0]</code> says</li></ul>
+<details><summary>Hint 1 — &quot;strictly before&quot;</summary><p>The loop already visits every flag; it just needs to ignore the ones that are
+            not in front of this thread. Guard the accumulation with
+            <code>if (i &lt; this.thread.x)</code> — note <code>&lt;</code>, not
+            <code>&lt;=</code>.</p></details>
+<details><summary>Hint 2 — the loop body</summary><pre><code>if (i &lt; this.thread.x) {
+  seen += flags[i];
+}</code></pre></details>
+<details><summary>Hint 3 — check it by hand</summary><p>For flags <code>[1, 0, 1, 1]</code> the destinations are
+            <code>[0, 1, 1, 2]</code>: the survivor at index 0 goes to slot 0, the one at index 2
+            goes to slot 1, the one at index 3 goes to slot 2. Index 1 gets a number too — it just
+            never uses it, because it does not survive.</p></details>
+<h2>Same idea elsewhere</h2>Exclusive scan is one of the two or three primitives every GPU library is built
+        on: <code>thrust::exclusive_scan</code>, CUB's <code>DeviceScan::ExclusiveSum</code>,
+        rocPRIM's equivalent, and <code>subgroupExclusiveAdd</code> burned into WGSL and hardware.
+        Blelloch's 1990 formulation gets it in O(n) work and O(log n) depth — the loop here is the
+        honest, slow version of the same answer.
+<h2>All tasks in Stream Compaction</h2>
+<ol class="ssg-tasks"><li><a href="/learn/stream-compaction-0aed2e43/1">Filter Has No Kernel</a></li><li><a href="/learn/stream-compaction-0aed2e43/2">Where Do I Land?</a></li><li><a href="/learn/stream-compaction-0aed2e43/3">Turn the Scatter Around</a></li><li><a href="/learn/stream-compaction-0aed2e43/4">Find It in log n</a></li><li><a href="/learn/stream-compaction-0aed2e43/5">Payoff: How Many Survived</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/stream-compaction-0aed2e43/1">← previous task</a> · <a href="/learn/stream-compaction-0aed2e43/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

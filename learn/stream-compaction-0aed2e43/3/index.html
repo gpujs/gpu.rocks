@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Turn the Scatter Around · Stream Compaction — GPU.js Learn</title>
     <meta name="description" content="Goal: fill each output cell by searching for the element whose destination is this cell's index.">
@@ -114,9 +114,87 @@
     <meta name="twitter:description" content="Goal: fill each output cell by searching for the element whose destination is this cell's index.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Turn the Scatter Around","description":"Goal: fill each output cell by searching for the element whose destination is this cell's index.","url":"https://gpu.rocks/learn/stream-compaction-0aed2e43/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Stream Compaction","url":"https://gpu.rocks/learn/stream-compaction-0aed2e43","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/stream-compaction-0aed2e43/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/stream-compaction-0aed2e43">Stream Compaction</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Turn the Scatter Around</h1>
+<p>You now have the two arrays a compaction needs: <code>flags</code>, and
+        <code>offsets</code> — the exclusive scan that tells every survivor its slot. The obvious
+        next line is the one you cannot write:</p>
+<pre><code>if (flags[i] === 1) out[offsets[i]] = samples[i];   // ✗ no scatter here</code></pre>
+        <p>Thinking in Parallel spends a whole task on why: a thread writes one cell, its own, by
+        returning a value. So turn the question inside out, exactly as it does. Not <em>"where
+        does my value go?"</em> but <em>"whose value lands in <strong>my</strong> cell?"</em> —
+        and output cell <code>j</code> can answer that itself. It goes looking for the index that
+        is (a) a survivor and (b) carrying destination <code>j</code>. One thread, one pass over
+        the flags, one value pulled home.</p>
+        <p>The output array is still 64 long, because that is what a kernel launch gives you. Only
+        the first few cells will hold survivors; the rest hold whatever each thread's search failed
+        to find. That is fine, and normal — you just have to know where the real data stops, which
+        is the last task of this module.</p>
+<figure><figcaption>same arrows, opposite owner — and only one of the two is legal</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> fill each output cell by searching for the element whose
+        destination is this cell's index.</div>
+
+<h2>Requirements</h2><ul><li>Loop over all <code>this.constants.n</code> elements — the only write is the <code>return</code></li><li>Take <code>samples[i]</code> when <code>flags[i]</code> is <code>1</code> <em>and</em> <code>offsets[i]</code> is <code>this.thread.x</code></li><li>The survivors come out packed, in input order, starting at cell <code>0</code></li></ul>
+<details><summary>Hint 1 — ask the other question</summary><p>Thread <code>j</code> is not trying to place anything. It is trying to
+            <em>find</em> something: the one index whose destination happens to be <code>j</code>.
+            Keep a local <code>value</code>, overwrite it when the search hits, return it.</p></details>
+<details><summary>Hint 2 — both halves of the condition</summary><p>Non-survivors have an <code>offsets</code> entry too — it just does not belong
+            to them. So matching the offset alone is not enough; the flag has to be checked as
+            well:</p>
+<pre><code>if (flags[i] === 1 &amp;&amp; offsets[i] === this.thread.x) {
+  value = samples[i];
+}</code></pre></details>
+<details><summary>Hint 3 — the whole body</summary><pre><code>let value = 0;
+for (let i = 0; i &lt; this.constants.n; i++) {
+  if (flags[i] === 1 &amp;&amp; offsets[i] === this.thread.x) {
+    value = samples[i];
+  }
+}
+return value;</code></pre></details>
+<h2>Same idea elsewhere</h2>"Turn the scatter into a gather" is the phrase GPU folklore compresses this into,
+        and it is exactly how the libraries do it: <code>thrust::copy_if</code> and CUB's
+        <code>DeviceSelect</code> both run a flag pass, a scan, and then a data movement driven by
+        the scan. Compute APIs <em>can</em> scatter — CUDA and WebGPU threads may store anywhere —
+        but two threads aiming at one address is a race, and the fix (atomics) serialises them.
+        Scan-then-gather costs no atomics at all.
+<h2>All tasks in Stream Compaction</h2>
+<ol class="ssg-tasks"><li><a href="/learn/stream-compaction-0aed2e43/1">Filter Has No Kernel</a></li><li><a href="/learn/stream-compaction-0aed2e43/2">Where Do I Land?</a></li><li><a href="/learn/stream-compaction-0aed2e43/3">Turn the Scatter Around</a></li><li><a href="/learn/stream-compaction-0aed2e43/4">Find It in log n</a></li><li><a href="/learn/stream-compaction-0aed2e43/5">Payoff: How Many Survived</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/stream-compaction-0aed2e43/2">← previous task</a> · <a href="/learn/stream-compaction-0aed2e43/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

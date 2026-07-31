@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Run It Backwards for Free · The FFT Butterfly — GPU.js Learn</title>
     <meta name="description" content="Goal: write the conjugate-and-scale kernel, use it at both ends of a forward transform to invert one, and confirm the 256 samples come back.">
@@ -114,9 +114,84 @@
     <meta name="twitter:description" content="Goal: write the conjugate-and-scale kernel, use it at both ends of a forward transform to invert one, and confirm the 256 samples come back.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Run It Backwards for Free","description":"Goal: write the conjugate-and-scale kernel, use it at both ends of a forward transform to invert one, and confirm the 256 samples come back.","url":"https://gpu.rocks/learn/fft-butterfly-d4375da7/6","position":6,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The FFT Butterfly","url":"https://gpu.rocks/learn/fft-butterfly-d4375da7","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/fft-butterfly-d4375da7/6.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/fft-butterfly-d4375da7">The FFT Butterfly</a></nav>
+<p class="ssg-eyebrow">Task 6 of 6</p>
+<h1>Run It Backwards for Free</h1>
+<p>The inverse transform differs from the forward one in two small ways: the exponent
+        is <code>+2πi·kt/n</code> instead of <code>-</code>, and the result is divided by n. You
+        could write a second set of kernels. You do not have to — there is an identity that gets the
+        inverse out of the forward transform you already have:</p>
+<pre><code>ifft(X) = conj( fft( conj(X) ) ) / n</code></pre>
+        <p>Conjugating flips the sign of every imaginary part, which is exactly the sign flip the
+        exponent needs; doing it on the way in and again on the way out leaves everything else where
+        it was. Nine lines of kernel and a division, and the transform runs both ways.</p>
+        <p>And then the warning, which is the real content of this task. A round trip is a
+        <strong>consistency</strong> check, not a correctness check — it proves your inverse undoes
+        your forward transform, and nothing else. Flip the twiddle sign in the butterfly and the
+        forward transform computes the conjugate of the right spectrum; run it through this same
+        inverse and the signal comes back <em>perfectly</em>, to the last bit. The magnitudes were
+        already identical, the round trip is clean, and every plot looks right. The only thing that
+        catches it is the comparison you did in the last task: against the definition.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> write the conjugate-and-scale kernel, use it at both ends of a
+        forward transform to invert one, and confirm the 256 samples come back.</div>
+
+<h2>Requirements</h2><ul><li>One kernel <code>conjugate(spectrum, scale)</code>, used at both ends — it negates the imaginary plane and multiplies both planes by <code>scale</code></li><li>Going in the scale is <code>1</code>; coming out it is <code>1 / n</code></li><li>The recovered imaginary plane is ~0 — a real signal in, a real signal out</li><li><code>console.log</code> the largest round-trip error and the verdict</li></ul>
+<details><summary>Hint 1 — conjugation, both planes at once</summary><p>The kernel owns one output cell, and which plane it is decides the sign:</p>
+<pre><code>if (this.thread.y === 0) return spectrum[0][this.thread.x] * scale;
+return -spectrum[1][this.thread.x] * scale;</code></pre>
+<p>The real part keeps its sign. Only the imaginary part turns over.</p></details>
+<details><summary>Hint 2 — the whole inverse, one line</summary><pre><code>const recovered = conjugate(fft(conjugate(spectrum, 1)), 1 / n);</code></pre>
+<p>Inside out: conjugate, transform, conjugate again and scale. The
+            <code>1</code> on the way in is not decoration — the same kernel has to take a scale
+            both times or gpu.js sees two different call shapes.</p></details>
+<details><summary>Hint 3 — where the n goes</summary><p>All of it, on the inverse. A forward transform followed by an unscaled inverse
+            gives you the signal multiplied by n — so if every recovered sample is 256 times too
+            big, the division is missing rather than misplaced.</p></details>
+<h2>Same idea elsewhere</h2>The conjugation trick is standard practice, not a curiosity: it is why cuFFT,
+        rocFFT and FFTW all describe their inverse as "unnormalized" and leave the 1/n to you —
+        the same kernels run both directions, and a library that scaled automatically would make
+        the common case (transform, filter, transform back, and the scales cancel) pay for
+        something nobody asked for. Where the 1/n lives, or whether it is split as 1/√n between the
+        two directions, is a convention you have to read off each library's documentation rather
+        than assume.
+<h2>All tasks in The FFT Butterfly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/fft-butterfly-d4375da7/1">Where the Saving Comes From</a></li><li><a href="/learn/fft-butterfly-d4375da7/2">The Butterfly: One Thread, One Output</a></li><li><a href="/learn/fft-butterfly-d4375da7/3">Put the Input in the Right Order</a></li><li><a href="/learn/fft-butterfly-d4375da7/4">Drive log₂n Passes</a></li><li><a href="/learn/fft-butterfly-d4375da7/5">Same Answer, Two Centuries Apart</a></li><li><a href="/learn/fft-butterfly-d4375da7/6">Run It Backwards for Free</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/fft-butterfly-d4375da7/5">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Escape-Time Loop · Escape-Time Fractals — GPU.js Learn</title>
     <meta name="description" content="Goal: iterate z → z² + c up to 100 times, but only while zr² + zi² &lt; 4 , and return how many iterations actually ran.">
@@ -114,9 +114,78 @@
     <meta name="twitter:description" content="Goal: iterate z → z² + c up to 100 times, but only while zr² + zi² &lt; 4 , and return how many iterations actually ran.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Escape-Time Loop","description":"Goal: iterate z → z² + c up to 100 times, but only while zr² + zi² < 4 , and return how many iterations actually ran.","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Escape-Time Fractals","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/escape-time-fractals-0de4764c/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/escape-time-fractals-0de4764c">Escape-Time Fractals</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>The Escape-Time Loop</h1>
+<p>The Mandelbrot set asks one question at every point <code>c</code>: start
+        <code>z = 0</code> and repeat <code>z → z² + c</code> — does <code>z</code> stay near the
+        origin forever, or fly off to infinity? Points that stay bounded are <em>in</em> the set;
+        for the rest, the interesting number is <strong>how many iterations</strong> they survived.</p>
+        <p>Two facts make this computable. Once <code>|z| &gt; 2</code>, escape is guaranteed — so
+        we can stop watching. And we cap the loop at 100 passes: anything still bounded by then we
+        declare "inside". With <code>z = zr + zi·i</code>, one step is
+        <code>zr² − zi² + cr</code> for the new real part and <code>2·zr·zi + ci</code> for the new
+        imaginary part.</p>
+<figure><figcaption>iterate z² + c and watch: settle in, or fly off — the count is the answer</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> iterate <code>z → z² + c</code> up to 100 times, but only
+        while <code>zr² + zi² &lt; 4</code>, and return how many iterations actually ran.</div>
+
+<h2>Requirements</h2><ul><li>Start at <code>zr = 0, zi = 0, count = 0</code> (already wired up)</li><li>Loop a fixed 100 times, guarding each pass with <code>zr² + zi² &lt; 4</code></li><li>Inside the guard: update z via a temporary — <code>zr</code> is read by both formulas</li><li>Return <code>count</code>: 100 means "never escaped", small means "escaped fast"</li></ul>
+<details><summary>Hint 1 — the shape of the loop</summary><p>gpu.js's WebGL backend needs a fixed loop bound, so instead of breaking out
+            we guard the body:</p>
+<pre><code>for (let i = 0; i &lt; 100; i++) {
+  if (zr * zr + zi * zi &lt; 4) {
+    // …step and count…
+  }
+}</code></pre>
+            <p>After escape the guard fails on every remaining pass, so z freezes and count stops.</p></details>
+<details><summary>Hint 2 — don't clobber zr</summary><p>Both formulas read the <em>old</em> <code>zr</code>, so stash the new real part
+            first:</p>
+<pre><code>const zrNext = zr * zr - zi * zi + cr;
+zi = 2 * zr * zi + ci;
+zr = zrNext;
+count = count + 1;</code></pre></details>
+<h2>Same idea elsewhere</h2>Data-dependent loops like this are where <em>divergence</em> lives: in CUDA and
+        ROCm, threads of a warp that escape early still march in lockstep with their slowest
+        neighbor, so a tile renders at the speed of its deepest pixel. WGSL and Metal shading
+        language allow exactly this kind of bounded loop in fragment and compute stages.
+<h2>All tasks in Escape-Time Fractals</h2>
+<ol class="ssg-tasks"><li><a href="/learn/escape-time-fractals-0de4764c/1">Map Pixels to the Complex Plane</a></li><li><a href="/learn/escape-time-fractals-0de4764c/2">The Escape-Time Loop</a></li><li><a href="/learn/escape-time-fractals-0de4764c/3">Paint by Iteration Count</a></li><li><a href="/learn/escape-time-fractals-0de4764c/4">Smooth Out the Bands</a></li><li><a href="/learn/escape-time-fractals-0de4764c/5">Julia Sets: Turn the Dial</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/escape-time-fractals-0de4764c/1">← previous task</a> · <a href="/learn/escape-time-fractals-0de4764c/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

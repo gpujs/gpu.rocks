@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Keep One Sample in Four · Sampling &amp; Aliasing — GPU.js Learn</title>
     <meta name="description" content="Goal: decimate signal by 4 into plane 0, synthesise the folded prediction into plane 1, and show the two are the same signal.">
@@ -114,9 +114,89 @@
     <meta name="twitter:description" content="Goal: decimate signal by 4 into plane 0, synthesise the folded prediction into plane 1, and show the two are the same signal.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: Keep One Sample in Four","description":"Goal: decimate signal by 4 into plane 0, synthesise the folded prediction into plane 1, and show the two are the same signal.","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Sampling & Aliasing","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/sampling-and-aliasing-ad14836c">Sampling &amp; Aliasing</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Payoff: Keep One Sample in Four</h1>
+<p>Everything at once. Take the 256-sample second you built in task 1 — components at 5, 12
+        and 40 Hz — and throw away three samples in four. What you have left is 64 samples of the same
+        second, which is a signal at <strong>64 Hz</strong>. Nyquist has just dropped from 128 Hz to
+        32 Hz, and the 40 Hz component is now on the wrong side of it.</p>
+        <p>You can say exactly what happens, in advance, with the fold from task 2 — applied to the
+        <em>new</em> rate:</p>
+<pre><code>5 Hz  → fold(5, 64)  =   5 Hz      survives
+12 Hz  → fold(12, 64) =  12 Hz      survives
+40 Hz  → fold(40, 64) = −24 Hz      comes back as 24 Hz, mirrored</code></pre>
+        <p>Not "roughly", not "some artefacts": the decimated samples are <em>identical</em>, number for
+        number, to a signal synthesised from 5, 12 and −24 Hz at 64 Hz. Prove it — plane 0 keeps every
+        fourth sample, plane 1 synthesises the prediction, and the two planes agree.</p>
+        <p>This is the wagon wheel. A 24 frames-per-second camera pointed at a wheel turning 30 times a
+        second folds it to 30 − 24 = 6 rev/s forwards; at 20 rev/s it folds to 20 − 24 = −4 rev/s, and
+        the wheel appears to roll backwards. Same arithmetic, and the negative sign is doing real work.</p>
+        <p>And this is why every resampler <strong>filters before it decimates</strong>: once the 40 Hz
+        component is sitting on top of the 24 Hz band there is no undoing it — the two are the same
+        numbers, and no amount of cleverness downstream can separate them. Remove it while it is still
+        distinguishable, which is what "Convolution &amp; Filters" is for.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> decimate <code>signal</code> by 4 into plane 0, synthesise the folded
+        prediction into plane 1, and show the two are the same signal.</div>
+
+<h2>Requirements</h2><ul><li>Plane 0 keeps every fourth sample: <code>signal[this.thread.x * this.constants.factor]</code></li><li>Plane 1 sums the components of <code>tones</code>, each folded into the new base band at <code>64 Hz</code></li><li>Use the new rate for time as well: <code>t = this.thread.x / 64</code>, not <code>/ 256</code></li><li><code>console.log</code> the three folded frequencies</li></ul>
+<details><summary>Hint 1 — the new sample rate</summary><p>Keeping one sample in <code>factor</code> divides the rate by the same number:</p>
+<pre><code>const newRate = this.constants.sampleRate / this.constants.factor;   // 64</code></pre>
+<p>Everything in plane 1 — the fold and the time — uses <code>newRate</code>, never 256.</p></details>
+<details><summary>Hint 2 — the fold, again</summary><p>Straight from task 2, with the new rate:</p>
+<pre><code>const f = tones[c][1];
+const a = f - Math.round(f / newRate) * newRate;</code></pre>
+<p>Keep the sign. <code>Math.abs</code> here turns −24 Hz into a different signal.</p></details>
+<details><summary>Hint 3 — branching between the planes</summary><p>Compute the decimated sample, then overwrite it when this thread is in plane 1:</p>
+<pre><code>let out = signal[this.thread.x * this.constants.factor];
+if (this.thread.y === 1) {
+  // … the loop over this.constants.parts …
+  out = s;
+}
+return out;</code></pre></details>
+<h2>Same idea elsewhere</h2>Decimation with a pre-filter is the bottom half of every mipmap, every audio
+        sample-rate converter and every image pyramid: CUDA's NPP and Metal Performance Shaders ship it,
+        and a GPU that generates mipmaps without filtering produces exactly the shimmering this task
+        predicts. It is also why "Measuring Speed Honestly" matters here — the filter is the expensive
+        part, and skipping it is the tempting, wrong optimisation.
+<h2>All tasks in Sampling &amp; Aliasing</h2>
+<ol class="ssg-tasks"><li><a href="/learn/sampling-and-aliasing-ad14836c/1">One Thread, One Sample</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/2">Above Nyquist</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/3">What Happened Between the Samples?</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/4">The Other Axis Is Discrete Too</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/5">Payoff: Keep One Sample in Four</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/sampling-and-aliasing-ad14836c/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

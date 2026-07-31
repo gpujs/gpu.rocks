@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Sixteen Milliseconds · Video Filters — GPU.js Learn</title>
     <meta name="description" content="Goal: hoist the three kernels out of the frame loop, keep the two intermediate stages on the GPU, and report the per-frame cost against the 16.7 ms budget.">
@@ -114,9 +114,92 @@
     <meta name="twitter:description" content="Goal: hoist the three kernels out of the frame loop, keep the two intermediate stages on the GPU, and report the per-frame cost against the 16.7 ms budget.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Sixteen Milliseconds","description":"Goal: hoist the three kernels out of the frame loop, keep the two intermediate stages on the GPU, and report the per-frame cost against the 16.7 ms budget.","url":"https://gpu.rocks/learn/video-filters-4d39e404/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Video Filters","url":"https://gpu.rocks/learn/video-filters-4d39e404","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/video-filters-4d39e404/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/video-filters-4d39e404">Video Filters</a></nav>
+<p class="ssg-eyebrow">Task 1 of 6</p>
+<h1>Sixteen Milliseconds</h1>
+<p>Everything so far in this track processed <em>one</em> picture. Video changes the
+        economics completely. At 60 frames per second you get <strong>16.7 milliseconds</strong> to
+        do all of it — decode, filter, composite, present — and then the frame is gone whether you
+        were finished or not. Miss the budget and you do not get a slower filter, you get a stuttering
+        one.</p>
+        <p>The same three kernels now run eight times instead of once, which turns two habits that
+        were merely wasteful into the whole problem. The first is creating kernels inside the loop:
+        <code>createKernel</code> transpiles your JavaScript to shader source and compiles it, so
+        doing it per frame pays the compiler sixty times a second. The second is the readback —
+        Pipelines &amp; Textures showed the mechanism, and here it is the difference between a filter
+        that runs and one that does not.</p>
+        <p>The starter below is honest, working, and unshippable. Fix its structure, then read the
+        numbers it prints — and hit <strong>⏱ Benchmark</strong> afterwards to see the same argument
+        made twice.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+<figure><figcaption>same three kernels, same arithmetic — the readbacks are what miss the frame</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> hoist the three kernels out of the frame loop, keep the two
+        intermediate stages on the GPU, and report the per-frame cost against the 16.7 ms budget.</div>
+
+<h2>Requirements</h2><ul><li>Create the three kernels <strong>once</strong>, above the loop — exactly three for the whole run</li><li>Give <code>luminance</code> and <code>denoise</code> <code>pipeline: true</code>; <code>tone</code> stays plain</li><li>Process every frame in <code>frames</code>, with no <code>.toArray()</code> inside the loop</li><li>Log <code>'processed', out.length, 'frames'</code> and a per-frame line carrying the ms and the fps</li></ul>
+<details><summary>Hint 1 — what belongs in the loop</summary><p>Everything that depends on <em>which</em> frame you are looking at, and nothing
+            else. A kernel does not depend on the frame — it takes one as an argument. Three
+            <code>createKernel</code> calls, then a loop that does nothing but call them.</p></details>
+<details><summary>Hint 2 — where the readbacks are hiding</summary><p>There is no <code>.toArray()</code> in the starter, and the readbacks are still
+            there: a non-pipeline kernel's <em>return value</em> is the readback. Add
+            <code>pipeline: true</code> to the first two stages and the chain collapses to one
+            expression:</p>
+<pre><code>out.push(tone(denoise(luminance(frames[i]))));</code></pre></details>
+<details><summary>Hint 3 — the budget arithmetic</summary><p>One frame at 60 fps is <code>1000 / 60 = 16.7</code> ms. So:</p>
+<pre><code>const perFrame = totalMs / frames.length;
+const fps = 1000 / perFrame;</code></pre>
+<p>and the verdict is just <code>perFrame &lt;= 16.7</code>.</p></details>
+<h2>Same idea elsewhere</h2>Every real-time GPU API separates "build the pipeline" from "run it", precisely so
+        the expensive half happens once: WebGPU's <code>createRenderPipeline</code> versus
+        <code>dispatchWorkgroups</code>, Vulkan's pipeline objects, CUDA modules loaded once and
+        launched forever. And the per-frame budget is why frame graphs exist at all — a readback
+        mid-frame is a full pipeline stall on every one of them.
+<h2>All tasks in Video Filters</h2>
+<ol class="ssg-tasks"><li><a href="/learn/video-filters-4d39e404/1">Sixteen Milliseconds</a></li><li><a href="/learn/video-filters-4d39e404/2">Averaging Across Time</a></li><li><a href="/learn/video-filters-4d39e404/3">What Moved?</a></li><li><a href="/learn/video-filters-4d39e404/4">Learning the Empty Room</a></li><li><a href="/learn/video-filters-4d39e404/5">The Payoff: A Virtual Background</a></li><li><a href="/learn/video-filters-4d39e404/6">Going Live, Honestly</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/video-filters-4d39e404/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

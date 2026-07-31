@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Filter Has No Kernel · Stream Compaction — GPU.js Learn</title>
     <meta name="description" content="Goal: return 1 when this thread's sample is at or above this.constants.threshold , and 0 when it is not.">
@@ -114,9 +114,79 @@
     <meta name="twitter:description" content="Goal: return 1 when this thread's sample is at or above this.constants.threshold , and 0 when it is not.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Filter Has No Kernel","description":"Goal: return 1 when this thread's sample is at or above this.constants.threshold , and 0 when it is not.","url":"https://gpu.rocks/learn/stream-compaction-0aed2e43/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Stream Compaction","url":"https://gpu.rocks/learn/stream-compaction-0aed2e43","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/stream-compaction-0aed2e43/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/stream-compaction-0aed2e43">Stream Compaction</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>Filter Has No Kernel</h1>
+<p>On a CPU, filtering is four words: <code>data.filter(v =&gt; v &gt;= 50)</code>.
+        Underneath it is a loop with a <strong>moving write cursor</strong> — every element that
+        passes gets pushed at wherever the last one left off:</p>
+<pre><code>const kept = [];
+for (const v of data) {
+  if (v &gt;= 50) kept.push(v);   // ← push() knows where the cursor is
+}</code></pre>
+        <p>That cursor is the problem. Thread 7 can tell you instantly whether
+        <code>data[7]</code> survives. It cannot tell you <em>where it goes</em>, because that
+        depends on how many of elements 0…6 survived — six other threads' business, none of which
+        thread 7 is allowed to ask about. An output position that depends on other threads is not
+        something a single kernel can compute, which is why there is no <code>filter</code>
+        kernel and never will be.</p>
+        <p>So compaction gets built out of pieces, and the first piece is the one part that
+        <em>is</em> perfectly independent: the <strong>flag pass</strong>. Turn the predicate into
+        a mask of 1s and 0s — a plain map, one thread per element, nobody talking to anybody. Run
+        it and look at what you get: the ones and zeros line up under the input, holes and all.
+        Flags say <em>who</em> survives. They move nothing.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> return <code>1</code> when this thread's sample is at or above
+        <code>this.constants.threshold</code>, and <code>0</code> when it is not.</div>
+
+<h2>Requirements</h2><ul><li>One thread per sample — <code>output: [64]</code>, no loops</li><li>Return exactly <code>1</code> or <code>0</code>, never the sample value</li><li>The predicate is <em>at or above</em>: a sample of exactly <code>50</code> survives</li></ul>
+<details><summary>Hint 1 — a predicate is just a map</summary><p>Read your own element and compare it — nothing else. The comparison
+            <code>samples[this.thread.x] &gt;= this.constants.threshold</code> is the whole
+            decision; all that is left is turning it into a number.</p></details>
+<details><summary>Hint 2 — the one-liner</summary><pre><code>return samples[this.thread.x] &gt;= this.constants.threshold ? 1 : 0;</code></pre></details>
+<h2>Same idea elsewhere</h2>Every compaction library on every platform starts here, and most of them let you
+        hand the mask in yourself: CUB's <code>DeviceSelect::Flagged</code> takes a flags array
+        beside the data, Thrust's <code>copy_if</code> takes the predicate and builds the same
+        mask internally, and a WebGPU pipeline writes it to a storage buffer with one dispatch.
+        The predicate pass is the cheap, embarrassingly parallel part — everything after it is
+        the interesting problem.
+<h2>All tasks in Stream Compaction</h2>
+<ol class="ssg-tasks"><li><a href="/learn/stream-compaction-0aed2e43/1">Filter Has No Kernel</a></li><li><a href="/learn/stream-compaction-0aed2e43/2">Where Do I Land?</a></li><li><a href="/learn/stream-compaction-0aed2e43/3">Turn the Scatter Around</a></li><li><a href="/learn/stream-compaction-0aed2e43/4">Find It in log n</a></li><li><a href="/learn/stream-compaction-0aed2e43/5">Payoff: How Many Survived</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/stream-compaction-0aed2e43/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

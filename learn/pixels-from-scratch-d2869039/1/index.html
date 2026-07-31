@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Paint with Coordinates · Pixels from Scratch — GPU.js Learn</title>
     <meta name="description" content="Goal: turn the flat gray into a two-axis gradient — red rising with x , green rising with y , blue fixed at 0.5 .">
@@ -114,9 +114,69 @@
     <meta name="twitter:description" content="Goal: turn the flat gray into a two-axis gradient — red rising with x , green rising with y , blue fixed at 0.5 .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Paint with Coordinates","description":"Goal: turn the flat gray into a two-axis gradient — red rising with x , green rising with y , blue fixed at 0.5 .","url":"https://gpu.rocks/learn/pixels-from-scratch-d2869039/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Pixels from Scratch","url":"https://gpu.rocks/learn/pixels-from-scratch-d2869039","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/pixels-from-scratch-d2869039/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/pixels-from-scratch-d2869039">Pixels from Scratch</a></nav>
+<p class="ssg-eyebrow">Task 1 of 4</p>
+<h1>Paint with Coordinates</h1>
+<p>Set <code>graphical: true</code> and a kernel stops returning numbers — instead
+        every thread paints <strong>exactly one pixel</strong> by calling
+        <code>this.color(r, g, b, a)</code>, channels 0–1. The output shape becomes the canvas:
+        <code>output: [128, 128]</code> is a 128×128 picture, 16,384 threads, one per pixel.</p>
+        <p>A solid color is one line — and the starter already paints one. The interesting part is
+        that each thread knows <em>where</em> it is: <code>this.thread.x</code> counts columns from
+        the left, <code>this.thread.y</code> counts rows from the <strong>bottom</strong> (GL
+        convention). Divide either by the canvas size and you get a smooth 0–1 ramp, ready to feed
+        straight into a color channel.</p>
+<figure><figcaption>every thread knows where it stands — divide by 128 and position becomes color</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> turn the flat gray into a two-axis gradient — red rising with
+        <code>x</code>, green rising with <code>y</code>, blue fixed at <code>0.5</code>.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>graphical: true</code> and <code>output: [128, 128]</code></li><li>Red channel = <code>this.thread.x / 128</code></li><li>Green channel = <code>this.thread.y / 128</code></li><li>Blue stays <code>0.5</code>, alpha stays <code>1</code></li></ul>
+<details><summary>Hint 1 — where am I?</summary><p><code>this.thread.x</code> runs 0…127 here, so
+            <code>this.thread.x / 128</code> runs 0…0.992 — a ready-made red ramp.
+            Same move with <code>this.thread.y</code> for green.</p></details>
+<details><summary>Hint 2 — the one-liner</summary><p>The whole kernel body:</p>
+<pre><code>this.color(this.thread.x / 128, this.thread.y / 128, 0.5, 1);</code></pre></details>
+<h2>Same idea elsewhere</h2>Normalized pixel coordinates are the <em>uv</em> every shader language starts
+        from: WebGPU and Metal fragment shaders derive them from the fragment position, and CUDA
+        image kernels divide thread indices by the image width the same way. The famous red-green
+        "uv debug gradient" is exactly this kernel.
+<h2>All tasks in Pixels from Scratch</h2>
+<ol class="ssg-tasks"><li><a href="/learn/pixels-from-scratch-d2869039/1">Paint with Coordinates</a></li><li><a href="/learn/pixels-from-scratch-d2869039/2">Checkerboard Logic</a></li><li><a href="/learn/pixels-from-scratch-d2869039/3">Plot a Function</a></li><li><a href="/learn/pixels-from-scratch-d2869039/4">Ripples: Think in Polar</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/pixels-from-scratch-d2869039/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

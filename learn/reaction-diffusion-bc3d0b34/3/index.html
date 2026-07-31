@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Feed It Back: 100 Steps · Reaction–Diffusion — GPU.js Learn</title>
     <meta name="description" content="Goal: run 100 Gray–Scott steps from the seeded grids seedU / seedV , feeding each step's outputs into the next — both kernels always reading the same snapshot.">
@@ -114,9 +114,76 @@
     <meta name="twitter:description" content="Goal: run 100 Gray–Scott steps from the seeded grids seedU / seedV , feeding each step's outputs into the next — both kernels always reading the same snapshot.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Feed It Back: 100 Steps","description":"Goal: run 100 Gray–Scott steps from the seeded grids seedU / seedV , feeding each step's outputs into the next — both kernels always reading the same snapshot.","url":"https://gpu.rocks/learn/reaction-diffusion-bc3d0b34/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Reaction–Diffusion","url":"https://gpu.rocks/learn/reaction-diffusion-bc3d0b34","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/reaction-diffusion-bc3d0b34/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/reaction-diffusion-bc3d0b34">Reaction–Diffusion</a></nav>
+<p class="ssg-eyebrow">Task 3 of 4</p>
+<h1>Feed It Back: 100 Steps</h1>
+<p>One step is chemistry; a hundred steps is <em>morphogenesis</em>. The kernels
+        stay on the GPU — the loop lives in JavaScript: call both step kernels, take their
+        outputs, feed them back in as next step's inputs. This is the same feedback move as
+        the cellular automata in 3.3, just with two grids in flight instead of one.</p>
+        <p>The trap: both kernels must read the <strong>same snapshot</strong>. If you
+        overwrite <code>u</code> before calling <code>stepV</code>, chemical V reacts with food
+        from the <em>future</em> — the simulation drifts and the tests will know. Hold both new
+        grids, <em>then</em> swap. Graphics folk call this ping-pong buffering.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> run 100 Gray–Scott steps from the seeded grids
+        <code>seedU</code> / <code>seedV</code>, feeding each step's outputs into the next —
+        both kernels always reading the same snapshot.</div>
+
+<h2>Requirements</h2><ul><li>Loop exactly <code>STEPS</code> (100) times in plain JavaScript</li><li>Call <code>stepU(u, v)</code> and <code>stepV(u, v)</code> with the <em>same</em> <code>u</code> and <code>v</code></li><li>Only after both calls, replace <code>u</code> and <code>v</code> with the new grids</li></ul>
+<details><summary>Hint 1 — why the starter is wrong</summary><p>The starter does</p>
+<pre><code>u = stepU(u, v);
+v = stepV(u, v);</code></pre>
+<p>— by the
+            second call, <code>u</code> is already next step's grid. Stash both results in
+            temporaries before assigning either.</p></details>
+<details><summary>Hint 2 — the loop body</summary><pre><code>const nextU = stepU(u, v);
+const nextV = stepV(u, v);
+u = nextU;
+v = nextV;</code></pre>
+<p>Four lines, inside
+            <code>for (let i = 0; i &lt; STEPS; i++)</code>.</p></details>
+<h2>Same idea elsewhere</h2>This snapshot discipline is double buffering, and GPUs institutionalize it:
+        a WebGPU or Metal simulation binds texture A for reading and texture B for writing,
+        then swaps the bindings each frame — you never write the buffer you're reading. CUDA
+        codes do the same by swapping two device pointers between kernel launches.
+<h2>All tasks in Reaction–Diffusion</h2>
+<ol class="ssg-tasks"><li><a href="/learn/reaction-diffusion-bc3d0b34/1">The Laplacian: Ask Your Neighbors</a></li><li><a href="/learn/reaction-diffusion-bc3d0b34/2">One Step of Gray–Scott</a></li><li><a href="/learn/reaction-diffusion-bc3d0b34/3">Feed It Back: 100 Steps</a></li><li><a href="/learn/reaction-diffusion-bc3d0b34/4">Paint the Pattern</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/reaction-diffusion-bc3d0b34/2">← previous task</a> · <a href="/learn/reaction-diffusion-bc3d0b34/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

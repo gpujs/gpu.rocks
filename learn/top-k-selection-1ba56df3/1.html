@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Rank by Counting · Top-K Selection — GPU.js Learn</title>
     <meta name="description" content="Goal: return, for each element, the number of scores that outrank it — strictly larger anywhere, or equal at a lower index .">
@@ -114,9 +114,82 @@
     <meta name="twitter:description" content="Goal: return, for each element, the number of scores that outrank it — strictly larger anywhere, or equal at a lower index .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Rank by Counting","description":"Goal: return, for each element, the number of scores that outrank it — strictly larger anywhere, or equal at a lower index .","url":"https://gpu.rocks/learn/top-k-selection-1ba56df3/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Top-K Selection","url":"https://gpu.rocks/learn/top-k-selection-1ba56df3","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/top-k-selection-1ba56df3/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/top-k-selection-1ba56df3">Top-K Selection</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>Rank by Counting</h1>
+<p>"Give me the ten largest of these four thousand scores." On a CPU you keep a heap
+        of ten and walk the data once — and that plan does not port, because the heap's contents
+        after element <em>i</em> depend on every element before it. Serial by construction.</p>
+        <p>So ask a question every element can answer <em>alone</em>: <strong>how many scores beat
+        me?</strong> That count is the element's <strong>rank</strong>, rank 0 means nothing beats
+        it, and anything with a rank below <code>k</code> is in the top <code>k</code>. No sorting,
+        no shared state, one thread per element — each of them reading the whole array, which makes
+        this O(n²) work and gloriously parallel.</p>
+        <p>Ties are where it bites. Two equal scores each counting the other come back with the
+        <em>same</em> rank: two elements claim one slot, and the slot after it is claimed by
+        nobody. The fix is a <strong>tie-break on the index</strong> — an element earlier in the
+        array outranks you when the scores are equal, a later one does not. That turns the ranks
+        into a permutation of 0…4095, exactly one element per slot. These scores repeat constantly,
+        so you will feel it immediately.</p>
+<figure><figcaption>a rank is a count, and a count is something every element can do alone — Eight scores in a row. One of them, highlighted, counts the scores that outrank it: two strictly larger scores count, and an equal score at a lower index counts, while an equal score at a higher index does not. The total, three, is its rank and its output slot.</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> return, for each element, the number of scores that outrank it —
+        strictly larger anywhere, or <em>equal at a lower index</em>.</div>
+
+<h2>Requirements</h2><ul><li>One thread per score: <code>output: [4096]</code>, loop bound <code>this.constants.n</code></li><li>A strictly larger score always counts</li><li>An equal score counts only when its index is below <code>this.thread.x</code></li><li>The largest score must come back with rank <code>0</code></li></ul>
+<details><summary>Hint 1 — one loop, two comparisons</summary><p>Split on the index, not on the value. For <code>j &lt; this.thread.x</code> an
+            equal score wins, so that side tests <code>&gt;=</code>; for every other <code>j</code>
+            an equal score loses, so that side tests <code>&gt;</code>.</p></details>
+<details><summary>Hint 2 — the loop body</summary><pre><code>const other = scores[j];
+if (j &lt; this.thread.x) {
+  if (other &gt;= mine) ahead++;
+} else if (other &gt; mine) {
+  ahead++;
+}</code></pre></details>
+<details><summary>Hint 3 — checking yourself</summary><p>Every rank from 0 to 4095 should appear exactly <em>once</em>. If two elements
+            share a rank, then somewhere a <code>&gt;</code> is doing a <code>&gt;=</code>'s job (or
+            the other way round).</p></details>
+<h2>Same idea elsewhere</h2>Counting ranks is how a GPU sorts small things — it is the first sort in every CUDA
+        and WebGPU tutorial, and the reason CUB's <code>DeviceRadixSort</code> and bitonic networks
+        exist is that O(n²) stops being free somewhere above a few thousand elements. The index
+        tie-break is what makes such a sort <em>stable</em>, the same guarantee
+        <code>thrust::stable_sort</code> and <code>std::stable_sort</code> sell.
+<h2>All tasks in Top-K Selection</h2>
+<ol class="ssg-tasks"><li><a href="/learn/top-k-selection-1ba56df3/1">Rank by Counting</a></li><li><a href="/learn/top-k-selection-1ba56df3/2">Gather the Winners</a></li><li><a href="/learn/top-k-selection-1ba56df3/3">The Brightest Pixels</a></li><li><a href="/learn/top-k-selection-1ba56df3/4">Find the Cutoff Instead</a></li><li><a href="/learn/top-k-selection-1ba56df3/5">Which One Wins?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/top-k-selection-1ba56df3/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Work-Efficient: Upsweep, Downsweep · Prefix Sums (Scan) — GPU.js Learn</title>
     <meta name="description" content="Goal: write the two sweep kernels. The prewired driver runs upsweep up the tree, clears the last cell, and runs downsweep back down — producing the exclusive…">
@@ -114,9 +114,102 @@
     <meta name="twitter:description" content="Goal: write the two sweep kernels. The prewired driver runs upsweep up the tree, clears the last cell, and runs downsweep back down — producing the exclusive…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Work-Efficient: Upsweep, Downsweep","description":"Goal: write the two sweep kernels. The prewired driver runs upsweep up the tree, clears the last cell, and runs downsweep back down — producing the exclusive…","url":"https://gpu.rocks/learn/prefix-sum-351cfa41/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Prefix Sums (Scan)","url":"https://gpu.rocks/learn/prefix-sum-351cfa41","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/prefix-sum-351cfa41/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/prefix-sum-351cfa41">Prefix Sums (Scan)</a></nav>
+<p class="ssg-eyebrow">Task 5 of 6</p>
+<h1>Work-Efficient: Upsweep, Downsweep</h1>
+<p>Hillis-Steele is fast but greedy: ten passes over 1,024 cells is about
+        <strong>n·log₂n ≈ 10,000 additions</strong> where the serial loop needed 1,023. The
+        <strong>Blelloch</strong> scan gets that down to roughly <strong>2n</strong>, in two
+        halves of one balanced tree.</p>
+        <p><em>Upsweep</em> is a plain tree reduction — the one the Reductions module builds —
+        done in place: at stride 1 every odd cell absorbs its left neighbour, at stride 2 every
+        fourth cell absorbs the subtotal two places left, and so on. After log₂n passes the last
+        cell holds the grand total and each
+        "block top" holds its own block's subtotal — a whole tree of partial sums, stored in the
+        array it came from. <em>Downsweep</em> then walks that tree back down: put <code>0</code>
+        in the last cell, and at each level a node hands its value down to its left partner while
+        keeping its own value plus that partner's old subtotal. What falls out is the
+        <strong>exclusive</strong> scan.</p>
+        <p>Be honest about the payoff. Blelloch does a fraction of the arithmetic — 2n against
+        n·log₂n — but needs <em>twice</em> the kernel launches (21 here against 10), and near the
+        root of the tree almost every thread is idle. At
+        n = 1,024 the simpler ladder usually wins on the clock; work-efficiency only starts paying
+        once the array is big enough that arithmetic, not launch overhead, is the bill. Press
+        <strong>Benchmark</strong> and watch the better algorithm lose.</p>
+<figure><figcaption>up the tree to build subtotals, down it again to hand them out</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write the two sweep kernels. The prewired driver runs upsweep
+        up the tree, clears the last cell, and runs downsweep back down — producing the exclusive
+        scan of <code>values</code>.</div>
+
+<h2>Requirements</h2><ul><li>Upsweep: only the top cell of each <code>2·stride</code> block changes, to <code>data[i] + data[i − stride]</code></li><li>Downsweep: the block top becomes <code>data[i] + data[i − stride]</code>, and its left partner takes over the block top's old value</li><li>Every other cell in both kernels passes its value straight through</li><li>Log <code>exclusive[512]</code> and the grand total</li></ul>
+<details><summary>Hint 1 — which cells are active?</summary><p>At stride <code>s</code> the blocks are <code>2s</code> wide, so their tops sit
+            at indexes <code>2s − 1, 4s − 1, 6s − 1, …</code> — exactly the cells where
+            <code>(i + 1) % (2 * stride) === 0</code>. The top's left partner is
+            <code>stride</code> places earlier, so the partner's own test is
+            <code>(i + 1 + stride) % (2 * stride) === 0</code>.</p></details>
+<details><summary>Hint 2 — the upsweep body</summary><pre><code>const i = this.thread.x;
+if ((i + 1) % (2 * stride) === 0) {
+  return data[i] + data[i - stride];
+}
+return data[i];</code></pre>
+<p>At stride 1 that is cells 1, 3, 5, …; at stride 2 it is cells 3, 7, 11, … —
+            half as many workers each pass, which is where the n·log n turns into 2n.</p></details>
+<details><summary>Hint 3 — the downsweep body</summary><p>Two active cases, and everybody else passes through:</p>
+<pre><code>const i = this.thread.x;
+const block = 2 * stride;
+if ((i + 1) % block === 0) {
+  return data[i] + data[i - stride];
+}
+if ((i + 1 + stride) % block === 0) {
+  return data[i + stride];
+}
+return data[i];</code></pre>
+<p>The second case is the left partner taking over the block top's old
+            value — which is why both swaps have to happen in the same pass, reading the same
+            snapshot.</p></details>
+<h2>Same idea elsewhere</h2>Blelloch's two sweeps are the textbook work-efficient scan, and they are what
+        every GPU course draws on the board. Production libraries have moved past them: CUB's
+        <code>DeviceScan</code> uses a single-pass <em>decoupled look-back</em>, where each block
+        scans locally and then waits on its predecessors' aggregates, because on modern hardware
+        the bill is memory traffic rather than additions — and two full sweeps means reading the
+        array twice. Knowing why the elegant answer lost is the real lesson.
+<h2>All tasks in Prefix Sums (Scan)</h2>
+<ol class="ssg-tasks"><li><a href="/learn/prefix-sum-351cfa41/1">The Sum So Far</a></li><li><a href="/learn/prefix-sum-351cfa41/2">Everyone Sums Their Own Prefix</a></li><li><a href="/learn/prefix-sum-351cfa41/3">The Doubling Ladder</a></li><li><a href="/learn/prefix-sum-351cfa41/4">Inclusive, Exclusive, and Why It Matters</a></li><li><a href="/learn/prefix-sum-351cfa41/5">Work-Efficient: Upsweep, Downsweep</a></li><li><a href="/learn/prefix-sum-351cfa41/6">Payoff: Offsets Place the Data</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/prefix-sum-351cfa41/4">← previous task</a> · <a href="/learn/prefix-sum-351cfa41/6">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

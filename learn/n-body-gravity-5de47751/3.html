@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Softening the Singularity · N-Body Gravity — GPU.js Learn</title>
     <meta name="description" content="Goal: soften the kernel — use r² + soft² , drop the self-check, and return the full [ax, ay] pair.">
@@ -114,9 +114,69 @@
     <meta name="twitter:description" content="Goal: soften the kernel — use r² + soft² , drop the self-check, and return the full [ax, ay] pair.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Softening the Singularity","description":"Goal: soften the kernel — use r² + soft² , drop the self-check, and return the full [ax, ay] pair.","url":"https://gpu.rocks/learn/n-body-gravity-5de47751/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"N-Body Gravity","url":"https://gpu.rocks/learn/n-body-gravity-5de47751","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/n-body-gravity-5de47751/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/n-body-gravity-5de47751">N-Body Gravity</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Softening the Singularity</h1>
+<p>Two of this task's bodies sit <code>0.001</code> apart. Plug that into
+        <code>1 / r²</code> and their mutual pull is about a <em>million</em> — one tick of the
+        clock later they're flung out of the galaxy. That's not physics; it's what happens when a
+        point-mass model meets a finite time step.</p>
+        <p>The standard fix is <strong>Plummer softening</strong>: replace <code>r²</code> with
+        <code>r² + ε²</code>. Far away, <code>ε</code> changes nothing; up close, the force
+        flattens out instead of diverging. Bonus: the <code>j !== i</code> self-check becomes dead
+        weight — your own term has <code>dx = dy = 0</code>, so it contributes exactly zero. Drop
+        the branch; GPUs run happiest when every thread takes the same path.</p>
+<figure><figcaption>close encounters flatten out instead of blowing up</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> soften the kernel — use <code>r² + soft²</code>, drop the
+        self-check, and return the full <code>[ax, ay]</code> pair.</div>
+
+<h2>Requirements</h2><ul><li>Squared distance becomes <code>dx·dx + dy·dy + soft·soft</code></li><li>Remove the <code>j !== this.thread.x</code> guard — the self term is now zero</li><li>Accumulate <em>both</em> components and return <code>[ax, ay]</code></li></ul>
+<details><summary>Hint 1 — why the guard can go</summary><p>For <code>j === i</code>: <code>dx</code> and <code>dy</code> are 0, so the
+            contribution is <code>0 · something</code>. With <code>soft² &gt; 0</code> the
+            denominator is never zero, so that something is a plain finite number.</p></details>
+<details><summary>Hint 2 — share the weight</summary><p>Compute <code>const w = mass[j] / (r2 * Math.sqrt(r2));</code> once, then
+            <code>ax += dx * w; ay += dy * w;</code> — one denominator, two components.</p></details>
+<h2>Same idea elsewhere</h2>Softening appears verbatim in production astrophysics codes (GADGET, Bonsai) on
+        CUDA and ROCm clusters. It's also a lesson in GPU numerics generally: shader float math
+        never throws — a divide-by-zero silently mints <code>Infinity</code> and then
+        <code>NaN</code>s spread through every sum they touch, on Metal and WebGPU alike.
+<h2>All tasks in N-Body Gravity</h2>
+<ol class="ssg-tasks"><li><a href="/learn/n-body-gravity-5de47751/1">The Pull of One Star</a></li><li><a href="/learn/n-body-gravity-5de47751/2">Every Body Pulls on Every Body</a></li><li><a href="/learn/n-body-gravity-5de47751/3">Softening the Singularity</a></li><li><a href="/learn/n-body-gravity-5de47751/4">One Tick of the Clock</a></li><li><a href="/learn/n-body-gravity-5de47751/5">Put It Together: 128 Bodies</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/n-body-gravity-5de47751/2">← previous task</a> · <a href="/learn/n-body-gravity-5de47751/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

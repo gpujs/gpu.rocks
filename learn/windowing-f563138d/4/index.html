@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Measure the Trade · Windowing &amp; Spectral Leakage — GPU.js Learn</title>
     <meta name="description" content="Goal: write the Blackman window, then tabulate main-lobe width and peak side-lobe level for rectangular, Hann and Blackman on the same on-bin tone.">
@@ -114,9 +114,93 @@
     <meta name="twitter:description" content="Goal: write the Blackman window, then tabulate main-lobe width and peak side-lobe level for rectangular, Hann and Blackman on the same on-bin tone.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Measure the Trade","description":"Goal: write the Blackman window, then tabulate main-lobe width and peak side-lobe level for rectangular, Hann and Blackman on the same on-bin tone.","url":"https://gpu.rocks/learn/windowing-f563138d/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Windowing & Spectral Leakage","url":"https://gpu.rocks/learn/windowing-f563138d","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/windowing-f563138d/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/windowing-f563138d">Windowing &amp; Spectral Leakage</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Measure the Trade</h1>
+<p>"Use a Hann window" is folklore until you can say what it costs. Two numbers
+        settle it, and both are in the picture above.</p>
+        <p><strong>Main-lobe width</strong> is how many bins a single pure tone occupies — the
+        frequency resolution you have left. <strong>Peak side-lobe level</strong> is how far
+        down, in dB, the worst ripple outside that lobe sits — the dynamic range you have
+        bought. The rectangular window (which is all "no window" ever meant: multiply by 1 and
+        stop dead at the edges) wins the first and loses the second, badly. Every other window
+        trades one for the other, and choosing between them is the whole skill.</p>
+        <p>To see either you have to look <em>between</em> the bins, because a windowed on-bin
+        tone lands on integer bins where these curves are exactly zero. The standard trick is
+        <strong>zero padding</strong>: run a 1,024-point transform over a 256-sample signal, so
+        768 of the terms are zero. Nothing is added and nothing is lost, but the spectrum is now
+        sampled four times per bin. Be clear about what that buys — interpolation, never
+        resolution. Zero padding draws the same curve with more dots; only a longer window makes
+        the curve narrower.</p>
+<figure><figcaption>the whole trade in one picture — nobody gets both</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write the Blackman window, then tabulate main-lobe width
+        and peak side-lobe level for rectangular, Hann and Blackman on the same on-bin tone.</div>
+
+<h2>Requirements</h2><ul><li>Create <code>blackman</code> with <code>output: [256]</code>: the sample times <code>0.42 - 0.5·cos(2πi / n) + 0.08·cos(4πi / n)</code></li><li>Main lobe: from the peak at grid index 128, step outward while the magnitude keeps falling — that stops on the first null. Width in bins is <code>2 * steps / 4</code></li><li>Peak side lobe: <code>20 * Math.log10(worst / peak)</code>, with <code>worst</code> the largest magnitude from that null out to grid index 512</li><li>Log one line per window, labelled <code>rect</code> / <code>hann</code> / <code>blackman</code>, carrying its width in bins and its side-lobe level in dB</li></ul>
+<details><summary>Hint 1 — the Blackman kernel</summary><p>Three cosine terms, and the third runs at double the frequency — so name
+            the angle once and the whole window is one line:</p>
+<pre><code>const i = this.thread.x;
+const a = 2 * Math.PI * i / this.constants.n;
+const w = 0.42 - 0.5 * Math.cos(a) + 0.08 * Math.cos(2 * a);
+return signal[i] * w;</code></pre>
+<p>One gpu.js trap while you are in here: do not name a kernel local after one of
+            your own constants. <code>const n = this.constants.n;</code> transpiles to
+            <code>const constants_n = constants_n;</code> and the kernel dies with "cannot
+            access before initialization".</p></details>
+<details><summary>Hint 2 — walking out to the first null</summary><p>A main lobe falls monotonically to its first zero, and only then do the
+            side lobes start climbing again. So keep stepping while the next sample is smaller
+            than this one:</p>
+<pre><code>let i = peakAt;
+while (mag[i + 1] &lt; mag[i]) i++;
+const bins = 2 * (i - peakAt) / 4;   // 4 grid points per bin</code></pre></details>
+<details><summary>Hint 3 — what the table should say</summary><p>Widths of <code>2</code>, <code>4</code> and <code>6</code> bins, and side
+            lobes at roughly <code>-13</code>, <code>-32</code> and <code>-58 dB</code>. Read
+            it as a menu: three extra bins of width buy 45 dB of dynamic range. Hamming, not
+            asked for here, sits between Hann and Blackman at 4 bins and about
+            <code>-41 dB</code>.</p></details>
+<h2>Same idea elsewhere</h2>Those two numbers are the datasheet entry for every window in every DSP
+        library — Harris's 1978 survey tabulates a few dozen of them and is still the paper
+        people cite. Choosing one is a real engineering decision: a spectrum analyser hunting a
+        -60 dB spur beside a strong carrier needs Blackman's side lobes and can afford the
+        width, while a pitch tracker separating two close partials wants Hann, or no window at
+        all.
+<h2>All tasks in Windowing &amp; Spectral Leakage</h2>
+<ol class="ssg-tasks"><li><a href="/learn/windowing-f563138d/1">A Tone the Window Does Not Fit</a></li><li><a href="/learn/windowing-f563138d/2">What the Transform Actually Sees</a></li><li><a href="/learn/windowing-f563138d/3">Taper the Edges</a></li><li><a href="/learn/windowing-f563138d/4">Measure the Trade</a></li><li><a href="/learn/windowing-f563138d/5">Give the Amplitude Back</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/windowing-f563138d/3">← previous task</a> · <a href="/learn/windowing-f563138d/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

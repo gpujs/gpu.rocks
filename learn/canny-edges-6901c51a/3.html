@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Non-Maximum Suppression · The Canny Edge Pipeline — GPU.js Learn</title>
     <meta name="description" content="Goal: keep mag[y][x] when it is at least as large as both of its neighbours along the quantised gradient direction, and return 0 otherwise.">
@@ -114,9 +114,112 @@
     <meta name="twitter:description" content="Goal: keep mag[y][x] when it is at least as large as both of its neighbours along the quantised gradient direction, and return 0 otherwise.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Non-Maximum Suppression","description":"Goal: keep mag[y][x] when it is at least as large as both of its neighbours along the quantised gradient direction, and return 0 otherwise.","url":"https://gpu.rocks/learn/canny-edges-6901c51a/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The Canny Edge Pipeline","url":"https://gpu.rocks/learn/canny-edges-6901c51a","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/canny-edges-6901c51a/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/canny-edges-6901c51a">The Canny Edge Pipeline</a></nav>
+<p class="ssg-eyebrow">Task 3 of 6</p>
+<h1>Non-Maximum Suppression</h1>
+<p>Stage 2 leaves edges several pixels thick: a gradient does not switch on at one
+        column, it ramps across the whole slope. Canny's third stage is what makes the output an
+        <strong>edge map</strong> rather than a heat map — and it is the stage everyone gets
+        wrong.</p>
+        <p>The rule: a pixel survives only if it is a local maximum <strong>along its own gradient
+        direction</strong>. Not along the edge — <em>across</em> it. The gradient points the way
+        the brightness climbs, which is perpendicular to the edge itself, and walking one step
+        each way along that direction is walking off the ridge on both sides. If the pixel is the
+        top of that little ridge, it stays; if either neighbour is above it, it is on the slope,
+        and it goes to zero.</p>
+        <p>Two steps, then. <strong>Quantise</strong> the angle to one of four axes — the only
+        neighbours you have are the eight around you, so the gradient's direction can only be
+        answered to 45° — and then <strong>compare</strong> against the two neighbours on that
+        axis. Quantising has one trap in it: <code>atan2</code> returns −π…π, but an axis has no
+        sense of forwards. −45° and +135° are the same axis, so an angle below zero has to be
+        wrapped up by 180° first. Skip the wrap and one of your four buckets is never selected at
+        all — on this task's own map, that is 570 of the 1,049 gradient pixels quietly landing in
+        the wrong bucket.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+<figure><figcaption>the two neighbours that matter are across the edge, not along it — A patch of gradient magnitudes holding a three-pixel-wide ridge. The pixel under test is compared with the two neighbours lying along its gradient direction, which crosses the ridge; the edge itself runs at right angles to that. On the right, the three-wide band becomes a one-pixel line.</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> keep <code>mag[y][x]</code> when it is at least as large as
+        both of its neighbours along the quantised gradient direction, and return <code>0</code>
+        otherwise.</div>
+
+<h2>Requirements</h2><ul><li>Wrap a negative angle by <code>+ Math.PI</code> before quantising — 180° and 0° are the same axis</li><li>Quantise into four buckets at 22.5°, 67.5°, 112.5°: an <code>(ax, ay)</code> step of <code>(1,0)</code>, <code>(1,1)</code>, <code>(0,1)</code> or <code>(-1,1)</code></li><li>Compare against <code>mag[y + ay][x + ax]</code> and <code>mag[y - ay][x - ax]</code> — the GRADIENT axis, not the edge</li><li>Survivors keep their magnitude; everything else is <code>0</code>, borders included</li></ul>
+<details><summary>Hint 1 — which neighbours belong to which bucket</summary><p>Take the angle to degrees after wrapping, so it lies in 0…180, and read off
+            the axis:</p>
+<pre><code>  0° ± 22.5   →  (ax, ay) = ( 1, 0)   left  ↔ right
+ 45° ± 22.5   →  (ax, ay) = ( 1, 1)   ↖ ↘
+ 90° ± 22.5   →  (ax, ay) = ( 0, 1)   up    ↕ down
+135° ± 22.5   →  (ax, ay) = (-1, 1)   ↗ ↙</code></pre>
+<p>Start with <code>(1, 0)</code> and let the last bucket fall out of the
+            <code>else</code>: 0° and 180° share it.</p></details>
+<details><summary>Hint 2 — the shape of the body</summary><pre><code>let a = dir[y][x];
+if (a &lt; 0) a += Math.PI;
+const deg = a * 180 / Math.PI;
+let ax = 1;
+let ay = 0;
+if (deg &gt;= 22.5 &amp;&amp; deg &lt; 67.5) { ax = 1; ay = 1; }
+else if (deg &gt;= 67.5 &amp;&amp; deg &lt; 112.5) { ax = 0; ay = 1; }
+else if (deg &gt;= 112.5 &amp;&amp; deg &lt; 157.5) { ax = -1; ay = 1; }</code></pre></details>
+<details><summary>Hint 3 — the comparison</summary><pre><code>const m = mag[y][x];
+if (m &gt;= mag[y + ay][x + ax] &amp;&amp; m &gt;= mag[y - ay][x - ax]) {
+  return m;
+}
+return 0;</code></pre>
+<p><code>&gt;=</code>, not <code>&gt;</code>: on a perfectly symmetric edge the two
+            middle pixels tie, and <code>&gt;</code> would erase both and leave a hole where the
+            edge was. The border check has already returned, so these indexes are in bounds.</p></details>
+<h2>Same idea elsewhere</h2>The name is borrowed all over vision: object detectors run "NMS" over overlapping
+        boxes with exactly this argument — keep the local maximum, drop everything it explains.
+        On the GPU the pattern is a pure gather, one thread per pixel with no coordination, which
+        is why NVIDIA's VPI, OpenCV's <code>cudaimgproc</code> and every WebGPU implementation
+        fuse it into a single compute pass. The awkward part on real hardware is the branch: four
+        buckets means four different neighbour pairs, and a warp whose threads disagree runs all
+        four paths — which is why some implementations interpolate along the true angle instead of
+        quantising, trading arithmetic for branch uniformity.
+<h2>All tasks in The Canny Edge Pipeline</h2>
+<ol class="ssg-tasks"><li><a href="/learn/canny-edges-6901c51a/1">Blur First: a Separable Gaussian</a></li><li><a href="/learn/canny-edges-6901c51a/2">Magnitude, and the Angle Nobody Mentions</a></li><li><a href="/learn/canny-edges-6901c51a/3">Non-Maximum Suppression</a></li><li><a href="/learn/canny-edges-6901c51a/4">Strong, Weak, Gone</a></li><li><a href="/learn/canny-edges-6901c51a/5">Hysteresis: Run It Until Nothing Changes</a></li><li><a href="/learn/canny-edges-6901c51a/6">Payoff: Five Stages, Zero Round Trips</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/canny-edges-6901c51a/2">← previous task</a> · <a href="/learn/canny-edges-6901c51a/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

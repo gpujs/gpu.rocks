@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Ripples: Think in Polar · Pixels from Scratch — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the ripple kernel — a cosine wave over the radius, faded toward the edge, tinted blue: this.color(0.4v, 0.75v, v, 1) .">
@@ -114,9 +114,70 @@
     <meta name="twitter:description" content="Goal: finish the ripple kernel — a cosine wave over the radius, faded toward the edge, tinted blue: this.color(0.4v, 0.75v, v, 1) .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Ripples: Think in Polar","description":"Goal: finish the ripple kernel — a cosine wave over the radius, faded toward the edge, tinted blue: this.color(0.4v, 0.75v, v, 1) .","url":"https://gpu.rocks/learn/pixels-from-scratch-d2869039/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Pixels from Scratch","url":"https://gpu.rocks/learn/pixels-from-scratch-d2869039","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/pixels-from-scratch-d2869039/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/pixels-from-scratch-d2869039">Pixels from Scratch</a></nav>
+<p class="ssg-eyebrow">Task 4 of 4</p>
+<h1>Ripples: Think in Polar</h1>
+<p>Gradients, cells and curves all thought in x and y. The last move of this module
+        is to change coordinate systems <em>inside the kernel</em>: subtract the canvas center
+        (63.5, 63.5 — halfway between the two middle rows and columns), and Pythagoras turns the
+        thread's position into a <strong>radius</strong>. Anything you compute from that radius is
+        automatically a perfect circle.</p>
+        <p>Feed the radius into a cosine and you get concentric ripples; multiply by a fade so
+        they die out toward the edge; tint the channels and the flat canvas turns into water.
+        One gotcha, handled in the starter: <code>this.thread.x</code> is an <em>integer</em> on
+        the GPU, so promote it to a float (<code>this.thread.x / 1</code>) before subtracting the
+        fractional center — otherwise the GPU rounds your 63.5 away.</p>
+<figure><figcaption>subtract the center and (x, y) becomes r — anything you do to r is a circle</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> finish the ripple kernel — a cosine wave over the radius,
+        faded toward the edge, tinted blue: <code>this.color(0.4v, 0.75v, v, 1)</code>.</div>
+
+<h2>Requirements</h2><ul><li>Radius from the center: <code>Math.sqrt(dx*dx + dy*dy)</code> with dx, dy relative to (63.5, 63.5)</li><li>Ripple: <code>wave = 0.5 + 0.5 * Math.cos(r * 0.35)</code></li><li>Fade: <code>fade = Math.max(0, 1 - r / 96)</code>, then <code>v = wave * fade</code></li><li>Blue tint: channels <code>0.4*v</code>, <code>0.75*v</code>, <code>v</code></li></ul>
+<details><summary>Hint 1 — the ripple</summary><p><code>Math.cos(r * 0.35)</code> swings between −1 and 1 as r grows —
+            <code>0.5 + 0.5 * cos</code> remaps that to 0…1, a crest roughly every 18 pixels.</p></details>
+<details><summary>Hint 2 — the last three lines</summary><pre><code>const wave = 0.5 + 0.5 * Math.cos(r * 0.35);
+const v = wave * Math.max(0, 1 - r / 96);
+this.color(0.4 * v, 0.75 * v, v, 1);</code></pre></details>
+<h2>Same idea elsewhere</h2>Radius-and-angle reasoning is everywhere in GPU code: vignette and
+        lens-distortion passes in Metal and WebGPU post-processing, CUDA and ROCm image warps
+        that resample in polar space, every "tunnel" demo ever shipped. Center the coordinates,
+        transform them, color by the result — that opening move never changes.
+<h2>All tasks in Pixels from Scratch</h2>
+<ol class="ssg-tasks"><li><a href="/learn/pixels-from-scratch-d2869039/1">Paint with Coordinates</a></li><li><a href="/learn/pixels-from-scratch-d2869039/2">Checkerboard Logic</a></li><li><a href="/learn/pixels-from-scratch-d2869039/3">Plot a Function</a></li><li><a href="/learn/pixels-from-scratch-d2869039/4">Ripples: Think in Polar</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/pixels-from-scratch-d2869039/3">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Give the Amplitude Back · Windowing &amp; Spectral Leakage — GPU.js Learn</title>
     <meta name="description" content="Goal: build a calibrated amplitude spectrum and recover the true amplitude of one tone through all three windows.">
@@ -114,9 +114,98 @@
     <meta name="twitter:description" content="Goal: build a calibrated amplitude spectrum and recover the true amplitude of one tone through all three windows.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Give the Amplitude Back","description":"Goal: build a calibrated amplitude spectrum and recover the true amplitude of one tone through all three windows.","url":"https://gpu.rocks/learn/windowing-f563138d/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Windowing & Spectral Leakage","url":"https://gpu.rocks/learn/windowing-f563138d","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/windowing-f563138d/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/windowing-f563138d">Windowing &amp; Spectral Leakage</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Give the Amplitude Back</h1>
+<p>Task 3 left a loose end. The Hann window collapsed the leak by 29 dB and also
+        dropped the measured amplitude from 0.65 to 0.42 — <em>further</em> from the truth than
+        before. That is neither a bug nor a mystery. The window multiplies the signal by
+        something whose average is exactly 0.5, so the peak comes back exactly half size.
+        Divide it back out and you are finished.</p>
+        <p>The number to divide by is the window's <strong>coherent gain</strong>,
+        CG = Σw / n — the taper's mean value, 1 for rectangular, 0.5 for Hann, 0.42 for
+        Blackman. Folding it into the amplitude formula from task 1 leaves something pleasantly
+        compact:</p>
+<pre><code>amplitude = 2 · |X[k]| / Σw</code></pre>
+        <p>Miss it and every amplitude your analyser reports is low by a constant factor — 50%
+        for Hann, 58% for Blackman. That is exactly the kind of bug that survives for years,
+        because a clean scale error never looks broken.</p>
+        <p>Its sister number is the <strong>noise gain</strong>, Σw² / n, which is 0.375 for
+        Hann. That one is for <em>power</em>: the mean square of a broadband noise floor scales
+        with the sum of the squares, not with the square of the sum. Amplitude of a tone → Σw.
+        Power of a noise floor → Σw². Reach for the wrong one and you are wrong by a factor
+        nothing will ever flag, so it is worth carrying both.</p>
+        <p>And a tidy way to get either: hand your window kernel a signal of 256 ones, and it
+        hands you back the window.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> build a calibrated amplitude spectrum and recover the true
+        amplitude of one tone through all three windows.</div>
+
+<h2>Requirements</h2><ul><li>Create <code>amplitudeSpectrum(spec, sumW)</code> with <code>output: [256]</code> — a plain number passes into a kernel like any other argument</li><li>Return <code>2 * Math.sqrt(re * re + im * im) / sumW</code></li><li>Get each window's samples by running its kernel on a signal of 256 ones, then sum them and their squares</li><li>Log one line per window, labelled <code>rect</code> / <code>hann</code> / <code>blackman</code>, with its raw peak and its recovered amplitude, plus a line carrying Hann's coherent and noise gains</li></ul>
+<details><summary>Hint 1 — a scalar argument</summary><p>Kernel arguments do not have to be arrays. <code>sumW</code> arrives as a
+            plain number and is used like one:</p>
+<pre><code>const re = spec[0][this.thread.x];
+const im = spec[1][this.thread.x];
+return 2 * Math.sqrt(re * re + im * im) / sumW;</code></pre></details>
+<details><summary>Hint 2 — the window, from the window kernel</summary><p>Every window kernel here is "sample × taper", so a signal of ones makes it
+            return the taper:</p>
+<pre><code>const w = hann(flat);            // flat = new Array(256).fill(1)
+let sumW = 0;
+let sumW2 = 0;
+for (let i = 0; i &lt; w.length; i++) {
+  sumW += w[i];
+  sumW2 += w[i] * w[i];
+}</code></pre>
+<p>Which also gives the rectangular case for free: <code>rect(flat)</code> is 256
+            ones, so its <code>sumW</code> is 256.</p></details>
+<details><summary>Hint 3 — what you should see</summary><p>Three raw peaks — <code>76.8</code>, <code>38.4</code>,
+            <code>32.256</code> — and one amplitude, <code>0.600</code>, three times over.
+            Hann's coherent gain is <code>0.5</code> exactly and its noise gain
+            <code>0.375</code> exactly: a periodic Hann window sums to n/2 and its squares to
+            3n/8, which doubles as a check that your window is the periodic one.</p></details>
+<h2>Same idea elsewhere</h2>Coherent gain is why a home-made analyser and a real one disagree by a
+        constant: scipy's <code>welch</code> takes <code>scaling='spectrum'</code> versus
+        <code>'density'</code> precisely to pick Σw versus Σw² normalisation, and every vendor's
+        spectrum-analyser manual carries a window table with both columns. On the GPU it is one
+        scalar uniform folded into a pass you already run — the cheapest correctness fix in this
+        module, and the most commonly skipped.
+<h2>All tasks in Windowing &amp; Spectral Leakage</h2>
+<ol class="ssg-tasks"><li><a href="/learn/windowing-f563138d/1">A Tone the Window Does Not Fit</a></li><li><a href="/learn/windowing-f563138d/2">What the Transform Actually Sees</a></li><li><a href="/learn/windowing-f563138d/3">Taper the Edges</a></li><li><a href="/learn/windowing-f563138d/4">Measure the Trade</a></li><li><a href="/learn/windowing-f563138d/5">Give the Amplitude Back</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/windowing-f563138d/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

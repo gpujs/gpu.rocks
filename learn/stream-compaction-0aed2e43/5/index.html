@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: How Many Survived · Stream Compaction — GPU.js Learn</title>
     <meta name="description" content="Goal: compute the survivor count from the end of the scan, trim the packed output to it, and log both.">
@@ -114,9 +114,80 @@
     <meta name="twitter:description" content="Goal: compute the survivor count from the end of the scan, trim the packed output to it, and log both.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: How Many Survived","description":"Goal: compute the survivor count from the end of the scan, trim the packed output to it, and log both.","url":"https://gpu.rocks/learn/stream-compaction-0aed2e43/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Stream Compaction","url":"https://gpu.rocks/learn/stream-compaction-0aed2e43","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/stream-compaction-0aed2e43/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/stream-compaction-0aed2e43">Stream Compaction</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Payoff: How Many Survived</h1>
+<p>Three kernels, wired together: flags, then the scan, then the gather. All of it
+        is below, finished — the pipeline is yours already. What is missing is the number that
+        makes the result usable.</p>
+        <p>The output is 64 cells long because the launch was 64 threads wide. Only the first
+        <strong>count</strong> of them hold survivors; the rest hold whatever the search failed to
+        find, and reading them as data is the classic way to ship a bug. So where does
+        <code>count</code> come from? The end of the scan — but not from
+        <code>offsets[63]</code> alone. An exclusive scan at the last index counts everyone
+        <em>before</em> the last element, so the last element's own flag is still outstanding:</p>
+<pre><code>const count = offsets[n - 1] + flags[n - 1];</code></pre>
+        <p>Drop the <code>+ flags[n - 1]</code> and the pipeline quietly loses its final element,
+        but only when that element happens to survive — which is exactly the kind of bug that
+        passes every test you wrote by hand. And note what this number costs: it has to come back
+        to JavaScript before anything can use it. That single readback is why compaction is the
+        awkward step in an otherwise fully on-device pipeline.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> compute the survivor count from the end of the scan, trim the
+        packed output to it, and log both.</div>
+
+<h2>Requirements</h2><ul><li><code>count = offsets[63] + flags[63]</code> — the last offset <em>plus</em> the last flag</li><li>Trim the 64-cell output down to those <code>count</code> values</li><li><code>console.log</code> the count on its own line, and the kept values as a list</li></ul>
+<details><summary>Hint 1 — the count lives at the end of the scan</summary><p><code>offsets[63]</code> is "how many survived among elements 0…62". Element
+            63 is not in that total — its flag is. Add them.</p></details>
+<details><summary>Hint 2 — trimming</summary><p>The kernel returns a <code>Float32Array</code>; turn it into a plain array and
+            cut it at the count:</p>
+<pre><code>const kept = Array.from(packed).slice(0, count);</code></pre></details>
+<details><summary>Hint 3 — check yourself</summary><p><code>kept.length</code> should equal <code>count</code>, and every value in
+            it should be at least 50. If the last one is missing, you dropped the
+            <code>+ flags[63]</code>.</p></details>
+<h2>Same idea elsewhere</h2>Every real compaction API hands the length back separately, and for the same
+        reason: <code>thrust::copy_if</code> returns an end iterator, CUB's
+        <code>DeviceSelect::Flagged</code> writes <code>d_num_selected_out</code> to device
+        memory, and Vulkan/WebGPU pipelines that want to avoid the readback entirely feed that
+        counter straight into an <em>indirect</em> dispatch or draw — the GPU deciding its own
+        launch size from a number the CPU never sees.
+<h2>All tasks in Stream Compaction</h2>
+<ol class="ssg-tasks"><li><a href="/learn/stream-compaction-0aed2e43/1">Filter Has No Kernel</a></li><li><a href="/learn/stream-compaction-0aed2e43/2">Where Do I Land?</a></li><li><a href="/learn/stream-compaction-0aed2e43/3">Turn the Scatter Around</a></li><li><a href="/learn/stream-compaction-0aed2e43/4">Find It in log n</a></li><li><a href="/learn/stream-compaction-0aed2e43/5">Payoff: How Many Survived</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/stream-compaction-0aed2e43/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Images Are Just Arrays · Data In, Data Out — GPU.js Learn</title>
     <meta name="description" content="Goal: compute a 64×64 brightness map of photo — each cell the average of that pixel's red, green and blue channels.">
@@ -114,9 +114,73 @@
     <meta name="twitter:description" content="Goal: compute a 64×64 brightness map of photo — each cell the average of that pixel's red, green and blue channels.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Images Are Just Arrays","description":"Goal: compute a 64×64 brightness map of photo — each cell the average of that pixel's red, green and blue channels.","url":"https://gpu.rocks/learn/data-in-data-out-42b68d01/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Data In, Data Out","url":"https://gpu.rocks/learn/data-in-data-out-42b68d01","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/data-in-data-out-42b68d01/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/data-in-data-out-42b68d01">Data In, Data Out</a></nav>
+<p class="ssg-eyebrow">Task 5 of 6</p>
+<h1>Images Are Just Arrays</h1>
+<p>Task 3 painted pixels. But an image doesn't have to <em>stay</em> an image: in this
+        course an image is a nested array — <code>photo[y][x]</code> is an <code>[r, g, b, a]</code>
+        pixel with channels 0–1 — and a kernel can read it like any other array argument.</p>
+        <p>Drop <code>graphical: true</code>, and the same per-pixel indexing produces
+        <strong>numbers</strong> instead of colors: a measurement per pixel, ready for JavaScript.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+<figure><figcaption>drop graphical: true and a pixel is just four numbers</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> compute a 64×64 brightness map of <code>photo</code> — each cell
+        the average of that pixel's red, green and blue channels.</div>
+
+<h2>Requirements</h2><ul><li>Keep the kernel numeric — no <code>graphical: true</code>, output <code>[64, 64]</code></li><li>Read this thread's pixel: <code>photo[this.thread.y][this.thread.x]</code></li><li>Return <code>(r + g + b) / 3</code></li></ul>
+<details><summary>Hint 1 — same indexing as task 3</summary><p>The pixel lookup is identical to the grayscale task — only the ending changes:
+            <code>return</code> a number instead of calling <code>this.color()</code>.</p></details>
+<details><summary>Hint 2 — the average</summary><pre><code>const pixel = photo[this.thread.y][this.thread.x];
+return (pixel[0] + pixel[1] + pixel[2]) / 3;</code></pre></details>
+<h2>Same idea elsewhere</h2>Treating an image as a data grid is how real pipelines work: computer-vision
+        pre-processing, depth-map filtering, scientific imaging. In CUDA/WebGPU this is a compute
+        pass sampling a texture and writing to a plain buffer.
+<h2>All tasks in Data In, Data Out</h2>
+<ol class="ssg-tasks"><li><a href="/learn/data-in-data-out-42b68d01/1">Pass an Array In</a></li><li><a href="/learn/data-in-data-out-42b68d01/2">Shape the Output: 2D</a></li><li><a href="/learn/data-in-data-out-42b68d01/3">Grayscale, the GPU way</a></li><li><a href="/learn/data-in-data-out-42b68d01/4">Read the Results Back</a></li><li><a href="/learn/data-in-data-out-42b68d01/5">Images Are Just Arrays</a></li><li><a href="/learn/data-in-data-out-42b68d01/6">Put It Together: Two Kernels</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/data-in-data-out-42b68d01/4">← previous task</a> · <a href="/learn/data-in-data-out-42b68d01/6">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Box Blur: the Window Goes 2D · Convolution &amp; Filters — GPU.js Learn</title>
     <meta name="description" content="Goal: blur inputImage with a 3×3 box filter — each painted pixel is the average of its 3×3 neighborhood, edges clamped.">
@@ -114,9 +114,85 @@
     <meta name="twitter:description" content="Goal: blur inputImage with a 3×3 box filter — each painted pixel is the average of its 3×3 neighborhood, edges clamped.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Box Blur: the Window Goes 2D","description":"Goal: blur inputImage with a 3×3 box filter — each painted pixel is the average of its 3×3 neighborhood, edges clamped.","url":"https://gpu.rocks/learn/convolution-and-filters-66933805/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Convolution & Filters","url":"https://gpu.rocks/learn/convolution-and-filters-66933805","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/convolution-and-filters-66933805/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/convolution-and-filters-66933805">Convolution &amp; Filters</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Box Blur: the Window Goes 2D</h1>
+<p>Take the sliding window into two dimensions and you have image filtering. A
+        <strong>3×3 box blur</strong> is the simplest case: every output pixel is the plain
+        average of the 3×3 patch centered on it — nine reads, per color channel, per pixel.
+        131,072 threads each do their nine reads at once.</p>
+        <p>Same edge problem, now on four sides: clamp <em>both</em> coordinates into
+        <code>0…this.constants.last</code> before indexing. Average red, green and blue
+        separately and hand the result to <code>this.color()</code>.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+<figure><figcaption>nine reads and an average; off the edge, the border pixel answers twice</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> blur <code>inputImage</code> with a 3×3 box filter — each
+        painted pixel is the average of its 3×3 neighborhood, edges clamped.</div>
+
+<h2>Requirements</h2><ul><li>Loop over the 3×3 neighborhood (a double <code>for</code> loop over <code>dy</code>, <code>dx</code>)</li><li>Clamp both sample coordinates to <code>0…this.constants.last</code></li><li>Accumulate red, green and blue separately, then paint <code>this.color(r/9, g/9, b/9, 1)</code></li></ul>
+<details><summary>Hint 1 — the neighborhood loop</summary><p><code>for (let dy = 0; dy &lt; 3; dy++)</code> nested with
+            <code>dx</code>, and the sample position is
+            <code>this.thread.y + dy - 1</code>, <code>this.thread.x + dx - 1</code> — the
+            <code>- 1</code> centers the window on this thread's pixel.</p></details>
+<details><summary>Hint 2 — clamp, then read</summary><pre><code>let sy = this.thread.y + dy - 1;
+if (sy &lt; 0) sy = 0;
+if (sy &gt; this.constants.last) sy = this.constants.last;</code></pre>
+<p>— same for
+            <code>sx</code> — then <code>const pixel = image[sy][sx];</code> and add
+            <code>pixel[0]</code>, <code>pixel[1]</code>, <code>pixel[2]</code> into three
+            running sums.</p></details>
+<details><summary>Hint 3 — the finish</summary><p>After the loops: <code>this.color(r / 9, g / 9, b / 9, 1);</code> —
+            nine samples went in, so divide by nine on the way out.</p></details>
+<h2>Same idea elsewhere</h2>Blur passes ship in every production toolkit — Metal Performance Shaders'
+        <code>MPSImageBox</code>, NVIDIA's NPP filtering routines, WebGPU post-processing
+        chains. The fast ones exploit that a box blur is <em>separable</em>: a horizontal pass
+        then a vertical pass — six reads per pixel instead of nine.
+<h2>All tasks in Convolution &amp; Filters</h2>
+<ol class="ssg-tasks"><li><a href="/learn/convolution-and-filters-66933805/1">Slide a Window: 1D Convolution</a></li><li><a href="/learn/convolution-and-filters-66933805/2">Any Filter, One Kernel</a></li><li><a href="/learn/convolution-and-filters-66933805/3">Box Blur: the Window Goes 2D</a></li><li><a href="/learn/convolution-and-filters-66933805/4">Sharpen: Negative Weights</a></li><li><a href="/learn/convolution-and-filters-66933805/5">Sobel Edge Detection</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/convolution-and-filters-66933805/2">← previous task</a> · <a href="/learn/convolution-and-filters-66933805/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

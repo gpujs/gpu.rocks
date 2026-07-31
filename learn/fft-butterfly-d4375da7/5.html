@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Same Answer, Two Centuries Apart · The FFT Butterfly — GPU.js Learn</title>
     <meta name="description" content="Goal: write the naive DFT kernel, confirm it agrees with the FFT bin by bin, and log the two operation counts and both timings.">
@@ -114,9 +114,116 @@
     <meta name="twitter:description" content="Goal: write the naive DFT kernel, confirm it agrees with the FFT bin by bin, and log the two operation counts and both timings.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Same Answer, Two Centuries Apart","description":"Goal: write the naive DFT kernel, confirm it agrees with the FFT bin by bin, and log the two operation counts and both timings.","url":"https://gpu.rocks/learn/fft-butterfly-d4375da7/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The FFT Butterfly","url":"https://gpu.rocks/learn/fft-butterfly-d4375da7","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/fft-butterfly-d4375da7/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/fft-butterfly-d4375da7">The FFT Butterfly</a></nav>
+<p class="ssg-eyebrow">Task 5 of 6</p>
+<h1>Same Answer, Two Centuries Apart</h1>
+<p>A permutation and a stack of index arithmetic produced <em>something</em>. The
+        only way to know it is the Fourier transform is to compute the Fourier transform the way
+        the definition says and compare, bin by bin. That is this task: write the naive DFT, run
+        both at n = 8,192 — thirteen passes this time, since log₂(8,192) = 13 — and check they
+        agree.</p>
+        <p>Then count. The DFT visits every sample for every bin: n² = <strong>67,108,864</strong>
+        complex multiplies. The FFT does log₂(n) passes of n/2 butterflies:
+        <strong>53,248</strong>. A factor of 1,260 — and it is not a constant, it is a ratio that
+        grows without bound. At n = 65,536, a window of about 1.5 seconds of CD audio, it is
+        <strong>8,192×</strong>, which is the difference between a spectrogram that renders live
+        and one that does not render at all. Gauss found the trick in 1805 and left it
+        unpublished; Cooley and Tukey published it in 1965 and it went on to underwrite digital
+        audio, JPEG's cousin the DCT, radio astronomy, MRI, and the modem you are reading this
+        through.</p>
+        <p>Now the stopwatch, and the reason this task is the size it is. <strong>Kernel launches
+        are not free.</strong> A launch plus the readback around it costs about half a millisecond
+        here, and the FFT needs fourteen of them where the definition needs one. At n = 512 that
+        overhead <em>is</em> the transform, and the algorithm doing 114× less arithmetic loses the
+        race outright. That is a real and permanent GPU lesson — a small transform is not worth
+        sending to a GPU at all — but it is no longer this task's punchline, because the fix for
+        it is the one change the code below makes to the FFT you built in task 4: every pass hands
+        the next one a <em>texture</em> (<code>pipeline: true</code>) instead of a JavaScript
+        array, so the spectrum crosses back to the CPU once instead of fourteen times. Measured,
+        that single change takes the FFT from 8.2 ms to 1.5 ms.</p>
+        <p>With both things settled — enough arithmetic that it outweighs the launches, and no
+        copies that buy nothing — the race is not close. On the machine this was written on, in
+        gpu mode: the FFT in <strong>1.5 ms</strong>, the definition in <strong>3.5 ms</strong>.
+        Run it and read your own two numbers off the console. Then switch <strong>Mode</strong>
+        from Auto to CPU, where there is no launch overhead left and nothing but the operation
+        count decides it, and watch the gap open past <strong>35×</strong> — against a naive
+        transform that has been handed only a 1,024-bin slice of the spectrum instead of all
+        8,192, because the whole thing is two seconds of a single thread. A machine with no GPU
+        at all, running WebGL in software, reports about 135×.</p>
+        <p>One last thing in the console, which is not about speed. The two answers agree to about
+        six parts in ten thousand, and nearly all of that gap is the <em>naive</em> one being
+        wrong: 8,192 float32 terms summed into one running total, against thirteen roundings for
+        the FFT. The fast algorithm is also the accurate one, and that is not a coincidence.
+        Measuring Speed Honestly is the module that owns the benchmarking argument; the ⏱
+        <strong>Benchmark</strong> chip answers a different question again, timing the whole file
+        at once rather than either transform alone.</p>
+<figure><figcaption>one pass over a square, or thirteen passes over a line</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write the naive DFT kernel, confirm it agrees with the FFT
+        bin by bin, and log the two operation counts and both timings.</div>
+
+<h2>Requirements</h2><ul><li>The DFT kernel is one thread per output cell, looping over all <code>this.constants.n</code> samples</li><li>The output is <code>bins</code> wide but every bin sums over all <code>n</code> samples — the output width and the loop bound are different numbers</li><li>Angles are <code>-2π·k·t / n</code> with <code>k = this.thread.x</code> — no scaling by <code>n</code></li><li>Compare the two spectra bin by bin and <code>console.log</code> the verdict</li><li><code>console.log</code> both operation counts and both elapsed times (already wired up)</li></ul>
+<details><summary>Hint 1 — which index is the loop, which is the thread?</summary><p><code>this.thread.x</code> is the bin <code>k</code>, fixed for the whole
+            thread. The loop variable <code>t</code> walks the samples. So the array lookup is
+            <code>x[t]</code> — if <code>this.thread.x</code> appears inside the brackets, the
+            two have been swapped.</p></details>
+<details><summary>Hint 2 — the accumulation</summary><pre><code>const angle = (-2 * Math.PI * k * t) / this.constants.n;
+re += x[t] * Math.cos(angle);
+im += x[t] * Math.sin(angle);</code></pre>
+<p>— the input is real, so there is no fourth term. Task 6 needs the general
+            version.</p></details>
+<details><summary>Hint 3 — what &quot;agree&quot; should mean</summary><p>Not equality. The two computations do wildly different numbers of float32
+            operations and will not land on the same bits — the DFT accumulates 8,192 terms into
+            one running total, the FFT thirteen. Compare the largest difference against the size
+            of the spectrum, not against zero: <code>worst / peak &lt; 5e-3</code> is a generous
+            margin and a truthful one. Expect about <code>6e-4</code>, and expect nearly all of it
+            to belong to the DFT: its phase <code>-2π·k·t / n</code> runs <code>k·t</code> up past
+            67 million, which float32 cannot even hold to the nearest whole number.</p></details>
+<h2>Same idea elsewhere</h2>Checking a fast implementation against the slow definition on a small input is
+        how every FFT library is tested — cuFFT, FFTW and rocFFT all ship exactly this comparison
+        in their accuracy suites, usually reported as relative error against a reference computed
+        at higher precision. It is also the honest answer to "is my GPU port correct": not "the
+        pictures look the same", but the definition, at a size where you can afford it. The
+        second habit here travels just as far: when a chain of kernels loses to a brute-force
+        one, count the round trips before you touch the arithmetic. Keeping intermediates on the
+        device is what <code>pipeline: true</code> is for in gpu.js, what CUDA graphs and Metal
+        command buffers are for elsewhere, and it is very often the whole difference.
+<h2>All tasks in The FFT Butterfly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/fft-butterfly-d4375da7/1">Where the Saving Comes From</a></li><li><a href="/learn/fft-butterfly-d4375da7/2">The Butterfly: One Thread, One Output</a></li><li><a href="/learn/fft-butterfly-d4375da7/3">Put the Input in the Right Order</a></li><li><a href="/learn/fft-butterfly-d4375da7/4">Drive log₂n Passes</a></li><li><a href="/learn/fft-butterfly-d4375da7/5">Same Answer, Two Centuries Apart</a></li><li><a href="/learn/fft-butterfly-d4375da7/6">Run It Backwards for Free</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/fft-butterfly-d4375da7/4">← previous task</a> · <a href="/learn/fft-butterfly-d4375da7/6">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

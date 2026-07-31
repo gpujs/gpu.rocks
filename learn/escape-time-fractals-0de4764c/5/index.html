@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Julia Sets: Turn the Dial · Escape-Time Fractals — GPU.js Learn</title>
     <meta name="description" content="Goal: a graphical Julia kernel over the fixed view −1.6…1.6: seed z from the pixel, add the arguments cRe, cIm each step, and keep task 4's smooth shading…">
@@ -114,9 +114,70 @@
     <meta name="twitter:description" content="Goal: a graphical Julia kernel over the fixed view −1.6…1.6: seed z from the pixel, add the arguments cRe, cIm each step, and keep task 4's smooth shading…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Julia Sets: Turn the Dial","description":"Goal: a graphical Julia kernel over the fixed view −1.6…1.6: seed z from the pixel, add the arguments cRe, cIm each step, and keep task 4's smooth shading…","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Escape-Time Fractals","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/escape-time-fractals-0de4764c/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/escape-time-fractals-0de4764c">Escape-Time Fractals</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Julia Sets: Turn the Dial</h1>
+<p>Here's the payoff. Take the exact loop you've built and <strong>flip the
+        roles</strong>: in a Julia set, z starts <em>at the pixel</em> and <code>c</code> is one
+        fixed complex number shared by every thread. Each choice of c is a different fractal —
+        <code>c = 0</code> gives a plain disk, <code>−0.7269 + 0.1889i</code> a galaxy of spirals —
+        and the Mandelbrot set turns out to be the map of which c values give connected Julias.</p>
+        <p>Because c arrives as <strong>kernel arguments</strong>, changing it costs one function
+        call — no recompiling. That's what makes those mesmerizing morphing-Julia animations:
+        nudge c, redraw, repeat.</p>
+<figure><figcaption>same loop, roles swapped — mandelbrot varies c, julia varies z₀</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> a graphical Julia kernel over the fixed view −1.6…1.6: seed
+        <code>z</code> from the pixel, add the arguments <code>cRe, cIm</code> each step, and keep
+        task 4's smooth shading (interior black).</div>
+
+<h2>Requirements</h2><ul><li>Seed z from the pixel: <code>zr = xMin + x·step</code>, <code>zi = yMin + y·step</code> (constants are wired up)</li><li>Inside the loop, add <code>cRe</code> and <code>cIm</code> — not the pixel coordinates</li><li>Escaped: shade with <code>t = smooth / 100</code> via <code>this.color(t, t * t, 0.5 + 0.5 * t, 1)</code>; interior: black</li><li>Call the kernel with a c of your choice and <code>render()</code> it</li></ul>
+<details><summary>Hint 1 — what actually changes</summary><p>Two lines. Mandelbrot: z starts at 0 and c is the pixel. Julia: z starts at the
+            pixel and c is the argument pair. The loop body, the guard, the shading — all identical.</p></details>
+<details><summary>Hint 2 — the exact edits</summary><p>Seed with</p>
+<pre><code>let zr = this.constants.xMin + x * this.constants.step;</code></pre>
+<p>(and likewise <code>zi</code> from y), then inside the loop use
+            <code>… + cRe</code> and <code>… + cIm</code> instead of <code>px</code> / <code>py</code>.</p></details>
+<h2>Same idea elsewhere</h2>A per-launch value broadcast to every thread is what other APIs call a
+        <em>uniform</em>: a WGSL uniform buffer, a Metal constant buffer, a plain CUDA kernel
+        parameter. Animating one uniform per frame — exactly your c — is how every shader-toy
+        Julia morph is driven.
+<h2>All tasks in Escape-Time Fractals</h2>
+<ol class="ssg-tasks"><li><a href="/learn/escape-time-fractals-0de4764c/1">Map Pixels to the Complex Plane</a></li><li><a href="/learn/escape-time-fractals-0de4764c/2">The Escape-Time Loop</a></li><li><a href="/learn/escape-time-fractals-0de4764c/3">Paint by Iteration Count</a></li><li><a href="/learn/escape-time-fractals-0de4764c/4">Smooth Out the Bands</a></li><li><a href="/learn/escape-time-fractals-0de4764c/5">Julia Sets: Turn the Dial</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/escape-time-fractals-0de4764c/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

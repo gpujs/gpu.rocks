@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Butterfly: One Thread, One Output · The FFT Butterfly — GPU.js Learn</title>
     <meta name="description" content="Goal: write one butterfly pass over the 8-point complex spectrum — the kernel takes (spectrum, half) and returns one number per output cell.">
@@ -114,9 +114,100 @@
     <meta name="twitter:description" content="Goal: write one butterfly pass over the 8-point complex spectrum — the kernel takes (spectrum, half) and returns one number per output cell.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Butterfly: One Thread, One Output","description":"Goal: write one butterfly pass over the 8-point complex spectrum — the kernel takes (spectrum, half) and returns one number per output cell.","url":"https://gpu.rocks/learn/fft-butterfly-d4375da7/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The FFT Butterfly","url":"https://gpu.rocks/learn/fft-butterfly-d4375da7","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/fft-butterfly-d4375da7/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/fft-butterfly-d4375da7">The FFT Butterfly</a></nav>
+<p class="ssg-eyebrow">Task 2 of 6</p>
+<h1>The Butterfly: One Thread, One Output</h1>
+<p>Written as a recursion the split is elegant and useless: a GPU cannot recurse, and
+        allocating a tree of half-length arrays would cost more than the arithmetic saves. Turn it
+        inside out instead. Every level of that recursion is one <strong>pass</strong> over the
+        whole array, and every pass is the same tiny operation repeated: take two elements
+        <code>a</code> and <code>b</code>, and produce</p>
+<pre><code>a + w·b        and        a - w·b</code></pre>
+        <p>Two in, two out, one twiddle factor <code>w</code>. Drawn on paper the crossing lines
+        look like a butterfly, and the name stuck.</p>
+        <p>Here is where a half-remembered recursive formulation has to be let go. A thread does not
+        <em>own a pair</em> and write two cells — it owns <strong>one output cell</strong>, exactly
+        as everywhere else in this course, and it works out for itself which two inputs and which
+        twiddle that cell needs. Nothing is ever swapped. Given the pass's half-block size
+        <code>half</code>, thread <code>i</code> asks three questions:</p>
+<pre><code>// am I the lower member of my pair, or the upper?
+const j = Math.floor(i / half) % 2;
+// where the LOWER member of my pair sits
+const base = i - j * half;
+// my position inside the half-block
+const r = i % half;</code></pre>
+        <p>Then <code>a</code> is element <code>base</code>, <code>b</code> is element
+        <code>base + half</code>, and <code>w = e^(-iπ·r / half)</code>. Both members of a pair
+        compute the same <code>w</code> and read the same two elements; they differ only in the sign
+        between them. No communication, no barrier inside a pass — the same reason the halving
+        ladder in Reductions needs none.</p>
+<figure><figcaption>twelve butterflies, and which pair you belong to is a fact about your index</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write one butterfly pass over the 8-point complex
+        <code>spectrum</code> — the kernel takes <code>(spectrum, half)</code> and returns one
+        number per output cell.</div>
+
+<h2>Requirements</h2><ul><li>Work out <code>base</code> and <code>r</code> from <code>this.thread.x</code> and <code>half</code> alone</li><li>Read <em>both</em> planes of both elements — a complex multiply needs all four numbers</li><li>Return <code>a + w·b</code> at the lower index and <code>a - w·b</code> at the upper one</li><li>It must be right for <code>half = 1</code>, <code>2</code> and <code>4</code></li></ul>
+<details><summary>Hint 1 — which pair am I in?</summary><p>At <code>half = 2</code> the eight threads split 0,1 | 2,3 | 4,5 | 6,7 into
+            blocks of four: threads 0, 1, 4, 5 have <code>j = 0</code> and pair upward; threads
+            2, 3, 6, 7 have <code>j = 1</code> and pair downward. Subtracting
+            <code>j * half</code> lands both members of a pair on the same
+            <code>base</code>.</p></details>
+<details><summary>Hint 2 — which twiddle?</summary><p><code>r = i % half</code> is your position inside the half-block, and it is
+            all <code>w</code> depends on. At <code>half = 1</code> every <code>r</code> is 0, so
+            <code>w = 1</code> and the first pass is pure addition and subtraction — which is why
+            a sign mistake in the twiddle will not show up until <code>half = 2</code>.</p></details>
+<details><summary>Hint 3 — the ending</summary><p>Compute the whole complex result, then return only the half this thread's
+            plane asked for:</p>
+<pre><code>const tr = wr * br - wi * bi;
+const ti = wr * bi + wi * br;
+if (this.thread.y === 0) {
+  if (j === 0) return ar + tr;
+  return ar - tr;
+}
+if (j === 0) return ai + ti;
+return ai - ti;</code></pre></details>
+<h2>Same idea elsewhere</h2>The butterfly is gather-shaped on every platform, for the reason Thinking in
+        Parallel gives: a thread writes its own cell and nobody else's. CUDA's cuFFT keeps a whole
+        radix-N butterfly in registers and exchanges through shared memory or
+        <code>__shfl_xor_sync</code>; WGSL and Metal compute shaders do the same through workgroup
+        memory plus a barrier. What none of them do is have one thread write two results.
+<h2>All tasks in The FFT Butterfly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/fft-butterfly-d4375da7/1">Where the Saving Comes From</a></li><li><a href="/learn/fft-butterfly-d4375da7/2">The Butterfly: One Thread, One Output</a></li><li><a href="/learn/fft-butterfly-d4375da7/3">Put the Input in the Right Order</a></li><li><a href="/learn/fft-butterfly-d4375da7/4">Drive log₂n Passes</a></li><li><a href="/learn/fft-butterfly-d4375da7/5">Same Answer, Two Centuries Apart</a></li><li><a href="/learn/fft-butterfly-d4375da7/6">Run It Backwards for Free</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/fft-butterfly-d4375da7/1">← previous task</a> · <a href="/learn/fft-butterfly-d4375da7/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

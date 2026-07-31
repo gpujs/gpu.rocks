@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Number Is Not Enough · The DFT, Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: compute both parts of bin 8 with one kernel — output: [1, 2] , plane 0 the cosine correlation, plane 1 the sine correlation with a minus sign — and log…">
@@ -114,9 +114,90 @@
     <meta name="twitter:description" content="Goal: compute both parts of bin 8 with one kernel — output: [1, 2] , plane 0 the cosine correlation, plane 1 the sine correlation with a minus sign — and log…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Number Is Not Enough","description":"Goal: compute both parts of bin 8 with one kernel — output: [1, 2] , plane 0 the cosine correlation, plane 1 the sine correlation with a minus sign — and log…","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The DFT, Honestly","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/the-dft-7b1e3f9b/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/the-dft-7b1e3f9b">The DFT, Honestly</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>One Number Is Not Enough</h1>
+<p>Task 1's answer has a hole in it. Take a pure tone at bin 8 and correlate it
+        against a cosine at bin 8: you get 128, the whole amplitude. Now delay that identical tone
+        by 8 samples out of 256 — nothing about the sound has changed — and the same correlation
+        reads <strong>0</strong>. The tone is right there and the number says it is absent, because
+        a delay of 8 samples is a quarter turn at bin 8, and a cosine and a sine of the same
+        frequency are orthogonal.</p>
+        <p>The fix is to measure against <em>both</em>: a cosine and a sine. Two numbers per bin,
+        and the pair rotates as the signal shifts while its length — <code>√(re² + im²)</code> —
+        stays put. That pair is what "complex" means here. It is arithmetic on pairs of floats,
+        not a mysterious new number system: <code>re</code> is what the cosine measured,
+        <code>im</code> is what the sine measured (with a minus sign, from the standard
+        <code>e^(−2πi·ki/n)</code>), and nothing else about it needs believing.</p>
+        <p><strong>The convention this whole track uses.</strong> gpu.js has no complex type, so a
+        complex result is <strong>two planes</strong> of floats: <code>output: [n, 2]</code>, read
+        as <code>result[p][i]</code> — plane <code>p = 0</code> is the real part, plane
+        <code>p = 1</code> the imaginary part, <code>i</code> the bin. Since
+        <code>output: [w, h]</code> is indexed <code>[y][x]</code>, <code>this.thread.y</code>
+        <em>is</em> the plane and <code>this.thread.x</code> is the bin. Here <code>n</code> is 1 —
+        one bin, two planes.</p>
+<figure><figcaption>the delay swings the pair around; the radius is the answer you wanted</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> compute both parts of bin 8 with one kernel —
+        <code>output: [1, 2]</code>, plane 0 the cosine correlation, plane 1 the sine correlation
+        with a minus sign — and log the real part, the imaginary part and the magnitude for both
+        <code>tone</code> and <code>shiftedTone</code>.</div>
+
+<h2>Requirements</h2><ul><li><code>output: [1, 2]</code> — read back as <code>result[plane][0]</code></li><li>Branch on <code>this.thread.y</code>: plane 0 <em>adds</em> <code>signal[i] * Math.cos(angle)</code>, plane 1 <em>subtracts</em> <code>signal[i] * Math.sin(angle)</code></li><li>In JavaScript, take <code>Math.sqrt(re * re + im * im)</code> for each signal</li><li>Log both magnitudes — both read <code>128</code>, while the real parts read <code>128</code> and <code>0</code></li></ul>
+<details><summary>Hint 1 — one kernel, two jobs</summary><p>Every thread runs the same body, so the plane has to be a branch inside it.
+            <code>this.thread.y</code> is 0 for the real plane and 1 for the imaginary one:</p>
+<pre><code>if (this.thread.y === 0) acc += signal[i] * Math.cos(angle);
+else acc -= signal[i] * Math.sin(angle);</code></pre></details>
+<details><summary>Hint 2 — why the minus sign</summary><p>The forward transform correlates against <code>e^(−2πi·ki/n)</code>, and
+            <code>e^(−iθ) = cos(θ) − i·sin(θ)</code>. The minus rides on the sine, which is why
+            plane 1 subtracts. Getting that sign wrong mirrors the entire spectrum, so it is worth
+            fixing here where there is only one bin to look at.</p></details>
+<details><summary>Hint 3 — reading the pair back</summary><p>With <code>output: [1, 2]</code> the result is two rows of one value:</p>
+<pre><code>const out = bin8(tone);
+const re = out[0][0];
+const im = out[1][0];
+console.log('magnitude:', Math.sqrt(re * re + im * im));</code></pre></details>
+<h2>Same idea elsewhere</h2>Interleaved or planar complex data is a decision every signal library makes:
+        cuFFT and rocFFT let you choose between <code>cufftComplex</code> (interleaved re/im pairs)
+        and planar layouts, VkFFT does the same, and WebGPU compute shaders usually reach for a
+        <code>vec2&lt;f32&gt;</code>. Planes suit gpu.js because an output axis is free; the
+        arithmetic underneath is identical whichever way the bytes are arranged.
+<h2>All tasks in The DFT, Honestly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/the-dft-7b1e3f9b/1">One Bin, One Thread</a></li><li><a href="/learn/the-dft-7b1e3f9b/2">One Number Is Not Enough</a></li><li><a href="/learn/the-dft-7b1e3f9b/3">Every Bin, One Thread Each</a></li><li><a href="/learn/the-dft-7b1e3f9b/4">Magnitude, Phase and the Mirror</a></li><li><a href="/learn/the-dft-7b1e3f9b/5">There and Back Again</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/the-dft-7b1e3f9b/1">← previous task</a> · <a href="/learn/the-dft-7b1e3f9b/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

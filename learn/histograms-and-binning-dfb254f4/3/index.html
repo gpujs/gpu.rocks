@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Where Does 7.35 Go? · Histograms &amp; Binning — GPU.js Learn</title>
     <meta name="description" content="Goal: histogram the 4,096 samples into 16 bins with a clamped index, so the counts total 4,096 — and log that total.">
@@ -114,9 +114,85 @@
     <meta name="twitter:description" content="Goal: histogram the 4,096 samples into 16 bins with a clamped index, so the counts total 4,096 — and log that total.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Where Does 7.35 Go?","description":"Goal: histogram the 4,096 samples into 16 bins with a clamped index, so the counts total 4,096 — and log that total.","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Histograms & Binning","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/histograms-and-binning-dfb254f4/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/histograms-and-binning-dfb254f4">Histograms &amp; Binning</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Where Does 7.35 Go?</h1>
+<p>Real measurements are not tidy little category codes. <code>samples</code> holds
+        4,096 sensor readings spread over −32 … 32, and sixteen bins across that span makes each bin
+        4 units wide. Turning a reading into a bin index is one division and one floor:</p>
+<pre><code>// lo = -32, span = 64, bins = 16
+const bin = Math.floor((v - lo) / span * bins);</code></pre>
+        <p>Two details decide whether the histogram is right, and both of them are where real bugs
+        live. First, a bin is <strong>half-open</strong>: bin 14 is <code>[24, 28)</code>, so 24
+        belongs to it and 28 belongs to bin 15. <code>Math.floor</code> gets that for free — which is
+        exactly why the index is floored and not rounded.</p>
+        <p>Second, the <strong>top edge</strong>. A reading exactly equal to the maximum maps to
+        <code>(32 − −32) / 64 × 16 = 16</code> — bin 16, one past the last thread, owned by nobody.
+        Four samples here sit exactly on it, and without a clamp all four silently stop existing:
+        the counts come to 4,092 instead of 4,096. Clamp the index with
+        <code>Math.min(bins − 1, …)</code> and they land in the last real bin, which is what closes
+        that bin at the top.</p>
+        <p>Every sample here is inside the range, so the clamp only ever has to catch the maximum.
+        When data really <em>can</em> fall outside the range, clamping quietly piles the outliers
+        into the end bins and the total will not say a word about it — so that becomes a decision to
+        make on purpose: clamp them in, or drop them out. (And when the range comes from the data
+        rather than from you, a min and a max reduction is where it comes from.)</p>
+<figure><figcaption>bins are half-open, and the last one only closes because you clamped it</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> histogram the 4,096 <code>samples</code> into 16 bins with a
+        clamped index, so the counts total 4,096 — and log that total.</div>
+
+<h2>Requirements</h2><ul><li>Map each sample with <code>(v − this.constants.lo) / this.constants.span * this.constants.bins</code>, floored</li><li>Clamp the index to <code>this.constants.bins - 1</code> so the maximum lands in the last bin instead of falling out</li><li>Count a sample only when its bin equals <code>this.thread.x</code></li><li><code>console.log</code> the total of the 16 counts — it must be <code>4096</code></li></ul>
+<details><summary>Hint 1 — run it first</summary><p>The starter already computes an unclamped index and already totals the counts.
+            Run it: the total comes out 4,092. Four readings went into a bin that does not exist.
+            That gap is the whole task.</p></details>
+<details><summary>Hint 2 — the clamp</summary><pre><code>const bin = Math.min(this.constants.bins - 1, Math.floor(raw));</code></pre>
+<p>— and nothing else changes.</p></details>
+<details><summary>Hint 3 — why floor and not round</summary><p><code>Math.round</code> looks harmless and moves every reading that is more than
+            half way through its bin into the next one — a histogram shifted by half a bin, with the
+            right total. The total will not catch that one; only knowing the rule will.</p></details>
+<h2>Same idea elsewhere</h2>Quantizing a continuous value into an integer index is everywhere in GPU work:
+        picking a mip level, hashing a particle into a spatial grid cell, indexing a lookup table,
+        choosing a colour ramp entry. Every platform ships the clamp as a primitive —
+        <code>clamp()</code> in GLSL, WGSL and MSL, <code>__saturatef</code> and clamped texture
+        address modes in CUDA — because the same off-by-one at the top edge has bitten everybody.
+        NVIDIA's own histogram samples clamp for exactly this reason.
+<h2>All tasks in Histograms &amp; Binning</h2>
+<ol class="ssg-tasks"><li><a href="/learn/histograms-and-binning-dfb254f4/1">The Increment That Vanishes</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/2">One Thread Per Bin</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/3">Where Does 7.35 Go?</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/4">Partial Histograms, Then Merge</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/5">Payoff: An Image's Tone Histogram</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/histograms-and-binning-dfb254f4/2">← previous task</a> · <a href="/learn/histograms-and-binning-dfb254f4/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

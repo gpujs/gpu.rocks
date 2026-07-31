@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Kernel, Every Universe · Cellular Automata — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the evolve kernel so it applies whatever rule tables it's handed — then let the wired-up code count where Life and HighLife disagree about the…">
@@ -114,9 +114,73 @@
     <meta name="twitter:description" content="Goal: finish the evolve kernel so it applies whatever rule tables it's handed — then let the wired-up code count where Life and HighLife disagree about the…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Kernel, Every Universe","description":"Goal: finish the evolve kernel so it applies whatever rule tables it's handed — then let the wired-up code count where Life and HighLife disagree about the…","url":"https://gpu.rocks/learn/cellular-automata-407c2c34/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Cellular Automata","url":"https://gpu.rocks/learn/cellular-automata-407c2c34","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/cellular-automata-407c2c34/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/cellular-automata-407c2c34">Cellular Automata</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>One Kernel, Every Universe</h1>
+<p>B3/S23 is one point in a whole family. Any <em>outer-totalistic</em> rule is fully
+        described by two 9-entry tables: <code>born[n]</code> — does a dead cell with n live
+        neighbors come alive? — and <code>stay[n]</code> — does a live cell with n survive? Conway
+        is <code>born[3] = 1</code>, <code>stay[2] = stay[3] = 1</code>, zeros everywhere else.
+        <strong>HighLife</strong> adds <code>born[6] = 1</code> and suddenly the world contains a
+        pattern that builds copies of itself.</p>
+        <p>Here's the move that matters: pass the tables <strong>as kernel arguments</strong>.
+        The rulebook stops being code and becomes data — one compiled kernel runs every universe
+        in the family, and switching physics is just passing different arrays. No <code>if</code>
+        per rule, no recompile: alive cells look up <code>stay[count]</code>, dead cells look up
+        <code>born[count]</code>.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> finish the <code>evolve</code> kernel so it applies whatever
+        rule tables it's handed — then let the wired-up code count where Life and HighLife disagree
+        about the same world's next tick.</div>
+
+<h2>Requirements</h2><ul><li>The kernel takes <code>world</code>, <code>born</code> and <code>stay</code> — don't hard-code any rule</li><li>Dead cells (<code>self === 0</code>) return <code>born[count]</code></li><li>Live cells (<code>self === 1</code>) return <code>stay[count]</code></li></ul>
+<details><summary>Hint 1 — arrays index like anywhere else</summary><p><code>count</code> is a number from 0 to 8, and <code>born</code> is a 9-entry
+            array — <code>born[count]</code> is already the answer for a dead cell. The lookup
+            <em>is</em> the rule.</p></details>
+<details><summary>Hint 2 — a single return</summary><pre><code>let fate = born[count];
+if (self === 1) fate = stay[count];
+return fate;</code></pre></details>
+<h2>Same idea elsewhere</h2>Shipping small lookup tables to a fixed kernel instead of recompiling is how GPUs
+        stay fast when behavior changes: CUDA and ROCm keep them in <code>__constant__</code>
+        memory, WebGPU and Metal bind them as uniform buffers — same shader, new physics, zero
+        pipeline rebuilds.
+<h2>All tasks in Cellular Automata</h2>
+<ol class="ssg-tasks"><li><a href="/learn/cellular-automata-407c2c34/1">The Neighbor Census</a></li><li><a href="/learn/cellular-automata-407c2c34/2">One Tick of Life</a></li><li><a href="/learn/cellular-automata-407c2c34/3">Generations: Feed It Back</a></li><li><a href="/learn/cellular-automata-407c2c34/4">Watch the Glider Fly</a></li><li><a href="/learn/cellular-automata-407c2c34/5">One Kernel, Every Universe</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/cellular-automata-407c2c34/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

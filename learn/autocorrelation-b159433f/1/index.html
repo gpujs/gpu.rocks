@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Compare a Signal With Itself · Autocorrelation &amp; Pitch — GPU.js Learn</title>
     <meta name="description" content="Goal: score signal against a shifted copy of itself at every lag from 0 to 255, then find the lag of the biggest peak and log the period.">
@@ -114,9 +114,91 @@
     <meta name="twitter:description" content="Goal: score signal against a shifted copy of itself at every lag from 0 to 255, then find the lag of the biggest peak and log the period.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Compare a Signal With Itself","description":"Goal: score signal against a shifted copy of itself at every lag from 0 to 255, then find the lag of the biggest peak and log the period.","url":"https://gpu.rocks/learn/autocorrelation-b159433f/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Autocorrelation & Pitch","url":"https://gpu.rocks/learn/autocorrelation-b159433f","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/autocorrelation-b159433f/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/autocorrelation-b159433f">Autocorrelation &amp; Pitch</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>Compare a Signal With Itself</h1>
+<p>"What note is this?" sounds like a question about frequency. Mostly it isn't. Ask
+        a different one: <strong>how much does this signal look like itself, shifted?</strong>
+        Slide a copy along by <em>lag</em> samples, multiply it against the original point by
+        point, and total the products. Land the shift on a whole period and peaks meet peaks —
+        a big positive score. Land it half a period out and peaks meet troughs — a big negative
+        one. The periodicity falls straight out as a row of peaks.</p>
+        <p>That is <strong>autocorrelation</strong>, and it is not a new idea if you have done
+        Template Matching: it is that module's cross-correlation with the template replaced by
+        the signal itself. It also parallelises without an argument — <strong>one thread per
+        lag</strong>, every thread reading the same array and writing only its own cell. No
+        atomics, no scatter, nothing to coordinate.</p>
+        <p>Below is <code>signal</code>: 512 samples of a plucked string recorded at
+        8192&nbsp;Hz — 62.5 milliseconds, a fundamental plus three harmonics, decaying. Its
+        period is in there. Go and find it.</p>
+<figure><figcaption>slide it half a period and it argues with itself; slide it a whole one and it agrees</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> score <code>signal</code> against a shifted copy of itself at
+        every lag from 0 to 255, then find the lag of the biggest peak and log the
+        period.</div>
+
+<h2>Requirements</h2><ul><li><code>output: [256]</code> — one thread per lag, and <code>this.thread.x</code> <em>is</em> the lag</li><li>Loop over all <code>this.constants.n</code> samples, adding <code>signal[i] * signal[i + lag]</code> only while <code>i + lag</code> is still inside the signal</li><li>Scan the returned array from lag <code>8</code> upward for the largest value — not from 0</li><li>Log it: <code>console.log('period:', bestLag, 'samples')</code></li></ul>
+<details><summary>Hint 1 — which lag is mine?</summary><p>With <code>output: [256]</code> there are 256 threads, and thread
+            <code>this.thread.x</code> owns exactly one lag. Read it into a
+            <code>const lag</code> on the first line and the rest of the kernel reads like the
+            formula.</p></details>
+<details><summary>Hint 2 — the loop, and its guard</summary><p>A kernel loop needs a bound known at compile time, so loop over the
+            <em>whole</em> signal and skip the samples whose partner has fallen off the end:</p>
+<pre><code>for (let i = 0; i &lt; this.constants.n; i++) {
+  if (i + lag &lt; this.constants.n) {
+    sum += signal[i] * signal[i + lag];
+  }
+}</code></pre>
+<p>Long lags therefore add up fewer terms than short ones. Remember that — task 3 sends
+            the bill.</p></details>
+<details><summary>Hint 3 — finding the peak in JavaScript</summary><p>256 numbers is nothing; finish in plain JS.</p>
+<pre><code>let bestLag = 8;
+for (let lag = 8; lag &lt; 256; lag++) {
+  if (r[lag] &gt; r[bestLag]) bestLag = lag;
+}</code></pre>
+<p>Start at 8, not 0. Lag 0 is the signal against an unshifted copy of itself:
+            it wins every time and means nothing.</p></details>
+<h2>Same idea elsewhere</h2>Correlation-by-lag is a stock primitive everywhere — NPP and cuFFT on CUDA,
+        vDSP's <code>conv</code>/<code>corr</code> on Apple silicon, a WGSL compute shader indexed
+        by <code>global_invocation_id</code> in WebGPU. The guarded inner loop is the same edge
+        handling every stencil kernel needs, and the read pattern (all threads sweeping the same
+        array in step) is the one caches and texture units are built to serve.
+<h2>All tasks in Autocorrelation &amp; Pitch</h2>
+<ol class="ssg-tasks"><li><a href="/learn/autocorrelation-b159433f/1">Compare a Signal With Itself</a></li><li><a href="/learn/autocorrelation-b159433f/2">From Lag to Pitch</a></li><li><a href="/learn/autocorrelation-b159433f/3">Three Ways to Get It Wrong</a></li><li><a href="/learn/autocorrelation-b159433f/4">The Note That Isn't There</a></li><li><a href="/learn/autocorrelation-b159433f/5">Payoff: The Same Curve, via the FFT</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/autocorrelation-b159433f/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

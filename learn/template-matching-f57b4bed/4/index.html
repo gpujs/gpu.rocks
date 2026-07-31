@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Hoist What Never Changes · Template Matching — GPU.js Learn</title>
     <meta name="description" content="Goal: compute the template's statistics once in JavaScript, pass them in, and get the same NCC map from a kernel that does strictly less work per thread.">
@@ -114,9 +114,106 @@
     <meta name="twitter:description" content="Goal: compute the template's statistics once in JavaScript, pass them in, and get the same NCC map from a kernel that does strictly less work per thread.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Hoist What Never Changes","description":"Goal: compute the template's statistics once in JavaScript, pass them in, and get the same NCC map from a kernel that does strictly less work per thread.","url":"https://gpu.rocks/learn/template-matching-f57b4bed/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Template Matching","url":"https://gpu.rocks/learn/template-matching-f57b4bed","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/template-matching-f57b4bed/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/template-matching-f57b4bed">Template Matching</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Hoist What Never Changes</h1>
+<p>Look again at what those 7,921 threads just did. Two of the five running totals —
+        <code>sumT</code> and <code>sumT2</code> — depend only on the template. Every thread
+        walked the same 64 template values, arrived at the same two numbers, used them once and
+        threw them away. That is 7,920 calculations too many.</p>
+        <p>So do it once, in JavaScript, before the kernel runs — and do it in the shape the
+        kernel actually wants: the template with its mean already subtracted, plus the length of
+        that centred template.</p>
+<pre><code>patchMean = (sum of patch) / 64
+patchCentered[j][i]
+          = patch[j][i] − patchMean
+patchNorm = sqrt(sum of patchCentered²)</code></pre>
+        <p>That simplifies the numerator too. Once the centred values sum to zero,
+        <code>sum((wᵢ − w̄) · cᵢ)</code> equals <code>sum(wᵢ · cᵢ)</code> — the window's own mean
+        cancels itself out and never has to be subtracted from anything. The thread drops from
+        five accumulators to three and from two square roots to one:</p>
+<pre><code>varW = sumW2 − sumW · sumW / n
+NCC  = sumWC / ( sqrt(varW) · patchNorm )</code></pre>
+        <p>Press <strong>Benchmark</strong> before and after and watch the difference. Hoisting
+        loop-invariant work out of a loop is the oldest optimisation there is; what makes it worth
+        a task is that a GPU multiplies the saving by the thread count, so the same three lines
+        buy far more here than they would in a <code>for</code> loop.</p>
+        <p>There is a bigger version of this idea that this module deliberately does <em>not</em>
+        build. <code>sumW</code> and <code>sumW2</code> can also be precomputed — for the entire
+        scene, once — as <strong>integral images</strong> (summed-area tables): a table where each
+        cell holds the sum of everything above and to the left of it, so any rectangle's total
+        costs four lookups and three subtractions no matter how large the rectangle is. That is
+        genuinely how large-template matching is done at scale. It is also a two-dimensional
+        prefix sum, which is a module of its own — Prefix Sums (Scan) builds the one-dimensional
+        version — and at 8×8 those four lookups would replace 64 reads this thread is making
+        anyway. The win arrives when the template is 64×64, and so does the module.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> compute the template's statistics once in JavaScript, pass
+        them in, and get the same NCC map from a kernel that does strictly less work per thread.</div>
+
+<h2>Requirements</h2><ul><li>Compute <code>patchMean</code>, <code>patchCentered</code> and <code>patchNorm</code> in plain JavaScript, outside the kernel</li><li>The kernel takes exactly three arguments — <code>(scene, centered, norm)</code></li><li>Keep three accumulators: <code>sumW</code>, <code>sumW2</code> and <code>sumWC</code></li><li>Same answer as before — log the winning position and its score</li></ul>
+<details><summary>Hint 1 — centring the template</summary><p>Two passes over 64 values, in ordinary JavaScript:</p>
+<pre><code>let sum = 0;
+for (let j = 0; j &lt; 8; j++) {
+  for (let i = 0; i &lt; 8; i++) sum += patch[j][i];
+}
+const patchMean = sum / 64;</code></pre>
+<p>then build <code>patchCentered</code> as <code>patch[j][i] - patchMean</code>, accumulating
+            the squares into <code>patchNorm</code> as you go — and take the square root at the
+            end.</p></details>
+<details><summary>Hint 2 — the shorter loop body</summary><pre><code>const w = scene[y + j][x + i];
+sumW += w;
+sumW2 += w * w;
+sumWC += w * centered[j][i];</code></pre>
+<p>— no <code>sumT</code>, no <code>sumT2</code>, and nothing to subtract from
+            <code>sumWC</code>.</p></details>
+<details><summary>Hint 3 — the return</summary><pre><code>const varW = sumW2 - (sumW * sumW) / this.constants.count;
+return sumWC / (Math.sqrt(varW) * norm);</code></pre>
+<p>— <code>norm</code> is a plain number argument; gpu.js is perfectly happy passing
+            scalars alongside arrays.</p></details>
+<h2>Same idea elsewhere</h2>Every mature matcher does this. OpenCV precomputes the template's sum and
+        sum-of-squares once inside <code>matchTemplate</code>; cuDNN and MIOpen hoist per-filter
+        constants out of every convolution launch; CUDA programmers park exactly this kind of
+        small, read-only, uniformly-accessed data in <code>__constant__</code> memory, and WGSL
+        puts it in a uniform buffer. The rule is the same everywhere: anything that does not vary
+        with the thread index does not belong inside the thread.
+<h2>All tasks in Template Matching</h2>
+<ol class="ssg-tasks"><li><a href="/learn/template-matching-f57b4bed/1">Score Every Position at Once</a></li><li><a href="/learn/template-matching-f57b4bed/2">The Score That Lies</a></li><li><a href="/learn/template-matching-f57b4bed/3">Normalize It</a></li><li><a href="/learn/template-matching-f57b4bed/4">Hoist What Never Changes</a></li><li><a href="/learn/template-matching-f57b4bed/5">Payoff: Present or Absent?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/template-matching-f57b4bed/3">← previous task</a> · <a href="/learn/template-matching-f57b4bed/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

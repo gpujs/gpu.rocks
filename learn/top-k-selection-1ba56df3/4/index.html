@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Find the Cutoff Instead · Top-K Selection — GPU.js Learn</title>
     <meta name="description" content="Goal: count in parallel, bisect in JavaScript, and log the cutoff that exactly 10 of the 65,536 scores clear.">
@@ -114,9 +114,93 @@
     <meta name="twitter:description" content="Goal: count in parallel, bisect in JavaScript, and log the cutoff that exactly 10 of the 65,536 scores clear.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Find the Cutoff Instead","description":"Goal: count in parallel, bisect in JavaScript, and log the cutoff that exactly 10 of the 65,536 scores clear.","url":"https://gpu.rocks/learn/top-k-selection-1ba56df3/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Top-K Selection","url":"https://gpu.rocks/learn/top-k-selection-1ba56df3","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/top-k-selection-1ba56df3/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/top-k-selection-1ba56df3">Top-K Selection</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Find the Cutoff Instead</h1>
+<p>O(n²) is fine at four thousand and hopeless at four million — ranking a million
+        scores against each other is 10¹² comparisons. Production top-k does something else
+        entirely: it goes looking for a <strong>threshold</strong>. Find a value <code>t</code> that
+        exactly <code>k</code> scores exceed, and the top <code>k</code> is simply "everything above
+        <code>t</code>". Counting how many scores clear a given <code>t</code> is <em>one linear
+        pass</em>, and the whole problem collapses into a handful of them.</p>
+        <p>Finding <code>t</code> is a <strong>bisection on the value axis</strong>. Bracket it:
+        below <code>lo</code> at least <code>k</code> scores pass, above <code>hi</code> fewer than
+        <code>k</code> do. Guess the middle, count, and throw away the half that cannot contain the
+        answer. Eighteen halvings later the bracket is narrower than the gap between two whole
+        numbers, and <code>Math.floor(lo)</code> is the cutoff. Each count is 65,536 elements shared
+        across 256 threads — the same strided walk a reduction uses, where neighbouring threads read
+        neighbouring elements.</p>
+        <p>One condition, and it is a real one: the <code>k</code>-th and (<code>k</code>+1)-th
+        scores must <em>differ</em>. If they are equal — which is exactly what task 1's data looked
+        like, where the 10th and 11th scores were both 993 — then no threshold on earth separates
+        them and you are back to the index tie-break. These scores are finer-grained on
+        purpose.</p>
+<figure><figcaption>eighteen guesses, each one a single counting pass, instead of four billion comparisons — A bisection on the value axis. Each step marks a guess in the middle of the live bracket and labels it with how many scores exceed it — 197, then 11, then 2. The half that cannot contain the cutoff is discarded each time, until the bracket is narrow enough that exactly ten scores clear it.</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> count in parallel, bisect in JavaScript, and log the cutoff that
+        exactly 10 of the 65,536 scores clear.</div>
+
+<h2>Requirements</h2><ul><li>The kernel counts a strided slice: element <code>i</code> of thread <code>x</code> is <code>values[i * 256 + x]</code>, and it is counted when it is <em>strictly above</em> <code>t</code></li><li>Total the 256 partial counts in plain JavaScript</li><li>Bisect: <code>count &gt;= k</code> raises <code>lo</code> to <code>mid</code>, otherwise <code>hi</code> comes down to it</li><li>Stop once <code>hi - lo</code> is 0.5 or less, then log <code>Math.floor(lo)</code> and how many scores clear it</li></ul>
+<details><summary>Hint 1 — the counting pass</summary><p>It is a strided partial sum with a comparison in front of it:</p>
+<pre><code>if (values[i * this.constants.threads + this.thread.x] &gt; t) hits++;</code></pre>
+<p>Thread <code>x</code> walks <code>values[x]</code>, <code>values[x + 256]</code>,
+            <code>values[x + 512]</code>, … so neighbouring threads touch neighbouring elements at
+            every step.</p></details>
+<details><summary>Hint 2 — which half survives</summary><p>Keep the invariant in your head: <em>at least <code>k</code> scores are above
+            <code>lo</code>, fewer than <code>k</code> are above <code>hi</code></em>. So if the
+            middle still lets <code>k</code> or more through, the cutoff is at or above it — raise
+            <code>lo</code>. If it lets fewer through, the middle is too high — lower
+            <code>hi</code>. Note the <code>&gt;=</code>: with <code>&gt;</code> the bracket keeps a
+            value that <code>k + 1</code> scores clear.</p></details>
+<details><summary>Hint 3 — the whole driver</summary><pre><code>while (hi - lo &gt; 0.5) {
+  const mid = (lo + hi) / 2;
+  if (total(countAbove(scores, mid)) &gt;= K) lo = mid;
+  else hi = mid;
+}
+const cutoff = Math.floor(lo);</code></pre>
+<p>The scores are whole numbers, so once the bracket is narrower than 1 there is nothing
+            left to resolve.</p></details>
+<h2>Same idea elsewhere</h2>Narrowing a value range with counting passes instead of sorting is what real
+        device-side k-selection does: RAFT/cuML's <code>select_k</code>, FAISS's GPU k-selection and
+        CUB's radix-select all count elements into buckets and recurse into the bucket that contains
+        the boundary — a radix bisection rather than a binary one, but the same idea, and the same
+        reason. Sorting a million things to look at ten of them is a bad trade on every platform.
+<h2>All tasks in Top-K Selection</h2>
+<ol class="ssg-tasks"><li><a href="/learn/top-k-selection-1ba56df3/1">Rank by Counting</a></li><li><a href="/learn/top-k-selection-1ba56df3/2">Gather the Winners</a></li><li><a href="/learn/top-k-selection-1ba56df3/3">The Brightest Pixels</a></li><li><a href="/learn/top-k-selection-1ba56df3/4">Find the Cutoff Instead</a></li><li><a href="/learn/top-k-selection-1ba56df3/5">Which One Wins?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/top-k-selection-1ba56df3/3">← previous task</a> · <a href="/learn/top-k-selection-1ba56df3/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

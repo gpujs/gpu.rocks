@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Flip On the Pipeline · Pipelines &amp; Textures — GPU.js Learn</title>
     <meta name="description" content="Goal: make the boost kernel a pipeline kernel, then download its result explicitly and log the first sample.">
@@ -114,9 +114,72 @@
     <meta name="twitter:description" content="Goal: make the boost kernel a pipeline kernel, then download its result explicitly and log the first sample.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Flip On the Pipeline","description":"Goal: make the boost kernel a pipeline kernel, then download its result explicitly and log the first sample.","url":"https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Pipelines & Textures","url":"https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/pipelines-and-textures-9f4aeaa5">Pipelines &amp; Textures</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>Flip On the Pipeline</h1>
+<p>Until now, every kernel call ended the same way: the GPU finished computing,
+        then the whole result was <strong>downloaded back to JavaScript</strong> as a typed array.
+        That download is the expensive part — for a 512×512 grid it's a megabyte crossing the
+        bus on every single call.</p>
+        <p><code>pipeline: true</code> changes the ending. The kernel still runs the same, but the
+        result <em>stays in GPU memory</em>, and what you get back is a <strong>texture</strong> —
+        a lightweight handle to data that never left the card. Log one and you'll see an object,
+        not numbers. When you actually want the values, you ask for the download explicitly with
+        <code>.toArray()</code>.</p>
+        <p>One backend wrinkle to know: the CPU backend has no textures, so there a pipeline
+        kernel hands back a plain array. Mode-safe code uses the same guard gpu.js uses
+        internally: <code>result.toArray ? result.toArray() : result</code>.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> make the <code>boost</code> kernel a pipeline kernel, then
+        download its result explicitly and log the first sample.</div>
+
+<h2>Requirements</h2><ul><li>Add <code>pipeline: true</code> to the kernel settings</li><li>Log the raw result — see what a texture looks like in the console</li><li>Download the values with <code>.toArray()</code>, using the mode-safe guard</li><li>Log the first value as <code>console.log('first sample:', values[0])</code></li></ul>
+<details><summary>Hint 1 — where does the flag go?</summary><p><code>pipeline: true</code> sits in the settings object, right next to
+            <code>output</code>. Nothing about the kernel function itself changes.</p></details>
+<details><summary>Hint 2 — the mode-safe download</summary><pre><code>const values = result.toArray ? result.toArray() : result;</code></pre>
+<p>On the GL backend this calls <code>toArray()</code>; on the CPU backend
+            <code>result</code> is already an array and passes through untouched.</p></details>
+<h2>Same idea elsewhere</h2>A gpu.js texture is the same idea as a <code>GPUBuffer</code> you never map in
+        WebGPU, or device memory behind a pointer in CUDA and ROCm: the data has an address on
+        the card, and JavaScript only holds the ticket stub. <code>.toArray()</code> is the
+        explicit "map it back to the host" step.
+<h2>All tasks in Pipelines &amp; Textures</h2>
+<ol class="ssg-tasks"><li><a href="/learn/pipelines-and-textures-9f4aeaa5/1">Flip On the Pipeline</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/2">Chain Kernels, Skip the Round Trip</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/3">toArray() Is a Tollbooth</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/4">Feedback Loops: immutable Textures</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/5">The Payoff: Photo to Screen, Zero Readbacks</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/pipelines-and-textures-9f4aeaa5/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

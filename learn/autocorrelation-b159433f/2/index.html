@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>From Lag to Pitch · Autocorrelation &amp; Pitch — GPU.js Learn</title>
     <meta name="description" content="Goal: find the peak lag, refine it to a fraction of a sample with parabolic interpolation, convert it to hertz, and log both.">
@@ -114,9 +114,97 @@
     <meta name="twitter:description" content="Goal: find the peak lag, refine it to a fraction of a sample with parabolic interpolation, convert it to hertz, and log both.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"From Lag to Pitch","description":"Goal: find the peak lag, refine it to a fraction of a sample with parabolic interpolation, convert it to hertz, and log both.","url":"https://gpu.rocks/learn/autocorrelation-b159433f/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Autocorrelation & Pitch","url":"https://gpu.rocks/learn/autocorrelation-b159433f","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/autocorrelation-b159433f/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/autocorrelation-b159433f">Autocorrelation &amp; Pitch</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>From Lag to Pitch</h1>
+<p>A lag is a count of samples; a pitch is a count of hertz. One division bridges
+        them, and it is easy to write upside down. The peak lag <em>is</em> the period, so the
+        period in seconds is <code>lag / sampleRate</code> and the frequency is its reciprocal:
+        <strong><code>sampleRate / lag</code></strong>. Put those the wrong way round and the
+        answer is out by four or five orders of magnitude, which at least fails loudly.</p>
+        <p>Now the real problem. Lags are integers. At 8192&nbsp;Hz, lag 18 means 455.1&nbsp;Hz,
+        lag 19 means 431.2&nbsp;Hz and lag 20 means 409.6&nbsp;Hz — steps of more than
+        20&nbsp;Hz, which up here is nearly a semitone. The signal below is concert A, 440&nbsp;Hz,
+        whose true period is 18.618 samples. The best integer lag is 19, and a tuner built on it
+        would report 431&nbsp;Hz: <strong>35 cents flat</strong>, audibly wrong, and no amount of
+        GPU makes the grid any finer.</p>
+        <p>Three numbers fix it. Near its top the correlation curve is smooth, so fit a parabola
+        through the peak sample and its two neighbours and take the apex — the peak <em>between</em>
+        the samples. This is the one part of the module that belongs on the CPU: it is three
+        numbers and a divide, done once.</p>
+<figure><figcaption>the tallest sample is not the peak — the peak is between two of them</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> find the peak lag, refine it to a fraction of a sample with
+        parabolic interpolation, convert it to hertz, and log both.</div>
+
+<h2>Requirements</h2><ul><li>Scan from lag <code>8</code> for the peak lag <code>p</code> (the kernel is already written for you)</li><li>Interpolate: <code>δ = ½(r[p−1] − r[p+1]) / (r[p−1] − 2·r[p] + r[p+1])</code>, and the refined lag is <code>p + δ</code></li><li>Log the refined lag: <code>console.log('refined lag:', p + delta)</code></li><li>Log the pitch: <code>console.log('pitch:', sampleRate / (p + delta), 'Hz')</code></li></ul>
+<details><summary>Hint 1 — the parabola, in one line</summary><pre><code>const a = r[p - 1];
+const b = r[p];
+const c = r[p + 1];
+const delta = (0.5 * (a - c)) / (a - 2 * b + c);</code></pre>
+<p><code>delta</code> always lands between −0.5 and +0.5 — it is a nudge, not a jump.</p></details>
+<details><summary>Hint 2 — which way does it move?</summary><p>Here the true peak is to the <em>left</em> of the sampled one, so
+            <code>delta</code> comes out <strong>negative</strong> and the refined lag is smaller
+            than <code>p</code>. If your refinement pushes the answer further from 440&nbsp;Hz than
+            the raw integer lag did, the two terms in the numerator are the wrong way round: it is
+            <code>r[p - 1] - r[p + 1]</code>, left minus right.</p></details>
+<details><summary>Hint 3 — &quot;but I want to hum into my laptop&quot;</summary><p>So would we. In a browser page the wiring is short:</p>
+<pre><code>const mic = await navigator.mediaDevices
+  .getUserMedia({ audio: true });
+const audio = new AudioContext({ sampleRate: 8192 });
+const analyser = audio.createAnalyser();
+analyser.fftSize = 512;
+audio.createMediaStreamSource(mic).connect(analyser);
+
+const frame = new Float32Array(analyser.fftSize);
+analyser.getFloatTimeDomainData(frame);
+const r = correlate(frame);   // the same kernel, real audio</code></pre>
+<p>None of that runs here, and not for a policy reason: your code executes inside a Web
+            Worker, and a Worker has no <code>AudioContext</code>, no
+            <code>OfflineAudioContext</code> and no <code>navigator.mediaDevices</code>. So the
+            signals in this module are synthesised in the course's own source, which has the
+            consolation that every expected answer is exact.</p></details>
+<h2>Same idea elsewhere</h2>Sub-sample peak refinement is everywhere in GPU work under other names: it is
+        the same quadratic fit stereo matchers use to get sub-pixel disparity, that keypoint
+        detectors use to place a corner between pixels, and that time-of-flight sensors use
+        between range bins. The pattern is identical — the grid is coarse, the underlying function
+        is smooth, so fit and solve rather than sample harder.
+<h2>All tasks in Autocorrelation &amp; Pitch</h2>
+<ol class="ssg-tasks"><li><a href="/learn/autocorrelation-b159433f/1">Compare a Signal With Itself</a></li><li><a href="/learn/autocorrelation-b159433f/2">From Lag to Pitch</a></li><li><a href="/learn/autocorrelation-b159433f/3">Three Ways to Get It Wrong</a></li><li><a href="/learn/autocorrelation-b159433f/4">The Note That Isn't There</a></li><li><a href="/learn/autocorrelation-b159433f/5">Payoff: The Same Curve, via the FFT</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/autocorrelation-b159433f/1">← previous task</a> · <a href="/learn/autocorrelation-b159433f/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

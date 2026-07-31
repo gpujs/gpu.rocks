@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Every Bin, One Thread Each · The DFT, Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: transform the whole signal with one kernel — output: [256, 2] , one thread per (bin, plane) — then find every bin in 1…128 whose magnitude clears 20 and…">
@@ -114,9 +114,82 @@
     <meta name="twitter:description" content="Goal: transform the whole signal with one kernel — output: [256, 2] , one thread per (bin, plane) — then find every bin in 1…128 whose magnitude clears 20 and…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Every Bin, One Thread Each","description":"Goal: transform the whole signal with one kernel — output: [256, 2] , one thread per (bin, plane) — then find every bin in 1…128 whose magnitude clears 20 and…","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The DFT, Honestly","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/the-dft-7b1e3f9b/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/the-dft-7b1e3f9b">The DFT, Honestly</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Every Bin, One Thread Each</h1>
+<p>Nothing about bin 8 was special, and nothing about it depended on bin 9. Every bin
+        is its own dot product over the same samples, and no bin reads another bin's answer — which
+        makes the whole transform 512 threads that never speak to each other. Change
+        <code>output: [1, 2]</code> to <code>output: [256, 2]</code>, take the bin from
+        <code>this.thread.x</code> instead of a constant, and you are done.</p>
+        <p>Be honest about the cost: every one of the 256 bins sums over all 256 samples, so this
+        is O(n²) — 65,536 multiply-adds where the FFT needs about 2,000. The GPU does not care.
+        Perfectly independent quadratic work is the shape hardware likes best, and this is the
+        baseline any clever algorithm has to actually beat, not merely out-argue.</p>
+        <p>The signal is three cosines buried in one buffer. Bin <code>k</code> covers
+        <code>k × sampleRate / n</code> hertz — with a sample rate of 8,192 Hz and 256 samples,
+        each bin is 32 Hz wide. Scan the first half of the spectrum only; task 4 explains why the
+        second half has nothing new to say.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> transform the whole signal with one kernel —
+        <code>output: [256, 2]</code>, one thread per (bin, plane) — then find every bin in
+        1…128 whose magnitude clears 20 and log its frequency in hertz.</div>
+
+<h2>Requirements</h2><ul><li><code>output: [256, 2]</code>: <code>this.thread.x</code> is the bin, <code>this.thread.y</code> the plane</li><li>Plane 0 adds <code>signal[i] * Math.cos(angle)</code>, plane 1 subtracts <code>signal[i] * Math.sin(angle)</code></li><li>In JavaScript, scan bins 1…128 and keep those with <code>Math.sqrt(re * re + im * im) &gt; 20</code></li><li>Log each survivor in <strong>hertz</strong>: <code>k * sampleRate / 256</code> — expect 320, 800 and 1280</li></ul>
+<details><summary>Hint 1 — the only two changes</summary><p>The kernel body from the last task already works. Swap the constant bin for the
+            thread's own:</p>
+<pre><code>const angle = 2 * Math.PI * this.thread.x * i / this.constants.n;</code></pre>
+<p>and widen the output to <code>[256, 2]</code>. That is the whole diff.</p></details>
+<details><summary>Hint 2 — reading the spectrum back</summary><p><code>output: [256, 2]</code> comes back as two rows of 256:</p>
+<pre><code>const spectrum = dft(signal);
+const re = spectrum[0][k];
+const im = spectrum[1][k];</code></pre></details>
+<details><summary>Hint 3 — bins are not hertz</summary><p>A bin index is a count of whole cycles across the buffer. To turn it into a
+            frequency you need to know how long the buffer <em>is</em>, and that is what the sample
+            rate tells you — <code>n</code> alone cannot:</p>
+<pre><code>const hz = k * sampleRate / 256;</code></pre></details>
+<h2>Same idea elsewhere</h2>This kernel is a matrix–vector product in disguise: the DFT matrix times the
+        signal, which is exactly how cuBLAS-style GEMV would express it and why a naive DFT is
+        embarrassingly parallel on every platform. It is also the honest control in any FFT
+        benchmark — cuFFT, VkFFT and FFTW all publish against it, and Measuring Speed Honestly
+        has the methodology for running that comparison yourself.
+<h2>All tasks in The DFT, Honestly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/the-dft-7b1e3f9b/1">One Bin, One Thread</a></li><li><a href="/learn/the-dft-7b1e3f9b/2">One Number Is Not Enough</a></li><li><a href="/learn/the-dft-7b1e3f9b/3">Every Bin, One Thread Each</a></li><li><a href="/learn/the-dft-7b1e3f9b/4">Magnitude, Phase and the Mirror</a></li><li><a href="/learn/the-dft-7b1e3f9b/5">There and Back Again</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/the-dft-7b1e3f9b/2">← previous task</a> · <a href="/learn/the-dft-7b1e3f9b/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

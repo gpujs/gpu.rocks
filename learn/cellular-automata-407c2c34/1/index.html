@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Neighbor Census · Cellular Automata — GPU.js Learn</title>
     <meta name="description" content="Goal: make the kernel return, for every cell, the number of live cells among its eight neighbors — with the edges wrapped around.">
@@ -114,9 +114,75 @@
     <meta name="twitter:description" content="Goal: make the kernel return, for every cell, the number of live cells among its eight neighbors — with the edges wrapped around.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Neighbor Census","description":"Goal: make the kernel return, for every cell, the number of live cells among its eight neighbors — with the edges wrapped around.","url":"https://gpu.rocks/learn/cellular-automata-407c2c34/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Cellular Automata","url":"https://gpu.rocks/learn/cellular-automata-407c2c34","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/cellular-automata-407c2c34/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/cellular-automata-407c2c34">Cellular Automata</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>The Neighbor Census</h1>
+<p>A cellular automaton is a world of cells, each one dead (<code>0</code>) or alive
+        (<code>1</code>), where every cell's next state depends only on its immediate neighborhood.
+        That makes it embarrassingly parallel: 256 cells, 256 threads, and no thread needs to know
+        what any other thread is doing — only what the grid looked like.</p>
+        <p>Every rule in this module starts with the same question: <strong>how many of my eight
+        neighbors are alive?</strong> This world is a torus — walk off the right edge, reappear on
+        the left — and wrapping costs one modulo: <code>(x + dx + 16) % 16</code>. The
+        <code>+ 16</code> is not decoration: JavaScript's <code>%</code> can go negative while the
+        GPU's cannot, and adding the width first keeps both operands positive so CPU mode and GPU
+        mode tell the same story.</p>
+<figure><figcaption>sum the 3×3 block, subtract yourself — and the torus has no edges</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> make the kernel return, for every cell, the number of live
+        cells among its eight neighbors — with the edges wrapped around.</div>
+
+<h2>Requirements</h2><ul><li>Visit the 3×3 block around this cell with nested <code>dy</code>/<code>dx</code> loops from −1 to 1</li><li>Wrap every coordinate: <code>(this.thread.x + dx + 16) % 16</code> (and the same for y)</li><li>Don't count yourself — a cell is not its own neighbor</li></ul>
+<details><summary>Hint 1 — the loop bounds</summary><p>Two statically bounded loops: <code>for (let dy = -1; dy &lt; 2; dy++)</code>
+            around <code>for (let dx = -1; dx &lt; 2; dx++)</code>. Nine visits per cell.</p></details>
+<details><summary>Hint 2 — the subtract-self trick</summary><p>Skipping the middle of the 3×3 block needs no <code>if</code>: sum all nine
+            cells, then subtract <code>grid[this.thread.y][this.thread.x]</code> at the end. If
+            you're dead you subtract 0; if you're alive you take yourself back out.</p></details>
+<details><summary>Hint 3 — the whole loop body</summary><pre><code>const yy = (this.thread.y + dy + 16) % 16;
+const xx = (this.thread.x + dx + 16) % 16;
+count += grid[yy][xx];</code></pre>
+<p>— then</p>
+<pre><code>return count - grid[this.thread.y][this.thread.x];</code></pre></details>
+<h2>Same idea elsewhere</h2>Reading a fixed window around your own coordinate is the <em>stencil</em> pattern,
+        and it dominates real GPU workloads: CUDA stencil kernels tile the grid into shared memory
+        with a one-cell "halo" so neighbors are read once, and WebGPU compute shaders do the same
+        with workgroup memory.
+<h2>All tasks in Cellular Automata</h2>
+<ol class="ssg-tasks"><li><a href="/learn/cellular-automata-407c2c34/1">The Neighbor Census</a></li><li><a href="/learn/cellular-automata-407c2c34/2">One Tick of Life</a></li><li><a href="/learn/cellular-automata-407c2c34/3">Generations: Feed It Back</a></li><li><a href="/learn/cellular-automata-407c2c34/4">Watch the Glider Fly</a></li><li><a href="/learn/cellular-automata-407c2c34/5">One Kernel, Every Universe</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/cellular-automata-407c2c34/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

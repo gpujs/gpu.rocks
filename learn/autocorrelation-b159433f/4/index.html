@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Note That Isn't There · Autocorrelation &amp; Pitch — GPU.js Learn</title>
     <meta name="description" content="Goal: write the two-plane DFT kernel, find the loudest bin and its frequency, and log it beside the answer the (already written) autocorrelation gives.">
@@ -114,9 +114,106 @@
     <meta name="twitter:description" content="Goal: write the two-plane DFT kernel, find the loudest bin and its frequency, and log it beside the answer the (already written) autocorrelation gives.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Note That Isn't There","description":"Goal: write the two-plane DFT kernel, find the loudest bin and its frequency, and log it beside the answer the (already written) autocorrelation gives.","url":"https://gpu.rocks/learn/autocorrelation-b159433f/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Autocorrelation & Pitch","url":"https://gpu.rocks/learn/autocorrelation-b159433f","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/autocorrelation-b159433f/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/autocorrelation-b159433f">Autocorrelation &amp; Pitch</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>The Note That Isn't There</h1>
+<p>Play a note through a telephone, or a small speaker, or a church organ's mixture
+        stop, and something strange happens: the fundamental is gone — the hardware simply cannot
+        move that slowly — and you hear it anyway. Your auditory system is not reading the
+        loudest peak off a spectrum. It is finding the period the partials <em>share</em>.</p>
+        <p><code>signal</code> below is built from harmonics 2, 3 and 4 of 128&nbsp;Hz — that is
+        256, 384 and 512&nbsp;Hz — and there is no energy at 128&nbsp;Hz at all. Not
+        attenuated: absent, by construction. Take its spectrum and the loudest bin is
+        256&nbsp;Hz, an octave above the note. Take its autocorrelation and the first peak is at
+        lag 64, which is 128&nbsp;Hz, because 256, 384 and 512 all come back into step every 64
+        samples whether or not anything is oscillating at that rate.</p>
+        <p>So you need a spectrum to accuse. Write one — a direct transform, one thread per bin,
+        which is the O(n²) way and perfectly fine at 512 samples. <em>The DFT, Honestly</em> has
+        a great deal more to say about what a transform is <em>for</em> and what it costs; here it
+        is only the witness for the prosecution.</p>
+        <p class="layout-note"><strong>Two planes, one complex array.</strong> gpu.js has no complex
+    number, so this track carries one as two planes of floats: a kernel declares
+    <code>output: [n, 2]</code> and the result reads <code>result[0][i]</code> for the real part
+    and <code>result[1][i]</code> for the imaginary part. Going the other way, a complex
+    <em>argument</em> is a nested <code>[2][n]</code> array read as <code>data[0][i]</code> and
+    <code>data[1][i]</code>. It is the same trick Optical Flow uses to return two flow components
+    from one kernel — <code>output: [w, h]</code> is indexed <code>[y][x]</code>, so
+    <code>[n, 2]</code> is indexed <code>[plane][i]</code>.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> write the two-plane DFT kernel, find the loudest bin and its
+        frequency, and log it beside the answer the (already written) autocorrelation gives.</div>
+
+<h2>Requirements</h2><ul><li><code>output: [512, 2]</code> — one thread per (plane, bin); <code>this.thread.x</code> is the bin, <code>this.thread.y</code> is the plane</li><li>Each thread sums over all <code>this.constants.n</code> samples with angle <code>−2π · bin · i / n</code>: plane 0 accumulates <code>signal[i] · cos(angle)</code>, plane 1 <code>signal[i] · sin(angle)</code></li><li>In JavaScript, take <code>Math.hypot(re, im)</code> per bin and find the loudest one below bin 256; its frequency is <code>bin * sampleRate / 512</code></li><li>Log both verdicts: <code>console.log('loudest partial:', hz, 'Hz')</code> and <code>console.log('autocorrelation:', hz, 'Hz')</code></li></ul>
+<details><summary>Hint 1 — one thread, one number</summary><p>Each thread owns a single output cell, so it computes a single sum — its own
+            plane's, for its own bin:</p>
+<pre><code>const bin = this.thread.x;
+let re = 0;
+let im = 0;
+for (let i = 0; i &lt; this.constants.n; i++) {
+  const angle = (-2 * Math.PI * bin * i) / this.constants.n;
+  re += signal[i] * Math.cos(angle);
+  im += signal[i] * Math.sin(angle);
+}
+if (this.thread.y === 0) return re;
+return im;</code></pre>
+<p>Both sums get computed by both threads and one of them is thrown away. That is
+            wasteful and it is also the shape gpu.js gives you — and at 512 bins the whole
+            transform is one launch, so you will not notice. The next task runs the same idea over
+            a buffer 32 times longer, which is where the O(n²) stops being a remark and
+            becomes the thing you are waiting for.</p></details>
+<details><summary>Hint 2 — reading two planes back</summary><p>The result is two rows, not two columns:</p>
+<pre><code>const spec = spectrum(signal);
+const mag = Math.hypot(spec[0][bin], spec[1][bin]);</code></pre>
+<p>Plane first, bin second — <code>output: [n, 2]</code> is indexed <code>[y][x]</code>
+            like any other 2D output.</p></details>
+<details><summary>Hint 3 — bins go the other way</summary><p>Watch the two conversions in this task, because they are reciprocals of each
+            other and mixing them up is the classic slip. A <em>lag</em> is a period, so
+            <code>hz = sampleRate / lag</code>. A <em>bin</em> is already a frequency count, so
+            <code>hz = bin * sampleRate / n</code>. With 8192&nbsp;Hz over 512 samples each bin
+            is 16&nbsp;Hz wide, and the answer you are looking for is bin 16.</p></details>
+<h2>Same idea elsewhere</h2>Two outputs per thread packed into planes is how every platform returns
+        multi-component results without a struct: an RG32F texture in WebGPU, a
+        <code>float2</code> buffer in CUDA (which is exactly what cuFFT's
+        <code>cufftComplex</code> is), <code>half2</code> pairs in Metal. The layout question —
+        interleaved <code>[re, im, re, im…]</code> or planar <code>[re…][im…]</code> — is the same
+        one everywhere, and planar is what coalesces.
+<h2>All tasks in Autocorrelation &amp; Pitch</h2>
+<ol class="ssg-tasks"><li><a href="/learn/autocorrelation-b159433f/1">Compare a Signal With Itself</a></li><li><a href="/learn/autocorrelation-b159433f/2">From Lag to Pitch</a></li><li><a href="/learn/autocorrelation-b159433f/3">Three Ways to Get It Wrong</a></li><li><a href="/learn/autocorrelation-b159433f/4">The Note That Isn't There</a></li><li><a href="/learn/autocorrelation-b159433f/5">Payoff: The Same Curve, via the FFT</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/autocorrelation-b159433f/3">← previous task</a> · <a href="/learn/autocorrelation-b159433f/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Ride the Ladder Down · Reductions — GPU.js Learn</title>
     <meta name="description" content="Goal: reduce the 1,024 values of data to a single total by iterating the halving rung, and log the result.">
@@ -114,9 +114,80 @@
     <meta name="twitter:description" content="Goal: reduce the 1,024 values of data to a single total by iterating the halving rung, and log the result.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Ride the Ladder Down","description":"Goal: reduce the 1,024 values of data to a single total by iterating the halving rung, and log the result.","url":"https://gpu.rocks/learn/reductions-3dadc130/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Reductions","url":"https://gpu.rocks/learn/reductions-3dadc130","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/reductions-3dadc130/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/reductions-3dadc130">Reductions</a></nav>
+<p class="ssg-eyebrow">Task 4 of 6</p>
+<h1>Ride the Ladder Down</h1>
+<p>Now ride it all the way: 1,024 → 512 → 256 → … → 1. Ten rungs and the array is
+        a scalar. That means the <em>same</em> kernel has to run at a different size on every
+        call — two options make that legal: <code>dynamicOutput: true</code> lets
+        <code>setOutput()</code> shrink the thread grid between calls, and
+        <code>dynamicArguments: true</code> lets the input shrink with it.</p>
+        <p>The driving loop lives in JavaScript, but every rung of actual work stays parallel
+        on the GPU: log₂(1024) = 10 launches instead of 1,023 serial additions. One real-world
+        wrinkle, already wired into the driver: gpu.js locks an argument's <em>type</em> on the
+        kernel's first call, so the ladder starts from a <code>Float32Array</code> — the same
+        type every rung's output comes back as.</p>
+<figure><figcaption>halve, halve, halve — the ladder every platform climbs</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> reduce the 1,024 values of <code>data</code> to a single
+        total by iterating the halving rung, and log the result.</div>
+
+<h2>Requirements</h2><ul><li>Create the rung kernel with <code>dynamicOutput: true</code> and <code>dynamicArguments: true</code></li><li>Fold pairs with <code>this.output.x</code>, exactly like the last task</li><li>Loop in JS: while <code>n &gt; 1</code>, halve <code>n</code>, <code>setOutput([n])</code>, re-invoke</li><li><code>console.log</code> the final scalar</li></ul>
+<details><summary>Hint 1 — resizing a kernel</summary><p><code>halve.setOutput([n])</code> takes the new output shape as an array.
+            Call it before each invocation, with <code>n</code> already halved.</p></details>
+<details><summary>Hint 2 — the driver skeleton</summary><pre><code>let n = values.length;
+while (n &gt; 1) {
+  n = n / 2;
+  // …
+}</code></pre>
+<p>— inside the loop, resize, re-invoke, and keep the returned array for the next
+            rung.</p></details>
+<details><summary>Hint 3 — the full driver</summary><pre><code>while (n &gt; 1) {
+  n = n / 2;
+  halve.setOutput([n]);
+  values = halve(values);
+}</code></pre>
+<p>— then the answer is <code>values[0]</code>.</p></details>
+<h2>Same idea elsewhere</h2>Multi-pass reduction is the production pattern everywhere: CUDA launches a
+        shrinking sequence of grids (or grid-syncs with cooperative groups), WebGPU records
+        repeated dispatches ping-ponging between two buffers, Metal encodes one compute pass
+        per rung. The log₂(n) staircase is identical on all of them.
+<h2>All tasks in Reductions</h2>
+<ol class="ssg-tasks"><li><a href="/learn/reductions-3dadc130/1">The One-Thread Trap</a></li><li><a href="/learn/reductions-3dadc130/2">Partial Sums: Divide the Work</a></li><li><a href="/learn/reductions-3dadc130/3">One Rung of the Ladder</a></li><li><a href="/learn/reductions-3dadc130/4">Ride the Ladder Down</a></li><li><a href="/learn/reductions-3dadc130/5">Min and Max: Change the Operator</a></li><li><a href="/learn/reductions-3dadc130/6">Payoff: Mean and RMS, Fused</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/reductions-3dadc130/3">← previous task</a> · <a href="/learn/reductions-3dadc130/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

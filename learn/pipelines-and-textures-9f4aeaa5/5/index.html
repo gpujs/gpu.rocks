@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Payoff: Photo to Screen, Zero Readbacks · Pipelines &amp; Textures — GPU.js Learn</title>
     <meta name="description" content="Goal: implement the 3×3 box blur so the full three-pass pipeline — two texture passes and a graphical finale — runs with zero readbacks.">
@@ -114,9 +114,86 @@
     <meta name="twitter:description" content="Goal: implement the 3×3 box blur so the full three-pass pipeline — two texture passes and a graphical finale — runs with zero readbacks.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Payoff: Photo to Screen, Zero Readbacks","description":"Goal: implement the 3×3 box blur so the full three-pass pipeline — two texture passes and a graphical finale — runs with zero readbacks.","url":"https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Pipelines & Textures","url":"https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/pipelines-and-textures-9f4aeaa5">Pipelines &amp; Textures</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>The Payoff: Photo to Screen, Zero Readbacks</h1>
+<p>Time to cash in the whole module. In module 1.2's finale, a two-kernel chain
+        hauled the luminance map down to JavaScript and back up again — two transfers it didn't
+        need. This pipeline does more work with <em>fewer</em> transfers: photo →
+        <strong>luminance</strong> → <strong>3×3 blur</strong> → <strong>painted canvas</strong>,
+        and after the photo is uploaded, nothing comes back. The graphical kernel eats the blur
+        texture and writes pixels; readbacks: zero.</p>
+        <p>The missing piece is the blur. Each cell averages its 3×3 neighbourhood — two little
+        loops over <code>dy</code>/<code>dx</code>, indices clamped to 0…63 so the edges don't
+        read out of bounds. When it works, hit <strong>Benchmark</strong> and watch what
+        keeping data on the card does to the gap.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+
+<div class="ssg-goal"><strong>Goal:</strong> implement the 3×3 box blur so the full three-pass pipeline —
+        two texture passes and a graphical finale — runs with zero readbacks.</div>
+
+<h2>Requirements</h2><ul><li>Blur: average the 3×3 neighbourhood, clamping indices to 0…63 at the edges</li><li>Both <code>luminance</code> and <code>blur</code> stay <code>pipeline: true</code></li><li>The graphical pass is fed the blur <em>texture</em> — nothing is downloaded</li><li>Render the result with <code>render(paint.canvas)</code></li></ul>
+<details><summary>Hint 1 — the neighbourhood loops</summary><p>Two nested loops with fixed bounds are fine in a kernel:
+            <code>for (let dy = -1; dy &lt;= 1; dy++)</code> and the same for <code>dx</code>.
+            Accumulate into a <code>sum</code>, return <code>sum / 9</code>.</p></details>
+<details><summary>Hint 2 — clamping the edges</summary><p>Compute <code>let yy = this.thread.y + dy;</code> then push it back in
+            range:</p>
+<pre><code>if (yy &lt; 0) yy = 0;
+if (yy &gt; 63) yy = 63;</code></pre>
+<p>Same for <code>xx</code>. Corner cells just count some neighbours twice.</p></details>
+<details><summary>Hint 3 — the whole body</summary><p><code>let sum = 0;</code> then inside the loops
+            <code>sum += map[yy][xx];</code> and finally <code>return sum / 9;</code> —
+            the clamped <code>yy</code>/<code>xx</code> from hint 2 do the rest.</p></details>
+<h2>Same idea elsewhere</h2>You just built what engine programmers call a render graph: named passes,
+        explicit dependencies, all resources resident on the GPU — the architecture behind
+        Frostbite's frame graph, CUDA Graphs' pre-recorded launch chains, and a Metal command
+        buffer full of encoder passes. Real engines are this task with more boxes.
+<h2>All tasks in Pipelines &amp; Textures</h2>
+<ol class="ssg-tasks"><li><a href="/learn/pipelines-and-textures-9f4aeaa5/1">Flip On the Pipeline</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/2">Chain Kernels, Skip the Round Trip</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/3">toArray() Is a Tollbooth</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/4">Feedback Loops: immutable Textures</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/5">The Payoff: Photo to Screen, Zero Readbacks</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/pipelines-and-textures-9f4aeaa5/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

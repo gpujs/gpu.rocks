@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Increment That Vanishes · Histograms &amp; Binning — GPU.js Learn</title>
     <meta name="description" content="Goal: make the single thread count how many of the 4,096 codes equal this.constants.target .">
@@ -114,9 +114,78 @@
     <meta name="twitter:description" content="Goal: make the single thread count how many of the 4,096 codes equal this.constants.target .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Increment That Vanishes","description":"Goal: make the single thread count how many of the 4,096 codes equal this.constants.target .","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Histograms & Binning","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/histograms-and-binning-dfb254f4/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/histograms-and-binning-dfb254f4">Histograms &amp; Binning</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>The Increment That Vanishes</h1>
+<p>On a CPU a histogram is three lines. Make an array of zeros, walk the data, add one
+        to the bin each value belongs to. It is the friendliest loop in programming.</p>
+<pre><code>const bins = new Array(16).fill(0);
+for (let i = 0; i &lt; data.length; i++) bins[data[i]]++;</code></pre>
+        <p>Now run that loop on 4,096 threads at once. <code>bins[v]++</code> is not one operation,
+        it is three — <strong>read</strong> bin <em>v</em>, <strong>add</strong> one,
+        <strong>write</strong> bin <em>v</em> back. Two threads whose values land in the same bin
+        both read 7, both compute 8, both write 8. Two increments went in; one came out. Nothing
+        crashed and nothing warned — a count is just quietly too low, and differently too low every
+        time you run it.</p>
+        <p>This is not a gpu.js quirk. It is precisely why CUDA ships <code>atomicAdd</code>: the
+        read-modify-write has to become indivisible, and making it indivisible means the colliding
+        threads take turns. gpu.js hands you no atomics and no scatter at all — a thread writes one
+        cell, its own — which forces the formulation that actually transfers: <strong>invert the
+        loop</strong>. Stop asking "which bin does my value go to?" and start asking "which values
+        belong to <em>my</em> bin?". Start with one bin.</p>
+<figure><figcaption>nobody can increment your bin but you — so go and count it yourself</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> make the single thread count how many of the 4,096
+        <code>codes</code> equal <code>this.constants.target</code>.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>output: [1]</code> — one thread, one bin, one count</li><li>Loop <code>for (let i = 0; i &lt; this.constants.n; i++)</code> over every code</li><li>Add <strong>1</strong> for each code equal to <code>this.constants.target</code> — the value itself is not what a histogram counts</li><li>Return the count; no shared array is touched anywhere</li></ul>
+<details><summary>Hint 1 — an accumulator, not an array</summary><p>The count lives in a local <code>let count = 0;</code> that only this thread can
+            see. That is the whole reason there is nothing to race over: private variables cannot
+            collide.</p></details>
+<details><summary>Hint 2 — the loop body</summary><pre><code>if (codes[i] === this.constants.target) count++;</code></pre></details>
+<h2>Same idea elsewhere</h2>Every compute API gives you the scatter this one withholds — and then charges for
+        it. CUDA and HIP have <code>atomicAdd</code>, WGSL has <code>atomicAdd</code> on an
+        <code>atomic&lt;u32&gt;</code> in a storage buffer, Metal has
+        <code>atomic_fetch_add_explicit</code>. They are correct and they are not free: colliding
+        threads serialize, and a histogram with one hot bin can reduce a whole warp to single file.
+        The gather you are about to write is what the fast implementations fall back to when
+        contention gets bad enough — which is why it is worth knowing even where atomics exist.
+<h2>All tasks in Histograms &amp; Binning</h2>
+<ol class="ssg-tasks"><li><a href="/learn/histograms-and-binning-dfb254f4/1">The Increment That Vanishes</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/2">One Thread Per Bin</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/3">Where Does 7.35 Go?</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/4">Partial Histograms, Then Merge</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/5">Payoff: An Image's Tone Histogram</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/histograms-and-binning-dfb254f4/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

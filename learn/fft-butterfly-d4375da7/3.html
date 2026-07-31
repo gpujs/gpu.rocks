@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Put the Input in the Right Order · The FFT Butterfly — GPU.js Learn</title>
     <meta name="description" content="Goal: write the kernel that reads the 16 real samples of signal into bit-reversed order and presents them as a complex spectrum — real part permuted,…">
@@ -114,9 +114,96 @@
     <meta name="twitter:description" content="Goal: write the kernel that reads the 16 real samples of signal into bit-reversed order and presents them as a complex spectrum — real part permuted,…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Put the Input in the Right Order","description":"Goal: write the kernel that reads the 16 real samples of signal into bit-reversed order and presents them as a complex spectrum — real part permuted,…","url":"https://gpu.rocks/learn/fft-butterfly-d4375da7/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The FFT Butterfly","url":"https://gpu.rocks/learn/fft-butterfly-d4375da7","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/fft-butterfly-d4375da7/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/fft-butterfly-d4375da7">The FFT Butterfly</a></nav>
+<p class="ssg-eyebrow">Task 3 of 6</p>
+<h1>Put the Input in the Right Order</h1>
+<p>One thing about the last task was quietly wrong. The first pass paired
+        <em>adjacent</em> elements — but the split that started all this was by parity, so the first
+        pass should be combining <code>x[0]</code> with <code>x[4]</code>, <code>x[1]</code> with
+        <code>x[5]</code>… at n = 8, and with strides that change every pass. Writing a kernel whose
+        pair distance depends on the stage in a different way each time is possible and horrible.</p>
+        <p>The trick every iterative FFT uses instead: <strong>permute the input once</strong>, so
+        that the pairs are adjacent at every stage afterwards. The permutation turns out to be
+        beautifully simple — send element <code>i</code> to the position whose index is <code>i</code>
+        with its <strong>bits reversed</strong>. At n = 8, sample 1 (binary 001) goes to position 4
+        (binary 100); sample 3 (011) goes to position 6 (110).</p>
+        <p>gpu.js will happily give you <code>&gt;&gt;</code>, <code>&amp;</code> and
+        <code>|</code>, and they produce correct answers — but each one compiles to a helper that
+        loops over up to 32 bits in the shader, so the one-line spelling costs around eight hundred
+        loop iterations per index. So do it in arithmetic instead, which is nine operations and, more
+        to the point, says out loud what a bit reversal <em>is</em>: peel the low digit off one
+        number and push it onto the front of another.</p>
+<pre><code>let v = this.thread.x;
+let reversed = 0;
+for (let b = 0; b &lt; this.constants.bits; b++) {
+  // push v's lowest bit onto the front of reversed
+  reversed = reversed * 2 + (v % 2);
+  // and drop it from v
+  v = Math.floor(v / 2);
+}</code></pre>
+        <p>One happy accident is worth naming: reversing an index twice gives it back, so this
+        permutation is its own inverse. It is the one rearrangement in the whole course where
+        "push my value there" and "pull the value that belongs here" land on the same answer. Write
+        it as the gather anyway — that habit is what makes the other ninety-nine cases work.</p>
+<figure><figcaption>the permutation is just the index, spelled backwards</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write the kernel that reads the 16 real samples of
+        <code>signal</code> into bit-reversed order and presents them as a complex spectrum — real
+        part permuted, imaginary part zero.</div>
+
+<h2>Requirements</h2><ul><li>Compute the reversal arithmetically, over <code>this.constants.bits</code> = 4 bits</li><li>It is a <em>gather</em>: cell <code>i</code> returns <code>x[reversed]</code></li><li>Plane 1 (imaginary) is all zeros — the input signal is real</li></ul>
+<details><summary>Hint 1 — one digit at a time</summary><p><code>v % 2</code> is the lowest bit of <code>v</code>;
+            <code>Math.floor(v / 2)</code> throws that bit away. Multiplying
+            <code>reversed</code> by 2 before adding shifts everything already collected one place
+            up, so the first bit taken ends up highest.</p></details>
+<details><summary>Hint 2 — how many bits?</summary><p>Exactly <code>log₂(n)</code> — 4 for 16 elements. Fewer and the top bits never
+            move; more and every index lands outside the array. It is already in
+            <code>this.constants.bits</code>.</p></details>
+<details><summary>Hint 3 — the whole thing</summary><p>Check yourself against the first three: 0 → 0, 1 → 8, 2 → 4. Then:</p>
+<pre><code>if (this.thread.y === 0) return x[reversed];
+return 0;</code></pre></details>
+<h2>Same idea elsewhere</h2>The bit-reversal permutation is a named, tuned primitive everywhere: cuFFT and
+        rocFFT fold it into the first pass's addressing so the array is never physically permuted,
+        FFTW spends real effort on cache-friendly reversal orders, and hardware FFT blocks in DSPs
+        ship a bit-reversed addressing mode in the address generator itself. It is also why so many
+        library APIs offer a "bit-reversed output" variant — if you are about to multiply two
+        spectra together and transform back, neither of them ever needs to be in order.
+<h2>All tasks in The FFT Butterfly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/fft-butterfly-d4375da7/1">Where the Saving Comes From</a></li><li><a href="/learn/fft-butterfly-d4375da7/2">The Butterfly: One Thread, One Output</a></li><li><a href="/learn/fft-butterfly-d4375da7/3">Put the Input in the Right Order</a></li><li><a href="/learn/fft-butterfly-d4375da7/4">Drive log₂n Passes</a></li><li><a href="/learn/fft-butterfly-d4375da7/5">Same Answer, Two Centuries Apart</a></li><li><a href="/learn/fft-butterfly-d4375da7/6">Run It Backwards for Free</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/fft-butterfly-d4375da7/2">← previous task</a> · <a href="/learn/fft-butterfly-d4375da7/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

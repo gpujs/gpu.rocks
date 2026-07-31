@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Taper the Edges · Windowing &amp; Spectral Leakage — GPU.js Learn</title>
     <meta name="description" content="Goal: write the Hann window kernel, then measure the worst leak with no window and with Hann on the same 8.5-cycle tone.">
@@ -114,9 +114,95 @@
     <meta name="twitter:description" content="Goal: write the Hann window kernel, then measure the worst leak with no window and with Hann on the same 8.5-cycle tone.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Taper the Edges","description":"Goal: write the Hann window kernel, then measure the worst leak with no window and with Hann on the same 8.5-cycle tone.","url":"https://gpu.rocks/learn/windowing-f563138d/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Windowing & Spectral Leakage","url":"https://gpu.rocks/learn/windowing-f563138d","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/windowing-f563138d/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/windowing-f563138d">Windowing &amp; Spectral Leakage</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Taper the Edges</h1>
+<p>You cannot make an arbitrary signal fit the window: you rarely know its
+        frequency in advance, and a real signal has many at once. What you <em>can</em> do is
+        make it end where it starts. Multiply every sample by a taper that falls to zero at
+        both edges, and the tiled copies join at zero with no cliff left for the transform to
+        explain.</p>
+        <p>The <strong>Hann window</strong> is the workhorse:
+        <code>w[i] = 0.5 - 0.5·cos(2πi / n)</code>, a single raised cosine. One multiply per
+        sample, no neighbours, no accumulation — this is the most trivially parallel kernel in
+        the course, and on a GPU it is free next to the transform that follows it.</p>
+        <p>One honest footnote, because you will meet both spellings. The <em>symmetric</em>
+        window divides by <code>n - 1</code> and is genuinely zero at both ends; it is the
+        right choice when the window is a filter's impulse response. The <em>periodic</em>
+        (DFT-even) window divides by <code>n</code>, so its <code>n</code> samples are exactly
+        one period of the cosine — which is what makes a windowed on-bin tone land on three
+        bins and nothing else. The two differ by under one part in a hundred and the argument
+        is decades old, but for spectral analysis the answer is not in doubt: divide by
+        <code>n</code>.</p>
+        <p>And nothing is free. The taper throws most of the signal away near the edges, so
+        the measured peak comes back <em>smaller</em> — worse than before, until task 5 gives
+        it back — and it <strong>widens the main lobe</strong>: one sharp bin becomes three. A
+        window buys dynamic range and pays for it in resolution. The next task puts numbers on
+        that trade.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> write the Hann window kernel, then measure the worst leak
+        with no window and with Hann on the same 8.5-cycle tone.</div>
+
+<h2>Requirements</h2><ul><li>Create <code>hann</code> with <code>output: [256]</code>, returning <code>signal[i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / 256))</code></li><li>Window the signal <em>before</em> the transform — a taper applied to a finished spectrum is a different, and useless, operation</li><li>Leak = <code>20 * Math.log10(worst / peak)</code>, where <code>peak</code> is the largest magnitude in bins 0…128 and <code>worst</code> the largest outside bins 5…12</li><li>Log one line labelled <code>rect</code> and one labelled <code>hann</code>, each with its leak in dB, and put the Hann peak amplitude on the Hann line</li></ul>
+<details><summary>Hint 1 — the kernel body</summary><p><code>Math.PI</code> and <code>Math.cos</code> both work inside kernels,
+            and <code>this.constants.n</code> is already wired up:</p>
+<pre><code>const i = this.thread.x;
+const w = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / this.constants.n);
+return signal[i] * w;</code></pre></details>
+<details><summary>Hint 2 — and then use it</summary><p>The taper goes on the samples, so it has to run <em>before</em> the
+            transform sees them:</p>
+<pre><code>const tapered = measure(magnitude(spectrum(hann(offBin))));</code></pre>
+<p>If the number you get back is the rectangular one again, the windowed signal
+            never reached <code>spectrum</code>.</p></details>
+<details><summary>Hint 3 — what you should see</summary><p>The leak drops from about <code>-18 dB</code> to about
+            <code>-47 dB</code>: the worst stray bin goes from an eighth of the peak to a
+            four-hundredth of it. And the Hann peak amplitude comes back around
+            <code>0.42</code> — <em>further</em> from the true 1.00 than the unwindowed 0.65
+            was. That is not a mistake; it is the window's coherent gain, and task 5 divides
+            it out.</p></details>
+<h2>Same idea elsewhere</h2>Every real analyser windows: an <code>AnalyserNode</code> in the Web Audio API
+        applies a Blackman window before its FFT and does not offer you the choice, numpy ships
+        <code>hanning</code>/<code>hamming</code>/<code>blackman</code> as one-liners, and
+        MATLAB's <code>pwelch</code> defaults to Hamming. On a GPU the taper is a per-element
+        multiply you fuse into whatever pass already touches the samples — a
+        <code>thrust::transform</code> in CUDA, two lines at the top of the load in WGSL.
+<h2>All tasks in Windowing &amp; Spectral Leakage</h2>
+<ol class="ssg-tasks"><li><a href="/learn/windowing-f563138d/1">A Tone the Window Does Not Fit</a></li><li><a href="/learn/windowing-f563138d/2">What the Transform Actually Sees</a></li><li><a href="/learn/windowing-f563138d/3">Taper the Edges</a></li><li><a href="/learn/windowing-f563138d/4">Measure the Trade</a></li><li><a href="/learn/windowing-f563138d/5">Give the Amplitude Back</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/windowing-f563138d/2">← previous task</a> · <a href="/learn/windowing-f563138d/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

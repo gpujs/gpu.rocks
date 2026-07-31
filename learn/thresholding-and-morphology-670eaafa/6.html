@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Clean the Mask, Count What Is Left · Thresholding &amp; Morphology — GPU.js Learn</title>
     <meta name="description" content="Goal: open noisy once, write a corners kernel that marks each rectangle's top-left pixel, and log the blob count before and after the cleanup.">
@@ -114,9 +114,92 @@
     <meta name="twitter:description" content="Goal: open noisy once, write a corners kernel that marks each rectangle's top-left pixel, and log the blob count before and after the cleanup.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: Clean the Mask, Count What Is Left","description":"Goal: open noisy once, write a corners kernel that marks each rectangle's top-left pixel, and log the blob count before and after the cleanup.","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/6","position":6,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Thresholding & Morphology","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/6.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/thresholding-and-morphology-670eaafa">Thresholding &amp; Morphology</a></nav>
+<p class="ssg-eyebrow">Task 6 of 6</p>
+<h1>Payoff: Clean the Mask, Count What Is Left</h1>
+<p>The whole module in one run. <code>noisy</code> is a mask straight off a
+        threshold: sixteen solid rectangles and a confetti of stray one- and two-pixel specks.
+        Open it once to clear the confetti, then count what survived.</p>
+        <p>Counting connected blobs sounds like it needs a real labelling algorithm — and in
+        general it does. But every shape here is an axis-aligned rectangle, and a rectangle has
+        exactly one <strong>top-left corner</strong>: a foreground pixel whose neighbour above
+        and whose neighbour to the left are both background. So count corners and you have
+        counted shapes, with a per-pixel predicate and a sum — the same map-then-reduce shape
+        Reductions is built on.</p>
+        <p>Be straight about the caveat. A U-shaped blob has two top-left corners and this would
+        count it twice. The trick is exact for <em>this</em> mask, not for all masks; real
+        connected-component labelling is a different and much heavier algorithm.</p>
+        <p>One more border note. This mask has a clear frame — nothing touches the edge — so a
+        clamped read of a missing neighbour lands on background either way and the count comes
+        out exact. Had a shape run to the edge, the clamped read would have returned the shape
+        itself and that corner would have gone uncounted: one more place where the border rule is
+        a decision, not a detail.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> open <code>noisy</code> once, write a <code>corners</code>
+        kernel that marks each rectangle's top-left pixel, and log the blob count before and
+        after the cleanup.</div>
+
+<h2>Requirements</h2><ul><li>Clean the mask with one opening: erode, then dilate</li><li><code>corners</code> returns <code>1</code> only for a foreground pixel whose neighbour above <em>and</em> neighbour to the left are background</li><li>Clamp both neighbour indexes — a negative index reads outside the mask</li><li>Sum the corner grid in JavaScript and log both counts with the starter's labels</li></ul>
+<details><summary>Hint 1 — three conditions</summary><p>A cell is a corner when all three hold: it is foreground, the cell above is
+            not, and the cell to its left is not. Any one of them failing means 0 — which reads
+            nicely as three early returns.</p></details>
+<details><summary>Hint 2 — clamping just the two you need</summary><p>Only the low side can go out of bounds here, so two clamps are enough:</p>
+<pre><code>let up = this.thread.y - 1;
+if (up &lt; 0) up = 0;
+let left = this.thread.x - 1;
+if (left &lt; 0) left = 0;</code></pre></details>
+<details><summary>Hint 3 — the whole body</summary><pre><code>const y = this.thread.y;
+const x = this.thread.x;
+if (mask[y][x] &lt; 0.5) return 0;
+let up = y - 1;
+if (up &lt; 0) up = 0;
+let left = x - 1;
+if (left &lt; 0) left = 0;
+if (mask[up][x] &gt; 0.5) return 0;
+if (mask[y][left] &gt; 0.5) return 0;
+return 1;</code></pre></details>
+<h2>Same idea elsewhere</h2>Cleaning a mask and then reducing it to a handful of numbers is what a vision
+        pipeline actually does — the mask is never the product. The corner predicate is a
+        <em>stencil</em> in CUDA/ROCm terms and the sum is a standard reduction, so on any
+        platform this is one filter pass feeding one reduction: precisely the two primitives
+        this course keeps coming back to.
+<h2>All tasks in Thresholding &amp; Morphology</h2>
+<ol class="ssg-tasks"><li><a href="/learn/thresholding-and-morphology-670eaafa/1">One Number for the Whole Image</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/2">Let the Histogram Pick the Number</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/3">A Threshold Per Neighbourhood</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/4">Erode and Dilate: the Sweep, With Min and Max</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/5">Opening and Closing: Order Is the Answer</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/6">Payoff: Clean the Mask, Count What Is Left</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/thresholding-and-morphology-670eaafa/5">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

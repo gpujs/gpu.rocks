@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Three Ways to Get It Wrong · Autocorrelation &amp; Pitch — GPU.js Learn</title>
     <meta name="description" content="Goal: return the normalised score at every lag, then report the first peak that reaches 0.8 — not the biggest one.">
@@ -114,9 +114,101 @@
     <meta name="twitter:description" content="Goal: return the normalised score at every lag, then report the first peak that reaches 0.8 — not the biggest one.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Three Ways to Get It Wrong","description":"Goal: return the normalised score at every lag, then report the first peak that reaches 0.8 — not the biggest one.","url":"https://gpu.rocks/learn/autocorrelation-b159433f/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Autocorrelation & Pitch","url":"https://gpu.rocks/learn/autocorrelation-b159433f","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/autocorrelation-b159433f/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/autocorrelation-b159433f">Autocorrelation &amp; Pitch</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Three Ways to Get It Wrong</h1>
+<p>Task 1 worked. It worked on a clean synthetic tone, with a search range chosen
+        to dodge two traps you were never told about, and it would fall over on the signal below.
+        Here is the full charge sheet.</p>
+        <p><strong>One: lag 0 always wins.</strong> Every signal correlates perfectly with an
+        unshifted copy of itself, so <code>r[0]</code> is the maximum of every autocorrelation
+        ever computed. Worse, it is not a spike but a <em>shoulder</em> — nearby lags are nearly
+        as good, because a smooth signal barely changes in one sample. That is why the search
+        starts at 8.</p>
+        <p><strong>Two: long lags are handicapped.</strong> The overlap shrinks as the lag grows —
+        lag 40 sums 472 products, lag 200 only 312 — so raw sums fall away with lag whether or not
+        the signal does. You cannot compare two lags until you divide that out. The honest fix is
+        the one Template Matching already made for a different reason:
+        <strong>normalise</strong>. Divide by the geometric mean of the two overlapping slices'
+        energies and every lag comes back on the same −1…+1 scale, with lag 0 exactly 1.</p>
+        <p><strong>Three: and now the octave error.</strong> Normalise honestly and a new door
+        opens. A signal that repeats every 40 samples also repeats every 80, and 120, and 160 —
+        every multiple is a real peak, and they all score close to 1. The voice below has one
+        common quirk: every other period is slightly quieter (creaky voice does this, and so do
+        plenty of instruments). The waveform still repeats every 40 samples and you would still
+        hear 204.8&nbsp;Hz — but a copy shifted 80 samples matches <em>fractionally better</em>,
+        so the tallest peak is at 80 and the naive answer is an octave too low. The fix is not a
+        better maximum. It is to stop taking the maximum: walk up from the shortest lag and take
+        the <strong>first</strong> peak that clears a threshold.</p>
+<figure><figcaption>every trap in one picture: the free peak, the right peak, and the tall wrong one</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> return the <em>normalised</em> score at every lag, then report
+        the first peak that reaches 0.8 — not the biggest one.</div>
+
+<h2>Requirements</h2><ul><li>One guarded loop, three accumulators: the dot product, the energy of <code>signal[i]</code>, and the energy of <code>signal[i + lag]</code></li><li>Return <code>dot / Math.sqrt(headEnergy * tailEnergy)</code>, so lag 0 comes back as exactly 1</li><li>Walk lags from 8 upward and take the FIRST local peak whose score is at least <code>0.8</code></li><li>Log both: <code>console.log('period:', lag, 'samples')</code> and <code>console.log('pitch:', sampleRate / lag, 'Hz')</code></li></ul>
+<details><summary>Hint 1 — three accumulators, one pass</summary><p>Read each sample once and use it three times — the same fusion Reductions
+            makes for mean and RMS:</p>
+<pre><code>const a = signal[i];
+const b = signal[i + lag];
+dot += a * b;
+head += a * a;
+tail += b * b;</code></pre></details>
+<details><summary>Hint 2 — what counts as a peak</summary><p>A local peak is a value at least as large as both its neighbours, and here it
+            also has to clear the threshold:</p>
+<pre><code>for (let lag = 8; lag &lt; 255; lag++) {
+  const peak = rho[lag] &gt; rho[lag - 1]
+    &amp;&amp; rho[lag] &gt;= rho[lag + 1];
+  if (peak &amp;&amp; rho[lag] &gt;= 0.8) {
+    period = lag;
+    break;
+  }
+}</code></pre>
+<p>The <code>break</code> is the whole idea. Drop it and you are back to taking the
+            largest.</p></details>
+<details><summary>Hint 3 — how to tell you got it wrong</summary><p>If your answer is 80 samples / 102.4&nbsp;Hz, the code is finding the tallest
+            peak rather than the first one. If it is 40 samples / 204.8&nbsp;Hz, you have it — and
+            you have also written a pitch detector that beats the obvious one.</p></details>
+<h2>Same idea elsewhere</h2>Normalising a similarity score before comparing it is a rule that outlives GPUs:
+        it is why <code>cv::matchTemplate</code> ships <code>TM_CCOEFF_NORMED</code> alongside the
+        raw version, why cosine similarity beats a dot product for embeddings, and why every
+        production pitch tracker (YIN, and the "cumulative mean normalised difference" at its
+        heart) is a normalisation trick bolted onto exactly the kernel you just wrote.
+<h2>All tasks in Autocorrelation &amp; Pitch</h2>
+<ol class="ssg-tasks"><li><a href="/learn/autocorrelation-b159433f/1">Compare a Signal With Itself</a></li><li><a href="/learn/autocorrelation-b159433f/2">From Lag to Pitch</a></li><li><a href="/learn/autocorrelation-b159433f/3">Three Ways to Get It Wrong</a></li><li><a href="/learn/autocorrelation-b159433f/4">The Note That Isn't There</a></li><li><a href="/learn/autocorrelation-b159433f/5">Payoff: The Same Curve, via the FFT</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/autocorrelation-b159433f/2">← previous task</a> · <a href="/learn/autocorrelation-b159433f/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

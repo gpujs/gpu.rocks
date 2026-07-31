@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Transpose: Swap the Axes · Matrix Multiply — GPU.js Learn</title>
     <meta name="description" content="Goal: transpose the 24×40 matrix matWide — output cell [y][x] holds matWide[x][y] , giving a 40×24 result.">
@@ -114,9 +114,68 @@
     <meta name="twitter:description" content="Goal: transpose the 24×40 matrix matWide — output cell [y][x] holds matWide[x][y] , giving a 40×24 result.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Transpose: Swap the Axes","description":"Goal: transpose the 24×40 matrix matWide — output cell [y][x] holds matWide[x][y] , giving a 40×24 result.","url":"https://gpu.rocks/learn/matrix-multiply-972e080b/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Matrix Multiply","url":"https://gpu.rocks/learn/matrix-multiply-972e080b","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/matrix-multiply-972e080b/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/matrix-multiply-972e080b">Matrix Multiply</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Transpose: Swap the Axes</h1>
+<p>Look back at the matmul loop: <code>b[k][x]</code> walks <em>down a column</em> —
+        each step jumps a whole row of memory. GPUs hate that; neighbouring threads reading
+        neighbouring addresses is where their bandwidth comes from. The standard fix is to
+        <strong>transpose</strong> B first, turning column walks into row walks.</p>
+        <p>A transpose kernel is one line of insight: the thread that owns output cell
+        <code>[y][x]</code> reads input cell <code>[x][y]</code>. With a rectangular 24×40 input
+        the flip is visible in the shapes too — the result is 40×24, so
+        <code>output: [24, 40]</code>.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> transpose the 24×40 matrix <code>matWide</code> — output cell
+        <code>[y][x]</code> holds <code>matWide[x][y]</code>, giving a 40×24 result.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>output: [24, 40]</code> — the transposed width and height</li><li>Each thread reads exactly one input cell: indices <em>swapped</em></li><li>No loops — a transpose moves data, it computes nothing</li></ul>
+<details><summary>Hint 1 — who reads what</summary><p>The thread writing output cell <code>[y][x]</code> must read the input cell
+            whose row and column are swapped. Both <code>this.thread.x</code> and
+            <code>this.thread.y</code> appear — just not in their usual seats.</p></details>
+<details><summary>Hint 2 — the one-liner</summary><p><code>return m[this.thread.x][this.thread.y];</code></p></details>
+<h2>Same idea elsewhere</h2>Memory-coalescing is why cuBLAS and rocBLAS pick a different tiled kernel for
+        each setting of GEMM's <code>transA/transB</code> flags — whichever layout you pass,
+        threads must still read side by side — and why Metal and WebGPU matmul kernels
+        pre-stage tiles in threadgroup memory. Reordering data for coalesced access is half of
+        GPU performance work.
+<h2>All tasks in Matrix Multiply</h2>
+<ol class="ssg-tasks"><li><a href="/learn/matrix-multiply-972e080b/1">One Cell, One Dot Product</a></li><li><a href="/learn/matrix-multiply-972e080b/2">The Full Grid: Matrix × Matrix</a></li><li><a href="/learn/matrix-multiply-972e080b/3">Rectangular: Three Different Sizes</a></li><li><a href="/learn/matrix-multiply-972e080b/4">Transpose: Swap the Axes</a></li><li><a href="/learn/matrix-multiply-972e080b/5">One Kernel, Any Size</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/matrix-multiply-972e080b/3">← previous task</a> · <a href="/learn/matrix-multiply-972e080b/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

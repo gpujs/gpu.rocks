@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>What Moved? · Video Filters — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the motion kernel — the absolute luminance difference between two frames, thresholded to 1 or 0 — and hand the right pair of frames to it.">
@@ -114,9 +114,96 @@
     <meta name="twitter:description" content="Goal: finish the motion kernel — the absolute luminance difference between two frames, thresholded to 1 or 0 — and hand the right pair of frames to it.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"What Moved?","description":"Goal: finish the motion kernel — the absolute luminance difference between two frames, thresholded to 1 or 0 — and hand the right pair of frames to it.","url":"https://gpu.rocks/learn/video-filters-4d39e404/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Video Filters","url":"https://gpu.rocks/learn/video-filters-4d39e404","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/video-filters-4d39e404/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/video-filters-4d39e404">Video Filters</a></nav>
+<p class="ssg-eyebrow">Task 3 of 6</p>
+<h1>What Moved?</h1>
+<p>Subtract one frame from the one before it. Everything that stayed put cancels to
+        roughly zero; everything that moved does not. Threshold what is left and you have a
+        <strong>motion mask</strong> — one bit per pixel, "something happened here" — and that is
+        the first step of essentially every "is anything moving?" system ever shipped, from a
+        doorbell camera to a video codec deciding which blocks to re-encode.</p>
+        <p>Two things make or break it. The first is the absolute value: a pixel that got
+        <em>darker</em> moved exactly as much as one that got brighter, and dropping
+        <code>Math.abs</code> silently throws away half of every edge — the mask still looks
+        plausible, which is what makes it nasty. The second is noise. A raw thresholded difference
+        is speckled with isolated pixels that the sensor invented, so the mask gets a cleanup pass:
+        a 3×3 <strong>majority vote</strong>, in the spirit of the morphological open you met in
+        Thresholding &amp; Morphology. A lone hot pixel has one vote out of nine and loses. The
+        inside of something that really moved has nine and does not.</p>
+        <p>And frame 0 has no predecessor. Eight frames give you <strong>seven</strong> differences,
+        not eight — the classic off-by-one at the start of a sequence, and the reason so many
+        filters flash garbage on their very first frame.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+
+<div class="ssg-goal"><strong>Goal:</strong> finish the <code>motion</code> kernel — the absolute luminance
+        difference between two frames, thresholded to 1 or 0 — and hand the right pair of frames to
+        it.</div>
+
+<h2>Requirements</h2><ul><li>In <code>motion</code>, take the luminance of both frames and the <strong>absolute</strong> difference</li><li>Return <code>1</code> when that difference exceeds <code>this.constants.threshold</code>, otherwise <code>0</code></li><li>Compare each frame with the one <em>before</em> it — seven differences from eight frames</li></ul>
+<details><summary>Hint 1 — the difference, both ways</summary><p>Motion is a change in either direction:</p>
+<pre><code>const change = Math.abs(now - before);
+if (change &gt; this.constants.threshold) {
+  return 1;
+}
+return 0;</code></pre>
+<p>Drop the <code>Math.abs</code> and the trailing edge of every moving object disappears.</p></details>
+<details><summary>Hint 2 — which pair of frames</summary><p><code>previous</code> has to be the frame <em>before</em> this one:
+            <code>frames[i - 1]</code>. Hand the kernel <code>frames[i]</code> twice and the
+            difference is zero everywhere — a perfectly quiet, perfectly useless mask.</p></details>
+<details><summary>Hint 3 — where the loop starts</summary><p><code>frames[i - 1]</code> only exists from <code>i = 1</code> onwards, so the
+            loop starts there. Eight frames, seven differences — the log line prints the count so you
+            can see it.</p></details>
+<h2>Same idea elsewhere</h2>Frame differencing is the oldest trick in video and still the load-bearing one.
+        Motion estimation in H.264/AV1 starts from exactly this residual; OpenCV ships
+        <code>absdiff</code> plus a threshold as the canonical first example; and every "smart"
+        security camera on the market is this kernel plus a blob counter. On any GPU it is a
+        one-instruction-per-pixel pass whose real cost is getting the two frames resident at once.
+<h2>All tasks in Video Filters</h2>
+<ol class="ssg-tasks"><li><a href="/learn/video-filters-4d39e404/1">Sixteen Milliseconds</a></li><li><a href="/learn/video-filters-4d39e404/2">Averaging Across Time</a></li><li><a href="/learn/video-filters-4d39e404/3">What Moved?</a></li><li><a href="/learn/video-filters-4d39e404/4">Learning the Empty Room</a></li><li><a href="/learn/video-filters-4d39e404/5">The Payoff: A Virtual Background</a></li><li><a href="/learn/video-filters-4d39e404/6">Going Live, Honestly</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/video-filters-4d39e404/2">← previous task</a> · <a href="/learn/video-filters-4d39e404/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

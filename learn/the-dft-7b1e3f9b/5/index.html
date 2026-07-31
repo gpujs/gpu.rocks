@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>There and Back Again · The DFT, Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: write the inverse transform — output: [256, 2] , taking the [2][256] spectrum — and confirm that transforming signal and transforming it back recovers…">
@@ -114,9 +114,85 @@
     <meta name="twitter:description" content="Goal: write the inverse transform — output: [256, 2] , taking the [2][256] spectrum — and confirm that transforming signal and transforming it back recovers…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"There and Back Again","description":"Goal: write the inverse transform — output: [256, 2] , taking the [2][256] spectrum — and confirm that transforming signal and transforming it back recovers…","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The DFT, Honestly","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/the-dft-7b1e3f9b/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/the-dft-7b1e3f9b">The DFT, Honestly</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>There and Back Again</h1>
+<p>A transform earns the name by being reversible. The inverse DFT is the forward one
+        with two edits: the exponent's sign flips to <code>+</code>, and the whole thing is divided
+        by <code>n</code>. Both edits are load-bearing, and both are where people go wrong —
+        forget the <code>1/n</code> and your signal comes back 256 times too loud; leave the sign
+        negative and it comes back <em>time-reversed</em>, which is a spectacular way to fail a
+        test that only checks sample 0.</p>
+        <p>Summing complex terms means real arithmetic on pairs. With <code>c = cos(angle)</code>
+        and <code>s = sin(angle)</code>, one term of <code>(re + i·im) · (c + i·s)</code> is:</p>
+<pre><code>real      += re * c - im * s;
+imaginary += re * s + im * c;</code></pre>
+        <p>The shapes line up for free. <code>output: [n, 2]</code> hands back exactly the
+        <code>[2][n]</code> nested array a kernel wants as input — <code>spectrum[0][k]</code> real,
+        <code>spectrum[1][k]</code> imaginary — so the forward transform's result drops into the
+        inverse with nothing in between. The original signal is real, so plane 1 of the round trip
+        should come back as float noise: that residue is a free correctness check.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> write the inverse transform — <code>output: [256, 2]</code>,
+        taking the <code>[2][256]</code> spectrum — and confirm that transforming
+        <code>signal</code> and transforming it back recovers all 256 samples.</div>
+
+<h2>Requirements</h2><ul><li>Loop over <strong>bins</strong> <code>k</code>, and use <code>this.thread.x</code> as the SAMPLE index</li><li>The exponent turns positive: <code>real += re * c - im * s</code>, <code>imaginary += re * s + im * c</code></li><li>Divide the finished sum by <code>this.constants.n</code> — once, at the end</li><li>Log how many of the 256 samples come back within <code>1e-3</code> — all of them should</li></ul>
+<details><summary>Hint 1 — the loop runs the other way round</summary><p>The forward kernel's thread owned a bin and looped over samples. Here the
+            thread owns a <em>sample</em> and loops over bins, so <code>this.thread.x</code> is
+            <code>i</code> and the loop variable is <code>k</code>:</p>
+<pre><code>const angle = 2 * Math.PI * k * this.thread.x / this.constants.n;</code></pre></details>
+<details><summary>Hint 2 — the two planes of the answer</summary><p>Same branch as the forward transform, over the complex product:</p>
+<pre><code>const c = Math.cos(angle);
+const s = Math.sin(angle);
+if (this.thread.y === 0) acc += spectrum[0][k] * c - spectrum[1][k] * s;
+else acc += spectrum[0][k] * s + spectrum[1][k] * c;</code></pre></details>
+<details><summary>Hint 3 — the scaling</summary><p><code>return acc / this.constants.n;</code> — once, on the finished sum, not
+            inside the loop. Forward does not scale, inverse divides by n; put the 1/n on the wrong
+            side and the round trip is off by a factor of 65,536.</p></details>
+<h2>Same idea elsewhere</h2>The 1/n is a convention, not a law, and libraries disagree loudly about it: FFTW
+        computes an unnormalised inverse and leaves the scaling to you, numpy puts 1/n on
+        <code>ifft</code>, and cuFFT documents its own choice per plan — which is why "my round
+        trip is n times too big" is one of the most-asked FFT questions on every platform. The
+        sign of the exponent is equally conventional; what is not optional is that the forward and
+        inverse pair disagree about it.
+<h2>All tasks in The DFT, Honestly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/the-dft-7b1e3f9b/1">One Bin, One Thread</a></li><li><a href="/learn/the-dft-7b1e3f9b/2">One Number Is Not Enough</a></li><li><a href="/learn/the-dft-7b1e3f9b/3">Every Bin, One Thread Each</a></li><li><a href="/learn/the-dft-7b1e3f9b/4">Magnitude, Phase and the Mirror</a></li><li><a href="/learn/the-dft-7b1e3f9b/5">There and Back Again</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/the-dft-7b1e3f9b/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

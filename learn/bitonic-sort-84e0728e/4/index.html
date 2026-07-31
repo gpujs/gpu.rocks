@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Drive the Whole Network · Bitonic Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: build and print the whole 36-pass schedule before touching the data, run it to sort 256 values, and log the smallest and largest of the result.">
@@ -114,9 +114,86 @@
     <meta name="twitter:description" content="Goal: build and print the whole 36-pass schedule before touching the data, run it to sort 256 values, and log the smallest and largest of the result.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Drive the Whole Network","description":"Goal: build and print the whole 36-pass schedule before touching the data, run it to sort 256 values, and log the smallest and largest of the result.","url":"https://gpu.rocks/learn/bitonic-sort-84e0728e/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Bitonic Sort","url":"https://gpu.rocks/learn/bitonic-sort-84e0728e","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/bitonic-sort-84e0728e/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/bitonic-sort-84e0728e">Bitonic Sort</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Drive the Whole Network</h1>
+<p>One pass is one kernel launch. The network is two plain JavaScript loops around
+        it — stages doubling outward, and within each stage strides halving down to 1. Here is the
+        thing worth noticing, though: those loops never look at the data. So don't interleave them
+        with it. Build the entire <strong>schedule</strong> first, as a list of
+        <code>[stage, stride]</code> pairs, and print it:</p>
+<pre><code>const schedule = [];
+for (let stage = 2; stage &lt;= n; stage *= 2) {
+  for (let stride = stage / 2; stride &gt;= 1; stride /= 2) {
+    schedule.push([stage, stride]);
+  }
+}</code></pre>
+        <p>All 36 pairs for n = 256, complete, before a single value has been read. Then run them.
+        That is the property this whole module is about: every thread derives its partner and its
+        direction from its own index, so nothing waits on a comparison, no warp diverges, and
+        nobody has to be told anything. A quicksort cannot do this — you do not know its second
+        partition until you have done the first.</p>
+        <p>The bill comes due in comparisons. Bitonic sort does O(n log²n) of them where quicksort
+        does O(n log n): 36 passes × 128 pairs = 4,608 compare-exchanges for 256 values, against
+        roughly 2,000. More than twice the work — in 36 sequential steps, with everything inside a
+        step happening at once. That trade, a predictable structure bought with extra work, is the
+        most transferable idea in this course.</p>
+<figure><figcaption>six passes, twenty-four comparators, and not one of them depends on a value</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> build and print the whole 36-pass schedule before touching the
+        data, run it to sort 256 values, and log the smallest and largest of the result.</div>
+
+<h2>Requirements</h2><ul><li><code>schedule</code> holds the <code>[stage, stride]</code> pairs: stages doubling from 2 up to and <em>including</em> <code>n</code>, strides halving from <code>stage / 2</code> down to 1</li><li>Build it without reading <code>data</code> — the schedule is complete before the first kernel call</li><li><code>console.log</code> the pass count and the schedule itself (already wired up)</li><li><code>console.log</code> the smallest and largest values of the sorted result</li></ul>
+<details><summary>Hint 1 — the two loops</summary><p>Outer loop doubles, inner loop halves, and both bounds are inclusive at the
+            far end: <code>stage &lt;= n</code>, <code>stride &gt;= 1</code>. The body is one
+            line — <code>schedule.push([stage, stride]);</code></p></details>
+<details><summary>Hint 2 — the last stage is the one that sorts</summary><p>Stopping at <code>stage &lt; n</code> costs exactly one merge, and that merge
+            is the one that turns a bitonic sequence into a sorted array. The result looks
+            plausible — it rises, then falls — and it is wrong.</p></details>
+<details><summary>Hint 3 — the first few pairs</summary><p>A correct schedule starts</p>
+<pre><code>[[2,1], [4,2], [4,1], [8,4], [8,2], [8,1], [16,8], …]</code></pre>
+<p>— stride 2 <em>before</em> stride 1 inside stage 4, not after.</p></details>
+<h2>Same idea elsewhere</h2>A host-side loop issuing one kernel launch per pass is exactly how bitonic sort
+        ships in practice: CUDA samples launch <code>bitonicSortShared</code> once per (stage,
+        stride), WebGPU records one dispatch per pass into a command encoder, and Metal encodes one
+        compute pass each. The launches are the synchronisation — everything within a pass is
+        independent, and the boundary between passes is the only barrier anyone needs.
+<h2>All tasks in Bitonic Sort</h2>
+<ol class="ssg-tasks"><li><a href="/learn/bitonic-sort-84e0728e/1">The Compare-Exchange, as a Gather</a></li><li><a href="/learn/bitonic-sort-84e0728e/2">Who Is My Partner?</a></li><li><a href="/learn/bitonic-sort-84e0728e/3">Which Way Does My Pair Sort?</a></li><li><a href="/learn/bitonic-sort-84e0728e/4">Drive the Whole Network</a></li><li><a href="/learn/bitonic-sort-84e0728e/5">Payoff: Sort a Real Array</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/bitonic-sort-84e0728e/3">← previous task</a> · <a href="/learn/bitonic-sort-84e0728e/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

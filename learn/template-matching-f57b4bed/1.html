@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Score Every Position at Once · Template Matching — GPU.js Learn</title>
     <meta name="description" content="Goal: build the 89×89 SSD score map for patch over scene , and log the position of the best match.">
@@ -114,9 +114,104 @@
     <meta name="twitter:description" content="Goal: build the 89×89 SSD score map for patch over scene , and log the position of the best match.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Score Every Position at Once","description":"Goal: build the 89×89 SSD score map for patch over scene , and log the position of the best match.","url":"https://gpu.rocks/learn/template-matching-f57b4bed/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Template Matching","url":"https://gpu.rocks/learn/template-matching-f57b4bed","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/template-matching-f57b4bed/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/template-matching-f57b4bed">Template Matching</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>Score Every Position at Once</h1>
+<p>Template matching asks the simplest question in object finding: <strong>where in
+        this picture is that patch?</strong> Slide the patch over every position it could occupy,
+        score how well it fits at each one, and keep the best. That sounds like a loop, and on a
+        GPU it is the exact opposite of a loop — every candidate position is scored from data
+        alone, with no reference to any other position. One thread per position, all 7,921 of
+        them at once.</p>
+        <p>The obvious score is the <strong>sum of squared differences</strong>. Line the 8×8
+        template up with its top-left corner at (x, y), subtract it from the scene pixel by pixel,
+        square each difference so a positive cannot cancel a negative, and add them up. Zero is a
+        perfect match; bigger is worse.</p>
+<pre><code>d   = scene[y + j][x + i] − patch[j][i]
+SSD = sum of d² over the 8×8 window</code></pre>
+        <p>One thing to settle before you write a line: <strong>the score map is smaller than the
+        scene</strong>. A window whose corner sits at column 89 would need columns 89…96, and this
+        scene stops at 95. The last legal corner is 88, so there are 96 − 8 + 1 = <strong>89</strong>
+        positions along each axis, and the map is 89×89. <code>scene</code> here is a luminance
+        map — one number per pixel, the kind a grayscale pass hands you — but it is indexed like
+        any other image.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+<figure><figcaption>one thread per position — and a map that comes out smaller than the scene</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> build the 89×89 SSD score map for <code>patch</code> over
+        <code>scene</code>, and log the position of the best match.</div>
+
+<h2>Requirements</h2><ul><li>Set <code>output</code> to the number of candidate positions — <code>96 − 8 + 1</code> per axis, not 96</li><li>Sum over the whole template with a double loop bounded by <code>this.constants.size</code></li><li>Square every difference: <code>const d = …; sum += d * d;</code></li><li><code>console.log</code> the position <code>bestMatch()</code> returns</li></ul>
+<details><summary>Hint 1 — which window is mine?</summary><p>Thread (x, y) owns the window whose <em>top-left corner</em> is at
+            <code>scene[y][x]</code>. Its pixels are <code>scene[y + j][x + i]</code> for
+            <code>j</code> and <code>i</code> from 0 to 7 — and those same <code>j</code>,
+            <code>i</code> index the template as <code>patch[j][i]</code>. No clamping is needed
+            anywhere: the output shape already guarantees every read is in bounds.</p></details>
+<details><summary>Hint 2 — the loop body</summary><pre><code>const d = scene[y + j][x + i] - patch[j][i];
+sum += d * d;</code></pre>
+<p>— two statements, inside two nested <code>for</code> loops that both run to
+            <code>this.constants.size</code>.</p></details>
+<details><summary>Hint 3 — the whole kernel</summary><pre><code>const x = this.thread.x;
+const y = this.thread.y;
+let sum = 0;
+for (let j = 0; j &lt; this.constants.size; j++) {
+  for (let i = 0; i &lt; this.constants.size; i++) {
+    const d = scene[y + j][x + i] - patch[j][i];
+    sum += d * d;
+  }
+}
+return sum;</code></pre>
+<p>— and <code>output: [89, 89]</code>.</p></details>
+<h2>Same idea elsewhere</h2>This is OpenCV's <code>matchTemplate</code> and NVIDIA NPP's
+        <code>nppiSQRDistanceNorm</code>, and it is one of the friendliest workloads a GPU ever
+        sees: no communication between threads, no atomics, perfectly regular reads, and
+        neighbouring threads reading overlapping windows straight out of cache. A WGSL compute
+        shader or a CUDA 2D block does it with the same two nested loops.
+<h2>All tasks in Template Matching</h2>
+<ol class="ssg-tasks"><li><a href="/learn/template-matching-f57b4bed/1">Score Every Position at Once</a></li><li><a href="/learn/template-matching-f57b4bed/2">The Score That Lies</a></li><li><a href="/learn/template-matching-f57b4bed/3">Normalize It</a></li><li><a href="/learn/template-matching-f57b4bed/4">Hoist What Never Changes</a></li><li><a href="/learn/template-matching-f57b4bed/5">Payoff: Present or Absent?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/template-matching-f57b4bed/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

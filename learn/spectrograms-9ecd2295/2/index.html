@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Slice, Window, Transform · Spectrograms — GPU.js Learn</title>
     <meta name="description" content="Goal: build the spectrogram of signal — get the frame count right, then fill in the kernel body so each cell holds the windowed magnitude.">
@@ -114,9 +114,95 @@
     <meta name="twitter:description" content="Goal: build the spectrogram of signal — get the frame count right, then fill in the kernel body so each cell holds the windowed magnitude.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Slice, Window, Transform","description":"Goal: build the spectrogram of signal — get the frame count right, then fill in the kernel body so each cell holds the windowed magnitude.","url":"https://gpu.rocks/learn/spectrograms-9ecd2295/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Spectrograms","url":"https://gpu.rocks/learn/spectrograms-9ecd2295","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/spectrograms-9ecd2295/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/spectrograms-9ecd2295">Spectrograms</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>Slice, Window, Transform</h1>
+<p>The fix falls out of saying the problem aloud: stop transforming the whole signal.
+        Chop it into short <strong>frames</strong>, transform each one on its own, and stand the
+        answers side by side. That is the <strong>short-time Fourier transform</strong>, and the
+        picture it makes — time across, frequency up, brightness for how much — is a spectrogram.</p>
+        <p>Two numbers describe the chopping and they are <em>not</em> the same number.
+        <strong>Window</strong> is how much signal one frame sees (256 samples here, 62.5 ms).
+        <strong>Hop</strong> is how far the window slides between frames (64 samples). Setting hop
+        equal to the window puts the frames edge to edge, so anything straddling a boundary is
+        split in half; setting hop larger leaves gaps the transform never looks at. Hop smaller —
+        <strong>overlap</strong> — costs work and buys a smooth time axis: here every sample is
+        seen by four different frames. One frame more: cut a slice out with scissors and it ends on
+        a step, which the transform faithfully reports as energy at every frequency. Windowing &amp;
+        Spectral Leakage makes a module of that; here, just take the fix and multiply each frame by
+        a Hann bell first.</p>
+        <p>The GPU shape is the good part: <strong>one thread per (frame, bin)</strong>. No cell
+        needs anything another cell computed, so the entire picture is one launch of 8,192 threads,
+        each gathering its own 256 samples. <code>output: [FRAMES, BINS]</code> puts time on x and
+        frequency on y — which is how the picture is drawn, and means the result reads
+        <code>spec[bin][frame]</code>.</p>
+<figure><figcaption>one window position, one column; slide by the hop and do it again</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> build the spectrogram of <code>signal</code> — get the frame
+        count right, then fill in the kernel body so each cell holds the windowed magnitude.</div>
+
+<h2>Requirements</h2><ul><li>Set <code>FRAMES</code> to the number of <em>whole</em> windows that fit: <code>Math.floor((signal.length - WIN) / HOP) + 1</code></li><li>Frame <code>this.thread.x</code> starts at <code>this.thread.x * this.constants.hop</code> and reads <code>this.constants.win</code> samples</li><li>Multiply each sample by its Hann value <code>0.5 - 0.5 * Math.cos(2 * Math.PI * t / (this.constants.win - 1))</code> before accumulating</li><li>Return <code>Math.sqrt(re * re + im * im) / this.constants.win</code></li></ul>
+<details><summary>Hint 1 — which sample is mine?</summary><p>Frame <code>f</code>, tap <code>t</code> of that frame, is
+            <code>signal[f * hop + t]</code>. The tap index <code>t</code> also drives the window
+            and the angle — both are measured from the <em>start of the frame</em>, never from the
+            start of the signal.</p></details>
+<details><summary>Hint 2 — the loop body</summary><pre><code>for (let t = 0; t &lt; this.constants.win; t++) {
+  const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / (this.constants.win - 1));
+  const s = signal[start + t] * w;
+  const angle = (-2 * Math.PI * bin * t) / this.constants.win;
+  re += s * Math.cos(angle);
+  im += s * Math.sin(angle);
+}
+return Math.sqrt(re * re + im * im) / this.constants.win;</code></pre></details>
+<details><summary>Hint 3 — counting frames</summary><p><code>signal.length / HOP</code> counts frames that start inside the signal,
+            including three at the end whose windows run off it. A frame needs a <em>whole</em>
+            window, so the last legal start is <code>signal.length - WIN</code>:</p>
+<pre><code>const FRAMES = Math.floor((signal.length - WIN) / HOP) + 1;</code></pre>
+<p>With 4,288 samples that is 64, and the last frame ends exactly on the last sample.</p></details>
+<h2>Same idea elsewhere</h2>You have written <code>librosa.stft</code> / <code>torchaudio.Spectrogram</code> /
+        MATLAB's <code>spectrogram</code>, and the production version differs in exactly one place:
+        the inner loop becomes an FFT and the whole thing becomes a <em>batched</em> transform —
+        one cuFFT or VkFFT plan, all 64 frames at once. The 2D launch you just wrote is already the
+        right decomposition; only the O(n) inner sum gets replaced by an O(log n) ladder. Note what
+        you did <em>not</em> need: no atomics, no shared memory, no thread writing to a cell it does
+        not own. Every thread pulled what it wanted. That is the gather formulation, and it is why
+        this maps onto every platform unchanged.
+<h2>All tasks in Spectrograms</h2>
+<ol class="ssg-tasks"><li><a href="/learn/spectrograms-9ecd2295/1">One Spectrum, No Clock</a></li><li><a href="/learn/spectrograms-9ecd2295/2">Slice, Window, Transform</a></li><li><a href="/learn/spectrograms-9ecd2295/3">Fine in Time, or Fine in Frequency</a></li><li><a href="/learn/spectrograms-9ecd2295/4">Decibels, Then Colour</a></li><li><a href="/learn/spectrograms-9ecd2295/5">Payoff: Read the Sweep Off the Picture</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/spectrograms-9ecd2295/1">← previous task</a> · <a href="/learn/spectrograms-9ecd2295/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Going Live, Honestly · Video Filters — GPU.js Learn</title>
     <meta name="description" content="Goal: finish onFrame so the filter seeds its model from the first frame only, then detects and learns on every frame after it.">
@@ -114,9 +114,121 @@
     <meta name="twitter:description" content="Goal: finish onFrame so the filter seeds its model from the first frame only, then detects and learns on every frame after it.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Going Live, Honestly","description":"Goal: finish onFrame so the filter seeds its model from the first frame only, then detects and learns on every frame after it.","url":"https://gpu.rocks/learn/video-filters-4d39e404/6","position":6,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Video Filters","url":"https://gpu.rocks/learn/video-filters-4d39e404","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/video-filters-4d39e404/6.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/video-filters-4d39e404">Video Filters</a></nav>
+<p class="ssg-eyebrow">Task 6 of 6</p>
+<h1>Going Live, Honestly</h1>
+<p>Everything you have built runs on a sequence of frames that this module fabricated.
+        Here is what changes when the frames come from a camera instead: <strong>nothing, in the
+        kernels</strong>. gpu.js accepts an <code>HTMLVideoElement</code> as a kernel argument
+        directly and re-uploads whatever is currently on screen each time you call it. The whole
+        wiring is this:</p>
+<pre><code>const video = document.createElement('video');
+video.autoplay = true;
+video.playsInline = true;
+video.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
+await video.play();
+
+const gpu = new GPU();
+const filter = gpu.createKernel(function (feed) {
+  const p = feed[this.thread.y][this.thread.x];
+  const l = 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2];
+  this.color(l, l, l, 1);
+}, { output: [640, 480], graphical: true });
+
+document.body.appendChild(filter.canvas);
+
+function tick() {
+  filter(video);                // the current video frame, uploaded for you
+  requestAnimationFrame(tick);  // ~16.7 ms later, again
+}
+requestAnimationFrame(tick);</code></pre>
+        <p><strong>That code cannot run in this course, and this course is not going to pretend
+        otherwise.</strong> Your code here executes inside a Web Worker — that is what lets a runaway
+        kernel be killed instead of freezing the page — and a Worker has no
+        <code>navigator.mediaDevices</code>, no <code>getUserMedia</code> and no
+        <code>HTMLVideoElement</code>. There is no camera to reach and no video element to hand a
+        kernel. The eight-frame sequence is the stand-in, and every line you have written works
+        unchanged the day you paste it onto a page with the loop above.</p>
+        <p>What is left is the shape of the thing: a filter that is <strong>built once</strong> and
+        holds its own state, exposing one function you call per frame. Which is where the last
+        wrinkle lives — the first frame. There is no history yet, so the model has to be born from
+        the frame in your hand. Get that wrong and the whole first frame reads as motion, or the
+        state is <code>null</code> and the arithmetic comes back as <code>NaN</code>. Every stateful
+        filter has this three-line initialiser, and it is always the last thing anyone tests.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+
+<div class="ssg-goal"><strong>Goal:</strong> finish <code>onFrame</code> so the filter seeds its model from
+        the <em>first</em> frame only, then detects and learns on every frame after it.</div>
+
+<h2>Requirements</h2><ul><li>Seed <code>model</code> from the first frame only — later frames must not reset it</li><li>Return the foreground mask for every frame the filter is given, the first one included</li><li>Fold each frame into the model <em>after</em> detecting against it</li></ul>
+<details><summary>Hint 1 — &quot;first frame&quot; is a state, not an index</summary><p>A live filter never sees an array — it is handed one frame and asked for one
+            answer. So "is this the first frame?" has to be a property of the filter, not of a loop
+            counter:</p>
+<pre><code>if (model === null) {
+  model = seedModel(image);
+}</code></pre>
+<p>Which is why <code>model</code> starts as <code>null</code> rather than as a texture.</p></details>
+<details><summary>Hint 2 — what the first frame should report</summary><p>Seeded from itself, the frame agrees with the model everywhere, so the mask is
+            empty and the count is <code>0</code>. That is the correct answer, and it is much better
+            than a first frame that lights up completely.</p></details>
+<details><summary>Hint 3 — the three lines</summary><pre><code>if (model === null) model = seedModel(image);
+const mask = detect(image, model);
+model = learn(image, model);
+return mask;</code></pre>
+<p>Detect, then learn. Reversing them lets each frame teach the model about itself before you
+            ask the model what is new.</p></details>
+<h2>Same idea elsewhere</h2>Build-once, call-per-frame is the shape of every real-time pipeline: a WebGPU app
+        creates its pipelines and bind groups at startup and only records command buffers inside the
+        frame callback; a CUDA video filter allocates its device buffers and loads its modules once
+        and launches per frame; MediaPipe and OpenCV's <code>VideoCapture</code> loops are the same
+        skeleton. The state that survives between calls — your background model — is the part that
+        makes it a video filter rather than eight unrelated image filters.
+<h2>All tasks in Video Filters</h2>
+<ol class="ssg-tasks"><li><a href="/learn/video-filters-4d39e404/1">Sixteen Milliseconds</a></li><li><a href="/learn/video-filters-4d39e404/2">Averaging Across Time</a></li><li><a href="/learn/video-filters-4d39e404/3">What Moved?</a></li><li><a href="/learn/video-filters-4d39e404/4">Learning the Empty Room</a></li><li><a href="/learn/video-filters-4d39e404/5">The Payoff: A Virtual Background</a></li><li><a href="/learn/video-filters-4d39e404/6">Going Live, Honestly</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/video-filters-4d39e404/5">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

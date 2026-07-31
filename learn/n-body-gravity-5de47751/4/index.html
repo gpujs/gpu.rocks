@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Tick of the Clock · N-Body Gravity — GPU.js Learn</title>
     <meta name="description" content="Goal: finish both kernels — stepVel returns [v + a·dt] per component, stepPos returns [x + v·dt] — and feed the position step the new velocities.">
@@ -114,9 +114,72 @@
     <meta name="twitter:description" content="Goal: finish both kernels — stepVel returns [v + a·dt] per component, stepPos returns [x + v·dt] — and feed the position step the new velocities.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Tick of the Clock","description":"Goal: finish both kernels — stepVel returns [v + a·dt] per component, stepPos returns [x + v·dt] — and feed the position step the new velocities.","url":"https://gpu.rocks/learn/n-body-gravity-5de47751/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"N-Body Gravity","url":"https://gpu.rocks/learn/n-body-gravity-5de47751","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/n-body-gravity-5de47751/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/n-body-gravity-5de47751">N-Body Gravity</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>One Tick of the Clock</h1>
+<p>Accelerations are just numbers until an integrator turns them into motion. The
+        simplest scheme that doesn't wreck orbits is <strong>semi-implicit Euler</strong>: update
+        the velocity <em>first</em>, then move the body with the <em>new</em> velocity —
+        <code>v′ = v + a·dt</code>, then <code>x′ = x + v′·dt</code>. Do it in the other order
+        (plain Euler) and orbits visibly spiral outward, gaining energy from nowhere.</p>
+        <p>Both updates are embarrassingly parallel — body <em>i</em> never looks at body
+        <em>j</em> — so they're two tiny kernels. Between them, the <code>[vx, vy]</code> pairs
+        come back to JavaScript and get unpacked into plain arrays for the next kernel. Clunky?
+        Yes. Instructive? Also yes — and track 2's pipeline module shows how to skip the round
+        trip.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> finish both kernels — <code>stepVel</code> returns
+        <code>[v + a·dt]</code> per component, <code>stepPos</code> returns
+        <code>[x + v·dt]</code> — and feed the position step the <em>new</em> velocities.</div>
+
+<h2>Requirements</h2><ul><li><code>stepVel</code> returns <code>[vx + ax·dt, vy + ay·dt]</code> for its body</li><li><code>stepPos</code> returns <code>[x + vx·dt, y + vy·dt]</code> for its body</li><li>The position step must receive the <em>updated</em> velocities (semi-implicit, already wired up)</li></ul>
+<details><summary>Hint 1 — the same index four times</summary><p>Everything in both kernels is indexed by <code>this.thread.x</code>:
+            this body's velocity, this body's acceleration, this body's position.</p></details>
+<details><summary>Hint 2 — the velocity kernel</summary><pre><code>return [velX[this.thread.x] + accX[this.thread.x] * dt,
+        velY[this.thread.x] + accY[this.thread.x] * dt];</code></pre>
+<p>— the position kernel is the
+            same shape with <code>pos</code> and <code>vel</code>.</p></details>
+<h2>Same idea elsewhere</h2>Splitting an integrator into per-buffer passes is exactly how GPU engines ship it:
+        WebGPU dispatches one compute pass per update with position/velocity buffers ping-ponging
+        between bind groups, and Metal encodes the same thing as back-to-back compute command
+        encoders. The math stays this small; the choreography is the product.
+<h2>All tasks in N-Body Gravity</h2>
+<ol class="ssg-tasks"><li><a href="/learn/n-body-gravity-5de47751/1">The Pull of One Star</a></li><li><a href="/learn/n-body-gravity-5de47751/2">Every Body Pulls on Every Body</a></li><li><a href="/learn/n-body-gravity-5de47751/3">Softening the Singularity</a></li><li><a href="/learn/n-body-gravity-5de47751/4">One Tick of the Clock</a></li><li><a href="/learn/n-body-gravity-5de47751/5">Put It Together: 128 Bodies</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/n-body-gravity-5de47751/3">← previous task</a> · <a href="/learn/n-body-gravity-5de47751/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

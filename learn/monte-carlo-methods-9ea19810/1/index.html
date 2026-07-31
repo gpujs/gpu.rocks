@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Darts at a Quarter Circle · Monte Carlo Methods — GPU.js Learn</title>
     <meta name="description" content="Goal: make each thread return 1 if its dart (xs[x], ys[x]) lands inside the unit quarter circle, else 0 .">
@@ -114,9 +114,70 @@
     <meta name="twitter:description" content="Goal: make each thread return 1 if its dart (xs[x], ys[x]) lands inside the unit quarter circle, else 0 .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Darts at a Quarter Circle","description":"Goal: make each thread return 1 if its dart (xs[x], ys[x]) lands inside the unit quarter circle, else 0 .","url":"https://gpu.rocks/learn/monte-carlo-methods-9ea19810/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Monte Carlo Methods","url":"https://gpu.rocks/learn/monte-carlo-methods-9ea19810","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/monte-carlo-methods-9ea19810/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/monte-carlo-methods-9ea19810">Monte Carlo Methods</a></nav>
+<p class="ssg-eyebrow">Task 1 of 4</p>
+<h1>Darts at a Quarter Circle</h1>
+<p>Monte Carlo is statistics as a weapon: throw random darts at a square, and the
+        <em>fraction</em> that lands inside the quarter circle inscribed in it approaches its area —
+        π/4. No geometry beyond the Pythagorean check <code>x² + y² ≤ 1</code>.</p>
+        <p>The method is embarrassingly parallel: every dart is judged independently, so every dart
+        gets its own thread. One rule, though — the randomness is made <strong>outside</strong> the
+        kernel. <code>xs</code> and <code>ys</code> hold 4,096 seeded dart positions; the kernel's
+        job is only the verdict. Deterministic data in, deterministic verdicts out — that's what
+        makes GPU Monte Carlo debuggable.</p>
+<figure><figcaption>throw darts, count hits — the circle’s area falls out of the ratio</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> make each thread return <code>1</code> if its dart
+        <code>(xs[x], ys[x])</code> lands inside the unit quarter circle, else <code>0</code>.</div>
+
+<h2>Requirements</h2><ul><li>Read this thread's dart: <code>xs[this.thread.x]</code> and <code>ys[this.thread.x]</code></li><li>Inside means <code>x² + y² ≤ 1</code> — no <code>Math.sqrt</code> needed</li><li>Return exactly <code>1</code> or <code>0</code>, nothing in between</li></ul>
+<details><summary>Hint 1 — skip the square root</summary><p>The dart is inside when its distance to the origin is ≤ 1 — and distances
+            compare the same way squared: <code>x * x + y * y &lt;= 1</code> is the whole test.</p></details>
+<details><summary>Hint 2 — the verdict</summary><pre><code>if (x * x + y * y &lt;= 1) {
+  return 1;
+}
+return 0;</code></pre>
+<p>— a branch is
+            fine in a kernel as long as every path returns.</p></details>
+<h2>Same idea elsewhere</h2>Real GPU Monte Carlo keeps the random numbers on-device — CUDA ships cuRAND, and
+        WebGPU/Metal compute shaders run counter-based generators like Philox per thread — but the
+        shape is exactly this: one thread, one sample, one verdict.
+<h2>All tasks in Monte Carlo Methods</h2>
+<ol class="ssg-tasks"><li><a href="/learn/monte-carlo-methods-9ea19810/1">Darts at a Quarter Circle</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/2">Reduce 65,536 Hits to π</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/3">Integrate the Un-integrable</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/4">Price an Option</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/monte-carlo-methods-9ea19810/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

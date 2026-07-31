@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Reduce 65,536 Hits to π · Monte Carlo Methods — GPU.js Learn</title>
     <meta name="description" content="Goal: complete the partialSums kernel so each of its 256 threads returns the sum of its own 256-element slice of hits , then log the π estimate.">
@@ -114,9 +114,72 @@
     <meta name="twitter:description" content="Goal: complete the partialSums kernel so each of its 256 threads returns the sum of its own 256-element slice of hits , then log the π estimate.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Reduce 65,536 Hits to π","description":"Goal: complete the partialSums kernel so each of its 256 threads returns the sum of its own 256-element slice of hits , then log the π estimate.","url":"https://gpu.rocks/learn/monte-carlo-methods-9ea19810/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Monte Carlo Methods","url":"https://gpu.rocks/learn/monte-carlo-methods-9ea19810","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/monte-carlo-methods-9ea19810/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/monte-carlo-methods-9ea19810">Monte Carlo Methods</a></nav>
+<p class="ssg-eyebrow">Task 2 of 4</p>
+<h1>Reduce 65,536 Hits to π</h1>
+<p>Last task summed the verdicts with a JavaScript loop — fine for 4,096 darts,
+        wasteful for 65,536 and absurd for a billion. The GPU answer is a
+        <strong>parallel reduction</strong>: don't ship every verdict home, ship
+        <em>partial sums</em>. A second kernel with 256 threads gives each thread its own
+        256-verdict slice to total, collapsing 65,536 numbers to 256 in one launch.</p>
+        <p>Thread <code>t</code> owns the slice starting at <code>t * 256</code> — a statically
+        bounded <code>for</code> loop walks it. JavaScript then folds the 256 partials into the
+        final count, and <code>4 × hits / 65536</code> is your π.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> complete the <code>partialSums</code> kernel so each of its
+        256 threads returns the sum of its own 256-element slice of <code>hits</code>, then log
+        the π estimate.</div>
+
+<h2>Requirements</h2><ul><li>Kernel 1 (<code>inside</code>) is last task's dart test — leave it as is</li><li>In <code>partialSums</code>, thread <code>x</code> starts at <code>this.thread.x * 256</code></li><li>Loop <code>i = 0…255</code> and accumulate <code>hits[base + i]</code></li><li>Total the 256 partials in JavaScript and log <code>4 * total / 65536</code></li></ul>
+<details><summary>Hint 1 — who sums what</summary><p>Thread 0 sums <code>hits[0…255]</code>, thread 1 sums <code>hits[256…511]</code>,
+            and so on. The starting offset is <code>this.thread.x * 256</code>.</p></details>
+<details><summary>Hint 2 — the loop</summary><pre><code>const base = this.thread.x * 256;
+let sum = 0;
+for (let i = 0; i &lt; 256; i++) {
+  sum += hits[base + i];
+}
+return sum;</code></pre>
+<p>The bound is a literal, so gpu.js can unroll it safely.</p></details>
+<h2>Same idea elsewhere</h2>Reduction is <em>the</em> fundamental pattern of GPU computing — CUDA has warp
+        shuffles and the CUB library for it, Metal has SIMD-group reductions, WebGPU builds them
+        from workgroup shared memory. Chunked partial sums like yours are always the first rung.
+<h2>All tasks in Monte Carlo Methods</h2>
+<ol class="ssg-tasks"><li><a href="/learn/monte-carlo-methods-9ea19810/1">Darts at a Quarter Circle</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/2">Reduce 65,536 Hits to π</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/3">Integrate the Un-integrable</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/4">Price an Option</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/monte-carlo-methods-9ea19810/1">← previous task</a> · <a href="/learn/monte-carlo-methods-9ea19810/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

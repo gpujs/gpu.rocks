@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Present or Absent? · Template Matching — GPU.js Learn</title>
     <meta name="description" content="Goal: report where patch is, report that rotatedPatch is not there, and let THRESHOLD be what decides.">
@@ -114,9 +114,101 @@
     <meta name="twitter:description" content="Goal: report where patch is, report that rotatedPatch is not there, and let THRESHOLD be what decides.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: Present or Absent?","description":"Goal: report where patch is, report that rotatedPatch is not there, and let THRESHOLD be what decides.","url":"https://gpu.rocks/learn/template-matching-f57b4bed/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Template Matching","url":"https://gpu.rocks/learn/template-matching-f57b4bed","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/template-matching-f57b4bed/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/template-matching-f57b4bed">Template Matching</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Payoff: Present or Absent?</h1>
+<p>Everything so far, pointed at a real question. <code>brightScene</code> hides an
+        8×8 patch; <code>patch</code> is that patch. <code>rotatedPatch</code> is the same eight
+        by eight values turned a quarter turn — identical mean, identical spread, identical
+        histogram, and <strong>nowhere in the scene</strong>. Find the one; refuse the other.</p>
+        <p>The kernel is finished (it is task 4's, unchanged). What is left is the part that
+        catches people twice: reading an answer off a score map.</p>
+        <p><strong>Take the maximum.</strong> NCC is a similarity, so its best is its largest.
+        SSD was a distance, so its best was its smallest. The convention is inverted between the
+        two measures, and reaching for the wrong one does not give you a slightly worse answer —
+        it gives you the map's most emphatically <em>wrong</em> position.</p>
+        <p><strong>The coordinates are the window's top-left corner.</strong> Cell (x, y) scored
+        the window that starts at (x, y) and runs 8 pixels right and down. That corner is the
+        answer. The centre is <code>(x + 4, y + 4)</code> if that is what you want — just be sure
+        you know which one you are reporting, because the score map is 89 wide where the scene is
+        96, and quietly mixing the two coordinate systems is how a detector ends up drawing boxes
+        in the wrong place.</p>
+        <p>And then the honest part. A search over 7,921 positions <em>always</em> returns a
+        winner — the best score is a best score whether or not anything is there. What turns
+        matching into <strong>detection</strong> is a <strong>threshold</strong>: a line below
+        which "the best I found" means "nothing". Here the patch that is present scores 1.000 and
+        the one that is absent tops out near 0.47, so 0.9 separates them with room to spare. That
+        number is not universal — it depends on the noise, on the template, and on how much
+        deformation you are willing to forgive — and calibrating it against data whose answers you
+        already know is most of the work in building a real detector.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> report where <code>patch</code> is, report that
+        <code>rotatedPatch</code> is not there, and let <code>THRESHOLD</code> be what decides.</div>
+
+<h2>Requirements</h2><ul><li>Score both templates against <code>brightScene</code> with the same kernel</li><li>Finish <code>bestMatch</code>: scan for the <strong>largest</strong> score and return the window's top-left corner</li><li><code>console.log</code> the position found for <code>patch</code>, and the best score each template managed</li><li>For each template, <code>console.log</code> whether its best score clears <code>THRESHOLD</code> — one <code>true</code>, one <code>false</code></li></ul>
+<details><summary>Hint 1 — the scan</summary><p>Start from <code>-Infinity</code> and keep the larger:</p>
+<pre><code>let best = -Infinity;
+let bx = 0;
+let by = 0;
+for (let y = 0; y &lt; map.length; y++) {
+  for (let x = 0; x &lt; map[y].length; x++) {
+    if (map[y][x] &gt; best) {
+      best = map[y][x];
+      bx = x;
+      by = y;
+    }
+  }
+}</code></pre>
+<p><code>bx</code> and <code>by</code> are already the corner — no offset to add.</p></details>
+<details><summary>Hint 2 — the verdict</summary><p><code>prepare()</code> hands the kernel what task 4 built, so each report is
+            three lines:</p>
+<pre><code>const map = ncc(brightScene, t.centered, t.norm);
+const hit = bestMatch(map);
+console.log(label, hit.x, hit.y, hit.score,
+  hit.score &gt;= THRESHOLD);</code></pre></details>
+<h2>Same idea elsewhere</h2>Thresholding a similarity map is the last mile of nearly every classical
+        detector — Viola-Jones cascades, ORB and SIFT keypoint matching with Lowe's ratio test,
+        stereo correspondence rejecting low-confidence disparities — and it survives into modern
+        ones as the confidence score on every bounding box a neural network emits. The score tells
+        you which position is most like the template; only a threshold tells you whether the
+        template is there at all.
+<h2>All tasks in Template Matching</h2>
+<ol class="ssg-tasks"><li><a href="/learn/template-matching-f57b4bed/1">Score Every Position at Once</a></li><li><a href="/learn/template-matching-f57b4bed/2">The Score That Lies</a></li><li><a href="/learn/template-matching-f57b4bed/3">Normalize It</a></li><li><a href="/learn/template-matching-f57b4bed/4">Hoist What Never Changes</a></li><li><a href="/learn/template-matching-f57b4bed/5">Payoff: Present or Absent?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/template-matching-f57b4bed/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>No Scatter Allowed · Thinking in Parallel — GPU.js Learn</title>
     <meta name="description" content="Goal: rotate ring one slot to the right by gathering: each thread pulls the value that belongs in its cell.">
@@ -114,9 +114,71 @@
     <meta name="twitter:description" content="Goal: rotate ring one slot to the right by gathering: each thread pulls the value that belongs in its cell.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"No Scatter Allowed","description":"Goal: rotate ring one slot to the right by gathering: each thread pulls the value that belongs in its cell.","url":"https://gpu.rocks/learn/thinking-in-parallel-c3876efb/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Thinking in Parallel","url":"https://gpu.rocks/learn/thinking-in-parallel-c3876efb","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/thinking-in-parallel-c3876efb/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/thinking-in-parallel-c3876efb">Thinking in Parallel</a></nav>
+<p class="ssg-eyebrow">Task 3 of 6</p>
+<h1>No Scatter Allowed</h1>
+<p>Here's the rule that shapes gpu.js kernels (and any fragment shader): a thread
+        can read anywhere but can only write <strong>one place — its own cell</strong>, via
+        <code>return</code>. There is no <code>out[i + 1] = value</code> here, because 4096
+        simultaneous writers into shared cells would be chaos (who wins? in what order?).</p>
+        <p>So the "push my value over there" plan — a <strong>scatter</strong> — must be turned
+        inside out. Don't ask <em>"where does my value go?"</em>; ask
+        <em>"whose value lands in <strong>my</strong> cell?"</em> — a gather. Try it on a rotation:
+        every value moves one slot to the <em>right</em>, and the last wraps around to slot 0.</p>
+<figure><figcaption>you can't push results to neighbours — pull what you need instead</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> rotate <code>ring</code> one slot to the right by gathering:
+        each thread pulls the value that belongs in its cell.</div>
+
+<h2>Requirements</h2><ul><li>No writes to other cells — express the shift purely as a read</li><li>Thread <code>i</code> pulls from index <code>i − 1</code></li><li>Thread 0 wraps around and pulls the <em>last</em> element</li></ul>
+<details><summary>Hint 1 — invert the direction</summary><p>If every value moves right by one, then the value in <em>my</em> cell came
+            from my <em>left</em>: index <code>this.thread.x - 1</code>. The starter currently
+            pulls from the right — that rotates the wrong way.</p></details>
+<details><summary>Hint 2 — wrapping without an if</summary><p>Adding <code>n</code> before the modulo keeps the index positive:</p>
+<pre><code>(this.thread.x - 1 + this.constants.n) % this.constants.n</code></pre>
+<p>That turns <code>-1</code> into <code>63</code> and leaves 1…63 alone.</p></details>
+<h2>Same idea elsewhere</h2>Compute APIs relax this ban: CUDA, WebGPU and ROCm threads <em>can</em> store to
+        any buffer address (scatter), and neighbours in a block cooperate through workgroup
+        memory. But two threads storing to the <em>same</em> address is still a data race, and
+        the escape hatch — atomics like <code>atomicAdd</code> — serializes threads and costs
+        dearly. That's why GPU folklore compresses this lesson into four words:
+        <em>turn scatter into gather</em>.
+<h2>All tasks in Thinking in Parallel</h2>
+<ol class="ssg-tasks"><li><a href="/learn/thinking-in-parallel-c3876efb/1">Map: One Thread, One Value</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/2">Gather: Read Anywhere</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/3">No Scatter Allowed</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/4">Life on the Edge</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/5">Smooth a Signal</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/6">The Two-Pass Blur</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/thinking-in-parallel-c3876efb/2">← previous task</a> · <a href="/learn/thinking-in-parallel-c3876efb/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

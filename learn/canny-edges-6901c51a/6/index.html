@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Five Stages, Zero Round Trips · The Canny Edge Pipeline — GPU.js Learn</title>
     <meta name="description" content="Goal: make every stage but the last a pipeline kernel, give the hysteresis kernel immutable: true so it can eat its own output, and wire the nine stages into…">
@@ -114,9 +114,133 @@
     <meta name="twitter:description" content="Goal: make every stage but the last a pipeline kernel, give the hysteresis kernel immutable: true so it can eat its own output, and wire the nine stages into…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: Five Stages, Zero Round Trips","description":"Goal: make every stage but the last a pipeline kernel, give the hysteresis kernel immutable: true so it can eat its own output, and wire the nine stages into…","url":"https://gpu.rocks/learn/canny-edges-6901c51a/6","position":6,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The Canny Edge Pipeline","url":"https://gpu.rocks/learn/canny-edges-6901c51a","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/canny-edges-6901c51a/6.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/canny-edges-6901c51a">The Canny Edge Pipeline</a></nav>
+<p class="ssg-eyebrow">Task 6 of 6</p>
+<h1>Payoff: Five Stages, Zero Round Trips</h1>
+<p>Everything you have written, in one chain, on a real 384×384 photo:
+        <strong>luminance → blur<sub>x</sub> → blur<sub>y</sub> → magnitude + direction →
+        suppression → threshold → hysteresis → edges</strong>. Nine kernel objects, and with the
+        64 hysteresis passes, <strong>72 launches</strong> per image.</p>
+        <p>That launch count is the point. Without <code>pipeline: true</code>, every one of those
+        stages ends with a full download to JavaScript and the next one begins with a full upload:
+        384×384 floats, 576 KB, crossing the bus twice per
+        stage — <strong>144 transfers</strong> and
+        81 MB of traffic to produce
+        one edge map. With pipelines it is two: the photo goes up, the edge map comes down, and the
+        71 intermediates never leave the card. Pipelines &amp; Textures taught the
+        mechanism on a three-stage chain; this is the chain long enough to make the arithmetic
+        obvious.</p>
+        <p>And at this size the stopwatch finally agrees with the arithmetic. Press
+        <strong>Run</strong>: the console reports the whole thing — nine kernels compiled,
+        72 launches, one edge map counted — in about <strong>45 ms</strong> on the
+        laptop GPU these notes were measured on. Now delete the eight <code>pipeline: true</code>
+        flags, so that every stage hands its result back to JavaScript and the next one uploads it
+        again, and run it once more: about <strong>120 ms</strong>. Same kernels, same arithmetic,
+        same 72 launches — the extra 75 ms is bus traffic and nothing else. (Both
+        figures carry roughly 35 ms of one-time shader compilation. Time the chain on its own,
+        without that, and it is <strong>10 ms pipelined against 70 ms round-tripping</strong> — a
+        clean seven times.) Eight deletions and two clicks: run that experiment rather than take
+        this paragraph's word for it.</p>
+        <p><strong>Benchmark</strong> agrees from the other direction, reporting the GPU
+        <strong>7–8× faster</strong> than the CPU backend here — roughly 2 ms against 15 ms. Know
+        what that button does before you quote it, though: it replays each of the nine kernels
+        <em>once</em> with the arguments it last received, so your 64-pass hysteresis loop
+        collapses into a single call, and it drains the pipeline once at the end rather than after
+        every stage. It times one pass of the chain, not the whole of it — which is why its
+        milliseconds and your console's are different sizes.</p>
+        <p>One honest footnote, because none of that holds at every size. Shrink the photo to
+        96×96 and the same chain measures 3.2 ms on the GPU against 2.0 ms on the CPU — the CPU
+        wins outright, because 24 launches over 9,216 threads is nowhere near enough work per
+        launch to pay for the driver overhead of making them. The transfer arithmetic is just as
+        true down there; it simply has nothing to show for itself. Launch overhead swamping small
+        work is a real effect, and Measuring Speed Honestly makes a whole meal of it — it is just
+        not the ending this particular chain deserves.</p>
+        <p>The hysteresis loop changes shape here, and honestly so. In task 5 you looped until a
+        pass changed nothing — which you could only know by reading the state back and comparing
+        it. On a pipeline that readback is the very thing you are trying to avoid, so this version
+        runs a <strong>fixed 64 passes</strong> and never asks. This photo settles after 59;
+        the last five do nothing, and you pay for them anyway. A fixed count has to cover the worst
+        photo you will be handed rather than this one — the second photo the tests use needs 56.
+        That is the deal.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+
+<div class="ssg-goal"><strong>Goal:</strong> make every stage but the last a pipeline kernel, give the
+        hysteresis kernel <code>immutable: true</code> so it can eat its own output, and wire the
+        nine stages into a chain that runs <code>grow</code> 64 times.</div>
+
+<h2>Requirements</h2><ul><li>Add <code>pipeline: true</code> to all eight intermediate kernels; leave <code>finish</code> plain — its return <em>is</em> the one readback you want</li><li>Add <code>immutable: true</code> to <code>grow</code>, which reads the texture it is writing</li><li>Feed <code>magnitude</code> and <code>direction</code> the <strong>smoothed</strong> map, not the raw luminance</li><li>Run <code>grow</code> exactly <code>PASSES</code> times, then log <code>console.log('edge pixels:', count)</code></li></ul>
+<details><summary>Hint 1 — the chain, stage by stage</summary><pre><code>const gray = luminance(photo);
+const smooth = blurY(blurX(gray));
+const thin = suppress(magnitude(smooth), direction(smooth));
+let state = classify(thin);
+for (let i = 0; i &lt; PASSES; i++) {
+  state = grow(state);
+}
+const edges = finish(state);</code></pre>
+<p>Both gradient kernels read <em>smooth</em>. Handing them <code>gray</code> instead is
+            the starter's first deliberate mistake, and it puts the noise straight back in.</p></details>
+<details><summary>Hint 2 — which flags, where</summary><p><code>pipeline: true</code> on <code>luminance</code>, <code>blurX</code>,
+            <code>blurY</code>, <code>magnitude</code>, <code>direction</code>,
+            <code>suppress</code>, <code>classify</code> and <code>grow</code>. Additionally
+            <code>immutable: true</code> on <code>grow</code> — without it gpu.js refuses the
+            feedback loop with <em>"Source and destination … are the same"</em>, because a
+            recycled output texture is the same storage the kernel is reading.</p></details>
+<details><summary>Hint 3 — reading the answer back</summary><p><code>finish</code> stays a plain kernel, so its result is already a normal
+            2D array — no <code>.toArray()</code> needed. Count the ones with an ordinary
+            JavaScript double loop and log the total.</p></details>
+<h2>Same idea elsewhere</h2>A named chain of passes with explicit dependencies and every intermediate
+        resident on the device is what engine programmers call a render graph, or a frame graph:
+        Frostbite's, Unreal's, and — in compute form — CUDA Graphs, where an entire launch chain
+        is recorded once and replayed with a single API call precisely because 72
+        individual launches carry 72 lots of driver overhead. WebGPU encodes the same
+        idea into one command buffer. The lesson does not change with the spelling: a pipeline is
+        fast when the data never comes home.
+<h2>All tasks in The Canny Edge Pipeline</h2>
+<ol class="ssg-tasks"><li><a href="/learn/canny-edges-6901c51a/1">Blur First: a Separable Gaussian</a></li><li><a href="/learn/canny-edges-6901c51a/2">Magnitude, and the Angle Nobody Mentions</a></li><li><a href="/learn/canny-edges-6901c51a/3">Non-Maximum Suppression</a></li><li><a href="/learn/canny-edges-6901c51a/4">Strong, Weak, Gone</a></li><li><a href="/learn/canny-edges-6901c51a/5">Hysteresis: Run It Until Nothing Changes</a></li><li><a href="/learn/canny-edges-6901c51a/6">Payoff: Five Stages, Zero Round Trips</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/canny-edges-6901c51a/5">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

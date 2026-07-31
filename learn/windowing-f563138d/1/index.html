@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>A Tone the Window Does Not Fit · Windowing &amp; Spectral Leakage — GPU.js Learn</title>
     <meta name="description" content="Goal: write the magnitude kernel, then log for each signal its peak amplitude and how many of bins 0…128 carry more than 1% of the peak.">
@@ -114,9 +114,90 @@
     <meta name="twitter:description" content="Goal: write the magnitude kernel, then log for each signal its peak amplitude and how many of bins 0…128 carry more than 1% of the peak.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"A Tone the Window Does Not Fit","description":"Goal: write the magnitude kernel, then log for each signal its peak amplitude and how many of bins 0…128 carry more than 1% of the peak.","url":"https://gpu.rocks/learn/windowing-f563138d/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Windowing & Spectral Leakage","url":"https://gpu.rocks/learn/windowing-f563138d","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/windowing-f563138d/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/windowing-f563138d">Windowing &amp; Spectral Leakage</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>A Tone the Window Does Not Fit</h1>
+<p>Two tones, same amplitude, same length, the same 256-sample window. One
+        difference: <code>onBin</code> completes exactly <strong>8</strong> cycles inside the
+        window and <code>offBin</code> completes <strong>8.5</strong>. Transform both and one
+        comes back as a single clean spike, while the other smears across the whole spectrum
+        with a peak <em>lower</em> than the amplitude actually in the signal. That smear is
+        <strong>spectral leakage</strong>, and this module exists so that it never fools
+        you.</p>
+        <p>The transform is written for you below — it is the naive DFT, and it follows this
+        track's convention for complex numbers. gpu.js has no complex type, so a spectrum is
+        <strong>two planes of floats</strong>: <code>output: [n, 2]</code>, indexed
+        <code>result[p][k]</code>, where plane <code>p = 0</code> holds the real part of bin
+        <code>k</code> and plane <code>p = 1</code> the imaginary part. (A 2D output
+        <code>[w, h]</code> is indexed <code>[y][x]</code>, so <code>[n, 2]</code> is exactly
+        <code>[plane][bin]</code>.) Your job is the pass after it: one thread per bin, turning
+        two planes into one magnitude.</p>
+        <p>Then measure both tones rather than taking my word for it. Two numbers each: the
+        peak <strong>amplitude</strong> — a real cosine of amplitude <em>A</em> splits its
+        energy between bin <em>k</em> and its mirror above Nyquist, so
+        <code>A = 2·|X| / n</code> — and how many of the 129 bins up to Nyquist hold more than
+        1% of that peak.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> write the magnitude kernel, then log for each signal its
+        peak amplitude and how many of bins 0…128 carry more than 1% of the peak.</div>
+
+<h2>Requirements</h2><ul><li>Create <code>magnitude</code> with <code>output: [256]</code> — one thread per bin</li><li>Read both planes of your own bin: <code>spec[0][this.thread.x]</code> and <code>spec[1][this.thread.x]</code></li><li>Return <code>Math.sqrt(re * re + im * im)</code></li><li>Log one line per signal, labelled <code>onBin</code> / <code>offBin</code>, carrying the amplitude <code>2 * peak / 256</code> and the busy-bin count</li></ul>
+<details><summary>Hint 1 — which bin is mine?</summary><p>With <code>output: [256]</code> there are 256 threads and
+            <code>this.thread.x</code> is the bin number. The spectrum handed in is two rows:
+            row 0 is every bin's real part, row 1 is every bin's imaginary part. So your own
+            bin's two halves are <code>spec[0][this.thread.x]</code> and
+            <code>spec[1][this.thread.x]</code>.</p></details>
+<details><summary>Hint 2 — the kernel body</summary><pre><code>const re = spec[0][this.thread.x];
+const im = spec[1][this.thread.x];
+return Math.sqrt(re * re + im * im);</code></pre></details>
+<details><summary>Hint 3 — the measuring, in plain JavaScript</summary><p>Only bins 0…128 matter: above Nyquist the spectrum of a real signal is
+            just the mirror image.</p>
+<pre><code>let peak = 0;
+for (let k = 0; k &lt;= 128; k++) if (mag[k] &gt; peak) peak = mag[k];
+let busy = 0;
+for (let k = 0; k &lt;= 128; k++) if (mag[k] &gt; 0.01 * peak) busy++;</code></pre></details>
+<h2>Same idea elsewhere</h2>Split real/imaginary planes are how every serious FFT ships: cuFFT and rocFFT
+        expose both interleaved (<code>cufftComplex</code>) and planar layouts, WebGPU compute
+        pipelines almost always pick planar because a storage buffer of <code>f32</code> is
+        what the hardware wants, and the magnitude pass you just wrote is one
+        <code>length()</code> call in WGSL or HLSL.
+<h2>All tasks in Windowing &amp; Spectral Leakage</h2>
+<ol class="ssg-tasks"><li><a href="/learn/windowing-f563138d/1">A Tone the Window Does Not Fit</a></li><li><a href="/learn/windowing-f563138d/2">What the Transform Actually Sees</a></li><li><a href="/learn/windowing-f563138d/3">Taper the Edges</a></li><li><a href="/learn/windowing-f563138d/4">Measure the Trade</a></li><li><a href="/learn/windowing-f563138d/5">Give the Amplitude Back</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/windowing-f563138d/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Aperture Problem · Optical Flow — GPU.js Learn</title>
     <meta name="description" content="Goal: compute the normal flow for every pixel — plane 0 is u , plane 1 is v — and watch it fail to find a motion you know exactly.">
@@ -114,9 +114,80 @@
     <meta name="twitter:description" content="Goal: compute the normal flow for every pixel — plane 0 is u , plane 1 is v — and watch it fail to find a motion you know exactly.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Aperture Problem","description":"Goal: compute the normal flow for every pixel — plane 0 is u , plane 1 is v — and watch it fail to find a motion you know exactly.","url":"https://gpu.rocks/learn/optical-flow-e85c6dfa/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Optical Flow","url":"https://gpu.rocks/learn/optical-flow-e85c6dfa","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/optical-flow-e85c6dfa/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/optical-flow-e85c6dfa">Optical Flow</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>The Aperture Problem</h1>
+<p>One equation, two unknowns, is not "nearly enough information". It is a
+        <strong>line</strong> of answers. <code>Ix·u + Iy·v + It = 0</code> is the equation of a
+        straight line in the <code>(u, v)</code> plane, and every point on it fits this pixel's
+        evidence equally well. Looking harder at the pixel will not narrow it down; the information
+        is not there.</p>
+        <p>What <em>is</em> there is the component of the motion <strong>along the gradient</strong>.
+        Perpendicular to the gradient the intensity does not change, so sliding that way is
+        invisible. Pick the shortest vector on the line and you get the <strong>normal flow</strong>:</p>
+<pre><code>u = −It · Ix / (Ix² + Iy²)
+v = −It · Iy / (Ix² + Iy²)</code></pre>
+        <p><code>derivs</code> here comes from a pair you can check by hand. The scene is a sawtooth
+        ramp climbing 12 levels per step along the <code>(1, 1)</code> diagonal — so every edge in it
+        runs anti-diagonally — and frame 2 is that scene moved <strong>4 pixels to the right and 0
+        down</strong>. You know the answer. The pixel does not, and cannot.</p>
+<figure><figcaption>the window cannot tell these apart — only the across-the-edge part is real — An anti-diagonal edge seen through a small circular aperture. The true motion arrow points right; the only recoverable component points down-right, at right angles to the edge. A dashed line through both arrowheads marks the whole family of motions that fit the same evidence.</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> compute the normal flow for every pixel — plane 0 is
+        <code>u</code>, plane 1 is <code>v</code> — and watch it fail to find a motion you know
+        exactly.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>output: [64, 64, 2]</code>: plane 0 is <code>u</code>, plane 1 is <code>v</code></li><li>Read this pixel's three derivatives from <code>derivs[0][y][x]</code>, <code>derivs[1][y][x]</code>, <code>derivs[2][y][x]</code></li><li>Return <code>-It * Ix / (Ix*Ix + Iy*Iy)</code> for plane 0 and <code>-It * Iy / (Ix*Ix + Iy*Iy)</code> for plane 1</li><li><strong>Sign convention:</strong> <code>(u, v)</code> is where the content <em>went</em>, in pixels per frame — positive <code>u</code> is rightward, positive <code>v</code> is downward. That is the sign that makes <code>Ix·u + Iy·v + It</code> come out zero</li></ul>
+<details><summary>Hint 1 — one pixel, no neighbours</summary><p>Nothing is gathered here: thread <code>(x, y)</code> reads exactly three numbers
+            and returns one. The whole body fits in six lines.</p></details>
+<details><summary>Hint 2 — name the squared gradient once</summary><pre><code>const ix = derivs[0][y][x];
+const iy = derivs[1][y][x];
+const it = derivs[2][y][x];
+const g = ix * ix + iy * iy;</code></pre>
+          <p>then plane 0 returns <code>(-it * ix) / g</code> and plane 1 returns
+            <code>(-it * iy) / g</code>. This pair has a gradient at every pixel, so no guard is
+            needed yet — task 3 is where that stops being true.</p></details>
+<h2>Same idea elsewhere</h2>Normal flow is not a toy: it is what a single-pixel constraint can honestly give
+        you, and it is the per-thread starting point every dense-flow implementation refines —
+        CUDA's <code>NVOF</code> optical-flow engine, OpenCV's <code>calcOpticalFlowFarneback</code>,
+        the motion-vector passes inside DLSS and FSR. All of them add an assumption on top; none of
+        them can conjure the missing component out of one pixel.
+<h2>All tasks in Optical Flow</h2>
+<ol class="ssg-tasks"><li><a href="/learn/optical-flow-e85c6dfa/1">One Equation, Two Unknowns</a></li><li><a href="/learn/optical-flow-e85c6dfa/2">The Aperture Problem</a></li><li><a href="/learn/optical-flow-e85c6dfa/3">Lucas–Kanade: Buy a Second Equation</a></li><li><a href="/learn/optical-flow-e85c6dfa/4">Which Answers to Believe</a></li><li><a href="/learn/optical-flow-e85c6dfa/5">Paint the Flow Field</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/optical-flow-e85c6dfa/1">← previous task</a> · <a href="/learn/optical-flow-e85c6dfa/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Feedback Loops: immutable Textures · Pipelines &amp; Textures — GPU.js Learn</title>
     <meta name="description" content="Goal: make the feedback loop legal — the step kernel needs immutable: true — and run 12 diffusion steps without the heat ever visiting JavaScript.">
@@ -114,9 +114,78 @@
     <meta name="twitter:description" content="Goal: make the feedback loop legal — the step kernel needs immutable: true — and run 12 diffusion steps without the heat ever visiting JavaScript.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Feedback Loops: immutable Textures","description":"Goal: make the feedback loop legal — the step kernel needs immutable: true — and run 12 diffusion steps without the heat ever visiting JavaScript.","url":"https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Pipelines & Textures","url":"https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/pipelines-and-textures-9f4aeaa5">Pipelines &amp; Textures</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Feedback Loops: immutable Textures</h1>
+<p>Simulations don't run once — they <strong>step</strong>: the output of step
+        <em>n</em> is the input of step <em>n</em>+1. With pipelines that means feeding a
+        kernel its own texture back. Try it naively and gpu.js stops you cold:
+        <em>"Source and destination … are the same. Use immutable = true"</em> — the kernel
+        would be reading the very texture it's writing to.</p>
+        <p><code>immutable: true</code> is the fix: each call renders to a <em>fresh</em>
+        texture instead of recycling one, so last step's output is safe to read while this
+        step writes. (In long-running sims you'd call <code>texture.delete()</code> on old
+        steps to recycle their memory — at 128 cells here, we'll let them slide.)</p>
+        <p>Below is a 1D heat field: 128 cells, all cold except one hot spike. One diffusion
+        step moves each cell toward its neighbours. Twelve steps stay entirely on the GPU —
+        one upload at the start, one download at the end.</p>
+<figure><figcaption>immutable: true — a fresh texture per step makes feedback legal</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> make the feedback loop legal — the <code>step</code> kernel
+        needs <code>immutable: true</code> — and run 12 diffusion steps without the heat ever
+        visiting JavaScript.</div>
+
+<h2>Requirements</h2><ul><li>Add <code>immutable: true</code> to the <code>step</code> kernel (keep <code>pipeline: true</code>)</li><li>Keep the loop feeding <code>step</code>'s output straight back in — no readbacks inside it</li><li>After 12 steps, download once and log the peak at cell 64</li></ul>
+<details><summary>Hint 1 — read the error message</summary><p>Run the starter as-is. The error names both the crime and the sentence:
+            the kernel's input and output are the same storage, and <code>immutable = true</code>
+            is the fix. gpu.js error messages are unusually honest.</p></details>
+<details><summary>Hint 2 — why upload() exists</summary><p>The tiny <code>upload</code> kernel copies the seed array into a texture
+            once, so <code>step</code> always sees texture inputs from its very first call.
+            Keeping argument types stable means the kernel compiles exactly once.</p></details>
+<details><summary>Hint 3 — the one-word diff</summary><p>In <code>step</code>'s settings:</p>
+<pre><code>{ output: [128], pipeline: true, immutable: true }</code></pre>
+<p>The loop is already correct.</p></details>
+<h2>Same idea elsewhere</h2>Every GPU API solves read-write hazards the same way gpu.js just made you do:
+        ping-pong buffering. WebGPU compute passes swap two storage buffers each dispatch,
+        CUDA stencil codes swap <code>in</code>/<code>out</code> device pointers, Metal
+        simulations flip between two textures. <code>immutable: true</code> is ping-ponging
+        with the bookkeeping done for you.
+<h2>All tasks in Pipelines &amp; Textures</h2>
+<ol class="ssg-tasks"><li><a href="/learn/pipelines-and-textures-9f4aeaa5/1">Flip On the Pipeline</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/2">Chain Kernels, Skip the Round Trip</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/3">toArray() Is a Tollbooth</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/4">Feedback Loops: immutable Textures</a></li><li><a href="/learn/pipelines-and-textures-9f4aeaa5/5">The Payoff: Photo to Screen, Zero Readbacks</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/pipelines-and-textures-9f4aeaa5/3">← previous task</a> · <a href="/learn/pipelines-and-textures-9f4aeaa5/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

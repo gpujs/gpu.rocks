@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Two-Pass Blur · Thinking in Parallel — GPU.js Learn</title>
     <meta name="description" content="Goal: finish both kernels — blurX averages each cell with its left/right neighbors, blurY with its up/down neighbors — edges clamped, so the composition…">
@@ -114,9 +114,75 @@
     <meta name="twitter:description" content="Goal: finish both kernels — blurX averages each cell with its left/right neighbors, blurY with its up/down neighbors — edges clamped, so the composition…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Two-Pass Blur","description":"Goal: finish both kernels — blurX averages each cell with its left/right neighbors, blurY with its up/down neighbors — edges clamped, so the composition…","url":"https://gpu.rocks/learn/thinking-in-parallel-c3876efb/6","position":6,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Thinking in Parallel","url":"https://gpu.rocks/learn/thinking-in-parallel-c3876efb","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/thinking-in-parallel-c3876efb/6.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/thinking-in-parallel-c3876efb">Thinking in Parallel</a></nav>
+<p class="ssg-eyebrow">Task 6 of 6</p>
+<h1>The Two-Pass Blur</h1>
+<p>The payoff. A 3×3 box blur of a 2D grid needs nine reads per cell — but the box
+        blur is <strong>separable</strong>: blurring horizontally and then blurring that result
+        vertically gives the <em>identical</em> answer with just three reads per cell per pass.
+        Bigger blurs win bigger: a 9×9 blur drops from 81 reads to 18.</p>
+        <p>This is also how you design around the no-communication rule at scale: since threads
+        can't share work <em>within</em> a pass, you split the algorithm into passes — each pass
+        a clean parallel gather, each handoff a finished grid. Kernel one blurs along
+        <code>x</code>; its output feeds kernel two, which blurs along <code>y</code>. Both are
+        3-tap clamped stencils — task 5, twice, at right angles.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> finish both kernels — <code>blurX</code> averages each cell
+        with its left/right neighbors, <code>blurY</code> with its up/down neighbors — edges
+        clamped, so the composition equals a full 3×3 box blur.</div>
+
+<h2>Requirements</h2><ul><li><code>blurX</code>: 3-tap average along the row — clamp <code>x + d − 1</code>, read <code>grid[this.thread.y][j]</code></li><li><code>blurY</code>: 3-tap average down the column — clamp <code>y + d − 1</code>, read <code>grid[j][this.thread.x]</code></li><li>Both kernels divide their sum by <code>3</code></li><li>Feed <code>blurX</code>'s output into <code>blurY</code> (already wired up)</li></ul>
+<details><summary>Hint 1 — task 5, rotated</summary><p>Each kernel is the moving-average pattern with a 3-wide window. The only new
+            move: in 2D you clamp the coordinate along the blur axis and keep the other
+            coordinate fixed.</p></details>
+<details><summary>Hint 2 — the x pass</summary><pre><code>for (let d = 0; d &lt; 3; d++) {
+  const j = Math.max(0, Math.min(this.constants.n - 1, this.thread.x + d - 1));
+  sum += grid[this.thread.y][j];
+}
+return sum / 3;</code></pre>
+<p>The y pass swaps which coordinate is clamped: <code>grid[j][this.thread.x]</code>.</p></details>
+<h2>Same idea elsewhere</h2>Separable filtering is a classic GPU optimization you'll meet everywhere: game
+        engines render Gaussian blurs as two fullscreen passes, WebGPU and Metal chain compute
+        encoder passes the same way, and CUDA image pipelines launch one kernel per axis. Two
+        cheap 1D passes beating one fat 2D pass — O(k) taps instead of O(k²) — never stops
+        being true.
+<h2>All tasks in Thinking in Parallel</h2>
+<ol class="ssg-tasks"><li><a href="/learn/thinking-in-parallel-c3876efb/1">Map: One Thread, One Value</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/2">Gather: Read Anywhere</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/3">No Scatter Allowed</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/4">Life on the Edge</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/5">Smooth a Signal</a></li><li><a href="/learn/thinking-in-parallel-c3876efb/6">The Two-Pass Blur</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/thinking-in-parallel-c3876efb/5">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

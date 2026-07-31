@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>A Tone Buried in Noise · Filtering in the Frequency Domain — GPU.js Learn</title>
     <meta name="description" content="Goal: finish gate so every bin quieter than this.constants.gate is zeroed on both planes, then read the two SNR figures off the console. Before is about 4.8…">
@@ -114,9 +114,98 @@
     <meta name="twitter:description" content="Goal: finish gate so every bin quieter than this.constants.gate is zeroed on both planes, then read the two SNR figures off the console. Before is about 4.8…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"A Tone Buried in Noise","description":"Goal: finish gate so every bin quieter than this.constants.gate is zeroed on both planes, then read the two SNR figures off the console. Before is about 4.8…","url":"https://gpu.rocks/learn/frequency-filtering-8c225e10/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Filtering in the Frequency Domain","url":"https://gpu.rocks/learn/frequency-filtering-8c225e10","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/frequency-filtering-8c225e10/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/frequency-filtering-8c225e10">Filtering in the Frequency Domain</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>A Tone Buried in Noise</h1>
+<p>Noise is broadband; a tone is not. In the time domain they are hopelessly mixed —
+        <code>noisy</code> looks like grass. In the frequency domain they come apart: three tones
+        put nearly all their energy into three bins, while the noise spreads its energy thinly over
+        all 256. Concentration versus dilution is the entire trick, and it is the best argument
+        anyone has ever made for paying the cost of a transform.</p>
+        <p>The numbers here: the three tones land at magnitudes <strong>124</strong>,
+        <strong>71</strong> and <strong>42</strong>, and the loudest noise bin reaches
+        <strong>19.5</strong>. Anything between about 22 and 40 separates them; the gate is set to
+        <strong>30</strong>, comfortably in the middle of that gap.</p>
+        <p>A convenience falls out of the conjugate symmetry that made task 2 painful. Bin
+        <code>k</code> and bin <code>n − k</code> are conjugates, and conjugates have
+        <em>equal magnitude</em> — so a gate that reads magnitude keeps or drops both mirrors
+        together, automatically, and the result comes back real without you doing anything about
+        it. Magnitude needs both planes though:</p>
+<pre><code>const mag = Math.sqrt(re * re + im * im);</code></pre>
+        <p>The starter gates on <code>Math.abs(re)</code> alone, which throws away any tone whose
+        energy happens to sit in the imaginary part. Run it and watch the SNR go the wrong way.</p>
+        <p>You are given <code>clean</code> as well as <code>noisy</code> — you would not have it
+        in real life, and that is the point: it is here so the improvement can be a number instead
+        of an impression.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> finish <code>gate</code> so every bin quieter than
+        <code>this.constants.gate</code> is zeroed on both planes, then read the two SNR figures
+        off the console. Before is about <strong>4.8 dB</strong>; after should be over
+        <strong>20 dB</strong>.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>output: [256, 2]</code>; the spectrum arrives as <code>spec[0][k]</code> / <code>spec[1][k]</code></li><li>Compute the bin's magnitude from <strong>both</strong> planes: <code>Math.sqrt(re * re + im * im)</code></li><li>Return <code>0</code> on both planes when that magnitude is below <code>this.constants.gate</code>; otherwise pass the bin through unchanged</li><li>Do not fold the index and do not special-case the mirrors — equal magnitudes take care of them</li></ul>
+<details><summary>Hint 1 — read both planes, decide once</summary><p>Every thread of a bin has to reach the same verdict, so read both planes
+            whichever one you are on:</p>
+<pre><code>const k = this.thread.x;
+const re = spec[0][k];
+const im = spec[1][k];
+const mag = Math.sqrt(re * re + im * im);
+if (mag &lt; this.constants.gate) return 0;</code></pre>
+          <p>Dropping the <code>Math.sqrt</code> and comparing <code>re*re + im*im</code> against
+            30 is not the same test — it is a gate at magnitude 5.5, and 171 of the 256 bins
+            clear it.</p></details>
+<details><summary>Hint 2 — the SNR arithmetic</summary><p>Signal-to-noise in dB is ten times the log of a power ratio: the clean
+            signal's energy over the energy of whatever you got wrong.</p>
+<pre><code>let signal = 0;
+let error = 0;
+for (let i = 0; i &lt; 256; i++) {
+  signal += clean[i] * clean[i];
+  error += (test[i] - clean[i]) * (test[i] - clean[i]);
+}
+const db = 10 * Math.log10(signal / error);</code></pre></details>
+<h2>Same idea elsewhere</h2>Spectral gating is the backbone of noise reduction: Audacity's Noise Reduction,
+        RNNoise, and the "spectral subtraction" every phone applies to your voice are all this idea
+        with a smarter threshold — estimated per band, from a stretch of silence, instead of one
+        number. The same shape reappears as thresholding in wavelet denoising, and as top-k pruning
+        of a weight matrix. Keeping the few coefficients that carry the energy is one idea wearing
+        several hats.
+<h2>All tasks in Filtering in the Frequency Domain</h2>
+<ol class="ssg-tasks"><li><a href="/learn/frequency-filtering-8c225e10/1">Convolution Becomes Multiplication</a></li><li><a href="/learn/frequency-filtering-8c225e10/2">The Brick Wall Rings</a></li><li><a href="/learn/frequency-filtering-8c225e10/3">Trade the Ringing for a Softer Edge</a></li><li><a href="/learn/frequency-filtering-8c225e10/4">A Tone Buried in Noise</a></li><li><a href="/learn/frequency-filtering-8c225e10/5">Multiplying Spectra Convolves in a Circle</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/frequency-filtering-8c225e10/3">← previous task</a> · <a href="/learn/frequency-filtering-8c225e10/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

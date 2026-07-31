@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Select by Colour · Colour Spaces — GPU.js Learn</title>
     <meta name="description" content="Goal: finish hsvMask — 1 for pixels within this.constants.tol degrees of this.constants.target on the wheel and at least this.constants.minSat saturated, 0…">
@@ -114,9 +114,98 @@
     <meta name="twitter:description" content="Goal: finish hsvMask — 1 for pixels within this.constants.tol degrees of this.constants.target on the wheel and at least this.constants.minSat saturated, 0…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Select by Colour","description":"Goal: finish hsvMask — 1 for pixels within this.constants.tol degrees of this.constants.target on the wheel and at least this.constants.minSat saturated, 0…","url":"https://gpu.rocks/learn/colour-spaces-8d79c6af/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Colour Spaces","url":"https://gpu.rocks/learn/colour-spaces-8d79c6af","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/colour-spaces-8d79c6af/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/colour-spaces-8d79c6af">Colour Spaces</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Select by Colour</h1>
+<p>Here is the whole module's argument, in one exercise. You want every pixel of the red
+        ball in <code>frame</code> — all of it, top to bottom, shadow included.</p>
+        <p>In RGB that is a threshold on numbers that move when the light moves. "Red" comes out as
+        something like <code>r &gt; 0.5 and r − g &gt; 0.3</code>, and it works beautifully on the lit
+        top of the ball. Turn the light down and every one of those numbers falls with it, until the
+        test stops being true — for a pixel that is exactly as red as it ever was. That kernel is
+        written for you below, so you can watch it happen.</p>
+        <p>In HSV, brightness lives in V and nowhere else. Multiply a pixel's r, g and b by the same
+        factor and H and S do not move at all. So the test becomes "hue near red, saturated enough",
+        and the shadow costs you nothing. One wrinkle, and it is task 3's wrinkle: red sits at 0°, so
+        a 15° wedge around it runs from 345° up over the seam to 15°. <code>h &gt; 345 &amp;&amp; h
+        &lt; 15</code> is true for no angle whatsoever. Measure the distance <em>round the wheel</em>
+        instead.</p>
+        <div class="layout-note">
+  <b>Array layout in gpu.js</b>
+  <p>Image data comes in row-major: <code>image[y][x]</code> is the pixel in row <em>y</em>,
+    column <em>x</em>, and each pixel is an <code>[r, g, b, a]</code> array with channels from
+    0 to 1. Mind the inversion that catches everyone — sizes are given width-first
+    (<code>output: [width, height]</code>), but indexing runs row-first, so this thread's own
+    pixel is <code>image[this.thread.y][this.thread.x]</code>. Swap those two and you read the
+    transpose of your image. Three-dimensional data follows the same rule:
+    <code>output: [w, h, d]</code> is indexed <code>[z][y][x]</code>.</p>
+</div>
+<figure><figcaption>turn the light down and RGB loses the colour; HSV only loses the V</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> finish <code>hsvMask</code> — <code>1</code> for pixels within
+        <code>this.constants.tol</code> degrees of <code>this.constants.target</code> on the wheel
+        and at least <code>this.constants.minSat</code> saturated, <code>0</code> for everything
+        else — and log how many pixels each mask found.</div>
+
+<h2>Requirements</h2><ul><li>Fold <code>h − target</code> into <code>−180 … 180</code> before comparing — the wedge straddles 0°</li><li>Require <code>s &gt;= this.constants.minSat</code>: a pixel with no hue reports <code>-1</code>, which is one degree from red, and the saturation floor is what keeps it out</li><li>Return exactly <code>1</code> or <code>0</code>, nothing in between</li><li><code>console.log</code> both mask counts — the HSV one should find the whole ball, the RGB one only its lit half</li></ul>
+<details><summary>Hint 1 — distance round the wheel</summary><p>Exactly the fold from task 3, then drop the sign:</p>
+<pre><code>let d = h - this.constants.target;
+if (d &gt; 180) { d = d - 360; }
+if (d &lt; -180) { d = d + 360; }
+if (d &lt; 0) { d = -d; }</code></pre>
+          <p>Now <code>d</code> is a distance in degrees, 0 … 180, and it does not care where the
+            seam is.</p></details>
+<details><summary>Hint 2 — the test itself</summary><p>Two conditions, and both matter:</p>
+<pre><code>if (d &lt;= this.constants.tol &amp;&amp; s &gt;= this.constants.minSat) {
+  return 1;
+}
+return 0;</code></pre></details>
+<details><summary>Hint 3 — reading the counts</summary><p>Total each mask with a plain nested loop in JavaScript after the kernels have
+            run. The HSV count should be comfortably the larger — and the gap between them is the
+            part of the ball that RGB gave up on because a lamp was dimmer there.</p></details>
+<h2>Same idea elsewhere</h2>This is chroma keying, and the reason a green screen is <em>green</em>: it is the
+        channel a sensor samples most finely, and it is nowhere near skin. Real compositors go
+        further into spaces built for exactly this — YCbCr, or CIE L*a*b* — where the two
+        chromaticity axes are perpendicular to lightness by construction, so a key becomes a
+        distance in a plane rather than a wedge with a seam in it. On the GPU it stays what you just
+        wrote: one thread per pixel, no communication, and the mask is a texture the next pass
+        reads.
+<h2>All tasks in Colour Spaces</h2>
+<ol class="ssg-tasks"><li><a href="/learn/colour-spaces-8d79c6af/1">Three Greys, One Pixel</a></li><li><a href="/learn/colour-spaces-8d79c6af/2">Hue, Saturation, Value</a></li><li><a href="/learn/colour-spaces-8d79c6af/3">The Midpoint of 350° and 10°</a></li><li><a href="/learn/colour-spaces-8d79c6af/4">Select by Colour</a></li><li><a href="/learn/colour-spaces-8d79c6af/5">Payoff: What Colour Is This Picture?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/colour-spaces-8d79c6af/3">← previous task</a> · <a href="/learn/colour-spaces-8d79c6af/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

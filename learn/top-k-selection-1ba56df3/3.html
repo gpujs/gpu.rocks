@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Brightest Pixels · Top-K Selection — GPU.js Learn</title>
     <meta name="description" content="Goal: rank all 4,096 cells, then return the flat indices of the eight brightest, brightest first.">
@@ -114,9 +114,86 @@
     <meta name="twitter:description" content="Goal: rank all 4,096 cells, then return the flat indices of the eight brightest, brightest first.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Brightest Pixels","description":"Goal: rank all 4,096 cells, then return the flat indices of the eight brightest, brightest first.","url":"https://gpu.rocks/learn/top-k-selection-1ba56df3/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Top-K Selection","url":"https://gpu.rocks/learn/top-k-selection-1ba56df3","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/top-k-selection-1ba56df3/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/top-k-selection-1ba56df3">Top-K Selection</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>The Brightest Pixels</h1>
+<p>The same two moves, one dimension up. <code>brightness</code> is a 64×64 grid — a
+        sensor frame, a heat map, a saliency map — and the question is which eight cells are
+        brightest. Every thread now scans the grid with two loops instead of one, and "earlier in
+        the array" means earlier in <strong>row-major order</strong>: the flat index of cell
+        <code>[y][x]</code> is <code>y * 64 + x</code>. (Mind the inversion that catches everyone:
+        the launch shape is given width-first, <code>output: [64, 64]</code>, but indexing runs
+        row-first, <code>grid[this.thread.y][this.thread.x]</code>.)</p>
+        <p>The other change is what comes back. The eight brightest <em>values</em> are rarely what
+        anyone wants — you want to know <em>where</em> they are. So the picker returns the flat
+        index rather than the value, and JavaScript decodes it: <code>y = Math.floor(idx / 64)</code>,
+        <code>x = idx % 64</code>. Carry the index and you can always look the value back up; carry
+        the value and the location is gone for good.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> rank all 4,096 cells, then return the <strong>flat indices</strong>
+        of the eight brightest, brightest first.</div>
+
+<h2>Requirements</h2><ul><li>The ranking kernel is 2D — <code>output: [64, 64]</code>, two loops over the whole grid</li><li>Tie-break on the flat index <code>y * 64 + x</code>: an earlier cell wins a tie</li><li>The picker returns the flat <em>index</em> of the cell whose rank is <code>this.thread.x</code></li><li>The brightest cell's value, row and column are logged (already wired up)</li></ul>
+<details><summary>Hint 1 — the same rule, flattened</summary><p>Compute your own flat index once, before the loops:</p>
+<pre><code>const myIndex = this.thread.y * this.constants.size + this.thread.x;</code></pre>
+<p>Then compare each visited cell's flat index against it — that is exactly the
+            <code>j &lt; this.thread.x</code> test from task 1, in two dimensions.</p></details>
+<details><summary>Hint 2 — the ranking body</summary><pre><code>const other = grid[y][x];
+if (y * this.constants.size + x &lt; myIndex) {
+  if (other &gt;= mine) ahead++;
+} else if (other &gt; mine) {
+  ahead++;
+}</code></pre></details>
+<details><summary>Hint 3 — returning a location</summary><p>Track the coordinates as you scan and combine them at the end, so nothing has to
+            be pulled apart again:</p>
+<pre><code>if (ranks[y][x] === this.thread.x) {
+  foundY = y;
+  foundX = x;
+}</code></pre>
+<p>then <code>return foundY * this.constants.size + foundX;</code></p></details>
+<h2>Same idea elsewhere</h2>Finding the brightest few cells of a grid is the last step of a stack of real
+        pipelines: keypoint detection (SIFT/ORB pick local maxima of a response map), object
+        detectors ranking anchor boxes before non-max suppression, astronomy source extraction.
+        They all rank on the device and hand back <em>indices</em>, because the payload behind an
+        index is usually far bigger than a float — the same reason CUDA's
+        <code>cub::ArgMax</code> returns a <code>KeyValuePair</code> rather than a value.
+<h2>All tasks in Top-K Selection</h2>
+<ol class="ssg-tasks"><li><a href="/learn/top-k-selection-1ba56df3/1">Rank by Counting</a></li><li><a href="/learn/top-k-selection-1ba56df3/2">Gather the Winners</a></li><li><a href="/learn/top-k-selection-1ba56df3/3">The Brightest Pixels</a></li><li><a href="/learn/top-k-selection-1ba56df3/4">Find the Cutoff Instead</a></li><li><a href="/learn/top-k-selection-1ba56df3/5">Which One Wins?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/top-k-selection-1ba56df3/2">← previous task</a> · <a href="/learn/top-k-selection-1ba56df3/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

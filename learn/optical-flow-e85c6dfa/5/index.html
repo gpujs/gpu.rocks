@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Paint the Flow Field · Optical Flow — GPU.js Learn</title>
     <meta name="description" content="Goal: paint the flow field — hue from the vector's direction, saturation from its length.">
@@ -114,9 +114,79 @@
     <meta name="twitter:description" content="Goal: paint the flow field — hue from the vector's direction, saturation from its length.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Paint the Flow Field","description":"Goal: paint the flow field — hue from the vector's direction, saturation from its length.","url":"https://gpu.rocks/learn/optical-flow-e85c6dfa/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Optical Flow","url":"https://gpu.rocks/learn/optical-flow-e85c6dfa","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/optical-flow-e85c6dfa/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/optical-flow-e85c6dfa">Optical Flow</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Paint the Flow Field</h1>
+<p>A flow field is two numbers per pixel, and nobody can read that as a table. The
+        standard picture encodes it as colour: <strong>direction becomes hue</strong>, walking once
+        around the colour wheel as the vector turns once around the circle, and
+        <strong>magnitude becomes saturation</strong>, so a still pixel is white and a fast one is
+        vivid. Hue and saturation as an angle and a radius is the polar half of HSV — the same wheel
+        Colour Spaces works in — and here it costs one <code>Math.atan2</code>.</p>
+        <p><code>flow</code> is the field task 3 produced for this scene, handed to you finished:
+        <code>flow[0][y][x]</code> is <code>u</code> and <code>flow[1][y][x]</code> is
+        <code>v</code>. The hue→RGB conversion is written for you in the starter — it is six
+        straight lines around a hexagon, not the lesson. Your part is the encoding.</p>
+        <p>Watch what the picture tells you: the whole scene translated by <code>(1, 1)</code>, and
+        half of it comes out <strong>white</strong>. That is not a bug. Those are the pixels
+        task 4 scored zero, painted honestly as "no idea".</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> paint the flow field — hue from the vector's direction,
+        saturation from its length.</div>
+
+<h2>Requirements</h2><ul><li>A graphical kernel: <code>graphical: true</code>, <code>output: [64, 64]</code></li><li>Saturation: <code>s = Math.min(1, magnitude / this.constants.maxFlow)</code>, where magnitude is <code>Math.sqrt(u * u + v * v)</code></li><li>Hue: <code>hh = (Math.atan2(v, u) / (2 * Math.PI) + 0.5) * 6</code> — the sextant the direction lands in, from 0 to 6</li><li>Paint the hue blended toward white by <code>s</code>: <code>this.color(1 - s + s * r, 1 - s + s * g, 1 - s + s * b, 1)</code>, so a zero-length vector comes out pure white</li></ul>
+<details><summary>Hint 1 — why the + 0.5</summary><p><code>Math.atan2</code> returns an angle in <code>−π…π</code>. Dividing by
+            <code>2π</code> maps that to <code>−0.5…0.5</code>, and the <code>+ 0.5</code> slides it
+            to <code>0…1</code> without a branch or a modulo. Which direction gets which hue is
+            arbitrary; that the mapping is <em>one-to-one</em> is the part that matters.</p></details>
+<details><summary>Hint 2 — the two lines above the hexagon</summary><pre><code>const mag = Math.sqrt(u * u + v * v);
+const s = Math.min(1, mag / this.constants.maxFlow);
+const hh = (Math.atan2(v, u) / (2 * Math.PI) + 0.5) * 6;</code></pre>
+          <p>and the last line under it is the blend: <code>1 - s + s * r</code> is
+            <code>r</code> when <code>s</code> is 1 and white when <code>s</code> is 0.</p></details>
+<h2>Same idea elsewhere</h2>The Middlebury flow-colour wheel is this exact encoding, and it is what every
+        optical-flow paper prints. The pattern generalises: whenever a pass produces a vector per
+        pixel — normals, velocity, curvature — direction-to-hue keeps it readable, and it costs one
+        extra fragment/compute pass in WebGPU, CUDA or Metal alike. It is also the cheapest
+        debugging tool in graphics: a wrong sign in a flow field is invisible in a table and
+        blindingly obvious as a picture in the complementary colour.
+<h2>All tasks in Optical Flow</h2>
+<ol class="ssg-tasks"><li><a href="/learn/optical-flow-e85c6dfa/1">One Equation, Two Unknowns</a></li><li><a href="/learn/optical-flow-e85c6dfa/2">The Aperture Problem</a></li><li><a href="/learn/optical-flow-e85c6dfa/3">Lucas–Kanade: Buy a Second Equation</a></li><li><a href="/learn/optical-flow-e85c6dfa/4">Which Answers to Believe</a></li><li><a href="/learn/optical-flow-e85c6dfa/5">Paint the Flow Field</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/optical-flow-e85c6dfa/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

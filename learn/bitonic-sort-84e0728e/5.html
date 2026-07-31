@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Sort a Real Array · Bitonic Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: sort all 100 of values by padding up to a power of two, running the network, and dropping the padding — then log the smallest and largest of the real…">
@@ -114,9 +114,83 @@
     <meta name="twitter:description" content="Goal: sort all 100 of values by padding up to a power of two, running the network, and dropping the padding — then log the smallest and largest of the real…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: Sort a Real Array","description":"Goal: sort all 100 of values by padding up to a power of two, running the network, and dropping the padding — then log the smallest and largest of the real…","url":"https://gpu.rocks/learn/bitonic-sort-84e0728e/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Bitonic Sort","url":"https://gpu.rocks/learn/bitonic-sort-84e0728e","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/bitonic-sort-84e0728e/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/bitonic-sort-84e0728e">Bitonic Sort</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Payoff: Sort a Real Array</h1>
+<p>One constraint has been quietly true all along: <strong>n must be a power of
+        two</strong>. Every thread's partner is its index with one bit flipped, and that only
+        lands inside the array when the array fills the whole index space. Give the network 100
+        values and threads near the top reach for elements that do not exist — no error, no
+        warning, just a result that is quietly wrong in a way that is very hard to see.</p>
+        <p>The fix is the one every real implementation uses: <strong>pad up to the next power of
+        two</strong> with a sentinel that is guaranteed to sort to the end, run the network on the
+        padded array, then slice the padding off. 100 values become 128, sorted, and the last 28
+        slots come back full of sentinel. Padding costs a little wasted work and buys you an
+        algorithm with no special cases at all.</p>
+        <p>+Infinity is the textbook sentinel. This task uses a large finite one instead, because
+        a padded array has to survive a round trip through a float texture, and a finite value
+        always does. Anything comfortably above your data's maximum works.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> sort all 100 of <code>values</code> by padding up to a power of
+        two, running the network, and dropping the padding — then log the smallest and largest of
+        the <em>real</em> values.</div>
+
+<h2>Requirements</h2><ul><li>Choose <code>size</code> = the next power of two at or above <code>values.length</code>, and create the kernel with <code>output: [size]</code></li><li>Pad with <code>PAD</code> up to <code>size</code>, run the full stage/stride schedule, then take the first <code>values.length</code> results</li><li><code>console.log</code> the smallest and the largest of the sorted <em>real</em> values — not of the padded array</li></ul>
+<details><summary>Hint 1 — the next power of two</summary><p>Double until you clear the length:</p>
+<pre><code>let size = 1;
+while (size &lt; values.length) size *= 2;</code></pre>
+<p>For 100 values that lands on 128.</p></details>
+<details><summary>Hint 2 — padding and un-padding</summary><p>Pad before, slice after:</p>
+<pre><code>const padded = values.slice();
+while (padded.length &lt; size) padded.push(PAD);
+// … run the network …
+const sorted = Array.from(result).slice(0, values.length);</code></pre>
+<p>The sentinels all sort to the end, so the real values keep the front of the
+            array in exactly the right order.</p></details>
+<details><summary>Hint 3 — reading the answer</summary><p><code>result[size - 1]</code> is a sentinel, not your largest value. The
+            largest real value is <code>sorted[values.length - 1]</code>, after the slice.</p></details>
+<h2>Same idea elsewhere</h2>Power-of-two padding is what every production sorter does with this network:
+        CUDA's bitonic samples require it outright and pad in the host code, and library sorts
+        (CUB, rocPRIM, WebGPU's community sort implementations) hide the same padding inside a
+        friendlier signature. The general-case handling never lives in the kernel — it lives in the
+        few lines around it, exactly where you just put it.
+<h2>All tasks in Bitonic Sort</h2>
+<ol class="ssg-tasks"><li><a href="/learn/bitonic-sort-84e0728e/1">The Compare-Exchange, as a Gather</a></li><li><a href="/learn/bitonic-sort-84e0728e/2">Who Is My Partner?</a></li><li><a href="/learn/bitonic-sort-84e0728e/3">Which Way Does My Pair Sort?</a></li><li><a href="/learn/bitonic-sort-84e0728e/4">Drive the Whole Network</a></li><li><a href="/learn/bitonic-sort-84e0728e/5">Payoff: Sort a Real Array</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/bitonic-sort-84e0728e/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

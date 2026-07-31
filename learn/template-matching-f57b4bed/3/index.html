@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Normalize It · Template Matching — GPU.js Learn</title>
     <meta name="description" content="Goal: build the 89×89 NCC map over brightScene and log the winning position and its score. The match snaps back to where the patch really is.">
@@ -114,9 +114,104 @@
     <meta name="twitter:description" content="Goal: build the 89×89 NCC map over brightScene and log the winning position and its score. The match snaps back to where the patch really is.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Normalize It","description":"Goal: build the 89×89 NCC map over brightScene and log the winning position and its score. The match snaps back to where the patch really is.","url":"https://gpu.rocks/learn/template-matching-f57b4bed/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Template Matching","url":"https://gpu.rocks/learn/template-matching-f57b4bed","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/template-matching-f57b4bed/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/template-matching-f57b4bed">Template Matching</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Normalize It</h1>
+<p>The fix is to stop comparing brightness and start comparing <em>shape</em>.
+        Subtract each window's own mean, subtract the template's mean, and divide by how much
+        each of them varies. What survives is <strong>normalized cross-correlation</strong>:</p>
+<pre><code>cov  = sum( (wᵢ − w̄) · (tᵢ − t̄) )
+varW = sum( (wᵢ − w̄)² )
+varT = sum( (tᵢ − t̄)² )
+
+NCC  = cov / sqrt(varW · varT)</code></pre>
+        <p>Subtracting the means removes anything <em>added</em> to the light; dividing by the
+        spreads removes anything the light was <em>multiplied</em> by. The result is bounded:
+        <code>+1</code> is a perfect match, <code>0</code> is no relationship at all, and
+        <code>−1</code> is a perfect <em>anti</em>-match — the same shape with its lights and
+        darks swapped. That bound is a gift, because a score that leaves −1…1 is proof the
+        arithmetic is wrong.</p>
+        <p>Written that way it looks like three passes over the window: one to find the means,
+        one for the spreads, one for the product. It is not. Every one of those three quantities
+        is a sum over the same 64 pixels the thread is already reading, and two schoolbook
+        identities turn all three into plain running totals:</p>
+<pre><code>cov  = sumWT − sumW · sumT / n
+varW = sumW2 − sumW · sumW / n
+varT = sumT2 − sumT · sumT / n</code></pre>
+        <p>So the thread keeps five accumulators — <code>sumW</code>, <code>sumW2</code>,
+        <code>sumT</code>, <code>sumT2</code>, <code>sumWT</code> — fills them in one pass, and
+        assembles the score after the loop. Five running totals, one divide, no mean subtracted
+        from anything explicitly. (A window with no variation at all would put a zero in that
+        denominator; production code adds a tiny epsilon for it. Nothing in this scene is flat,
+        so the plain formula is safe here.)</p>
+<figure><figcaption>same scene, same patch, two scores — only one of them is looking at the shape</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> build the 89×89 NCC map over <code>brightScene</code> and log
+        the winning position and its score. The match snaps back to where the patch really is.</div>
+
+<h2>Requirements</h2><ul><li>Accumulate <code>sumW</code>, <code>sumW2</code>, <code>sumT</code>, <code>sumT2</code> and <code>sumWT</code> in one pass over the window</li><li>Assemble <code>cov</code>, <code>varW</code> and <code>varT</code> with the identities above</li><li>Return <code>cov / Math.sqrt(varW * varT)</code> — a square root of the product, not the product</li><li>NCC is a similarity, so <code>bestMatch()</code> has to keep the <strong>largest</strong> score</li></ul>
+<details><summary>Hint 1 — five accumulators, one loop</summary><p>Declare all five before the loops and add to each one inside:</p>
+<pre><code>const w = scene[y + j][x + i];
+const t = patch[j][i];
+sumW += w;
+sumW2 += w * w;
+sumT += t;
+sumT2 += t * t;
+sumWT += w * t;</code></pre></details>
+<details><summary>Hint 2 — assembling the score</summary><pre><code>const n = this.constants.count;
+const cov = sumWT - (sumW * sumT) / n;
+const varW = sumW2 - (sumW * sumW) / n;
+const varT = sumT2 - (sumT * sumT) / n;
+return cov / Math.sqrt(varW * varT);</code></pre>
+<p>— note that <code>varW</code> and <code>varT</code> here are the sums of squared
+            deviations, not the sums divided by <code>n</code>. Dividing both by <code>n</code>
+            would cancel out of the ratio anyway, so there is no point paying for it.</p></details>
+<details><summary>Hint 3 — the other half of the change</summary><p>Task 1's <code>bestMatch</code> kept the smallest score, because SSD was a
+            distance. NCC is a similarity: <code>if (map[y][x] &gt; best)</code>, starting from
+            <code>-Infinity</code>. Leave it as a minimum and this map will hand you its most
+            spectacularly wrong position instead of its right one.</p></details>
+<h2>Same idea elsewhere</h2>Normalising before you compare is one of the most portable ideas in computing.
+        It is <code>TM_CCOEFF_NORMED</code> in OpenCV and <code>nppiCrossCorrValid_NormLevel</code>
+        in CUDA's NPP; it is cosine similarity over centred vectors in every retrieval system; it
+        is the Pearson correlation in statistics; and it is exactly what a batch-norm or
+        layer-norm layer does inside a neural network, for exactly the same reason — so that what
+        comes next responds to structure instead of to scale.
+<h2>All tasks in Template Matching</h2>
+<ol class="ssg-tasks"><li><a href="/learn/template-matching-f57b4bed/1">Score Every Position at Once</a></li><li><a href="/learn/template-matching-f57b4bed/2">The Score That Lies</a></li><li><a href="/learn/template-matching-f57b4bed/3">Normalize It</a></li><li><a href="/learn/template-matching-f57b4bed/4">Hoist What Never Changes</a></li><li><a href="/learn/template-matching-f57b4bed/5">Payoff: Present or Absent?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/template-matching-f57b4bed/2">← previous task</a> · <a href="/learn/template-matching-f57b4bed/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

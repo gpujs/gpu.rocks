@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Lucas–Kanade: Buy a Second Equation · Optical Flow — GPU.js Learn</title>
     <meta name="description" content="Goal: solve the 5×5 Lucas–Kanade system for every pixel — plane 0 is u , plane 1 is v — and return 0 wherever the determinant is too small to trust.">
@@ -114,9 +114,112 @@
     <meta name="twitter:description" content="Goal: solve the 5×5 Lucas–Kanade system for every pixel — plane 0 is u , plane 1 is v — and return 0 wherever the determinant is too small to trust.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Lucas–Kanade: Buy a Second Equation","description":"Goal: solve the 5×5 Lucas–Kanade system for every pixel — plane 0 is u , plane 1 is v — and return 0 wherever the determinant is too small to trust.","url":"https://gpu.rocks/learn/optical-flow-e85c6dfa/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Optical Flow","url":"https://gpu.rocks/learn/optical-flow-e85c6dfa","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/optical-flow-e85c6dfa/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/optical-flow-e85c6dfa">Optical Flow</a></nav>
+<p class="ssg-eyebrow">Task 3 of 5</p>
+<h1>Lucas–Kanade: Buy a Second Equation</h1>
+<p>You cannot get more information out of one pixel, so buy it from the neighbours.
+        <strong>Lucas–Kanade</strong> assumes that everything inside a small window moves together.
+        A 5×5 window gives 25 copies of <code>Ix·u + Iy·v + It = 0</code> sharing one unknown
+        <code>(u, v)</code> — 25 equations, 2 unknowns, over-determined instead of
+        under-determined. Least squares turns that into a 2×2 system:</p>
+<pre><code>| Sxx  Sxy |   | u |        | Sxt |
+|          | · |   |  =  −  |     |
+| Sxy  Syy |   | v |        | Syt |</code></pre>
+        <p>where <code>Sxx = Σ Ix²</code>, <code>Sxy = Σ Ix·Iy</code>, <code>Syy = Σ Iy²</code>,
+        <code>Sxt = Σ Ix·It</code> and <code>Syt = Σ Iy·It</code>, all summed over the window. A 2×2
+        system has a closed form, so there is no solver and no iteration — just a determinant:</p>
+<pre><code>det = Sxx·Syy − Sxy²
+u   = (Sxy·Syt − Syy·Sxt) / det
+v   = (Sxy·Sxt − Sxx·Syt) / det</code></pre>
+        <p>Every pixel solves its own tiny system, reading only its own neighbourhood and writing
+        only its own cell. That is the ideal GPU shape: 4,096 independent 2×2 solves with no
+        coordination whatsoever — the gather formulation, exactly as in Convolution &amp; Filters,
+        with a little linear algebra at the end.</p>
+        <p>And a warning the input is built to deliver. <code>det</code> goes to <strong>zero</strong>
+        where the window has nothing to say: a flat patch (no gradient at all) or a stretch of
+        parallel edges (all gradients pointing the same way — task 2's problem, unchanged by a
+        bigger window). Divide by it anyway and you get NaN or vectors hundreds of pixels long.
+        Guard it.</p>
+<figure><figcaption>25 equations walk into a 2x2 system; one of them comes out with an answer — A five by five window of pixels, each contributing one brightness-constancy equation, gathered into five running sums that fill a two by two matrix and a right-hand side, solved once for the centre pixel.</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> solve the 5×5 Lucas–Kanade system for every pixel — plane 0 is
+        <code>u</code>, plane 1 is <code>v</code> — and return <code>0</code> wherever the
+        determinant is too small to trust.</div>
+
+<h2>Requirements</h2><ul><li>Accumulate <code>Sxx</code>, <code>Sxy</code>, <code>Syy</code>, <code>Sxt</code>, <code>Syt</code> over the 5×5 window, sample indexes clamped to <code>0…this.constants.last</code></li><li>Compute <code>det = Sxx * Syy - Sxy * Sxy</code></li><li>If <code>Math.abs(det) &lt; this.constants.eps</code>, return <code>0</code> — the window has nothing to say</li><li>Otherwise plane 0 returns <code>(Sxy * Syt - Syy * Sxt) / det</code> and plane 1 returns <code>(Sxy * Sxt - Sxx * Syt) / det</code></li><li>Same sign convention as task 2: <code>(u, v)</code> is where the content went, positive <code>u</code> rightward and positive <code>v</code> downward</li></ul>
+<details><summary>Hint 1 — the window loop</summary><p>The same clamped double loop the box blur used, five wide instead of three:</p>
+<pre><code>for (let wy = 0; wy &lt; 5; wy++) {
+  for (let wx = 0; wx &lt; 5; wx++) {
+    let sy = this.thread.y + wy - 2;
+    if (sy &lt; 0) sy = 0;
+    if (sy &gt; this.constants.last) sy = this.constants.last;
+    // …same for sx, then read the three derivatives at [sy][sx]
+  }
+}</code></pre></details>
+<details><summary>Hint 2 — five running sums, not two</summary><p>Inside the loop, all five products accumulate together:</p>
+<pre><code>const ix = derivs[0][sy][sx];
+const iy = derivs[1][sy][sx];
+const it = derivs[2][sy][sx];
+sxx += ix * ix;
+sxy += ix * iy;
+syy += iy * iy;
+sxt += ix * it;
+syt += iy * it;</code></pre>
+          <p><code>sxy</code> is the one that gets forgotten. It is the off-diagonal term — the
+            thing that couples <code>u</code> and <code>v</code> — and dropping it silently turns
+            the 2×2 solve into two unrelated divisions.</p></details>
+<details><summary>Hint 3 — the guard and the two returns</summary><pre><code>const det = sxx * syy - sxy * sxy;
+if (Math.abs(det) &lt; this.constants.eps) {
+  return 0;
+}
+if (this.thread.z === 0) {
+  return (sxy * syt - syy * sxt) / det;
+}
+return (sxy * sxt - sxx * syt) / det;</code></pre>
+          <p>Compute the sums once, before the branch on <code>z</code> — both components need all
+            five of them.</p></details>
+<h2>Same idea elsewhere</h2>This is the shape GPUs were built for: a fixed-size neighbourhood read, a handful
+        of registers, a closed-form solve, no synchronisation. A CUDA implementation stages the
+        derivative tiles in shared memory and keeps the five sums in registers; a WGSL compute
+        shader does the same with a workgroup <code>var&lt;workgroup&gt;</code> tile. gpu.js has
+        neither, so every thread re-reads its own window — more traffic, identical answer, and the
+        algorithm is unchanged.
+<h2>All tasks in Optical Flow</h2>
+<ol class="ssg-tasks"><li><a href="/learn/optical-flow-e85c6dfa/1">One Equation, Two Unknowns</a></li><li><a href="/learn/optical-flow-e85c6dfa/2">The Aperture Problem</a></li><li><a href="/learn/optical-flow-e85c6dfa/3">Lucas–Kanade: Buy a Second Equation</a></li><li><a href="/learn/optical-flow-e85c6dfa/4">Which Answers to Believe</a></li><li><a href="/learn/optical-flow-e85c6dfa/5">Paint the Flow Field</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/optical-flow-e85c6dfa/2">← previous task</a> · <a href="/learn/optical-flow-e85c6dfa/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

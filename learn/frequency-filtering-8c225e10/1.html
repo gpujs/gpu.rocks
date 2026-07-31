@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Convolution Becomes Multiplication · Filtering in the Frequency Domain — GPU.js Learn</title>
     <meta name="description" content="Goal: finish mulSpectra so the frequency-domain road reproduces the sliding window's answer — the two should agree to five or six decimal places, and whatever…">
@@ -114,9 +114,99 @@
     <meta name="twitter:description" content="Goal: finish mulSpectra so the frequency-domain road reproduces the sliding window's answer — the two should agree to five or six decimal places, and whatever…">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Convolution Becomes Multiplication","description":"Goal: finish mulSpectra so the frequency-domain road reproduces the sliding window's answer — the two should agree to five or six decimal places, and whatever…","url":"https://gpu.rocks/learn/frequency-filtering-8c225e10/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Filtering in the Frequency Domain","url":"https://gpu.rocks/learn/frequency-filtering-8c225e10","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/frequency-filtering-8c225e10/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/frequency-filtering-8c225e10">Filtering in the Frequency Domain</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>Convolution Becomes Multiplication</h1>
+<p>Convolution &amp; Filters slid a window along a signal: every output sample gathered
+        <code>m</code> products, so the whole pass cost <code>n·m</code>. This task makes that
+        sliding window <em>disappear</em>.</p>
+        <p>The convolution theorem says: transform both signals, multiply the two spectra
+        <strong>bin by bin</strong>, transform back — and what comes out is the convolution.
+        No window, no <code>m</code>. The cost collapses to the cost of the transforms, which is
+        why every audio plug-in, every software radio and every large-kernel blur is written this
+        way. We are going to check that claim rather than believe it.</p>
+        <p>Every task in this module hands you a finished <code>dft</code>/<code>idft</code> pair and
+        asks you to write only the step between them. They are the naive O(n²) transforms rather
+        than the ladder The FFT Butterfly builds, because which transform produced a spectrum
+        changes none of the arithmetic below — and the arithmetic below is the whole point.</p>
+        <p>Spectra are complex, and gpu.js has no complex type, so this track carries a complex
+        signal as <strong>two planes of floats</strong>. A kernel with <code>output: [n, 2]</code>
+        is indexed <code>result[p][i]</code> — plane 0 the real part, plane 1 the imaginary part,
+        <code>i</code> the bin. Handed back <em>into</em> a kernel the same thing is a
+        <code>[2][n]</code> nested array: <code>spec[0][i]</code> real, <code>spec[1][i]</code>
+        imaginary. Every module in this track uses that shape.</p>
+        <p>Multiplying two complex numbers is where people slip. It is not "reals times reals,
+        imaginaries times imaginaries" — that is four products, and two of them cross:</p>
+<pre><code>(ar + ai·i)(br + bi·i) = (ar·br − ai·bi) + (ar·bi + ai·br)·i</code></pre>
+        <p>Drop the cross terms and you get a specific, recognisable wrong answer — which is
+        exactly what the starter below does, so run it first and watch the two roads disagree.</p>
+<figure><figcaption>the long way round is the fast way — and it arrives at the same numbers</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> finish <code>mulSpectra</code> so the frequency-domain road
+        reproduces the sliding window's answer — the two should agree to five or six decimal
+        places, and whatever is left is float32 rounding rather than physics.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>output: [64, 2]</code> — plane 0 is the real part of each bin, plane 1 the imaginary part</li><li>Read both planes of both arguments: <code>a[0][i]</code>, <code>a[1][i]</code>, <code>b[0][i]</code>, <code>b[1][i]</code></li><li>Plane 0 returns <code>ar * br - ai * bi</code>; plane 1 returns <code>ar * bi + ai * br</code> — all four products, both cross terms</li><li>Leave the <code>1/n</code> to <code>idft</code>: the inverse transform already has it</li></ul>
+<details><summary>Hint 1 — which plane am I?</summary><p>With <code>output: [64, 2]</code> there are 128 threads.
+            <code>this.thread.x</code> is the bin, 0…63; <code>this.thread.y</code> is the plane,
+            0 for real and 1 for imaginary. Every thread reads all four numbers — the four
+            products mix both planes of both inputs — and returns just the one belonging to its
+            own plane.</p></details>
+<details><summary>Hint 2 — the four products</summary><p>Name them first, then pick:</p>
+<pre><code>const i = this.thread.x;
+const ar = a[0][i];
+const ai = a[1][i];
+const br = b[0][i];
+const bi = b[1][i];
+
+if (this.thread.y === 0) return ar * br - ai * bi;
+return ar * bi + ai * br;</code></pre>
+          <p>Both signs matter. Flip the one in the real part and you have computed
+            <code>a</code> times the <em>conjugate</em> of <code>b</code>, which correlates
+            instead of convolving — the filter comes out reversed in time.</p></details>
+<h2>Same idea elsewhere</h2>This is the one trade every FFT library exists to sell. In CUDA it is three calls:
+        <code>cufftExecC2C</code> forward, a handful of lines of <code>cuComplex</code> multiply,
+        <code>cufftExecC2C</code> inverse — and <code>cuComplex</code> is there so the four products
+        get written once instead of in every kernel. ROCm ships rocFFT, Apple ships vDSP and MPS, and
+        WebGPU ships nothing at all, so everyone writes the same radix-2 ladder over a storage
+        buffer. The two planes you are indexing here are what a <code>float2</code> buffer or an
+        <code>rg32float</code> texture holds on every one of them.
+<h2>All tasks in Filtering in the Frequency Domain</h2>
+<ol class="ssg-tasks"><li><a href="/learn/frequency-filtering-8c225e10/1">Convolution Becomes Multiplication</a></li><li><a href="/learn/frequency-filtering-8c225e10/2">The Brick Wall Rings</a></li><li><a href="/learn/frequency-filtering-8c225e10/3">Trade the Ringing for a Softer Edge</a></li><li><a href="/learn/frequency-filtering-8c225e10/4">A Tone Buried in Noise</a></li><li><a href="/learn/frequency-filtering-8c225e10/5">Multiplying Spectra Convolves in a Circle</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/frequency-filtering-8c225e10/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Two Spheres Melt Into One · Ray-Marched Metaballs — GPU.js Learn</title>
     <meta name="description" content="Goal: implement the polynomial smooth minimum and use it to blend two sphere fields into one metaball field.">
@@ -114,9 +114,70 @@
     <meta name="twitter:description" content="Goal: implement the polynomial smooth minimum and use it to blend two sphere fields into one metaball field.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Two Spheres Melt Into One","description":"Goal: implement the polynomial smooth minimum and use it to blend two sphere fields into one metaball field.","url":"https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Ray-Marched Metaballs","url":"https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/ray-marched-metaballs-8b1282bd">Ray-Marched Metaballs</a></nav>
+<p class="ssg-eyebrow">Task 2 of 6</p>
+<h1>Two Spheres Melt Into One</h1>
+<p>Combining two SDFs is just <code>Math.min</code> — the nearest surface wins.
+        But <code>min</code> leaves a hard crease where the shapes meet. Swap it for a
+        <strong>smooth minimum</strong> and the fields <em>blend</em>: wherever the two distances
+        are within <code>k</code> of each other, the result dips below both, bulging the surfaces
+        toward each other. That bulge <em>is</em> a metaball.</p>
+        <p>Since every task from here on needs this helper, register it once with
+        <code>gpu.addFunction()</code> — gpu.js transpiles it alongside the kernel, and any kernel
+        on that GPU instance can call it by name.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> implement the polynomial smooth minimum and use it to blend
+        two sphere fields into one metaball field.</div>
+
+<h2>Requirements</h2><ul><li>Register <code>smin(a, b, k)</code> with <code>gpu.addFunction()</code></li><li>Blend amount: <code>h = Math.max(k - Math.abs(a - b), 0) / k</code></li><li>Return <code>Math.min(a, b) - h * h * k * 0.25</code></li><li>Call <code>smin(d1, d2, k)</code> in the kernel instead of <code>Math.min</code></li></ul>
+<details><summary>Hint 1 — what should change?</summary><p>Far from the seam, <code>smin</code> equals plain <code>min</code>. Exactly
+            between the spheres the two distances are equal, so <code>h = 1</code> and the field
+            dips by <code>k / 4</code>. With the starter's arguments the midpoint should read
+            <code>0.2 − 0.1 = 0.1</code>.</p></details>
+<details><summary>Hint 2 — the function, verbatim</summary><pre><code>gpu.addFunction(function smin(a, b, k) {
+  const h = Math.max(k - Math.abs(a - b), 0.0) / k;
+  return Math.min(a, b) - h * h * k * 0.25;
+});</code></pre></details>
+<h2>Same idea elsewhere</h2>Smooth blends of implicit surfaces are how molecular-surface renderers in CUDA
+        draw proteins and how Metal-based sculpting apps merge clay-like blobs — the union operator
+        is soft everywhere, and the GPU evaluates it millions of times per frame without blinking.
+<h2>All tasks in Ray-Marched Metaballs</h2>
+<ol class="ssg-tasks"><li><a href="/learn/ray-marched-metaballs-8b1282bd/1">The Sphere as a Number</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/2">Two Spheres Melt Into One</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/3">March Until You Hit Something</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/4">Normals Without Geometry</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/5">Turn On the Light</a></li><li><a href="/learn/ray-marched-metaballs-8b1282bd/6">Soft Shadows, Full Scene</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/ray-marched-metaballs-8b1282bd/1">← previous task</a> · <a href="/learn/ray-marched-metaballs-8b1282bd/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

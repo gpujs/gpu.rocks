@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Other Axis Is Discrete Too · Sampling &amp; Aliasing — GPU.js Learn</title>
     <meta name="description" content="Goal: quantise signal to bits bits into plane 0 and the rounding error into plane 1, then log the SNR at each of the five depths.">
@@ -114,9 +114,90 @@
     <meta name="twitter:description" content="Goal: quantise signal to bits bits into plane 0 and the rounding error into plane 1, then log the SNR at each of the five depths.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Other Axis Is Discrete Too","description":"Goal: quantise signal to bits bits into plane 0 and the rounding error into plane 1, then log the SNR at each of the five depths.","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Sampling & Aliasing","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/sampling-and-aliasing-ad14836c">Sampling &amp; Aliasing</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>The Other Axis Is Discrete Too</h1>
+<p>Sampling chops up <em>time</em>. Storing the samples chops up <strong>amplitude</strong>:
+        with <code>bits</code> bits there are 2<sup>bits</sup> code values to cover the whole −1…+1
+        range, so the step between neighbouring codes is <code>2 / 2^bits</code> and every sample gets
+        nudged to the nearest one.</p>
+<pre><code>step = 2 / Math.pow(2, bits);
+q    = Math.round(value / step) * step;      // NOT Math.floor
+error = q - value;                           //  in −step/2 … +step/2</code></pre>
+        <p><code>Math.round</code> is load-bearing. Rounding <em>down</em> quantises just as
+        successfully, but every error then has the same sign, so instead of jitter centred on zero you
+        get a DC offset of −step/2 riding on the signal — and you measurably throw away a whole bit.
+        (Run this task with <code>Math.floor</code> if you want to watch it happen: every SNR drops by
+        about 6 dB.)</p>
+        <p>Which is the rule worth having. Signal-to-noise ratio is
+        <code>10·log10(signal power / error power)</code>, and halving the step — one more bit —
+        quarters the error power, which is 10·log10(4) ≈ <strong>6 dB</strong>. Do not take that on
+        faith: the loop below runs 4, 6, 8, 10 and 12 bits and you can read the slope straight off the
+        console.</p>
+        <p>The kernel writes two planes again — <code>output: [256, 2]</code>, plane 0 the quantised
+        signal and plane 1 the error — so one pass gives you both the result and the thing you want to
+        measure. That is fusion, the same trick "Reductions" ends on: compute it where you already have
+        the value in hand rather than paying for a second pass.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> quantise <code>signal</code> to <code>bits</code> bits into plane 0
+        and the rounding error into plane 1, then log the SNR at each of the five depths.</div>
+
+<h2>Requirements</h2><ul><li>Take <code>bits</code> as a kernel argument and derive <code>step = 2 / Math.pow(2, bits)</code></li><li>Plane 0 (<code>this.thread.y === 0</code>) holds <code>Math.round(value / step) * step</code></li><li>Plane 1 holds the error, <code>quantised - value</code></li><li><code>console.log</code> the SNR in dB for each of 4, 6, 8, 10 and 12 bits</li></ul>
+<details><summary>Hint 1 — one value, two planes</summary><p>Both planes are computed from the same sample, so read it once and branch at the
+            end:</p>
+<pre><code>const v = signal[this.thread.x];
+const step = 2 / Math.pow(2, bits);
+const q = Math.round(v / step) * step;
+let out = q - v;
+if (this.thread.y === 0) {
+  out = q;
+}
+return out;</code></pre></details>
+<details><summary>Hint 2 — the SNR</summary><p>Sum the squares of the samples and the squares of plane 1, then</p>
+<pre><code>const snr = 10 * Math.log10(sigPower / errPower);</code></pre>
+<p>— and print it with the bit depth beside it so the ~6 dB step is readable.</p></details>
+<h2>Same idea elsewhere</h2>The bits-versus-noise trade is the same everywhere it shows up: 16-bit audio buys about
+        98 dB, 8-bit textures about 50, and a GPU's <code>f16</code> half-precision path is this exact
+        bargain — half the bandwidth and half the memory for a coarser step. Modern inference hardware
+        pushes it much further with int8 and int4 kernels, and the reason quantisation-aware training
+        works at all is that the error stays small, zero-mean noise instead of a bias.
+<h2>All tasks in Sampling &amp; Aliasing</h2>
+<ol class="ssg-tasks"><li><a href="/learn/sampling-and-aliasing-ad14836c/1">One Thread, One Sample</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/2">Above Nyquist</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/3">What Happened Between the Samples?</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/4">The Other Axis Is Discrete Too</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/5">Payoff: Keep One Sample in Four</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/sampling-and-aliasing-ad14836c/3">← previous task</a> · <a href="/learn/sampling-and-aliasing-ad14836c/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Pay the Transfer Tax · Measuring Speed Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the + 1 kernel and the timeKernel helper — warm up, then average 20 timed calls — and log the per-call cost for both payload sizes.">
@@ -114,9 +114,71 @@
     <meta name="twitter:description" content="Goal: finish the + 1 kernel and the timeKernel helper — warm up, then average 20 timed calls — and log the per-call cost for both payload sizes.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Pay the Transfer Tax","description":"Goal: finish the + 1 kernel and the timeKernel helper — warm up, then average 20 timed calls — and log the per-call cost for both payload sizes.","url":"https://gpu.rocks/learn/measuring-speed-honestly-b9188894/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Measuring Speed Honestly","url":"https://gpu.rocks/learn/measuring-speed-honestly-b9188894","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/measuring-speed-honestly-b9188894/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/measuring-speed-honestly-b9188894">Measuring Speed Honestly</a></nav>
+<p class="ssg-eyebrow">Task 2 of 4</p>
+<h1>Pay the Transfer Tax</h1>
+<p>A kernel call isn't just compute. Every invocation ships your input array from
+        JavaScript to GPU memory, runs, then ships the result back. For a one-instruction kernel
+        like <code>value + 1</code>, the arithmetic is nearly free — <strong>the ride is the whole
+        bill</strong>.</p>
+        <p>Below, the same trivial kernel runs on 1,024 values and on 65,536 values — 64× the data,
+        identical math per thread. If compute were the cost, both would time about the same. Warm
+        up first (task 1!), then measure: the per-call cost tracks <strong>bytes moved</strong>,
+        not operations performed.</p>
+<figure><figcaption>same +1 either way — the bill tracks bytes, not math</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> finish the <code>+ 1</code> kernel and the
+        <code>timeKernel</code> helper — warm up, then average 20 timed calls — and log the
+        per-call cost for both payload sizes.</div>
+
+<h2>Requirements</h2><ul><li>Kernel returns <code>data[this.thread.x] + 1</code> — one instruction, on purpose</li><li>In <code>timeKernel</code>: call the kernel once <em>untimed</em> to warm it up</li><li>Then time 20 calls with <code>Date.now()</code> and return the average ms per call</li><li>Log both costs (the <code>small:</code>/<code>big:</code> lines are already wired up)</li></ul>
+<details><summary>Hint 1 — why warm up here too?</summary><p><code>makePlusOne</code> builds <em>two separate kernels</em>, and each one
+            compiles on its own first call. Without the warm-up, the big kernel's timing would
+            include a compile — task 1's lie all over again.</p></details>
+<details><summary>Hint 2 — the helper body</summary><pre><code>kernel(arg);
+const t0 = Date.now();
+for (let i = 0; i &lt; 20; i++) kernel(arg);
+return (Date.now() - t0) / 20;</code></pre></details>
+<h2>Same idea elsewhere</h2>The bus is the bottleneck everywhere: <code>cudaMemcpy</code> across PCIe is the
+        classic hot spot in CUDA and ROCm profiles, WebGPU makes you stage the copies explicitly
+        with <code>writeBuffer</code> and <code>mapAsync</code>, and Apple's unified memory exists
+        precisely to shrink this tax. Arithmetic is cheap; moving bytes is not.
+<h2>All tasks in Measuring Speed Honestly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/measuring-speed-honestly-b9188894/1">The First Call Is a Lie</a></li><li><a href="/learn/measuring-speed-honestly-b9188894/2">Pay the Transfer Tax</a></li><li><a href="/learn/measuring-speed-honestly-b9188894/3">Two Machines, Two Answers</a></li><li><a href="/learn/measuring-speed-honestly-b9188894/4">When the CPU Wins</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/measuring-speed-honestly-b9188894/1">← previous task</a> · <a href="/learn/measuring-speed-honestly-b9188894/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

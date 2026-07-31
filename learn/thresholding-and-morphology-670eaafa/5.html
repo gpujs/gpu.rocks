@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Opening and Closing: Order Is the Answer · Thresholding &amp; Morphology — GPU.js Learn</title>
     <meta name="description" content="Goal: build an opening, a closing and a two-pass opening from the given kernels, and report what each one changed with the exact labels the starter uses.">
@@ -114,9 +114,86 @@
     <meta name="twitter:description" content="Goal: build an opening, a closing and a two-pass opening from the given kernels, and report what each one changed with the exact labels the starter uses.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Opening and Closing: Order Is the Answer","description":"Goal: build an opening, a closing and a two-pass opening from the given kernels, and report what each one changed with the exact labels the starter uses.","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Thresholding & Morphology","url":"https://gpu.rocks/learn/thresholding-and-morphology-670eaafa","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/thresholding-and-morphology-670eaafa">Thresholding &amp; Morphology</a></nav>
+<p class="ssg-eyebrow">Task 5 of 6</p>
+<h1>Opening and Closing: Order Is the Answer</h1>
+<p>Erosion on its own is a blunt instrument: it kills the specks and takes a rind
+        off everything else. Dilation on its own is the same mistake in reverse. Run them back to
+        back and the size change cancels while the repair survives — and which repair you get
+        depends entirely on which one goes first.</p>
+        <p><strong>Opening</strong> is erode <em>then</em> dilate. The erosion wipes anything
+        thinner than the structuring element, the dilation grows the survivors back to size:
+        small bright specks are gone for good and everything else ends up roughly where it
+        started. <strong>Closing</strong> is dilate <em>then</em> erode: the dilation swallows
+        small dark holes, the erosion pulls the outlines back in, so pinholes fill and the specks
+        stay exactly where they were.</p>
+        <p>They are not inverses and they are not interchangeable. Opening removes; closing
+        fills. Ask for one and write the other and you get precisely the opposite of what you
+        wanted — which is the single most reliable way to lose an afternoon to morphology.</p>
+        <p>Both kernels are given below, so this task is about the plumbing: chain them, and
+        chain them twice. Two erosions followed by two dilations is an opening with a radius-2
+        element — it clears out the 3×3 clumps that a single pass is too gentle to touch.</p>
+<figure><figcaption>run them the other way round and you repair the other defect</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> build an opening, a closing and a two-pass opening from the
+        given kernels, and report what each one changed with the exact labels the starter uses.</div>
+
+<h2>Requirements</h2><ul><li>Opening is <code>dilate(erode(mask))</code>; closing is <code>erode(dilate(mask))</code></li><li>The two-pass opening runs both erosions before either dilation</li><li>Write the <code>removed</code> kernel: <code>1</code> where <code>before</code> is foreground and <code>after</code> is not</li><li>Log the three counts with the labels already in the starter</li></ul>
+<details><summary>Hint 1 — chaining kernels</summary><p>A kernel's result is an ordinary 2D array, so it goes straight back into
+            another kernel: <code>dilate(erode(mask))</code> is the whole opening. Every pass is
+            a separate launch, which is exactly how a real pipeline does it (and Pipelines &amp;
+            Textures shows how to keep the intermediate on the GPU).</p></details>
+<details><summary>Hint 2 — which is which</summary><p>Read the name outwards. An <em>opening</em> opens gaps up: it must start by
+            shrinking, so erosion goes first. A <em>closing</em> closes gaps: it starts by
+            growing. If your "opening" is filling holes instead of clearing specks, you have
+            written a closing.</p></details>
+<details><summary>Hint 3 — the difference kernel</summary><pre><code>const removed = gpu.createKernel(function (before, after) {
+  if (before[this.thread.y][this.thread.x] &gt; after[this.thread.y][this.thread.x]) return 1;
+  return 0;
+}, { output: [128, 128] });</code></pre>
+<p>Feed it <code>(mask, opened)</code> to see what the opening threw away, and
+            <code>(closed, mask)</code> to see what the closing filled in.</p></details>
+<h2>Same idea elsewhere</h2>Opening and closing are the standard pre-processing pair in OpenCV
+        (<code>MORPH_OPEN</code>, <code>MORPH_CLOSE</code>) and in every medical- and
+        satellite-imaging toolchain. On a GPU each is a fixed chain of launches with no readback
+        in between — the ping-pong between two buffers that WebGPU and CUDA pipelines are built
+        around.
+<h2>All tasks in Thresholding &amp; Morphology</h2>
+<ol class="ssg-tasks"><li><a href="/learn/thresholding-and-morphology-670eaafa/1">One Number for the Whole Image</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/2">Let the Histogram Pick the Number</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/3">A Threshold Per Neighbourhood</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/4">Erode and Dilate: the Sweep, With Min and Max</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/5">Opening and Closing: Order Is the Answer</a></li><li><a href="/learn/thresholding-and-morphology-670eaafa/6">Payoff: Clean the Mask, Count What Is Left</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/thresholding-and-morphology-670eaafa/4">← previous task</a> · <a href="/learn/thresholding-and-morphology-670eaafa/6">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

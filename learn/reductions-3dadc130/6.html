@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Mean and RMS, Fused · Reductions — GPU.js Learn</title>
     <meta name="description" content="Goal: compute and log the mean and the RMS of data — two partial-sum kernels (one fused with squaring) plus one shared dynamic halving ladder.">
@@ -114,9 +114,76 @@
     <meta name="twitter:description" content="Goal: compute and log the mean and the RMS of data — two partial-sum kernels (one fused with squaring) plus one shared dynamic halving ladder.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: Mean and RMS, Fused","description":"Goal: compute and log the mean and the RMS of data — two partial-sum kernels (one fused with squaring) plus one shared dynamic halving ladder.","url":"https://gpu.rocks/learn/reductions-3dadc130/6","position":6,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Reductions","url":"https://gpu.rocks/learn/reductions-3dadc130","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/reductions-3dadc130/6.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/reductions-3dadc130">Reductions</a></nav>
+<p class="ssg-eyebrow">Task 6 of 6</p>
+<h1>Payoff: Mean and RMS, Fused</h1>
+<p>The payoff. Two statistics over 4,096 values: the <strong>mean</strong>
+        (sum ÷ n) and the <strong>RMS</strong> — root-mean-square,
+        √(sum&nbsp;of&nbsp;squares&nbsp;÷&nbsp;n) — the standard "how big is this signal"
+        measure in audio and physics.</p>
+        <p>RMS needs every value squared first. The rookie move is a separate squaring kernel —
+        a whole extra pass over memory. The pro move is <strong>fusion</strong>: square each
+        value in the same statement that reads it, inside the partial-sum kernel. Map and
+        reduce, one pass over the data.</p>
+        <p>Stack the whole module: strided partials (task 2) shrink 4,096 values to 64, then a
+        single shared halving ladder (task 4) finishes <em>both</em> totals.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> compute and log the mean and the RMS of <code>data</code> —
+        two partial-sum kernels (one fused with squaring) plus one shared dynamic halving
+        ladder.</div>
+
+<h2>Requirements</h2><ul><li><code>partialSums</code>: 64 strided partial sums of <code>data</code>, as in task 2</li><li><code>partialSquares</code>: same shape, but square each value <em>as it is read</em> — no separate squaring pass</li><li>One dynamic halving-ladder kernel rides both 64-value arrays down to scalars</li><li><code>mean = total / 4096</code>, <code>rms = Math.sqrt(totalSq / 4096)</code> — log both</li></ul>
+<details><summary>Hint 1 — the fused body</summary><p>Read once, use twice:</p>
+<pre><code>const v = data[i * this.constants.threads + this.thread.x];
+sum += v * v;</code></pre></details>
+<details><summary>Hint 2 — one ladder, two rides</summary><p>The ladder kernel doesn't care what its 64 inputs mean. Wrap the driver loop
+            in a function and call it once with each partials array.</p></details>
+<details><summary>Hint 3 — the whole shape</summary><pre><code>const total = ladder(partialSums(data));
+const totalSq = ladder(partialSquares(data));</code></pre>
+<p>then divide, square-root,
+            and log.</p></details>
+<h2>Same idea elsewhere</h2>Fusing the map into the reduce is a marquee optimization on every platform:
+        <code>thrust::transform_reduce</code> exists precisely for it, CUDA programmers
+        hand-fuse to halve their memory traffic, and WebGPU/Metal kernels bake the transform
+        into the accumulation loop. Memory bandwidth is the budget — fusion is the
+        discount.
+<h2>All tasks in Reductions</h2>
+<ol class="ssg-tasks"><li><a href="/learn/reductions-3dadc130/1">The One-Thread Trap</a></li><li><a href="/learn/reductions-3dadc130/2">Partial Sums: Divide the Work</a></li><li><a href="/learn/reductions-3dadc130/3">One Rung of the Ladder</a></li><li><a href="/learn/reductions-3dadc130/4">Ride the Ladder Down</a></li><li><a href="/learn/reductions-3dadc130/5">Min and Max: Change the Operator</a></li><li><a href="/learn/reductions-3dadc130/6">Payoff: Mean and RMS, Fused</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/reductions-3dadc130/5">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

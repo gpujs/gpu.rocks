@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Partial Histograms, Then Merge · Histograms &amp; Binning — GPU.js Learn</title>
     <meta name="description" content="Goal: build the 16 × 32 grid of partial histograms in one kernel, then merge it into 16 final counts in a second.">
@@ -114,9 +114,86 @@
     <meta name="twitter:description" content="Goal: build the 16 × 32 grid of partial histograms in one kernel, then merge it into 16 final counts in a second.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Partial Histograms, Then Merge","description":"Goal: build the 16 × 32 grid of partial histograms in one kernel, then merge it into 16 final counts in a second.","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Histograms & Binning","url":"https://gpu.rocks/learn/histograms-and-binning-dfb254f4","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/histograms-and-binning-dfb254f4/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/histograms-and-binning-dfb254f4">Histograms &amp; Binning</a></nav>
+<p class="ssg-eyebrow">Task 4 of 5</p>
+<h1>Partial Histograms, Then Merge</h1>
+<p>Sixteen bins is sixteen threads. A GPU with thousands of cores just sat out that
+        entire kernel — and each of those sixteen threads had to walk all 16,384 codes by itself.
+        Few bins over lots of data is exactly where one-thread-per-bin runs out of parallelism.</p>
+        <p>So cut the data into chunks and give every <em>(bin, chunk)</em> pair its own thread.
+        Thirty-two chunks of 512 codes turns 16 threads into 16 × 32 = 512, each scanning 512 codes
+        instead of 16,384. What comes back is a grid of <strong>partial histograms</strong>: one row
+        per chunk, one column per bin. A second pass then adds up each bin's column.</p>
+        <p>Mind the shape. <code>output: [bins, chunks]</code> is given width-first but indexed
+        row-first, so the grid you get back is <code>partial[chunk][bin]</code> — swap those two and
+        you read off the end of a row. Pass two sums a column of 32 numbers, which one loop handles
+        comfortably; at 4,096 chunks you would ride the halving ladder from <em>Reductions</em> down
+        instead, because that is the same reduction wearing a different hat.</p>
+        <p>Keep watching the total — but do not over-trust it here. If every chunk reads chunk 0's
+        codes, the counts are entirely wrong and still sum to 16,384. The total catches lost and
+        duplicated inputs; it cannot catch inputs you counted the wrong number of times each.</p>
+<figure><figcaption>one row per chunk, one column per bin, one reduction down each column</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> build the 16 × 32 grid of partial histograms in one kernel, then
+        merge it into 16 final counts in a second.</div>
+
+<h2>Requirements</h2><ul><li><code>partials</code>: <code>output: [16, 32]</code>, thread <code>(x = bin, y = chunk)</code> counts chunk <em>y</em>'s codes that equal <em>x</em></li><li>Chunk <em>y</em> is contiguous: it starts at <code>this.thread.y * this.constants.chunkSize</code></li><li><code>merge</code>: <code>output: [16]</code>, thread <em>x</em> sums <code>partial[c][this.thread.x]</code> over all <code>this.constants.chunks</code> chunks</li><li>The merged counts sum to <code>16384</code></li></ul>
+<details><summary>Hint 1 — where does my chunk start?</summary><p>Chunk <em>y</em> owns the 512 codes from <code>y * 512</code> to
+            <code>y * 512 + 511</code>, so its <em>i</em>-th code is at
+            <code>this.thread.y * this.constants.chunkSize + i</code>. The starter is missing that
+            offset, which is why every chunk currently reports chunk 0's histogram.</p></details>
+<details><summary>Hint 2 — the partials kernel</summary><pre><code>const code = codes[this.thread.y * this.constants.chunkSize + i];
+if (code === this.thread.x) count++;</code></pre></details>
+<details><summary>Hint 3 — the merge</summary><p>One thread per bin, walking down that bin's column of the grid:</p>
+<pre><code>let total = 0;
+for (let c = 0; c &lt; this.constants.chunks; c++) {
+  total += partial[c][this.thread.x];
+}
+return total;</code></pre></details>
+<h2>Same idea elsewhere</h2>This is what a production GPU histogram actually does, and the reason is the same
+        one: parallelism. A CUDA kernel gives each <em>block</em> a private histogram in shared
+        memory, so its <code>atomicAdd</code>s stay on-chip and only conflict within the block, then
+        spends one global <code>atomicAdd</code> per bin to merge. WGSL does it with a
+        <code>var&lt;workgroup&gt;</code> array of atomics and a single merge at the end; CUB and
+        rocPRIM's <code>DeviceHistogram</code> are this structure, tuned. Private partials plus a
+        merge pass is the pattern — gpu.js just makes you write the merge as an honest reduction
+        instead of hiding it behind an atomic.
+<h2>All tasks in Histograms &amp; Binning</h2>
+<ol class="ssg-tasks"><li><a href="/learn/histograms-and-binning-dfb254f4/1">The Increment That Vanishes</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/2">One Thread Per Bin</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/3">Where Does 7.35 Go?</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/4">Partial Histograms, Then Merge</a></li><li><a href="/learn/histograms-and-binning-dfb254f4/5">Payoff: An Image's Tone Histogram</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/histograms-and-binning-dfb254f4/3">← previous task</a> · <a href="/learn/histograms-and-binning-dfb254f4/5">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Bin, One Thread · The DFT, Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: correlate signal against a cosine at bin k — sum signal[i] × cos(2π·k·i/n) over all 256 samples — and report bins 8, 20 and 13.">
@@ -114,9 +114,80 @@
     <meta name="twitter:description" content="Goal: correlate signal against a cosine at bin k — sum signal[i] × cos(2π·k·i/n) over all 256 samples — and report bins 8, 20 and 13.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Bin, One Thread","description":"Goal: correlate signal against a cosine at bin k — sum signal[i] × cos(2π·k·i/n) over all 256 samples — and report bins 8, 20 and 13.","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The DFT, Honestly","url":"https://gpu.rocks/learn/the-dft-7b1e3f9b","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/the-dft-7b1e3f9b/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/the-dft-7b1e3f9b">The DFT, Honestly</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>One Bin, One Thread</h1>
+<p>A <em>transform</em> sounds grand. One <strong>bin</strong> of it is not: pick a
+        frequency, build a test wave at that frequency, multiply it against the signal sample by
+        sample, and add the products up. One number falls out, and it answers exactly one
+        question — <em>how much of this frequency is in here?</em></p>
+        <p>That is a dot product, and it is the same instinct Template Matching used on images:
+        slide a pattern over the data and let the sum of the products score the match. Here the
+        pattern is a cosine and the data is a row of samples.</p>
+        <p>Start with one bin and one thread. <code>output: [1]</code> gives you a single thread
+        that walks the whole signal — the conceptual atom. Task 3 hands every bin a thread of its
+        own, which is where this stops being a loop and starts being a GPU workload.</p>
+<figure><figcaption>a transform is a pile of dot products — this is one of them</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> correlate <code>signal</code> against a cosine at bin
+        <code>k</code> — sum <code>signal[i] × cos(2π·k·i/n)</code> over all 256 samples — and
+        report bins 8, 20 and 13.</div>
+
+<h2>Requirements</h2><ul><li>Keep <code>output: [1]</code>: one thread owns the one answer</li><li>Loop <code>for (let i = 0; i &lt; this.constants.n; i++)</code> — WebGL needs a compile-time bound</li><li>Accumulate <code>signal[i] * Math.cos(2 * Math.PI * k * i / this.constants.n)</code></li><li><code>console.log</code> bins 8, 20 and 13 — expect <code>128</code>, <code>64</code> and <code>0</code></li></ul>
+<details><summary>Hint 1 — what the angle has to do</summary><p>Over the whole signal, the test wave for bin <code>k</code> must complete
+            exactly <code>k</code> turns. Term <code>i</code> is therefore a fraction
+            <code>i / n</code> of the way through <code>k</code> turns, and one turn is
+            <code>2π</code> radians:</p>
+<pre><code>const angle = 2 * Math.PI * k * i / this.constants.n;</code></pre></details>
+<details><summary>Hint 2 — the accumulator</summary><p>Same shape as any other loop-and-total kernel: declare
+            <code>let acc = 0;</code> before the loop, add one product per iteration, and
+            <code>return acc;</code> after it.</p>
+<pre><code>acc += signal[i] * Math.cos(angle);</code></pre></details>
+<details><summary>Hint 3 — asking for a bin</summary><p><code>k</code> is an ordinary kernel argument, so one kernel answers every
+            bin — call it again with a different number:</p>
+<pre><code>console.log('bin 8:', bin(signal, 8)[0]);
+console.log('bin 20:', bin(signal, 20)[0]);</code></pre></details>
+<h2>Same idea elsewhere</h2>Correlating against a basis function is the move behind far more than audio:
+        it is what a matched filter does in radar, what a lock-in amplifier does in a lab, and
+        what a single row of a matrix–vector product does in linear algebra. On any platform the
+        kernel is the same — CUDA, WGSL and Metal all give you a thread, a loop and a fused
+        multiply-add, and that is the entire ingredient list.
+<h2>All tasks in The DFT, Honestly</h2>
+<ol class="ssg-tasks"><li><a href="/learn/the-dft-7b1e3f9b/1">One Bin, One Thread</a></li><li><a href="/learn/the-dft-7b1e3f9b/2">One Number Is Not Enough</a></li><li><a href="/learn/the-dft-7b1e3f9b/3">Every Bin, One Thread Each</a></li><li><a href="/learn/the-dft-7b1e3f9b/4">Magnitude, Phase and the Mirror</a></li><li><a href="/learn/the-dft-7b1e3f9b/5">There and Back Again</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/the-dft-7b1e3f9b/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Score That Lies · Template Matching — GPU.js Learn</title>
     <meta name="description" content="Goal: score both scenes with the same SSD kernel and show the damage — log where each one thinks the patch is, and the two bright-scene scores that explain it.">
@@ -114,9 +114,82 @@
     <meta name="twitter:description" content="Goal: score both scenes with the same SSD kernel and show the damage — log where each one thinks the patch is, and the two bright-scene scores that explain it.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Score That Lies","description":"Goal: score both scenes with the same SSD kernel and show the damage — log where each one thinks the patch is, and the two bright-scene scores that explain it.","url":"https://gpu.rocks/learn/template-matching-f57b4bed/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Template Matching","url":"https://gpu.rocks/learn/template-matching-f57b4bed","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/template-matching-f57b4bed/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/template-matching-f57b4bed">Template Matching</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>The Score That Lies</h1>
+<p>Now break it. <code>brightScene</code> is the same scene photographed in brighter
+        light: every value 0.28 higher, nothing moved, nothing changed shape. The patch is still
+        exactly where it was. Run the same kernel over it — the kernel is not what is wrong here —
+        and the best match walks off to a completely different place.</p>
+        <p>Here is why, in one line of algebra. Add δ to every scene value and the score at a
+        window becomes</p>
+<pre><code>SSD(w + δ, t) = SSD(w, t)
+              + 2δ · sum(wᵢ − tᵢ)
+              + n · δ²</code></pre>
+        <p>At the true match the pixels agree, so <code>sum(wᵢ − tᵢ)</code> is zero and there is
+        nothing to offset the last term: a <em>perfect</em> match now scores
+        <code>64 × 0.28² = 5.02</code>. Meanwhile any window that is <strong>darker</strong> than
+        the template has a negative <code>sum(wᵢ − tᵢ)</code>, and the middle term pays it a
+        discount. Somewhere in this scene sits a patch that is dark and matches badly; brighten
+        the picture and its discount beats a perfect match outright.</p>
+        <p>That is the whole lesson of this module, and it is not really about vision. SSD is not
+        a measure of similarity — it is a measure of <strong>distance in absolute value</strong>,
+        and every camera, every light, every exposure, every gain setting moves absolute values
+        around. A score that cannot tell "brighter" from "different" will confidently point at
+        the wrong thing.</p>
+<figure><figcaption>the same two windows, before and after somebody turned the lights up</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> score both scenes with the same SSD kernel and show the damage
+        — log where each one thinks the patch is, and the two bright-scene scores that explain it.</div>
+
+<h2>Requirements</h2><ul><li>Score <code>scene</code> and <code>brightScene</code> with the same kernel</li><li><code>console.log</code> the best position on each map — they disagree</li><li>From the bright map, <code>console.log</code> the score at the true position and the score the winner got — the winner's is smaller</li></ul>
+<details><summary>Hint 1 — nothing about the kernel changes</summary><p>Same kernel, called twice. <code>brightScene</code> has exactly the same shape
+            as <code>scene</code>, so the second call costs you one line.</p></details>
+<details><summary>Hint 2 — reading a known cell</summary><p>The map is indexed <code>map[y][x]</code>, so the score the bright map gives
+            the true position is <code>brightMap[TRUE_Y][TRUE_X]</code>. Compare it against
+            <code>bestMatch(brightMap).score</code>.</p></details>
+<h2>Same idea elsewhere</h2>Every practitioner meets this wall. It is why OpenCV ships
+        <code>TM_CCOEFF_NORMED</code> alongside <code>TM_SQDIFF</code>, why stereo matchers use
+        census transforms or rank filters instead of raw differences, and why "we normalised the
+        inputs and the model started working" is the most common debugging story in machine
+        learning. A raw difference is a distance in whatever units the sensor happened to
+        produce.
+<h2>All tasks in Template Matching</h2>
+<ol class="ssg-tasks"><li><a href="/learn/template-matching-f57b4bed/1">Score Every Position at Once</a></li><li><a href="/learn/template-matching-f57b4bed/2">The Score That Lies</a></li><li><a href="/learn/template-matching-f57b4bed/3">Normalize It</a></li><li><a href="/learn/template-matching-f57b4bed/4">Hoist What Never Changes</a></li><li><a href="/learn/template-matching-f57b4bed/5">Payoff: Present or Absent?</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/template-matching-f57b4bed/1">← previous task</a> · <a href="/learn/template-matching-f57b4bed/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

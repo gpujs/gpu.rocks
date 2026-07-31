@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Read the Sweep Off the Picture · Spectrograms — GPU.js Learn</title>
     <meta name="description" content="Goal: find the ridge with a kernel, then turn its slope into a sweep rate in hertz per second and log it.">
@@ -114,9 +114,112 @@
     <meta name="twitter:description" content="Goal: find the ridge with a kernel, then turn its slope into a sweep rate in hertz per second and log it.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: Read the Sweep Off the Picture","description":"Goal: find the ridge with a kernel, then turn its slope into a sweep rate in hertz per second and log it.","url":"https://gpu.rocks/learn/spectrograms-9ecd2295/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Spectrograms","url":"https://gpu.rocks/learn/spectrograms-9ecd2295","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/spectrograms-9ecd2295/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/spectrograms-9ecd2295">Spectrograms</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>Payoff: Read the Sweep Off the Picture</h1>
+<p>A spectrogram is not only for looking at. This signal is a <strong>chirp</strong> —
+        a tone sliding steadily upward — and everything needed to characterise it is already in the
+        picture. For each frame, find the bin carrying the most energy. The sequence of winners is
+        the chirp's <strong>ridge</strong>, and the slope of that ridge is the sweep rate, in hertz
+        per second, recovered from nothing but the image.</p>
+        <p>The GPU shape: one thread per frame, each scanning its own column of 128 bins for the
+        largest value and returning <strong>the index</strong>, not the value. An argmax along an
+        axis is a reduction — Reductions climbs the general log₂ ladder for the case where the axis
+        is huge — but with 128 values per column, one thread walking them is the right call. What
+        matters more is what it does not need: no atomics, no shared memory, no thread writing to a
+        cell it does not own. Every thread pulls its own column and writes its own answer.</p>
+        <p>Where would this come from on a real page? A microphone, and the wiring is short:</p>
+<pre><code>const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+const audio = new AudioContext({ sampleRate: 48000 });
+await audio.audioWorklet.addModule('tap.js');   // posts Float32Array frames
+const tap = new AudioWorkletNode(audio, 'tap');
+audio.createMediaStreamSource(stream).connect(tap);
+
+const gpu = new GPU();
+const spectrogram = gpu.createKernel(/* the kernel you already wrote */);
+
+tap.port.onmessage = event =&gt; {
+  const spec = spectrogram(event.data);   // event.data is the ring buffer
+  paint(spec, peakOf(spec));
+};</code></pre>
+        <p><strong>That code cannot run here, and this course is not going to pretend otherwise.</strong>
+        Your code executes inside a Web Worker — which is what lets a runaway kernel be killed
+        instead of freezing the page — and a Worker has no <code>AudioContext</code>, no
+        <code>OfflineAudioContext</code> and no <code>navigator.mediaDevices</code>. There is no
+        microphone to reach and nothing to play back through. The buffers this module builds are the
+        stand-in, and they buy something a microphone never could: every assertion below is exact.
+        Every kernel you have written works unchanged the day you paste it onto a page with the
+        wiring above.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> find the ridge with a kernel, then turn its slope into a sweep
+        rate in hertz per second and log it.</div>
+
+<h2>Requirements</h2><ul><li><code>output: [FRAMES]</code> — one thread per frame, scanning all <code>this.constants.bins</code> bins</li><li>Return the <em>bin index</em> of the largest magnitude in that column, not the magnitude itself</li><li>Convert the slope to hertz per second and <code>console.log</code> it — bins are <code>SR / WIN</code> Hz apart, frames <code>HOP / SR</code> seconds apart</li></ul>
+<details><summary>Hint 1 — tracking an argmax</summary><p>Two locals: the best value seen so far, and the index it came from. Update both
+            together, and return the <em>index</em>. Returning <code>best</code> instead of
+            <code>bestBin</code> is the classic slip, and it looks plausible right up until the
+            numbers turn out to be 0.2 rather than 40.</p></details>
+<details><summary>Hint 2 — the kernel</summary><pre><code>let best = 0;
+let bestBin = 0;
+for (let b = 0; b &lt; this.constants.bins; b++) {
+  const v = spec[b][this.thread.x];
+  if (v &gt; best) {
+    best = v;
+    bestBin = b;
+  }
+}
+return bestBin;</code></pre>
+<p>Note <code>spec[b][this.thread.x]</code>: the column belongs to this thread, and
+<code>b</code> walks down it.</p></details>
+<details><summary>Hint 3 — the arithmetic</summary><pre><code>const binsPerFrame = (line[FRAMES - 1] - line[0]) / (FRAMES - 1);
+const hzPerSecond = (binsPerFrame * (SR / WIN)) / (HOP / SR);</code></pre>
+<p>Bins are <code>4096 / 256</code> = 16 Hz apart and frames are <code>64 / 4096</code> = 15.625 ms
+apart, so one bin per frame is 1,024 Hz per second — which is exactly what went in.</p></details>
+<h2>Same idea elsewhere</h2>Ridge tracking is how a radar measures range rate, how a guitar tuner follows a bent
+        note, how a birdsong classifier segments syllables and how a bearing monitor spots a
+        harmonic drifting with load. The primitive is <code>argmax</code> along an axis:
+        <code>torch.argmax(dim=…)</code>, <code>cub::DeviceSegmentedReduce</code> with
+        <code>ArgMax</code>, <code>simd_max</code> plus a ballot in Metal. The awkward part on every
+        platform is the same one you just stepped around — a maximum is easy, but carrying the
+        <em>index</em> of the maximum through a parallel reduction means reducing pairs, not
+        numbers.
+<h2>All tasks in Spectrograms</h2>
+<ol class="ssg-tasks"><li><a href="/learn/spectrograms-9ecd2295/1">One Spectrum, No Clock</a></li><li><a href="/learn/spectrograms-9ecd2295/2">Slice, Window, Transform</a></li><li><a href="/learn/spectrograms-9ecd2295/3">Fine in Time, or Fine in Frequency</a></li><li><a href="/learn/spectrograms-9ecd2295/4">Decibels, Then Colour</a></li><li><a href="/learn/spectrograms-9ecd2295/5">Payoff: Read the Sweep Off the Picture</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/spectrograms-9ecd2295/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

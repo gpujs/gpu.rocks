@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Thread, One Sample · Sampling &amp; Aliasing — GPU.js Learn</title>
     <meta name="description" content="Goal: fill 256 samples of a one-second signal — each thread turns its own index into a time and sums the three components of tones at that time.">
@@ -114,9 +114,92 @@
     <meta name="twitter:description" content="Goal: fill 256 samples of a one-second signal — each thread turns its own index into a time and sums the three components of tones at that time.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Thread, One Sample","description":"Goal: fill 256 samples of a one-second signal — each thread turns its own index into a time and sums the three components of tones at that time.","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Sampling & Aliasing","url":"https://gpu.rocks/learn/sampling-and-aliasing-ad14836c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/sampling-and-aliasing-ad14836c/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/sampling-and-aliasing-ad14836c">Sampling &amp; Aliasing</a></nav>
+<p class="ssg-eyebrow">Task 1 of 5</p>
+<h1>One Thread, One Sample</h1>
+<p>A signal, to a computer, is a list of numbers: <code>signal[i]</code> is how big the
+        thing was at moment <em>i</em>. Nothing else survives. Which moment is that? Sample
+        <code>i</code> happens at <strong>t = i / sampleRate</strong> seconds — and forgetting that
+        division is the single most common bug in this whole field, because the code still runs and
+        the answer is only wrong by a factor of the sample rate.</p>
+        <p>Building samples is the friendliest shape a GPU has: every sample is computed from its own
+        index and nothing else, so 256 threads do 256 independent sums. No neighbours, no ordering, no
+        coordination — the easiest possible parallel problem, and it produces the input every other
+        task in this module runs on.</p>
+        <p>Your <code>tones</code> input is three components, each an
+        <code>[amplitude, frequency in Hz, phase in radians]</code> triple. Add them up at this
+        thread's time:</p>
+<pre><code>signal[i] = Σ  A · sin(2π · f · t + φ)        with t = i / sampleRate</code></pre>
+        <p>Two things that bite. <code>Math.sin</code> counts <em>radians</em>, so a frequency in Hz
+        has to be multiplied by 2π before it goes in. And a real signal like this one is just a plain
+        <code>[n]</code> array of floats — the paired <code>output: [n, 2]</code> shape this track
+        uses for complex signals arrives later, with the DFT.</p>
+        <p>One boundary, stated plainly: your code runs in a Web Worker, which has no
+        <code>AudioContext</code>, no <code>OfflineAudioContext</code> and no
+        <code>navigator.mediaDevices</code>. Nothing here can record or play anything. Outside the
+        sandbox the samples would arrive like this, and the kernel would not know the difference:</p>
+<pre><code>const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+const audio = new AudioContext({ sampleRate: 48000 });
+const analyser = audio.createAnalyser();
+audio.createMediaStreamSource(stream).connect(analyser);
+
+const buffer = new Float32Array(analyser.fftSize);
+analyser.getFloatTimeDomainData(buffer);   // ← 2048 real samples
+kernel(buffer);</code></pre>
+<figure><figcaption>sample 64 is not second 64 — the whole field runs on one division</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> fill 256 samples of a one-second signal — each thread turns its own
+        index into a time and sums the three components of <code>tones</code> at that time.</div>
+
+<h2>Requirements</h2><ul><li>Turn the thread index into seconds: <code>this.thread.x / this.constants.sampleRate</code></li><li>Loop over <code>this.constants.parts</code> components and accumulate <code>A * Math.sin(2 * Math.PI * f * t + phase)</code></li><li>Return the sum — <code>output: [256]</code>, one thread per sample</li></ul>
+<details><summary>Hint 1 — reading a component</summary><p><code>tones</code> is a 3×3 nested array. Component <code>c</code> is
+            <code>tones[c][0]</code> (amplitude), <code>tones[c][1]</code> (frequency, Hz) and
+            <code>tones[c][2]</code> (phase, radians).</p></details>
+<details><summary>Hint 2 — the time of this sample</summary><p>With <code>sampleRate</code> = 256, thread 0 is at t = 0 s, thread 64 is at
+            t = 0.25 s, and thread 255 is at t = 0.996 s:</p>
+<pre><code>const t = this.thread.x / this.constants.sampleRate;</code></pre></details>
+<details><summary>Hint 3 — the loop body</summary><pre><code>s += tones[c][0] * Math.sin(2 * Math.PI * tones[c][1] * t + tones[c][2]);</code></pre></details>
+<h2>Same idea elsewhere</h2>Per-sample synthesis is the "embarrassingly parallel" case every platform opens with:
+        a CUDA kernel with one thread per sample, a WebGPU compute shader whose
+        <code>global_invocation_id.x</code> is the sample index, a Metal kernel over a 1D grid. It is
+        also what an <code>AudioWorkletProcessor</code> does per render quantum on the CPU — the same
+        arithmetic, 128 samples at a time instead of all of them at once.
+<h2>All tasks in Sampling &amp; Aliasing</h2>
+<ol class="ssg-tasks"><li><a href="/learn/sampling-and-aliasing-ad14836c/1">One Thread, One Sample</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/2">Above Nyquist</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/3">What Happened Between the Samples?</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/4">The Other Axis Is Discrete Too</a></li><li><a href="/learn/sampling-and-aliasing-ad14836c/5">Payoff: Keep One Sample in Four</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/sampling-and-aliasing-ad14836c/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

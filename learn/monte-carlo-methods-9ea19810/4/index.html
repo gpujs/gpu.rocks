@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Price an Option · Monte Carlo Methods — GPU.js Learn</title>
     <meta name="description" content="Goal: complete the payoff kernel — simulate this thread's final stock price and return the option payoff max(S_T − strike, 0) .">
@@ -114,9 +114,68 @@
     <meta name="twitter:description" content="Goal: complete the payoff kernel — simulate this thread's final stock price and return the option payoff max(S_T − strike, 0) .">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Price an Option","description":"Goal: complete the payoff kernel — simulate this thread's final stock price and return the option payoff max(S_T − strike, 0) .","url":"https://gpu.rocks/learn/monte-carlo-methods-9ea19810/4","position":4,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Monte Carlo Methods","url":"https://gpu.rocks/learn/monte-carlo-methods-9ea19810","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/monte-carlo-methods-9ea19810/4.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/monte-carlo-methods-9ea19810">Monte Carlo Methods</a></nav>
+<p class="ssg-eyebrow">Task 4 of 4</p>
+<h1>Price an Option</h1>
+<p>The payoff. A <strong>European call option</strong> is the right to buy a stock at
+        a fixed strike price K on a future date — worth <code>max(S_T − K, 0)</code> when the stock
+        finishes at <code>S_T</code>, and its fair price today is the <em>discounted expected
+        payoff</em>. Expectations are integrals, and you just learned to integrate by sampling.</p>
+        <p>Each thread simulates one possible market: under the standard log-normal model, a
+        pre-drawn normal shock <code>z</code> gives
+        <code>S_T = S0 · e^(drift + volT · z)</code>. Your kernel turns 16,384 shocks into
+        16,384 payoffs; JavaScript averages and discounts. Stock at 100, strike 105, one year out —
+        the Black–Scholes formula says the answer is ≈ 7.13. Your simulation should agree.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> complete the payoff kernel — simulate this thread's final stock
+        price and return the option payoff <code>max(S_T − strike, 0)</code>.</div>
+
+<h2>Requirements</h2><ul><li>Simulate the final price: <code>s0 * Math.exp(drift + volT * z)</code> (already wired)</li><li>Return the call payoff: <code>Math.max(st - strike, 0)</code> — an option never goes negative</li><li>Average the payoffs and discount by <code>Math.exp(-RATE * T)</code> in JavaScript</li></ul>
+<details><summary>Hint 1 — why the max?</summary><p>If the stock ends below the strike you simply don't exercise — the option
+            expires worthless, payoff 0, never negative. Forgetting the <code>max</code> drags the
+            average down by every losing path (the price comes out near −1.9 instead of ≈ 7.1).</p></details>
+<details><summary>Hint 2 — the kernel body</summary><p><code>return Math.max(st - strike, 0);</code> — <code>Math.max</code> works
+            inside kernels, and beats an <code>if</code> here.</p></details>
+<h2>Same idea elsewhere</h2>This is production reality: quant desks run exactly this workload on CUDA and ROCm
+        — millions of simulated paths per pricing call, one thread per path, then a reduction —
+        because exotic options have no closed form at all. You now hold the whole recipe.
+<h2>All tasks in Monte Carlo Methods</h2>
+<ol class="ssg-tasks"><li><a href="/learn/monte-carlo-methods-9ea19810/1">Darts at a Quarter Circle</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/2">Reduce 65,536 Hits to π</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/3">Integrate the Un-integrable</a></li><li><a href="/learn/monte-carlo-methods-9ea19810/4">Price an Option</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/monte-carlo-methods-9ea19810/3">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>

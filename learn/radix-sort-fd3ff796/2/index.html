@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-DwCyK39d.js"></script>
+    <script type="module" crossorigin src="/assets/index-C8aq8iYj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Bit at a Time · Radix Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: split keys by their low bit — even keys first, odd keys behind them, each half keeping its original order — and log the result.">
@@ -114,9 +114,75 @@
     <meta name="twitter:description" content="Goal: split keys by their low bit — even keys first, odd keys behind them, each half keeping its original order — and log the result.">
     <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"One Bit at a Time","description":"Goal: split keys by their low bit — even keys first, odd keys behind them, each half keeping its original order — and log the result.","url":"https://gpu.rocks/learn/radix-sort-fd3ff796/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Radix Sort","url":"https://gpu.rocks/learn/radix-sort-fd3ff796","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/radix-sort-fd3ff796/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/radix-sort-fd3ff796">Radix Sort</a></nav>
+<p class="ssg-eyebrow">Task 2 of 6</p>
+<h1>One Bit at a Time</h1>
+<p>Take the narrowest radix there is: <strong>2</strong>. One bit per pass, two
+        buckets, and the whole bucket table collapses to a single number — how many zeros there
+        are. Zeros go to the front in the order they appeared; ones go behind them, also in
+        order. So element <code>i</code>'s destination is either <em>how many zeros are before
+        me</em>, or <em>every zero, plus how many ones are before me</em>.</p>
+        <p>That count of preceding flags is a running total over a 0/1 array — the same shape
+        stream compaction uses to close its gaps, except here neither half gets thrown away.
+        The zero total is 32 numbers coming back to JavaScript, which is cheap to finish there.</p>
+        <p>Moving the data is one line of ordinary JavaScript: <code>out[dest[i]] = keys[i]</code>.
+        Enjoy it while it lasts. That line is a <strong>scatter</strong>, and it is the one thing
+        a kernel cannot do — task 4 is about turning it inside out.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> split <code>keys</code> by their low bit — even keys first,
+        odd keys behind them, each half keeping its original order — and log the result.</div>
+
+<h2>Requirements</h2><ul><li><code>lowBit</code> returns <code>keys[this.thread.x] % 2</code> — a 0/1 flag per key</li><li>Count the zeros in plain JavaScript and pass the total into the second kernel</li><li>A zero's destination is how many zeros came before it; a one's is <code>zeros</code> plus how many ones came before it</li><li><code>console.log</code> the reordered array (the starter's last line already does)</li></ul>
+<details><summary>Hint 1 — count your own kind</summary><p>Both halves need the same thing: how many <em>earlier</em> elements share your
+            flag. One loop does it for either flag —</p>
+<pre><code>if (bits[j] === mine &amp;&amp; j &lt; this.thread.x) before++;</code></pre>
+<p>— and then only the starting point differs.</p></details>
+<details><summary>Hint 2 — the two starting points</summary><p>The zero bucket starts at slot 0. The one bucket starts right after every
+            zero, at slot <code>zeros</code>:</p>
+<pre><code>if (mine === 0) return before;
+return zeros + before;</code></pre></details>
+<h2>Same idea elsewhere</h2>The one-bit split is where GPU radix sorting started — Satish, Harris and
+        Garland's manycore sorting paper builds an entire sort from it, one bit at a time, with a
+        prefix sum over the flag array supplying every destination. Modern hardware does the
+        counting in a single instruction: CUDA's <code>__ballot_sync</code> + <code>__popc</code>
+        and WGSL's <code>subgroupBallot</code> give a warp its flag ranks for free.
+<h2>All tasks in Radix Sort</h2>
+<ol class="ssg-tasks"><li><a href="/learn/radix-sort-fd3ff796/1">Sort by One Digit</a></li><li><a href="/learn/radix-sort-fd3ff796/2">One Bit at a Time</a></li><li><a href="/learn/radix-sort-fd3ff796/3">Widen the Radix</a></li><li><a href="/learn/radix-sort-fd3ff796/4">Whose Value Lands Here?</a></li><li><a href="/learn/radix-sort-fd3ff796/5">The Whole Sort</a></li><li><a href="/learn/radix-sort-fd3ff796/6">Keys That Aren't Plain Integers</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/radix-sort-fd3ff796/1">← previous task</a> · <a href="/learn/radix-sort-fd3ff796/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
   </body>
 </html>
