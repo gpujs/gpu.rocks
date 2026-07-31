@@ -40,6 +40,8 @@ import { moduleTaskMeta } from '../../routeMeta';
 import { setPageMeta } from '../../pageMeta';
 import { learnCompletions } from './completion/completions';
 import { signatureHelp } from './completion/signatureHelp';
+import { inputHover } from './completion/inputHover';
+import { taskInputDocs } from './inputDoc';
 import ConsolePane from './ConsolePane';
 import CompletionModal from './CompletionModal';
 import { highlightCodeBlocks } from './highlightCode';
@@ -223,7 +225,36 @@ function Figures({ figures }) {
   ));
 }
 
-function BriefPane({ module, task, taskNum, total }) {
+// The task's injected globals, described from the values themselves (see
+// task/inputDoc.js). Discoverable without knowing to type anything — the
+// editor's completion popup and hover tooltip show the same descriptors.
+// Renders nothing for a task with no inputs.
+function TaskInputs({ docs }) {
+  if (!docs || docs.length === 0) return null;
+  return (
+    <div className="taskinputs">
+      <b>Task inputs</b>
+      <p className="lead">Already defined as globals — use them directly.</p>
+      <dl>
+        {docs.map(doc => (
+          <React.Fragment key={doc.name}>
+            <dt>
+              <code className="iname">{doc.name}</code>
+              <code className="itype">{doc.type}</code>
+            </dt>
+            <dd>
+              <span className="isum">{doc.summary}</span>
+              {doc.sample && <code className="isample">{doc.sample}</code>}
+              {doc.note && <span className="inote">{doc.note}</span>}
+            </dd>
+          </React.Fragment>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function BriefPane({ module, task, taskNum, total, inputDocs }) {
   const figures = getFigures(module, task);
   const briefRef = useRef(null);
   // Static syntax highlighting for authored <pre><code> blocks. Layout effect
@@ -249,6 +280,7 @@ function BriefPane({ module, task, taskNum, total }) {
           ))}
         </ul>
       )}
+      <TaskInputs docs={inputDocs} />
       {(task.hints || []).map((hint, i) => (
         <details key={i}>
           <summary>{hint.title}</summary>
@@ -469,17 +501,12 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleRun]);
 
-  // completion needs the task's input names (they are injected as globals)
-  const inputNames = useMemo(() => {
-    try {
-      if (task && typeof task.inputs === 'function') {
-        return Object.keys(task.inputs(utils) || {});
-      }
-    } catch {
-      /* inputs that throw at completion time just aren't offered */
-    }
-    return [];
-  }, [task]);
+  // The task's injected globals, described from their real values. One shared
+  // set of descriptors feeds the brief pane, the completion popup and the
+  // editor hover — and taskInputDocs memoizes per task object, so building the
+  // inputs (a 512×512 test image, for one task) happens once, never per
+  // keystroke and not again on remount.
+  const inputDocs = useMemo(() => taskInputDocs(task, utils), [task]);
 
   const extensions = useMemo(
     () => [
@@ -497,11 +524,12 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           },
         ])
       ),
-      ...learnCompletions(inputNames),
+      ...learnCompletions(inputDocs),
       ...signatureHelp(),
+      ...inputHover(inputDocs),
       EditorView.contentAttributes.of({ 'aria-label': 'kernel.js code editor' }),
     ],
-    [handleRun, inputNames]
+    [handleRun, inputDocs]
   );
 
   // ARIA tabs pattern: arrow keys move + activate within the tablist
@@ -596,7 +624,13 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
       </div>
 
       <div className="workspace">
-        <BriefPane module={module} task={task} taskNum={taskNum} total={total} />
+        <BriefPane
+          module={module}
+          task={task}
+          taskNum={taskNum}
+          total={total}
+          inputDocs={inputDocs}
+        />
 
         <div className="editpane">
           <div className={fullscreen ? 'editor editor-fullscreen' : 'editor'}>

@@ -495,6 +495,98 @@
     font-size: .8rem;
   }
 
+  /* ---- "Task inputs" reference (task/TaskInputs, described by
+     task/inputDoc.js). Teal rail: neither the blue goal nor the amber
+     gotcha — this is the data sheet. Deliberately dense: the editor's
+     completion popup and hover show the same descriptors, so this is the
+     discoverable copy, not a second explanation. */
+  .brief .taskinputs {
+    margin: 1.1rem 0;
+    padding: .7rem .9rem .75rem;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--teal);
+    border-radius: 0 8px 8px 0;
+    background: var(--surface-2);
+  }
+
+  .brief .taskinputs > b {
+    display: block;
+    color: var(--ink);
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+  }
+
+  .brief .taskinputs .lead {
+    margin: .15rem 0 .55rem;
+    font-size: .74rem;
+    color: var(--muted);
+  }
+
+  .brief .taskinputs dl {
+    margin: 0;
+  }
+
+  .brief .taskinputs dt {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .4rem;
+    margin-top: .55rem;
+  }
+
+  .brief .taskinputs dt:first-of-type {
+    margin-top: 0;
+  }
+
+  // the name reads as the identifier it is; the shape rides beside it
+  .brief .taskinputs .iname {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--teal);
+  }
+
+  .brief .taskinputs .itype {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .74rem;
+    color: var(--muted);
+    // long shapes wrap rather than pushing the 375px pane sideways
+    overflow-wrap: anywhere;
+  }
+
+  .brief .taskinputs dd {
+    margin: .1rem 0 0;
+    font-size: .78rem;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .brief .taskinputs .isample {
+    display: inline-block;
+    margin-left: .3rem;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .74rem;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+
+  .brief .taskinputs .inote {
+    display: block;
+    margin-top: .15rem;
+    font-size: .74rem;
+    color: color-mix(in srgb, var(--muted) 88%, var(--bg));
+  }
+
   .transfer {
     margin-top: 1.4rem;
     padding: .8rem .9rem;
@@ -826,6 +918,7 @@
   // shared raised-surface look
   .cm-tooltip.cm-tooltip-autocomplete,
   .cm-tooltip.cm-completionInfo,
+  .cm-tooltip.cm-tooltip-hover,
   .cm-tooltip.cm-learn-signature {
     background: color-mix(in srgb, var(--ed-ink) 4%, var(--ed-bg));
     border: 1px solid color-mix(in srgb, var(--ed-gutter) 45%, transparent);
@@ -925,6 +1018,42 @@
       font-size: .7rem;
       font-style: italic;
       color: var(--amber);
+    }
+
+    // task-input descriptors: the indexing sentence (2D arrays and images)
+    .input-note {
+      margin-top: .4rem;
+      font-family: 'Avenir Next', 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+      font-size: .7rem;
+      line-height: 1.5;
+      color: color-mix(in srgb, var(--ed-ink) 62%, var(--ed-gutter));
+    }
+  }
+
+  /* ---- hover an injected input name (task/completion/inputHover.js).
+     The ONLY hoverTooltip in this editor, so the plain .cm-tooltip-hover
+     container is ours to style; CodeMirror hosts our dom inside it and adds
+     .cm-tooltip-section, hence the reset below. Same chrome as the signature
+     tooltip — one visual language across the editor. */
+  .cm-tooltip.cm-tooltip-hover {
+    padding: 0;
+    max-width: min(26rem, calc(100vw - 1.5rem));
+
+    .cm-tooltip-section:not(:first-child) {
+      border-top: 1px solid color-mix(in srgb, var(--ed-gutter) 30%, transparent);
+    }
+  }
+
+  .cm-learn-inputdoc {
+    padding: .45rem .7rem .55rem;
+
+    .sig {
+      padding-bottom: .35rem;
+      margin-bottom: .35rem;
+    }
+
+    .doc {
+      font-size: .74rem;
     }
   }
 

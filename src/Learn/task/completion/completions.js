@@ -11,7 +11,8 @@
 //   console. / Date. / JSON.<|> → the dotted global entries
 //   k.<|>              → kernel methods, when k is assigned from *.createKernel
 //   { <|> } of createKernel(fn, { … }) → option-key completions (name position)
-//   bare identifiers   → sandbox globals + task input names (+ CM's locals)
+//   bare identifiers   → sandbox globals + the task's injected inputs, each
+//                        described from its real value (+ CM's locals)
 //
 // Tab accepts ONLY while the completion popup is open (Prec.highest binding
 // falling through to the existing indentWithTab otherwise). The Esc-then-Tab
@@ -25,10 +26,11 @@ import {
   completionStatus,
 } from '@codemirror/autocomplete';
 import { syntaxTree } from '@codemirror/language';
-import { javascriptLanguage } from '@codemirror/lang-javascript';
+import { javascriptLanguage, localCompletionSource } from '@codemirror/lang-javascript';
 import { keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { byName } from './gpujsApi';
+import { inputDocDom } from '../inputDoc';
 
 // ---- rendering -------------------------------------------------------------
 
@@ -236,15 +238,47 @@ function memberOptions(state, path, node) {
   return null;
 }
 
-export function buildCompletionSource(inputNames) {
-  const inputOptions = inputNames.map(name => ({
-    label: name,
-    type: 'variable',
-    boost: 3,
-    info: () => axisDoc('Task input — injected as a global for this task (from task.inputs).'),
-  }));
-  const bareOptions = [...bareGlobalOptions, ...inputOptions];
+// ---- task inputs -----------------------------------------------------------
 
+// The task's injected globals, described from their REAL values (task/
+// inputDoc.js) instead of the old one-line "injected as a global for this
+// task", which told a learner nothing about shape, size or range.
+//
+// THE DUPLICATE. These names are usually bound in the learner's code too — the
+// starter names the kernel function's parameter after the global it receives —
+// and CodeMirror's own JavaScript local-scope source offers every such binding.
+// Two sources, same label, so `data` appeared twice, and the entry a learner
+// landed on first was the undocumented one.
+//
+// @codemirror/autocomplete's sortOptions() collapses two options only when
+// label, detail, type, apply AND boost all match; of a collapsed pair it keeps
+// the higher `score()`, which counts an `info` callback. So when a local
+// binding shadows the name we emit an option shaped exactly like that local one
+// — its type, no boost, no detail — and the survivor is OURS, carrying the
+// documentation. One entry, always documented. Names with no local binding
+// can't collide, so those keep the boost that lifts task inputs above the
+// generic globals.
+function inputOptions(context, docs) {
+  if (docs.length === 0) return [];
+  const local = localCompletionSource(context);
+  const shadow = new Map();
+  if (local) {
+    for (const option of local.options) {
+      if (!shadow.has(option.label)) shadow.set(option.label, option.type);
+    }
+  }
+  return docs.map(doc => {
+    const spec = {
+      label: doc.name,
+      type: shadow.has(doc.name) ? shadow.get(doc.name) : 'variable',
+      info: () => inputDocDom(doc),
+    };
+    if (!shadow.has(doc.name)) spec.boost = 3;
+    return spec;
+  });
+}
+
+export function buildCompletionSource(inputDocs = []) {
   return context => {
     const { state, pos } = context;
     const node = syntaxTree(state).resolveInner(pos, -1);
@@ -270,7 +304,11 @@ export function buildCompletionSource(inputNames) {
     if (/new\s+$/.test(state.sliceDoc(Math.max(0, from - 6), from))) {
       return { from, options: constructorOptions, validFor: /^[\w$]*$/ };
     }
-    return { from, options: bareOptions, validFor: /^[\w$]*$/ };
+    return {
+      from,
+      options: [...bareGlobalOptions, ...inputOptions(context, inputDocs)],
+      validFor: /^[\w$]*$/,
+    };
   };
 }
 
@@ -287,10 +325,10 @@ const tabAcceptKeymap = Prec.highest(
   ])
 );
 
-export function learnCompletions(inputNames = []) {
+export function learnCompletions(inputDocs = []) {
   return [
     autocompletion({ icons: true }),
-    javascriptLanguage.data.of({ autocomplete: buildCompletionSource(inputNames) }),
+    javascriptLanguage.data.of({ autocomplete: buildCompletionSource(inputDocs) }),
     tabAcceptKeymap,
   ];
 }
