@@ -153,7 +153,14 @@ jobs:
             "https://gpu.rocks/sitemap.xml" \
             "https://gpu.rocks/robots.txt" \
             "https://gpu.rocks/llms.txt" \
-            "https://gpu.rocks/llms-full.txt" >> /tmp/purge-urls.txt
+            "https://gpu.rocks/llms-full.txt" \
+            "https://gpu.rocks/version.json" >> /tmp/purge-urls.txt
+          # version.json is the one file that MUST be purged. It is what an open
+          # tab polls to notice it has gone stale, it is not content-hashed, and
+          # it is cached (cf-cache-status HIT, max-age=14400) — so leaving it out
+          # meant a deploy could go unannounced for four hours, which is exactly
+          # the failure the update banner exists to prevent. Caught by a served
+          # build id disagreeing with the one just built.
           echo "purging $(wc -l < /tmp/purge-urls.txt) HTML + Markdown URLs (assets left warm)"
           split -l 30 /tmp/purge-urls.txt /tmp/purge-batch-
           failed=0

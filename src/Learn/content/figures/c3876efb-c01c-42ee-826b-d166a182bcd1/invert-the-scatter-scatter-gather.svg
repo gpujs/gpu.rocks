@@ -3,11 +3,20 @@
   <!-- scatter panel -->
   <g>
     <rect x="60" y="58" width="28" height="22" rx="4" fill="none" stroke="var(--lred)" stroke-width="1.6"/>
+    <!-- Each head is a triangle whose apex sits ON the target box edge and
+         whose base is perpendicular to its own line (length 7, half-width 3.5).
+         Written out rather than eyeballed: the previous heads were drawn by
+         hand and did not match their lines — the upper-right one pointed
+         straight down on a line travelling up-right, and the lower-right one
+         pointed down-left on a line travelling down-right, both landing inside
+         the box instead of at its edge. -->
     <g fill="none" stroke="var(--lred)" stroke-width="1.4" opacity=".85">
-      <path d="M74 56 V 36"/><path d="M90 62 L 116 46"/><path d="M90 74 L 116 90"/>
+      <path d="M74 56 V 41"/><path d="M88 64 L 106.6 48.5"/><path d="M88 74 L 106.6 89.5"/>
     </g>
     <g fill="var(--lred)">
-      <path d="M74 32 l -4 7 h 8 z"/><path d="M120 44 l -8 0 4 7 z"/><path d="M120 92 l -8 -1 3 8 z"/>
+      <path d="M74 34 l -4 7 h 8 z"/>
+      <path d="M112 44 L 108.9 51.2 L 104.4 45.8 Z"/>
+      <path d="M112 94 L 104.4 92.2 L 108.9 86.8 Z"/>
     </g>
     <g fill="none" stroke="var(--line)">
       <rect x="62" y="18" width="24" height="16" rx="3"/><rect x="112" y="36" width="24" height="16" rx="3"/><rect x="112" y="86" width="24" height="16" rx="3"/>
@@ -19,11 +28,15 @@
   <!-- gather panel -->
   <g>
     <rect x="232" y="58" width="28" height="22" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+    <!-- Same construction as the scatter panel, so the two read as one hand:
+         apex on the destination cell's edge, base perpendicular to its line. -->
     <g fill="none" stroke="var(--teal)" stroke-width="1.4" opacity=".85">
-      <path d="M246 36 V 54"/><path d="M216 46 L 240 58"/><path d="M216 90 L 240 78"/>
+      <path d="M246 36 V 51"/><path d="M216 46 L 227.6 60.5"/><path d="M216 90 L 227 79"/>
     </g>
     <g fill="var(--teal)">
-      <path d="M246 58 l -4 -7 h 8 z"/><path d="M243 60 l -3 -8 -5 6 z"/><path d="M243 76 l -8 1 4 6 z"/>
+      <path d="M246 58 l -4 -7 h 8 z"/>
+      <path d="M232 66 L 224.9 62.7 L 230.4 58.3 Z"/>
+      <path d="M232 74 L 229.5 81.4 L 224.6 76.5 Z"/>
     </g>
     <g fill="none" stroke="var(--line)">
       <rect x="234" y="18" width="24" height="16" rx="3"/><rect x="192" y="38" width="24" height="16" rx="3"/><rect x="192" y="84" width="24" height="16" rx="3"/>
