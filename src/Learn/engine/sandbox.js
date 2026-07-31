@@ -22,6 +22,11 @@ import {
   assertNotPromise,
   formatValue,
   isPromiseLike,
+  looksNumeric,
+  normaliseControl,
+  normalisePlot,
+  downsample,
+  toNumberArray,
   readCanvasPixels,
   snapshotCanvas,
   timeString,
@@ -142,11 +147,19 @@ function makeConsoleProxy(push) {
   let awaitHintGiven = false;
   const capture = type => (...args) => {
     if (real && real[type]) real[type](...args);
-    push({
+    // A logged numeric array gets a sparkline for free. The learner writes the
+    // console.log they were going to write anyway and the TEXT is unchanged —
+    // which matters, because several tasks assert on console output — but the
+    // shape of the series stops being something they have to rebuild in their
+    // head from a column of numbers.
+    const spark = args.find(a => looksNumeric(a));
+    const entry = {
       type: type === 'warn' ? 'warn' : type === 'error' ? 'error' : 'log',
       time: timeString(),
       text: args.map(a => formatValue(a)).join(' '),
-    });
+    };
+    if (spark) entry.spark = downsample(toNumberArray(spark), 120);
+    push(entry);
     if (!awaitHintGiven && args.some(isPromiseLike)) {
       awaitHintGiven = true;
       push({ type: 'warn', time: timeString(), text: `▸ ${AWAIT_HINT}` });
@@ -433,7 +446,10 @@ async function preflight(code, mode, task) {
 // `onLog` (optional) is called with every log entry as it is produced. The
 // supervisor uses it to stream text lines to the main thread, so a run that is
 // later killed by the watchdog can still show what it managed to do.
-export async function executeRun(code, { mode = 'auto', task, probe = false, onLog } = {}) {
+export async function executeRun(
+  code,
+  { mode = 'auto', task, probe = false, onLog, controls: injectedControls } = {}
+) {
   await destroyPreviousRun();
 
   const logs = [];
@@ -561,10 +577,52 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
   const consoleProxy = makeConsoleProxy(push);
 
   // Injected globals: GPU, console, render, utils, mode, plus task inputs.
+  // plot(series, options) — an explicit chart, for the many tasks whose point
+  // is the SHAPE of a curve: a residual falling, energy drifting, a loss
+  // settling. Three modules currently ship a hand-drawn SVG of exactly the
+  // series the learner's own run produces, which is the course conceding the
+  // console could not show it.
+  const plot = (data, options) => {
+    const payload = normalisePlot(data, options || {});
+    if (!payload) {
+      push({ type: 'warn', time: timeString(), text: '▸ plot(): nothing numeric to draw' });
+      return;
+    }
+    const total = payload.series.reduce((n, s) => Math.max(n, s.total), 0);
+    push({
+      type: 'plot',
+      time: timeString(),
+      text:
+        (payload.title || 'plot') +
+        ` · ${payload.series.length} series · ${total.toLocaleString('en-US')} points` +
+        (payload.log ? ' · log scale' : ''),
+      plot: payload,
+    });
+  };
+
+  // slider(name, options) — declares a control and returns the value this run
+  // is using. The program is a pure function of its controls: moving a slider
+  // re-runs it. That is the whole model, and it is why the fractal zoom works
+  // without the learner writing an event loop.
+  const controls = [];
+  const controlValues = {};
+  const slider = (name, options = {}) => {
+    const spec = normaliseControl(name, options);
+    const supplied = injectedControls && injectedControls[spec.name];
+    const fallback = Number.isFinite(Number(options.value)) ? Number(options.value) : spec.min;
+    const value = Number.isFinite(Number(supplied)) ? Number(supplied) : fallback;
+    const clamped = Math.min(spec.max, Math.max(spec.min, value));
+    if (!controls.some(c => c.name === spec.name)) controls.push({ ...spec, value: clamped });
+    controlValues[spec.name] = clamped;
+    return clamped;
+  };
+
   const globals = {
     GPU: RecordingGPU,
     console: consoleProxy,
     render,
+    plot,
+    slider,
     utils,
     mode: resolvedMode,
   };
@@ -716,6 +774,7 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
     canvas,
     resolvedMode,
     backends: backendNames.length ? backends : null,
+    controls,
     durationMs,
     fellBackToCPU,
     probeStats: probe ? probeStats : undefined,
@@ -750,6 +809,10 @@ export function toWireResult(internal, extra = {}) {
         : null,
       kernelCount: (internal.kernels || []).length,
       resolvedMode: internal.resolvedMode,
+      // Plain JSON by construction (engine/utils.normaliseControl), so the
+      // declarations survive postMessage and the UI can render the sliders the
+      // program asked for.
+      controls: internal.controls || [],
       durationMs: internal.durationMs,
       fellBackToCPU: Boolean(internal.fellBackToCPU),
       refusedAsTooSlow: Boolean(internal.refusedAsTooSlow),

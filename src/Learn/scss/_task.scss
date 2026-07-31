@@ -865,6 +865,114 @@
     font-family: ui-monospace, Menlo, monospace;
   }
 
+  /* ---- rich console: plots, sparklines, frame strips, controls ---- */
+
+  /* A sparkline rides on the log line itself, so a logged series reads as a
+     shape without costing a block of vertical space. */
+  .console .sparkrow { margin: .1rem 0 .35rem 5.1rem; }
+
+  .console .spark {
+    display: block;
+    width: 120px;
+    height: 18px;
+    opacity: .9;
+  }
+
+  @media (max-width: 720px) { .console .sparkrow { margin-left: 0; } }
+
+  .console .plotout {
+    margin: .4rem 0 .6rem 5.1rem;
+    max-width: 470px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface-2);
+    padding: .4rem .5rem .3rem;
+  }
+
+  .console .plotout svg { display: block; width: 100%; height: auto; }
+
+  .console .plot-axis line { stroke: var(--line); stroke-width: 1; }
+  .console .plot-axis text { fill: var(--muted); font-size: 8px; font-family: ui-monospace, Menlo, monospace; }
+
+  .console .plot-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .15rem .7rem;
+    font-size: .65rem;
+    color: var(--muted);
+    font-family: ui-monospace, Menlo, monospace;
+    padding: .1rem 0 .1rem 2px;
+  }
+
+  .console .plot-legend i {
+    display: inline-block;
+    width: 8px;
+    height: 2px;
+    margin-right: .3rem;
+    vertical-align: 3px;
+    border-radius: 1px;
+  }
+
+  .console .plot-note { opacity: .75; font-style: italic; }
+
+  /* A frame strip is the same box as a single canvas, plus a scrubber; keeping
+     the picture the same size means a run that renders once and a run that
+     renders sixty times do not jump around relative to each other. */
+  .console .imgout.frames { height: auto; padding-bottom: 2.1rem; }
+  .console .imgout.frames img { height: 148px; }
+
+  .console .frame-ctl {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+
+  .console .frame-ctl input[type="range"] { flex: 1; min-width: 0; accent-color: var(--blue); }
+  .console .frame-ctl .cbadge { position: static; }
+
+  /* Pinned, not scrolled with the log. The pane auto-scrolls to the newest
+     line, so a control that scrolled with the content would disappear the
+     moment the program it drives produced any output — which is always. */
+  .console .controls {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    padding: .45rem .55rem;
+    margin-bottom: .5rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface-2);
+    box-shadow: 0 4px 10px -6px rgba(0, 0, 0, .5);
+  }
+
+  .console .ctl {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, auto) 1fr minmax(3.2rem, auto);
+    align-items: center;
+    gap: .5rem;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: .72rem;
+  }
+
+  .console .ctl-name { color: var(--muted); }
+  .console .ctl input[type="range"] { width: 100%; min-width: 0; accent-color: var(--blue); }
+  .console .ctl output { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+  .console .ctl input:disabled { opacity: .5; }
+
+  @media (max-width: 720px) {
+    .console .plotout,
+    .console .imgout { margin-left: 0; }
+    .console .ctl { grid-template-columns: 1fr; gap: .1rem; }
+    .console .ctl output { text-align: left; }
+  }
+
   /* ---- tests ---- */
   .testlist {
     display: flex;

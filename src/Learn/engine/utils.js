@@ -185,6 +185,101 @@ export const utils = {
   isPromiseLike,
 };
 
+// ---- rich console payloads -------------------------------------------------
+//
+// These describe a chart, a frame strip or a control, and they cross
+// postMessage out of the worker — so everything here must be plain JSON. No
+// DOM, no typed arrays, no functions. The renderer lives in task/ConsolePane.
+
+// A chart is a picture, not a data dump: past a few hundred points a line plot
+// cannot show more, and serialising 131,072 floats per log line would cost more
+// than the run. Stride down, and keep the true length so the label can say so.
+const MAX_PLOT_POINTS = 400;
+
+export function toNumberArray(value) {
+  if (ArrayBuffer.isView(value)) return Array.from(value, Number);
+  if (Array.isArray(value)) return value;
+  return null;
+}
+
+// Sampled rather than exhaustive: this runs on every console.log, and walking a
+// 131k-element array to decide whether to offer a sparkline would be a tax on
+// every line the learner prints.
+export function looksNumeric(value) {
+  const arr = toNumberArray(value);
+  if (!arr || arr.length < 4) return false;
+  const step = Math.max(1, Math.floor(arr.length / 32));
+  for (let i = 0; i < arr.length; i += step) {
+    const n = arr[i];
+    if (typeof n !== 'number' || !Number.isFinite(n)) return false;
+  }
+  return true;
+}
+
+export function downsample(values, max = MAX_PLOT_POINTS) {
+  const total = values.length;
+  if (total <= max) return { values: Array.from(values, Number), total };
+  const stride = total / max;
+  const out = [];
+  for (let i = 0; i < max; i++) out.push(Number(values[Math.floor(i * stride)]));
+  return { values: out, total };
+}
+
+/**
+ * Accepts the shapes a learner will actually reach for:
+ *   plot([1, 2, 3])                       one unnamed series
+ *   plot({ jacobi: [...], redBlack: [...] })   named series, one per key
+ *   plot([[...], [...]])                  several unnamed series
+ * Returns null when there is nothing plottable, so the caller can fall back to
+ * an ordinary log line rather than render an empty chart.
+ */
+export function normalisePlot(data, options = {}) {
+  const series = [];
+  const push = (name, values) => {
+    const arr = toNumberArray(values);
+    if (!arr || !arr.length) return;
+    const { values: v, total } = downsample(arr);
+    series.push({ name: name || '', values: v, total });
+  };
+  const asArray = toNumberArray(data);
+  if (asArray && asArray.length && toNumberArray(asArray[0])) {
+    asArray.forEach((row, i) => push(options.names ? options.names[i] : '', row));
+  } else if (asArray) {
+    push(options.name || '', asArray);
+  } else if (data && typeof data === 'object') {
+    for (const [name, values] of Object.entries(data)) push(name, values);
+  }
+  if (!series.length) return null;
+  const x = toNumberArray(options.x);
+  return {
+    series,
+    title: options.title ? String(options.title) : '',
+    xLabel: options.xLabel ? String(options.xLabel) : '',
+    yLabel: options.yLabel ? String(options.yLabel) : '',
+    // log scale is what the course's own convergence figures use — a residual
+    // falling 36x is invisible on a linear axis
+    log: Boolean(options.log),
+    x: x ? downsample(x).values : null,
+  };
+}
+
+// A control declaration. `value` is what the program actually ran with, so the
+// renderer shows the slider already in the right position on the first run.
+export function normaliseControl(name, options = {}) {
+  const min = Number.isFinite(Number(options.min)) ? Number(options.min) : 0;
+  const max = Number.isFinite(Number(options.max)) ? Number(options.max) : 1;
+  const rawStep = Number(options.step);
+  const step = Number.isFinite(rawStep) && rawStep > 0 ? rawStep : (max - min) / 100 || 0.01;
+  return {
+    kind: 'slider',
+    name: String(name),
+    label: options.label ? String(options.label) : String(name),
+    min,
+    max,
+    step,
+  };
+}
+
 // ---- console / log formatting ---------------------------------------------
 
 export function timeString() {

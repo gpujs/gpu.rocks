@@ -71,6 +71,7 @@ async function handleRun(msg) {
   const internal = await executeRun(msg.code, {
     mode: msg.mode,
     task,
+    controls: msg.controls,
     onLog: makeLogStreamer(msg.id),
   });
   const token = `run-${++tokenSeq}`;

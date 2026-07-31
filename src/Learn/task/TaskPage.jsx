@@ -340,6 +340,11 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     return /graphical:\s*true|this\.color\s*\(/.test(source);
   }, [task]);
   const [logs, setLogs] = useState([]);
+  // Controls the last run DECLARED (via slider()), and the values to run with
+  // next. The program is a pure function of its controls: moving one re-runs it.
+  const [controls, setControls] = useState([]);
+  const [controlValues, setControlValues] = useState({});
+  const controlValuesRef = useRef({});
   const [report, setReport] = useState(null);
   const [bench, setBench] = useState(null);
   const [running, setRunning] = useState(false);
@@ -405,14 +410,68 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     [taskId]
   );
 
+  // Moving a slider re-runs the program with the new value. Deliberately NOT a
+  // full Run: no tests, no progress marking, no status text — dragging a zoom
+  // slider must not be able to mark a task complete, and re-running the test
+  // suite on every input event would be absurd. Only the console output is
+  // replaced. Debounced, because a range input fires continuously while dragged
+  // and each re-run recompiles the kernel.
+  const controlTimer = useRef(null);
+  const [controlsBusy, setControlsBusy] = useState(false);
+  const handleControlChange = useCallback(
+    (name, value) => {
+      setControlValues(prev => {
+        const next = { ...prev, [name]: value };
+        controlValuesRef.current = next;
+        return next;
+      });
+      if (controlTimer.current) clearTimeout(controlTimer.current);
+      controlTimer.current = setTimeout(async () => {
+        if (busyRef.current) return;
+        busyRef.current = true;
+        setControlsBusy(true);
+        try {
+          const result = await runUserCode(codeRef.current, {
+            mode: modeRef.current,
+            task,
+            controls: controlValuesRef.current,
+          });
+          setLogs(result.logs.map(decorateLog));
+          if (result.controls && result.controls.length) setControls(result.controls);
+        } finally {
+          busyRef.current = false;
+          setControlsBusy(false);
+        }
+      }, 120);
+    },
+    [task]
+  );
+
+  useEffect(() => () => { if (controlTimer.current) clearTimeout(controlTimer.current); }, []);
+
   const handleRun = useCallback(async () => {
     if (busyRef.current) return;
     busyRef.current = true;
     setRunning(true);
     try {
-      const result = await runUserCode(codeRef.current, { mode: modeRef.current, task });
+      const result = await runUserCode(codeRef.current, {
+        mode: modeRef.current,
+        task,
+        controls: controlValuesRef.current,
+      });
       // snapshot canvases immediately, before the browser composites the frame
       setLogs(result.logs.map(decorateLog));
+      setControls(result.controls || []);
+      // Seed the sliders from what the program actually ran with, so the first
+      // render shows them in the right position rather than at their minimum.
+      if (result.controls && result.controls.length) {
+        setControlValues(prev => {
+          const next = { ...prev };
+          for (const c of result.controls) if (next[c.name] === undefined) next[c.name] = c.value;
+          controlValuesRef.current = next;
+          return next;
+        });
+      }
       const rep = await runTests(task, result);
       setReport(rep);
       if (rep.total > 0 && rep.allPassed) {
@@ -723,7 +782,14 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
                 clear
               </button>
             </div>
-            <ConsolePane logs={logs} active={tab === 'console'} />
+            <ConsolePane
+              logs={logs}
+              active={tab === 'console'}
+              controls={controls}
+              controlValues={controlValues}
+              onControlChange={handleControlChange}
+              controlsBusy={controlsBusy}
+            />
             <TestsPanel task={task} report={report} active={tab === 'tests'} />
           </div>
         </div>
