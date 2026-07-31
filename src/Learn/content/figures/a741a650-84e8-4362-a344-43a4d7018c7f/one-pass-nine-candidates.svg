@@ -1,0 +1,46 @@
+<svg viewBox="0 0 440 200" role="img" aria-label="A grid of cells with nine of them marked: the thread's own cell in the centre and eight neighbours sitting k cells away in each direction, at the corners and edge midpoints of a square of side 2k. The centre cell is one of the nine, which is how a cell keeps the seed it already had.">
+  <text x="10" y="14" class="lbl-up">NINE CANDIDATES, STRIDE k</text>
+
+  <!-- the grid, as a faint lattice of cells -->
+  <g fill="var(--line)">
+    <circle cx="40" cy="34" r="1.3"/><circle cx="58" cy="34" r="1.3"/><circle cx="76" cy="34" r="1.3"/><circle cx="94" cy="34" r="1.3"/><circle cx="112" cy="34" r="1.3"/><circle cx="130" cy="34" r="1.3"/><circle cx="148" cy="34" r="1.3"/><circle cx="166" cy="34" r="1.3"/><circle cx="184" cy="34" r="1.3"/>
+    <circle cx="40" cy="52" r="1.3"/><circle cx="76" cy="52" r="1.3"/><circle cx="94" cy="52" r="1.3"/><circle cx="130" cy="52" r="1.3"/><circle cx="148" cy="52" r="1.3"/><circle cx="184" cy="52" r="1.3"/>
+    <circle cx="40" cy="70" r="1.3"/><circle cx="58" cy="70" r="1.3"/><circle cx="76" cy="70" r="1.3"/><circle cx="94" cy="70" r="1.3"/><circle cx="112" cy="70" r="1.3"/><circle cx="130" cy="70" r="1.3"/><circle cx="148" cy="70" r="1.3"/><circle cx="166" cy="70" r="1.3"/><circle cx="184" cy="70" r="1.3"/>
+    <circle cx="40" cy="88" r="1.3"/><circle cx="58" cy="88" r="1.3"/><circle cx="76" cy="88" r="1.3"/><circle cx="94" cy="88" r="1.3"/><circle cx="112" cy="88" r="1.3"/><circle cx="130" cy="88" r="1.3"/><circle cx="148" cy="88" r="1.3"/><circle cx="166" cy="88" r="1.3"/><circle cx="184" cy="88" r="1.3"/>
+    <circle cx="40" cy="106" r="1.3"/><circle cx="76" cy="106" r="1.3"/><circle cx="94" cy="106" r="1.3"/><circle cx="130" cy="106" r="1.3"/><circle cx="148" cy="106" r="1.3"/><circle cx="184" cy="106" r="1.3"/>
+    <circle cx="40" cy="124" r="1.3"/><circle cx="58" cy="124" r="1.3"/><circle cx="76" cy="124" r="1.3"/><circle cx="94" cy="124" r="1.3"/><circle cx="112" cy="124" r="1.3"/><circle cx="130" cy="124" r="1.3"/><circle cx="148" cy="124" r="1.3"/><circle cx="166" cy="124" r="1.3"/><circle cx="184" cy="124" r="1.3"/>
+    <circle cx="40" cy="142" r="1.3"/><circle cx="58" cy="142" r="1.3"/><circle cx="76" cy="142" r="1.3"/><circle cx="94" cy="142" r="1.3"/><circle cx="112" cy="142" r="1.3"/><circle cx="130" cy="142" r="1.3"/><circle cx="148" cy="142" r="1.3"/><circle cx="166" cy="142" r="1.3"/><circle cx="184" cy="142" r="1.3"/>
+    <circle cx="40" cy="160" r="1.3"/><circle cx="76" cy="160" r="1.3"/><circle cx="94" cy="160" r="1.3"/><circle cx="130" cy="160" r="1.3"/><circle cx="148" cy="160" r="1.3"/><circle cx="184" cy="160" r="1.3"/>
+    <circle cx="40" cy="178" r="1.3"/><circle cx="58" cy="178" r="1.3"/><circle cx="76" cy="178" r="1.3"/><circle cx="94" cy="178" r="1.3"/><circle cx="112" cy="178" r="1.3"/><circle cx="130" cy="178" r="1.3"/><circle cx="148" cy="178" r="1.3"/><circle cx="166" cy="178" r="1.3"/><circle cx="184" cy="178" r="1.3"/>
+  </g>
+
+  <!-- the eight neighbours at +/- k -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.5">
+    <rect x="51" y="45" width="14" height="14" rx="3"/>
+    <rect x="105" y="45" width="14" height="14" rx="3"/>
+    <rect x="159" y="45" width="14" height="14" rx="3"/>
+    <rect x="51" y="99" width="14" height="14" rx="3"/>
+    <rect x="159" y="99" width="14" height="14" rx="3"/>
+    <rect x="51" y="153" width="14" height="14" rx="3"/>
+    <rect x="105" y="153" width="14" height="14" rx="3"/>
+    <rect x="159" y="153" width="14" height="14" rx="3"/>
+  </g>
+
+  <!-- this thread's own cell -->
+  <rect x="105" y="99" width="14" height="14" rx="3" fill="var(--pink)" fill-opacity=".18" stroke="var(--pink)" stroke-width="1.8"/>
+
+  <!-- the stride, measured -->
+  <path class="arrow" d="M112 190 H 166 M 112 186 v 8 M 166 186 v 8" stroke-width="1.1"/>
+  <text x="139" y="182" text-anchor="middle" class="lbl">k</text>
+
+  <!-- legend -->
+  <rect x="230" y="46" width="14" height="14" rx="3" fill="var(--pink)" fill-opacity=".18" stroke="var(--pink)" stroke-width="1.8"/>
+  <text x="254" y="57" class="lbl">this pixel — dx = dy = 0</text>
+  <rect x="230" y="76" width="14" height="14" rx="3" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="254" y="87" class="lbl">eight neighbours at ±k</text>
+
+  <text x="230" y="122" class="formula">nx = x + dx · k</text>
+  <text x="230" y="140" class="formula">ny = y + dy · k</text>
+  <text x="230" y="168" class="lbl">keep whichever candidate's seed</text>
+  <text x="230" y="182" class="lbl">is nearest to THIS pixel</text>
+</svg>

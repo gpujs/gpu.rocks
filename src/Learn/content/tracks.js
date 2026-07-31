@@ -37,6 +37,9 @@ const tracks = [
       '0aed2e43-9c72-49a3-b5a4-9056872704e2', // Stream Compaction
       'dfb254f4-b68c-464e-af9e-1439efb7fcec', // Histograms & Binning
       '1ba56df3-64f4-4387-8723-958f4ad53c09', // Top-K Selection
+      // Sits before Bitonic Sort on purpose: both are "asymptotically worse,
+      // wins anyway", and back to back that stops being a coincidence.
+      'a741a650-84e8-4362-a344-43a4d7018c7f', // Jump Flooding
       '84e0728e-6dbd-4f06-8c76-14b708a55b47', // Bitonic Sort
       'fd3ff796-daed-4036-9202-987b374bb4d3', // Radix Sort
     ],
@@ -57,9 +60,12 @@ const tracks = [
       // module's implicit task leans on the Jacobi sweep taught here.
       'e73b8e1f-33e1-4ad7-b371-beb2fed1df95', // Iterative Linear Solvers
       '514063bb-13a7-4aa9-b507-c449996df7ef', // The Heat Equation & Stability
-      // Last: its learning-rate ceiling is the same stability argument one
-      // dimension over, which only lands once Heat has made it.
+      // After Heat: its learning-rate ceiling is the same stability argument
+      // one dimension over, and only lands once Heat has made it.
       'c94c3f22-2b9b-46ef-bad3-4a62fcd1935a', // Gradient Descent
+      // Last: its checkerboard is Iterative Linear Solvers' red-black ordering
+      // in a second costume, so it has to come after that module.
+      '1f12d841-3c62-465a-8cd3-846212d0ef40', // The Ising Model
     ],
   },
   {
@@ -71,6 +77,9 @@ const tracks = [
       '66933805-3a1d-48c0-a287-16d3d7d00016', // Convolution & Filters
       '670eaafa-4b13-4e77-88b3-f2904105c615', // Thresholding & Morphology
       '6901c51a-78cc-43fd-b7cd-6327496ae4f3', // The Canny Edge Pipeline
+      // First module to use a gradient field for a DECISION rather than for
+      // detection — which is why it follows Canny rather than preceding it.
+      'a23a0d9b-0e9b-47f1-8c49-8f0b6317ee43', // Seam Carving
       'f57b4bed-0519-42f0-a9fb-739679e67957', // Template Matching
       'e85c6dfa-70f9-4abc-b772-3f30f151a121', // Optical Flow
       '4d39e404-8261-48a2-9912-176a3ea0b1bf', // Video Filters
@@ -103,7 +112,12 @@ const tracks = [
       '0de4764c-e40f-4966-9014-05e3a26c0eec', // Escape-Time Fractals
       '407c2c34-b316-4301-8ec2-b5c829b591e6', // Cellular Automata
       'bc3d0b34-d454-4870-9d24-ca22a1144bbe', // Reaction–Diffusion
+      // A direct escalation of the same grid Reaction–Diffusion ping-pongs.
+      '07165ca1-0a5d-4c84-9b63-fdd3c9480661', // Hydraulic Erosion
       '8b1282bd-fb68-4620-a92f-0ed12f5200e7', // Ray-Marched Metaballs
+      // Last: it swaps Metaballs' analytic SDF march for an analytic sphere
+      // hit, so it only reads correctly once that module has been done.
+      'c99efc67-071e-441a-91ac-62cb82009ca4', // Progressive Path Tracing
     ],
   },
 ];

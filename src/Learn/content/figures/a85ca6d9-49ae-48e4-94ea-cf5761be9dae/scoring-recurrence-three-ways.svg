@@ -1,0 +1,61 @@
+<svg viewBox="0 0 440 206" role="img" aria-label="A fragment of the score matrix. Cell i,j is outlined and three arrows point into it from the cell above-left, the cell above, and the cell to the left. Beside the grid the four candidates are listed: zero, which starts a fresh alignment; the above-left neighbour plus the substitution score; the neighbour above minus the gap penalty; and the neighbour to the left minus the gap penalty. The cell takes the largest of the four.">
+  <text x="10" y="14" class="lbl-up">FOUR WAYS INTO ONE CELL</text>
+
+  <!-- column and row labels -->
+  <g class="lbl" text-anchor="middle">
+    <text x="90" y="36">j−1</text><text x="128" y="36">j</text>
+  </g>
+  <g class="lbl" text-anchor="end">
+    <text x="36" y="96">i−1</text><text x="36" y="134">i</text>
+  </g>
+
+  <!-- the matrix fragment -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="40" y="42" width="24" height="24" rx="3"/><rect x="78" y="42" width="24" height="24" rx="3"/><rect x="116" y="42" width="24" height="24" rx="3"/><rect x="154" y="42" width="24" height="24" rx="3"/>
+    <rect x="40" y="80" width="24" height="24" rx="3"/><rect x="154" y="80" width="24" height="24" rx="3"/>
+    <rect x="40" y="118" width="24" height="24" rx="3"/><rect x="154" y="118" width="24" height="24" rx="3"/>
+    <rect x="40" y="156" width="24" height="24" rx="3"/><rect x="78" y="156" width="24" height="24" rx="3"/><rect x="116" y="156" width="24" height="24" rx="3"/><rect x="154" y="156" width="24" height="24" rx="3"/>
+  </g>
+
+  <!-- the three predecessors -->
+  <g fill="var(--blue)" fill-opacity=".16" stroke="var(--blue)" stroke-width="1.5">
+    <rect x="78" y="80" width="24" height="24" rx="3"/>
+    <rect x="116" y="80" width="24" height="24" rx="3"/>
+    <rect x="78" y="118" width="24" height="24" rx="3"/>
+  </g>
+
+  <!-- the cell being scored -->
+  <rect x="116" y="118" width="24" height="24" rx="3" fill="var(--pink)" fill-opacity=".16" stroke="var(--pink)" stroke-width="2"/>
+
+  <g fill="none" stroke="var(--pink)" stroke-width="1.4">
+    <path d="M104 106 L 111 113"/>
+    <path d="M128 106 V 112"/>
+    <path d="M104 130 H 110"/>
+  </g>
+  <g fill="var(--pink)">
+    <path d="M116 118 l -7.2 1.4 l 1.4 -7.2 z"/>
+    <path d="M128 118 l -3.6 -6.2 h 7.2 z"/>
+    <path d="M116 130 l -6.2 -3.6 v 7.2 z"/>
+  </g>
+
+  <text x="109" y="196" text-anchor="middle" class="lbl">three predecessors, one cell</text>
+
+  <!-- the four candidates -->
+  <text x="206" y="40" class="lbl-up">TAKE THE LARGEST</text>
+  <path class="arrow" d="M202 50 h -4 v 106 h 4" stroke-width="1.2"/>
+
+  <text x="212" y="66" style="font-size:11px" fill="var(--teal)">0</text>
+  <text x="232" y="66" class="lbl">start a fresh alignment here</text>
+
+  <text x="212" y="94" style="font-size:11px" fill="var(--blue)">H[i−1][j−1] + s</text>
+  <text x="326" y="94" class="lbl">pair the bases</text>
+
+  <text x="212" y="122" style="font-size:11px" fill="var(--blue)">H[i−1][j] − gap</text>
+  <text x="326" y="122" class="lbl">skip a base of A</text>
+
+  <text x="212" y="150" style="font-size:11px" fill="var(--blue)">H[i][j−1] − gap</text>
+  <text x="326" y="150" class="lbl">skip a base of B</text>
+
+  <text x="212" y="178" style="font-size:10px" fill="var(--teal)">the 0 is what makes it LOCAL — a bad</text>
+  <text x="212" y="192" style="font-size:10px" fill="var(--teal)">start is abandoned, never carried</text>
+</svg>

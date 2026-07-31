@@ -1,0 +1,72 @@
+<svg viewBox="0 0 440 196" role="img" aria-label="Two rows of a cumulative cost map. In the finished row above, three neighbouring cells are marked as the only cells the highlighted cell below can have come from: directly above, one to the left, one to the right. Every cell of the lower row is computed at the same time, and the rows are computed one after another, top to bottom.">
+  <text x="10" y="14" class="lbl-up">PARALLEL ACROSS, SEQUENTIAL DOWN</text>
+
+  <!-- the finished row above -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="34" y="38" width="30" height="22" rx="4"/>
+    <rect x="68" y="38" width="30" height="22" rx="4"/>
+    <rect x="170" y="38" width="30" height="22" rx="4"/>
+    <rect x="204" y="38" width="30" height="22" rx="4"/>
+    <rect x="238" y="38" width="30" height="22" rx="4"/>
+  </g>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.6">
+    <rect x="102" y="38" width="30" height="22" rx="4"/>
+    <rect x="136" y="38" width="30" height="22" rx="4"/>
+    <rect x="68" y="38" width="30" height="22" rx="4"/>
+  </g>
+  <g text-anchor="middle" style="font-size:10px">
+    <text x="49" y="53" fill="var(--muted)">…</text>
+    <text x="83" y="53" fill="var(--pink)">x−1</text>
+    <text x="117" y="53" fill="var(--pink)">x</text>
+    <text x="151" y="53" fill="var(--pink)">x+1</text>
+    <text x="185" y="53" fill="var(--muted)">…</text>
+    <text x="219" y="53" fill="var(--muted)">…</text>
+    <text x="253" y="53" fill="var(--muted)">…</text>
+  </g>
+  <text x="286" y="53" class="lbl">row r − 1 · done</text>
+
+  <!-- the three arrows into one cell -->
+  <g fill="none" stroke="var(--pink)" stroke-width="1.3" opacity=".9">
+    <path d="M83 62 C 83 78, 113 80, 116 92"/>
+    <path d="M117 62 V 92"/>
+    <path d="M151 62 C 151 78, 121 80, 118 92"/>
+  </g>
+  <path d="M117 100 l -4 -8 h 8 z" fill="var(--pink)"/>
+
+  <!-- the row being computed -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="34" y="102" width="30" height="22" rx="4"/>
+    <rect x="68" y="102" width="30" height="22" rx="4"/>
+    <rect x="136" y="102" width="30" height="22" rx="4"/>
+    <rect x="170" y="102" width="30" height="22" rx="4"/>
+    <rect x="204" y="102" width="30" height="22" rx="4"/>
+    <rect x="238" y="102" width="30" height="22" rx="4"/>
+  </g>
+  <rect x="102" y="102" width="30" height="22" rx="4" fill="var(--blue)" fill-opacity=".2" stroke="var(--blue)" stroke-width="1.8"/>
+  <g text-anchor="middle" style="font-size:10px" fill="var(--muted)">
+    <text x="49" y="117">·</text>
+    <text x="83" y="117">·</text>
+    <text x="151" y="117">·</text>
+    <text x="185" y="117">·</text>
+    <text x="219" y="117">·</text>
+    <text x="253" y="117">·</text>
+  </g>
+  <text x="117" y="117" text-anchor="middle" style="font-size:10px" fill="var(--blue)">x</text>
+  <text x="286" y="117" class="lbl">row r · now</text>
+
+  <!-- across: every cell at once -->
+  <path d="M34 134 H 268" fill="none" stroke="var(--blue)" stroke-width="1.2" opacity=".55"/>
+  <g fill="var(--blue)" opacity=".55">
+    <path d="M28 134 l 7 -4 v 8 z"/>
+    <path d="M274 134 l -7 -4 v 8 z"/>
+  </g>
+  <text x="151" y="150" text-anchor="middle" style="font-size:10px" fill="var(--blue)">128 threads, all at once</text>
+
+  <!-- down: one launch after another -->
+  <path d="M396 38 V 116" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <path d="M396 124 l -4 -8 h 8 z" fill="var(--muted)"/>
+  <text x="396" y="146" text-anchor="middle" class="lbl">72 rows,</text>
+  <text x="396" y="158" text-anchor="middle" class="lbl">in order</text>
+
+  <text x="151" y="182" text-anchor="middle" class="formula">M[r][x] = e[r][x] + min of the three above</text>
+</svg>

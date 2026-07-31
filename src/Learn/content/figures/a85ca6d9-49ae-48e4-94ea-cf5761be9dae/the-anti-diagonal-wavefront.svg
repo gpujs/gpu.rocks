@@ -1,0 +1,49 @@
+<svg viewBox="0 0 440 196" role="img" aria-label="A score matrix with its anti-diagonals picked out. The cells where i plus j equals d are highlighted; the two anti-diagonals before it, d minus 1 and d minus 2, are marked in a second colour. Arrows from one highlighted cell show its three predecessors all lie on those two earlier diagonals, so no cell on d reads any other cell on d and the whole diagonal can be computed in one launch.">
+  <text x="10" y="14" class="lbl-up">I + J = D — ONE LAUNCH PER ANTI-DIAGONAL</text>
+  <text x="28" y="32" class="lbl">B (columns) →</text>
+  <text x="16" y="116" class="lbl" transform="rotate(-90 16 116)">A (rows) →</text>
+
+  <g fill="none" stroke="var(--line)">
+    <rect x="28" y="44" width="17" height="17" rx="2"/><rect x="47" y="44" width="17" height="17" rx="2"/><rect x="66" y="44" width="17" height="17" rx="2"/><rect x="85" y="44" width="17" height="17" rx="2"/><rect x="104" y="44" width="17" height="17" rx="2"/><rect x="123" y="44" width="17" height="17" rx="2"/><rect x="28" y="63" width="17" height="17" rx="2"/><rect x="47" y="63" width="17" height="17" rx="2"/><rect x="66" y="63" width="17" height="17" rx="2"/><rect x="85" y="63" width="17" height="17" rx="2"/><rect x="104" y="63" width="17" height="17" rx="2"/><rect x="180" y="63" width="17" height="17" rx="2"/><rect x="28" y="82" width="17" height="17" rx="2"/><rect x="47" y="82" width="17" height="17" rx="2"/><rect x="66" y="82" width="17" height="17" rx="2"/><rect x="85" y="82" width="17" height="17" rx="2"/><rect x="161" y="82" width="17" height="17" rx="2"/><rect x="180" y="82" width="17" height="17" rx="2"/><rect x="28" y="101" width="17" height="17" rx="2"/><rect x="47" y="101" width="17" height="17" rx="2"/><rect x="66" y="101" width="17" height="17" rx="2"/><rect x="142" y="101" width="17" height="17" rx="2"/><rect x="161" y="101" width="17" height="17" rx="2"/><rect x="180" y="101" width="17" height="17" rx="2"/><rect x="28" y="120" width="17" height="17" rx="2"/><rect x="47" y="120" width="17" height="17" rx="2"/><rect x="123" y="120" width="17" height="17" rx="2"/><rect x="142" y="120" width="17" height="17" rx="2"/><rect x="161" y="120" width="17" height="17" rx="2"/><rect x="180" y="120" width="17" height="17" rx="2"/><rect x="28" y="139" width="17" height="17" rx="2"/><rect x="104" y="139" width="17" height="17" rx="2"/><rect x="123" y="139" width="17" height="17" rx="2"/><rect x="142" y="139" width="17" height="17" rx="2"/><rect x="161" y="139" width="17" height="17" rx="2"/><rect x="180" y="139" width="17" height="17" rx="2"/><rect x="85" y="158" width="17" height="17" rx="2"/><rect x="104" y="158" width="17" height="17" rx="2"/><rect x="123" y="158" width="17" height="17" rx="2"/><rect x="142" y="158" width="17" height="17" rx="2"/><rect x="161" y="158" width="17" height="17" rx="2"/><rect x="180" y="158" width="17" height="17" rx="2"/>
+  </g>
+  <g fill="var(--teal)" fill-opacity=".10" stroke="var(--teal)" stroke-width="1.1" stroke-opacity=".55">
+    <rect x="142" y="44" width="17" height="17" rx="2"/><rect x="123" y="63" width="17" height="17" rx="2"/><rect x="104" y="82" width="17" height="17" rx="2"/><rect x="85" y="101" width="17" height="17" rx="2"/><rect x="66" y="120" width="17" height="17" rx="2"/><rect x="47" y="139" width="17" height="17" rx="2"/><rect x="28" y="158" width="17" height="17" rx="2"/>
+  </g>
+  <g fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.3">
+    <rect x="161" y="44" width="17" height="17" rx="2"/><rect x="142" y="63" width="17" height="17" rx="2"/><rect x="123" y="82" width="17" height="17" rx="2"/><rect x="104" y="101" width="17" height="17" rx="2"/><rect x="85" y="120" width="17" height="17" rx="2"/><rect x="66" y="139" width="17" height="17" rx="2"/><rect x="47" y="158" width="17" height="17" rx="2"/>
+  </g>
+  <g fill="var(--blue)" fill-opacity=".22" stroke="var(--blue)" stroke-width="1.5">
+    <rect x="180" y="44" width="17" height="17" rx="2"/><rect x="161" y="63" width="17" height="17" rx="2"/><rect x="142" y="82" width="17" height="17" rx="2"/><rect x="123" y="101" width="17" height="17" rx="2"/><rect x="104" y="120" width="17" height="17" rx="2"/><rect x="85" y="139" width="17" height="17" rx="2"/><rect x="66" y="158" width="17" height="17" rx="2"/>
+  </g>
+
+  <!-- follow this one: its three predecessors, all on d-1 and d-2 -->
+  <rect x="123" y="101" width="17" height="17" rx="2" fill="none" stroke="var(--pink)" stroke-width="2"/>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.4">
+    <path d="M113.5 91.5 L 125.5 103.5"/>
+    <path d="M131.5 91.5 V 102.5"/>
+    <path d="M113.5 109.5 H 124.5"/>
+  </g>
+  <g fill="var(--pink)">
+    <path d="M129 107 l -6.4 1.2 l 1.2 -6.4 z"/>
+    <path d="M131.5 106.5 l -3.4 -5.6 h 6.8 z"/>
+    <path d="M128.5 109.5 l -5.6 -3.4 v 6.8 z"/>
+  </g>
+
+  <text x="203" y="57" style="font-size:9px" fill="var(--blue)">d</text>
+  <text x="184" y="76" style="font-size:9px" fill="var(--teal)">d−1</text>
+  <text x="165" y="95" style="font-size:9px" fill="var(--teal)">d−2</text>
+
+  <!-- the launch schedule -->
+  <text x="252" y="60" class="lbl-up">THE SCHEDULE</text>
+  <g fill="none" stroke="var(--line)">
+    <rect x="252" y="72" width="10" height="14" rx="2"/><rect x="266" y="72" width="10" height="14" rx="2"/><rect x="280" y="72" width="10" height="14" rx="2"/><rect x="294" y="72" width="10" height="14" rx="2"/><rect x="322" y="72" width="10" height="14" rx="2"/><rect x="336" y="72" width="10" height="14" rx="2"/><rect x="350" y="72" width="10" height="14" rx="2"/>
+  </g>
+  <rect x="308" y="72" width="10" height="14" rx="2" fill="var(--blue)" fill-opacity=".22" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="252" y="100" class="lbl">d = 2, 3, 4, … |A| + |B|</text>
+  <text x="252" y="116" class="lbl">= 16 launches, 8 × 9 matrix</text>
+
+  <text x="252" y="146" style="font-size:10px" fill="var(--blue)">inside one launch there is</text>
+  <text x="252" y="160" style="font-size:10px" fill="var(--blue)">nothing left to order</text>
+
+  <text x="220" y="188" text-anchor="middle" class="formula">predecessors of (i, j) sit on d − 1 and d − 2 — never on d</text>
+</svg>

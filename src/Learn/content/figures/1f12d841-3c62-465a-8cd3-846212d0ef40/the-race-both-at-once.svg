@@ -1,0 +1,52 @@
+<svg viewBox="0 0 440 196" role="img" aria-label="Two neighbouring spins both pointing up, sharing one satisfied bond worth minus one. Each thread prices the cost of flipping itself on the assumption that the other one holds still, and each arrives at plus two for that bond, so both accept. After both flip, the two spins point down and the bond between them is satisfied again, worth minus one: the change both threads paid for never happened, and the real cost of the bond was zero.">
+  <text x="10" y="14" class="lbl-up">BOTH PRICED THE SAME BOND. NEITHER CHANGE HAPPENED.</text>
+
+  <!-- before -->
+  <text x="66" y="38" text-anchor="middle" class="lbl">before</text>
+  <rect x="30" y="46" width="26" height="26" rx="4" fill="var(--pink)" fill-opacity=".16" stroke="var(--pink)" stroke-width="2"/>
+  <rect x="76" y="46" width="26" height="26" rx="4" fill="var(--blue)" fill-opacity=".16" stroke="var(--blue)" stroke-width="2"/>
+  <path d="M56 59 H 76" stroke="var(--teal)" stroke-width="2.5" fill="none"/>
+  <g text-anchor="middle" style="font-size:14px">
+    <text x="43" y="65" fill="var(--pink)">↑</text>
+    <text x="89" y="65" fill="var(--blue)">↑</text>
+  </g>
+  <text x="66" y="88" text-anchor="middle" class="lbl">bond satisfied: −1</text>
+  <text x="43" y="104" text-anchor="middle" style="font-size:8px" fill="var(--pink)">thread A</text>
+  <text x="89" y="104" text-anchor="middle" style="font-size:8px" fill="var(--blue)">thread B</text>
+
+  <!-- the two independent decisions -->
+  <path class="arrow" d="M112 59 H 128" stroke-width="1.4"/>
+  <path class="arrowhead" d="M134 59 l -7 -4 v 8 z"/>
+
+  <rect x="140" y="34" width="164" height="34" rx="8" fill="none" stroke="var(--pink)" stroke-width="1.5"/>
+  <text x="152" y="48" style="font-size:10px" fill="var(--pink)">A: “B will hold still”</text>
+  <text x="152" y="61" style="font-size:10px" fill="var(--pink)">ΔE = +2 here · accepted</text>
+
+  <rect x="140" y="76" width="164" height="34" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="152" y="90" style="font-size:10px" fill="var(--blue)">B: “A will hold still”</text>
+  <text x="152" y="103" style="font-size:10px" fill="var(--blue)">ΔE = +2 here · accepted</text>
+
+  <text x="222" y="126" text-anchor="middle" class="lbl">same sweep · same old lattice · no memory race at all</text>
+
+  <path class="arrow" d="M312 72 H 328" stroke-width="1.4"/>
+  <path class="arrowhead" d="M334 72 l -7 -4 v 8 z"/>
+
+  <!-- after -->
+  <text x="376" y="38" text-anchor="middle" class="lbl">after</text>
+  <rect x="340" y="46" width="26" height="26" rx="4" fill="var(--pink)" fill-opacity=".16" stroke="var(--pink)" stroke-width="2"/>
+  <rect x="386" y="46" width="26" height="26" rx="4" fill="var(--blue)" fill-opacity=".16" stroke="var(--blue)" stroke-width="2"/>
+  <path d="M366 59 H 386" stroke="var(--teal)" stroke-width="2.5" fill="none"/>
+  <g text-anchor="middle" style="font-size:14px">
+    <text x="353" y="65" fill="var(--pink)">↓</text>
+    <text x="399" y="65" fill="var(--blue)">↓</text>
+  </g>
+  <text x="376" y="88" text-anchor="middle" class="lbl">bond satisfied: −1</text>
+  <text x="376" y="104" text-anchor="middle" style="font-size:10px" fill="var(--teal)">unchanged</text>
+
+  <!-- the verdict -->
+  <rect x="24" y="140" width="392" height="34" rx="8" fill="var(--lred)" fill-opacity=".08" stroke="var(--lred)" stroke-width="1.4"/>
+  <text x="40" y="155" style="font-size:10px" fill="var(--lred)">both were charged +2 to break a bond that is still intact</text>
+  <text x="40" y="168" style="font-size:10px" fill="var(--lred)">the real ΔE for the pair was 0 — nothing was broken</text>
+
+  <text x="24" y="190" class="lbl">no thread wrote another thread's cell — the race is in the physics</text>
+</svg>

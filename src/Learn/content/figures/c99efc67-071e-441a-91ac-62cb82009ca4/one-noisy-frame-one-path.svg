@@ -1,0 +1,38 @@
+<svg viewBox="0 0 440 190" role="img" aria-label="One camera ray leaves the eye, hits the floor, bounces off a sphere and escapes into the sky. Faint dashed lines show the other directions the same bounce could just as easily have taken. The pixel's estimate is the sky brightness multiplied by the albedo of every surface the path touched.">
+  <text x="10" y="14" class="lbl-up">ONE PATH, ONE GUESS</text>
+  <text x="288" y="30" style="font-size:10px" fill="var(--teal)">sky — the only light</text>
+
+  <!-- the scene -->
+  <line x1="10" y1="140" x2="430" y2="140" class="cellline"/>
+  <circle cx="270" cy="102" r="38" fill="var(--teal)" fill-opacity=".12" stroke="var(--teal)" stroke-width="1.5"/>
+  <text x="318" y="106" class="lbl">albedo 0.85</text>
+  <text x="14" y="156" class="lbl">floor · albedo 0.55</text>
+
+  <!-- the eye -->
+  <rect x="10" y="74" width="26" height="20" rx="5" fill="none" stroke="var(--blue)" stroke-width="1.4"/>
+  <text x="23" y="70" text-anchor="middle" style="font-size:8px;fill:var(--blue)">eye</text>
+
+  <!-- the directions this bounce could have taken instead -->
+  <g fill="none" stroke="var(--line)" stroke-dasharray="4 3">
+    <path d="M150 140 L 112 74"/>
+    <path d="M150 140 L 198 66"/>
+    <path d="M238 82 L 196 26"/>
+  </g>
+
+  <!-- the path that was actually rolled -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.5">
+    <path d="M34 90 L 150 140"/>
+    <path d="M150 140 L 238 82"/>
+    <path d="M238 82 L 268 20"/>
+  </g>
+  <g fill="var(--blue)">
+    <circle cx="150" cy="140" r="3"/>
+    <circle cx="238" cy="82" r="3"/>
+    <path d="M272 12 L 265.6 18.3 L 272.8 21.8 Z"/>
+  </g>
+
+  <!-- what the path is worth -->
+  <rect x="170" y="152" width="260" height="34" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="300" y="168" text-anchor="middle" class="formula">estimate = 0.55 × 0.85 × sky(d)</text>
+  <text x="300" y="181" text-anchor="middle" class="lbl">the next roll goes somewhere else entirely</text>
+</svg>

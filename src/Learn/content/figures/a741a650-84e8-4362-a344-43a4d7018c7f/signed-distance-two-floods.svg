@@ -1,0 +1,42 @@
+<svg viewBox="0 0 440 190" role="img" aria-label="Three panels of the same star. The first is the field flooded from the inside pixels: zero inside the star, growing outward. The second is flooded from the outside pixels: zero outside, growing inward. Subtracting the second from the first gives the signed field, negative inside and positive outside, because one of the two terms is always zero.">
+  <text x="10" y="14" class="lbl-up">TWO FLOODS, ONE SIGNED FIELD</text>
+
+  <!-- panel 1: seeded with the inside -->
+  <g transform="translate(72,88)">
+    <circle cx="0" cy="0" r="52" fill="none" stroke="var(--line)" stroke-dasharray="2 4"/>
+    <circle cx="0" cy="0" r="40" fill="none" stroke="var(--line)" stroke-dasharray="2 4"/>
+    <path d="M0,-30 L7.6,-10.5 L28.5,-9.3 L12.4,4 L17.6,24.3 L0,13 L-17.6,24.3 L-12.4,4 L-28.5,-9.3 L-7.6,-10.5 Z"
+      fill="var(--blue)" fill-opacity=".22" stroke="var(--blue)" stroke-width="1.4"/>
+    <text x="0" y="2" text-anchor="middle" style="font-size:10px" fill="var(--blue)">0</text>
+  </g>
+  <text x="72" y="164" text-anchor="middle" class="lbl">dIn</text>
+  <text x="72" y="178" text-anchor="middle" style="font-size:9px" fill="var(--muted)">seeded with mask = 1</text>
+
+  <text x="152" y="94" text-anchor="middle" style="font-size:16px" fill="var(--muted)">−</text>
+
+  <!-- panel 2: seeded with the outside -->
+  <g transform="translate(232,88)">
+    <rect x="-58" y="-58" width="116" height="116" rx="6" fill="var(--blue)" fill-opacity=".22" stroke="var(--line)"/>
+    <path d="M0,-30 L7.6,-10.5 L28.5,-9.3 L12.4,4 L17.6,24.3 L0,13 L-17.6,24.3 L-12.4,4 L-28.5,-9.3 L-7.6,-10.5 Z"
+      fill="var(--surface)" stroke="var(--blue)" stroke-width="1.4"/>
+    <path d="M0,-19 L4.8,-6.7 L18.1,-5.9 L7.8,2.5 L11.2,15.4 L0,8.3 L-11.2,15.4 L-7.8,2.5 L-18.1,-5.9 L-4.8,-6.7 Z"
+      fill="none" stroke="var(--line)" stroke-dasharray="2 4"/>
+    <text x="-46" y="-44" style="font-size:10px" fill="var(--blue)">0</text>
+  </g>
+  <text x="232" y="164" text-anchor="middle" class="lbl">dOut</text>
+  <text x="232" y="178" text-anchor="middle" style="font-size:9px" fill="var(--muted)">seeded with mask = 0</text>
+
+  <text x="312" y="94" text-anchor="middle" style="font-size:16px" fill="var(--muted)">=</text>
+
+  <!-- panel 3: the signed field -->
+  <g transform="translate(384,88)">
+    <rect x="-46" y="-58" width="92" height="116" rx="6" fill="none" stroke="var(--line)"/>
+    <path d="M0,-30 L7.6,-10.5 L28.5,-9.3 L12.4,4 L17.6,24.3 L0,13 L-17.6,24.3 L-12.4,4 L-28.5,-9.3 L-7.6,-10.5 Z"
+      fill="var(--teal)" fill-opacity=".2" stroke="var(--teal)" stroke-width="1.6"/>
+    <text x="0" y="2" text-anchor="middle" style="font-size:12px" fill="var(--teal)">−</text>
+    <text x="-36" y="-40" style="font-size:12px" fill="var(--muted)">+</text>
+    <text x="34" y="48" style="font-size:12px" fill="var(--muted)">+</text>
+  </g>
+  <text x="384" y="164" text-anchor="middle" class="lbl">sdf</text>
+  <text x="384" y="178" text-anchor="middle" style="font-size:9px" fill="var(--muted)">zero on the boundary</text>
+</svg>

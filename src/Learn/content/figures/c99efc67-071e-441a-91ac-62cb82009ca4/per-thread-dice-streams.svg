@@ -1,0 +1,50 @@
+<svg viewBox="0 0 440 176" role="img" aria-label="A grid of GPU threads, one cell per thread. One highlighted thread hashes the frame number together with its own x and y coordinates into a seed, and then draws number after number from that seed. A crossed-out Math.random alongside shows what a GPU cannot offer: a single shared generator with an order to take turns in.">
+  <text x="10" y="14" class="lbl-up">ONE STREAM PER THREAD</text>
+
+  <!-- the launch grid: one cell per thread -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.2">
+    <rect x="14" y="28" width="26" height="18" rx="4"/>
+    <rect x="46" y="28" width="26" height="18" rx="4"/>
+    <rect x="78" y="28" width="26" height="18" rx="4"/>
+    <rect x="110" y="28" width="26" height="18" rx="4"/>
+    <rect x="14" y="52" width="26" height="18" rx="4"/>
+    <rect x="46" y="52" width="26" height="18" rx="4"/>
+    <rect x="78" y="52" width="26" height="18" rx="4"/>
+    <rect x="14" y="76" width="26" height="18" rx="4"/>
+    <rect x="46" y="76" width="26" height="18" rx="4"/>
+    <rect x="78" y="76" width="26" height="18" rx="4"/>
+    <rect x="110" y="76" width="26" height="18" rx="4"/>
+  </g>
+
+  <!-- follow this one -->
+  <rect x="110" y="52" width="26" height="18" rx="4" fill="var(--pink)" fill-opacity=".14" stroke="var(--pink)" stroke-width="1.6"/>
+  <text x="123" y="65" text-anchor="middle" style="font-size:8px;fill:var(--pink)">x,y</text>
+  <text x="14" y="108" class="lbl">4,096 threads</text>
+
+  <path d="M138 61 H 148" fill="none" stroke="var(--pink)" stroke-width="1.4"/>
+  <path fill="var(--pink)" d="M155 61 l -7 -4 v 8 z"/>
+  <rect x="158" y="49" width="70" height="24" rx="7" fill="none" stroke="var(--pink)" stroke-width="1.5"/>
+  <text x="193" y="65" text-anchor="middle" style="font-size:9px;fill:var(--pink)">seed</text>
+
+  <path class="arrow" d="M228 61 H 258" stroke-width="1.2"/>
+  <path class="arrowhead" d="M265 61 l -7 -4 v 8 z"/>
+  <g fill="var(--blue)">
+    <circle cx="278" cy="61" r="3.5"/>
+    <circle cx="304" cy="61" r="3.5"/>
+    <circle cx="330" cy="61" r="3.5"/>
+    <circle cx="356" cy="61" r="3.5"/>
+    <circle cx="382" cy="61" r="3.5"/>
+  </g>
+  <text x="402" y="65" class="lbl">…</text>
+  <text x="270" y="86" class="lbl">nextRandom, over and over</text>
+
+  <!-- how the seed is built -->
+  <rect x="158" y="102" width="272" height="44" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="294" y="120" text-anchor="middle" class="formula">seed = hash(frame, thread.x, thread.y)</text>
+  <text x="294" y="136" text-anchor="middle" class="lbl">private, reproducible, nothing shared</text>
+
+  <!-- and what a GPU will not give you -->
+  <rect x="14" y="118" width="126" height="24" rx="6" fill="none" stroke="var(--lred)" stroke-dasharray="4 3"/>
+  <text x="77" y="134" text-anchor="middle" style="font-size:9px;fill:var(--lred)">✗ Math.random()</text>
+  <text x="14" y="164" class="lbl">no shared state, no turn order</text>
+</svg>

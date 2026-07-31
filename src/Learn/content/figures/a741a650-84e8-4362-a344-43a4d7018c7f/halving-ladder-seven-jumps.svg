@@ -1,0 +1,48 @@
+<svg viewBox="0 0 440 200" role="img" aria-label="Seven rows, one per pass, with the stride halving from 64 down to 1. A seed starting at 0 reaches a cell 105 away in the jumps 64, 32, 8 and 1; the passes at strides 16, 4 and 2 move nothing, because keeping what you already have is one of the nine candidates. 105 equals 64 plus 32 plus 8 plus 1.">
+  <text x="10" y="14" class="lbl-up">EVERY DISTANCE IS A SUM OF HALVING JUMPS</text>
+
+  <!-- target -->
+  <path d="M376 26 V 168" stroke="var(--teal)" stroke-width="1.2" stroke-dasharray="3 3" fill="none"/>
+  <text x="380" y="34" class="lbl" fill="var(--teal)">cell 105</text>
+
+  <!-- pass rows: label, bar of the distance reached so far -->
+  <g class="lbl" text-anchor="end">
+    <text x="48" y="44">k = 64</text>
+    <text x="48" y="62">k = 32</text>
+    <text x="48" y="80">k = 16</text>
+    <text x="48" y="98">k = 8</text>
+    <text x="48" y="116">k = 4</text>
+    <text x="48" y="134">k = 2</text>
+    <text x="48" y="152">k = 1</text>
+  </g>
+
+  <!-- rows that jumped -->
+  <g fill="var(--blue)" fill-opacity=".2" stroke="var(--blue)" stroke-width="1.4">
+    <rect x="56" y="34" width="195" height="12" rx="3"/>
+    <rect x="56" y="52" width="293" height="12" rx="3"/>
+    <rect x="56" y="88" width="317" height="12" rx="3"/>
+    <rect x="56" y="142" width="320" height="12" rx="3"/>
+  </g>
+  <!-- rows where nothing came closer: the cell keeps what it had -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="56" y="70" width="293" height="12" rx="3"/>
+    <rect x="56" y="106" width="317" height="12" rx="3"/>
+    <rect x="56" y="124" width="317" height="12" rx="3"/>
+  </g>
+
+  <g style="font-size:9px" fill="var(--muted)">
+    <text x="257" y="44">+64</text>
+    <text x="355" y="62">+32</text>
+    <text x="355" y="80">—</text>
+    <text x="379" y="98">+8</text>
+    <text x="323" y="116">—</text>
+    <text x="323" y="134">—</text>
+    <text x="382" y="152">+1</text>
+  </g>
+
+  <!-- the seed itself -->
+  <circle cx="56" cy="176" r="4" fill="var(--pink)"/>
+  <text x="66" y="180" class="lbl">seed at 0</text>
+
+  <text x="430" y="180" text-anchor="end" class="formula">105 = 64 + 32 + 8 + 1</text>
+</svg>

@@ -1,0 +1,44 @@
+<svg viewBox="0 0 440 204" role="img" aria-label="Anti-diagonal 12 of a nine by ten score matrix, highlighted, and the same six cells unrolled into a row of six threads. Thread zero owns the cell at row iStart; each later thread moves one row down and one column left. Two dashed cells outside the matrix show where the diagonal would continue if the second sequence were longer, which is why iStart is the larger of one and d minus the length of B.">
+  <text x="10" y="14" class="lbl-up">ONE THREAD PER CELL THAT EXISTS</text>
+  <text x="40" y="32" class="lbl">d = 12 · iStart = 3 · 6 cells · j = d − i</text>
+
+  <g fill="none" stroke="var(--line)">
+    <rect x="40" y="44" width="13" height="13" rx="2"/><rect x="55" y="44" width="13" height="13" rx="2"/><rect x="70" y="44" width="13" height="13" rx="2"/><rect x="85" y="44" width="13" height="13" rx="2"/><rect x="100" y="44" width="13" height="13" rx="2"/><rect x="115" y="44" width="13" height="13" rx="2"/><rect x="130" y="44" width="13" height="13" rx="2"/><rect x="145" y="44" width="13" height="13" rx="2"/><rect x="160" y="44" width="13" height="13" rx="2"/><rect x="175" y="44" width="13" height="13" rx="2"/><rect x="40" y="59" width="13" height="13" rx="2"/><rect x="55" y="59" width="13" height="13" rx="2"/><rect x="70" y="59" width="13" height="13" rx="2"/><rect x="85" y="59" width="13" height="13" rx="2"/><rect x="100" y="59" width="13" height="13" rx="2"/><rect x="115" y="59" width="13" height="13" rx="2"/><rect x="130" y="59" width="13" height="13" rx="2"/><rect x="145" y="59" width="13" height="13" rx="2"/><rect x="160" y="59" width="13" height="13" rx="2"/><rect x="175" y="59" width="13" height="13" rx="2"/><rect x="40" y="74" width="13" height="13" rx="2"/><rect x="55" y="74" width="13" height="13" rx="2"/><rect x="70" y="74" width="13" height="13" rx="2"/><rect x="85" y="74" width="13" height="13" rx="2"/><rect x="100" y="74" width="13" height="13" rx="2"/><rect x="115" y="74" width="13" height="13" rx="2"/><rect x="130" y="74" width="13" height="13" rx="2"/><rect x="145" y="74" width="13" height="13" rx="2"/><rect x="160" y="74" width="13" height="13" rx="2"/><rect x="175" y="74" width="13" height="13" rx="2"/><rect x="40" y="89" width="13" height="13" rx="2"/><rect x="55" y="89" width="13" height="13" rx="2"/><rect x="70" y="89" width="13" height="13" rx="2"/><rect x="85" y="89" width="13" height="13" rx="2"/><rect x="100" y="89" width="13" height="13" rx="2"/><rect x="115" y="89" width="13" height="13" rx="2"/><rect x="130" y="89" width="13" height="13" rx="2"/><rect x="145" y="89" width="13" height="13" rx="2"/><rect x="160" y="89" width="13" height="13" rx="2"/><rect x="40" y="104" width="13" height="13" rx="2"/><rect x="55" y="104" width="13" height="13" rx="2"/><rect x="70" y="104" width="13" height="13" rx="2"/><rect x="85" y="104" width="13" height="13" rx="2"/><rect x="100" y="104" width="13" height="13" rx="2"/><rect x="115" y="104" width="13" height="13" rx="2"/><rect x="130" y="104" width="13" height="13" rx="2"/><rect x="145" y="104" width="13" height="13" rx="2"/><rect x="175" y="104" width="13" height="13" rx="2"/><rect x="40" y="119" width="13" height="13" rx="2"/><rect x="55" y="119" width="13" height="13" rx="2"/><rect x="70" y="119" width="13" height="13" rx="2"/><rect x="85" y="119" width="13" height="13" rx="2"/><rect x="100" y="119" width="13" height="13" rx="2"/><rect x="115" y="119" width="13" height="13" rx="2"/><rect x="130" y="119" width="13" height="13" rx="2"/><rect x="160" y="119" width="13" height="13" rx="2"/><rect x="175" y="119" width="13" height="13" rx="2"/><rect x="40" y="134" width="13" height="13" rx="2"/><rect x="55" y="134" width="13" height="13" rx="2"/><rect x="70" y="134" width="13" height="13" rx="2"/><rect x="85" y="134" width="13" height="13" rx="2"/><rect x="100" y="134" width="13" height="13" rx="2"/><rect x="115" y="134" width="13" height="13" rx="2"/><rect x="145" y="134" width="13" height="13" rx="2"/><rect x="160" y="134" width="13" height="13" rx="2"/><rect x="175" y="134" width="13" height="13" rx="2"/><rect x="40" y="149" width="13" height="13" rx="2"/><rect x="55" y="149" width="13" height="13" rx="2"/><rect x="70" y="149" width="13" height="13" rx="2"/><rect x="85" y="149" width="13" height="13" rx="2"/><rect x="100" y="149" width="13" height="13" rx="2"/><rect x="130" y="149" width="13" height="13" rx="2"/><rect x="145" y="149" width="13" height="13" rx="2"/><rect x="160" y="149" width="13" height="13" rx="2"/><rect x="175" y="149" width="13" height="13" rx="2"/><rect x="40" y="164" width="13" height="13" rx="2"/><rect x="55" y="164" width="13" height="13" rx="2"/><rect x="70" y="164" width="13" height="13" rx="2"/><rect x="85" y="164" width="13" height="13" rx="2"/><rect x="115" y="164" width="13" height="13" rx="2"/><rect x="130" y="164" width="13" height="13" rx="2"/><rect x="145" y="164" width="13" height="13" rx="2"/><rect x="160" y="164" width="13" height="13" rx="2"/><rect x="175" y="164" width="13" height="13" rx="2"/>
+  </g>
+  <g fill="none" stroke="var(--lred)" stroke-width="1" stroke-dasharray="2 2" opacity=".8">
+    <rect x="205" y="59" width="13" height="13" rx="2"/><rect x="190" y="74" width="13" height="13" rx="2"/>
+  </g>
+  <text x="190" y="55" style="font-size:8px" fill="var(--lred)">off the edge: j &gt; |B|</text>
+  <g fill="var(--blue)" fill-opacity=".22" stroke="var(--blue)" stroke-width="1.4">
+    <rect x="175" y="89" width="13" height="13" rx="2"/><rect x="160" y="104" width="13" height="13" rx="2"/><rect x="145" y="119" width="13" height="13" rx="2"/><rect x="130" y="134" width="13" height="13" rx="2"/><rect x="115" y="149" width="13" height="13" rx="2"/><rect x="100" y="164" width="13" height="13" rx="2"/>
+  </g>
+  <rect x="175" y="89" width="13" height="13" rx="2" fill="none" stroke="var(--pink)" stroke-width="2"/>
+  <text x="35" y="99" text-anchor="end" style="font-size:8px" fill="var(--pink)">iStart</text>
+
+  <!-- the same six cells, as a launch -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.4">
+    <rect x="250" y="92" width="24" height="20" rx="3"/><rect x="280" y="92" width="24" height="20" rx="3"/><rect x="310" y="92" width="24" height="20" rx="3"/><rect x="340" y="92" width="24" height="20" rx="3"/><rect x="370" y="92" width="24" height="20" rx="3"/><rect x="400" y="92" width="24" height="20" rx="3"/>
+  </g>
+  <rect x="250" y="92" width="24" height="20" rx="3" fill="none" stroke="var(--pink)" stroke-width="2"/>
+  <g text-anchor="middle">
+    <text x="262" y="106" text-anchor="middle" style="font-size:9px">0</text>
+    <text x="262" y="126" text-anchor="middle" class="lbl">3,9</text>
+    <text x="292" y="106" text-anchor="middle" style="font-size:9px">1</text>
+    <text x="292" y="126" text-anchor="middle" class="lbl">4,8</text>
+    <text x="322" y="106" text-anchor="middle" style="font-size:9px">2</text>
+    <text x="322" y="126" text-anchor="middle" class="lbl">5,7</text>
+    <text x="352" y="106" text-anchor="middle" style="font-size:9px">3</text>
+    <text x="352" y="126" text-anchor="middle" class="lbl">6,6</text>
+    <text x="382" y="106" text-anchor="middle" style="font-size:9px">4</text>
+    <text x="382" y="126" text-anchor="middle" class="lbl">7,5</text>
+    <text x="412" y="106" text-anchor="middle" style="font-size:9px">5</text>
+    <text x="412" y="126" text-anchor="middle" class="lbl">8,4</text>
+  </g>
+  <text x="250" y="82" class="lbl">this.thread.x</text>
+  <text x="250" y="146" class="lbl">i, j of the cell it owns</text>
+
+  <path fill="none" stroke="var(--pink)" stroke-width="1.4" d="M191 95.5 C 215 95.5 218 102 240 102"/>
+  <path fill="var(--pink)" d="M248 102 l -7 -3.6 v 7.2 z"/>
+
+  <text x="220" y="196" text-anchor="middle" class="formula">i = iStart + this.thread.x&#160;&#160;&#160;&#160;j = d − i</text>
+</svg>

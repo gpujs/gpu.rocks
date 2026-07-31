@@ -258,18 +258,34 @@ const FRAME_GROUP_MIN = 3;
 function groupLogs(logs) {
   const out = [];
   let run = [];
+  let held = [];
   const flush = () => {
+    // Engine chatter that landed mid-sequence is emitted just before the strip
+    // it interrupted: "kernel compiled" logically precedes the frames anyway,
+    // and this is the only reordering, of system lines only.
+    held.forEach(l => out.push({ log: l }));
+    held = [];
     if (!run.length) return;
     if (run.length >= FRAME_GROUP_MIN) out.push({ frames: run });
     else run.forEach(l => out.push({ log: l }));
     run = [];
   };
   for (const log of logs) {
-    if (log.type === 'canvas' && log.snapshot) run.push(log);
-    else {
-      flush();
-      out.push({ log });
+    if (log.type === 'canvas' && log.snapshot) {
+      run.push(log);
+      continue;
     }
+    // A `system` line between two render() calls must not split the sequence.
+    // The kernel-compiled notice fires on a kernel's FIRST call, so a program
+    // that renders a seed frame and then renders inside a loop gets one
+    // announcement wedged between frame 1 and frame 2 — which silently cost
+    // the jump-flooding module a frame off its scrubber.
+    if (run.length && log.type === 'system') {
+      held.push(log);
+      continue;
+    }
+    flush();
+    out.push({ log });
   }
   flush();
   return out;

@@ -1,0 +1,74 @@
+<svg viewBox="0 0 440 190" role="img" aria-label="One row of eight input pixels above a row of seven output pixels. Input pixel three is the seam and is marked as removed. Output pixels zero to two pull straight down from the inputs of the same index; output pixels three to six pull diagonally from inputs four to seven, one column further right. Nothing is pushed: every arrow points from an input into the output cell that asked for it.">
+  <text x="10" y="14" class="lbl-up">EVERY OUTPUT PIXEL ASKS WHERE IT CAME FROM</text>
+
+  <!-- input row -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="30" y="38" width="34" height="24" rx="4"/>
+    <rect x="70" y="38" width="34" height="24" rx="4"/>
+    <rect x="110" y="38" width="34" height="24" rx="4"/>
+    <rect x="190" y="38" width="34" height="24" rx="4"/>
+    <rect x="230" y="38" width="34" height="24" rx="4"/>
+    <rect x="270" y="38" width="34" height="24" rx="4"/>
+    <rect x="310" y="38" width="34" height="24" rx="4"/>
+  </g>
+  <rect x="150" y="38" width="34" height="24" rx="4" fill="var(--lred)" fill-opacity=".16" stroke="var(--lred)" stroke-width="1.7"/>
+  <g text-anchor="middle" style="font-size:10px" fill="var(--muted)">
+    <text x="47" y="54">0</text>
+    <text x="87" y="54">1</text>
+    <text x="127" y="54">2</text>
+    <text x="207" y="54">4</text>
+    <text x="247" y="54">5</text>
+    <text x="287" y="54">6</text>
+    <text x="327" y="54">7</text>
+  </g>
+  <text x="167" y="54" text-anchor="middle" style="font-size:10px" fill="var(--lred)">3</text>
+  <text x="360" y="54" class="lbl">in · 8 wide</text>
+  <text x="167" y="30" text-anchor="middle" style="font-size:9px" fill="var(--lred)">seam[y] = 3</text>
+
+  <!-- the gathers -->
+  <g fill="none" stroke="var(--teal)" stroke-width="1.3" opacity=".9">
+    <path d="M47 64 V 104"/>
+    <path d="M87 64 V 104"/>
+    <path d="M127 64 V 104"/>
+    <path d="M207 64 C 207 84, 167 84, 167 104"/>
+    <path d="M247 64 C 247 84, 207 84, 207 104"/>
+    <path d="M287 64 C 287 84, 247 84, 247 104"/>
+    <path d="M327 64 C 327 84, 287 84, 287 104"/>
+  </g>
+  <g fill="var(--teal)">
+    <path d="M47 112 l -4 -8 h 8 z"/>
+    <path d="M87 112 l -4 -8 h 8 z"/>
+    <path d="M127 112 l -4 -8 h 8 z"/>
+    <path d="M167 112 l -4 -8 h 8 z"/>
+    <path d="M207 112 l -4 -8 h 8 z"/>
+    <path d="M247 112 l -4 -8 h 8 z"/>
+    <path d="M287 112 l -4 -8 h 8 z"/>
+  </g>
+
+  <!-- output row -->
+  <g fill="var(--teal)" fill-opacity=".14" stroke="var(--teal)" stroke-width="1.4">
+    <rect x="30" y="114" width="34" height="24" rx="4"/>
+    <rect x="70" y="114" width="34" height="24" rx="4"/>
+    <rect x="110" y="114" width="34" height="24" rx="4"/>
+    <rect x="150" y="114" width="34" height="24" rx="4"/>
+    <rect x="190" y="114" width="34" height="24" rx="4"/>
+    <rect x="230" y="114" width="34" height="24" rx="4"/>
+    <rect x="270" y="114" width="34" height="24" rx="4"/>
+  </g>
+  <g text-anchor="middle" style="font-size:10px" fill="var(--teal)">
+    <text x="47" y="130">0</text>
+    <text x="87" y="130">1</text>
+    <text x="127" y="130">2</text>
+    <text x="167" y="130">3</text>
+    <text x="207" y="130">4</text>
+    <text x="247" y="130">5</text>
+    <text x="287" y="130">6</text>
+  </g>
+  <text x="320" y="130" class="lbl">out · 7 wide</text>
+
+  <line x1="147" y1="150" x2="147" y2="176" class="cellline"/>
+  <text x="88" y="166" text-anchor="middle" class="formula">x &lt; seam[y]</text>
+  <text x="88" y="180" text-anchor="middle" class="lbl">plane[y][x]</text>
+  <text x="230" y="166" text-anchor="middle" class="formula">otherwise</text>
+  <text x="230" y="180" text-anchor="middle" class="lbl">plane[y][x + 1]</text>
+</svg>

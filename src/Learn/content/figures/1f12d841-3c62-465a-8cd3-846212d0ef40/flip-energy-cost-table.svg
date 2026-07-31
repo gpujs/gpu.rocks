@@ -1,0 +1,73 @@
+<svg viewBox="0 0 440 176" role="img" aria-label="Five spin neighbourhoods side by side. In each, a centre spin points up and its four neighbours point up or down. From left to right, four, three, two, one and zero neighbours agree with the centre. The neighbour sum is +4, +2, 0, -2, -4 and the cost of flipping the centre is +8, +4, 0, -4 and -8. The first two cost energy and are only accepted with probability exp of minus delta E over T; the last three are accepted every time.">
+  <text x="10" y="14" class="lbl-up">ΔE = 2 · s · (SUM OF FOUR NEIGHBOURS) — FIVE VALUES, NO MORE</text>
+
+  <!-- four neighbours agree -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="51" y="49" width="18" height="18" rx="3"/><rect x="33" y="67" width="18" height="18" rx="3"/><rect x="69" y="67" width="18" height="18" rx="3"/><rect x="51" y="85" width="18" height="18" rx="3"/>
+  </g>
+  <rect x="51" y="67" width="18" height="18" rx="3" fill="var(--pink)" fill-opacity=".16" stroke="var(--pink)" stroke-width="2"/>
+  <g text-anchor="middle" style="font-size:11px">
+    <text x="60" y="62">↑</text><text x="42" y="80">↑</text><text x="78" y="80">↑</text><text x="60" y="98">↑</text>
+    <text x="60" y="80" fill="var(--pink)">↑</text>
+  </g>
+  <text x="60" y="122" text-anchor="middle" class="lbl">sum = +4</text>
+  <rect x="28" y="130" width="64" height="20" rx="6" fill="var(--lred)" fill-opacity=".12" stroke="var(--lred)" stroke-width="1.4"/>
+  <text x="60" y="144" text-anchor="middle" style="font-size:11px" fill="var(--lred)">ΔE = +8</text>
+
+  <!-- three agree -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="131" y="49" width="18" height="18" rx="3"/><rect x="113" y="67" width="18" height="18" rx="3"/><rect x="149" y="67" width="18" height="18" rx="3"/><rect x="131" y="85" width="18" height="18" rx="3"/>
+  </g>
+  <rect x="131" y="67" width="18" height="18" rx="3" fill="var(--pink)" fill-opacity=".16" stroke="var(--pink)" stroke-width="2"/>
+  <g text-anchor="middle" style="font-size:11px">
+    <text x="140" y="62">↑</text><text x="122" y="80">↓</text><text x="158" y="80">↑</text><text x="140" y="98">↑</text>
+    <text x="140" y="80" fill="var(--pink)">↑</text>
+  </g>
+  <text x="140" y="122" text-anchor="middle" class="lbl">sum = +2</text>
+  <rect x="108" y="130" width="64" height="20" rx="6" fill="var(--lred)" fill-opacity=".12" stroke="var(--lred)" stroke-width="1.4"/>
+  <text x="140" y="144" text-anchor="middle" style="font-size:11px" fill="var(--lred)">ΔE = +4</text>
+
+  <!-- two agree -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="211" y="49" width="18" height="18" rx="3"/><rect x="193" y="67" width="18" height="18" rx="3"/><rect x="229" y="67" width="18" height="18" rx="3"/><rect x="211" y="85" width="18" height="18" rx="3"/>
+  </g>
+  <rect x="211" y="67" width="18" height="18" rx="3" fill="var(--pink)" fill-opacity=".16" stroke="var(--pink)" stroke-width="2"/>
+  <g text-anchor="middle" style="font-size:11px">
+    <text x="220" y="62">↑</text><text x="202" y="80">↓</text><text x="238" y="80">↑</text><text x="220" y="98">↓</text>
+    <text x="220" y="80" fill="var(--pink)">↑</text>
+  </g>
+  <text x="220" y="122" text-anchor="middle" class="lbl">sum = 0</text>
+  <rect x="188" y="130" width="64" height="20" rx="6" fill="var(--teal)" fill-opacity=".14" stroke="var(--teal)" stroke-width="1.4"/>
+  <text x="220" y="144" text-anchor="middle" style="font-size:11px" fill="var(--teal)">ΔE = 0</text>
+
+  <!-- one agrees -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="291" y="49" width="18" height="18" rx="3"/><rect x="273" y="67" width="18" height="18" rx="3"/><rect x="309" y="67" width="18" height="18" rx="3"/><rect x="291" y="85" width="18" height="18" rx="3"/>
+  </g>
+  <rect x="291" y="67" width="18" height="18" rx="3" fill="var(--pink)" fill-opacity=".16" stroke="var(--pink)" stroke-width="2"/>
+  <g text-anchor="middle" style="font-size:11px">
+    <text x="300" y="62">↑</text><text x="282" y="80">↓</text><text x="318" y="80">↓</text><text x="300" y="98">↓</text>
+    <text x="300" y="80" fill="var(--pink)">↑</text>
+  </g>
+  <text x="300" y="122" text-anchor="middle" class="lbl">sum = −2</text>
+  <rect x="268" y="130" width="64" height="20" rx="6" fill="var(--teal)" fill-opacity=".14" stroke="var(--teal)" stroke-width="1.4"/>
+  <text x="300" y="144" text-anchor="middle" style="font-size:11px" fill="var(--teal)">ΔE = −4</text>
+
+  <!-- none agrees -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="371" y="49" width="18" height="18" rx="3"/><rect x="353" y="67" width="18" height="18" rx="3"/><rect x="389" y="67" width="18" height="18" rx="3"/><rect x="371" y="85" width="18" height="18" rx="3"/>
+  </g>
+  <rect x="371" y="67" width="18" height="18" rx="3" fill="var(--pink)" fill-opacity=".16" stroke="var(--pink)" stroke-width="2"/>
+  <g text-anchor="middle" style="font-size:11px">
+    <text x="380" y="62">↓</text><text x="362" y="80">↓</text><text x="398" y="80">↓</text><text x="380" y="98">↓</text>
+    <text x="380" y="80" fill="var(--pink)">↑</text>
+  </g>
+  <text x="380" y="122" text-anchor="middle" class="lbl">sum = −4</text>
+  <rect x="348" y="130" width="64" height="20" rx="6" fill="var(--teal)" fill-opacity=".14" stroke="var(--teal)" stroke-width="1.4"/>
+  <text x="380" y="144" text-anchor="middle" style="font-size:11px" fill="var(--teal)">ΔE = −8</text>
+
+  <!-- the line the temperature actually decides -->
+  <path d="M180 44 V 158" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3" fill="none"/>
+  <text x="28" y="168" class="lbl">uphill · exp(−ΔE/T)</text>
+  <text x="196" y="168" class="lbl">downhill · always accepted</text>
+</svg>

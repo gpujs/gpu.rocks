@@ -1,0 +1,52 @@
+<svg viewBox="0 0 440 172" role="img" aria-label="Pass one: one cell adds up the squares of the drops to the two neighbours below it — 0.3 squared plus 0.1 squared equals 0.10 — and stores that total in its own output cell. Pass two: a downhill cell reads both the neighbour's water and the neighbour's stored total, and takes 0.09 divided by 0.10, nine tenths, of it. The total had to be a separate pass because it is an aggregate over the neighbour's own neighbours, two rings away.">
+  <text x="10" y="14" class="lbl-up">TWO PASSES, ONE SHARE</text>
+
+  <!-- pass 1: the neighbour totals its own drops -->
+  <text x="16" y="34" class="lbl">pass 1 &#183; dropTotal</text>
+  <rect x="62" y="42" width="46" height="26" rx="4" fill="none" stroke="var(--pink)" stroke-width="2"/>
+  <text x="85" y="59" text-anchor="middle" style="font-size:10px" fill="var(--pink)">n</text>
+
+  <g fill="none" stroke="var(--blue)" stroke-width="1.4">
+    <path d="M74 70 L 44 92"/>
+    <path d="M98 70 L 126 92"/>
+  </g>
+  <g fill="var(--blue)">
+    <path d="M39 96 l 2 -8 5 5 z"/>
+    <path d="M131 96 l -7 -2 5 -5 z"/>
+  </g>
+  <text x="46" y="82" text-anchor="end" style="font-size:10px" fill="var(--blue)">0.3</text>
+  <text x="124" y="82" style="font-size:10px" fill="var(--blue)">0.1</text>
+
+  <g fill="none" stroke="var(--line)">
+    <rect x="16" y="98" width="46" height="26" rx="4"/>
+    <rect x="110" y="98" width="46" height="26" rx="4"/>
+  </g>
+
+  <rect x="24" y="132" width="126" height="24" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="87" y="148" text-anchor="middle" class="formula">0.3&#178; + 0.1&#178; = 0.10</text>
+
+  <line x1="204" y1="26" x2="204" y2="160" class="cellline"/>
+
+  <!-- pass 2: the cell below reads that stored total -->
+  <text x="222" y="34" class="lbl">pass 2 &#183; moveWater</text>
+  <rect x="252" y="42" width="46" height="26" rx="4" fill="none" stroke="var(--pink)" stroke-width="2"/>
+  <text x="275" y="59" text-anchor="middle" style="font-size:10px" fill="var(--pink)">n</text>
+  <rect x="320" y="42" width="66" height="26" rx="4" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="353" y="59" text-anchor="middle" class="formula">drop[n]</text>
+
+  <g fill="none" stroke="var(--muted)" stroke-width="1.1" stroke-dasharray="3 3">
+    <path d="M330 70 C 330 84, 268 84, 268 92"/>
+  </g>
+  <path d="M264 96 l 1 -8 6 4 z" fill="var(--muted)"/>
+  <path d="M264 70 L 240 92" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <path d="M235 96 l 2 -8 5 5 z" fill="var(--blue)"/>
+
+  <rect x="212" y="98" width="46" height="26" rx="4" fill="var(--blue)" fill-opacity=".16" stroke="var(--blue)" stroke-width="1.6"/>
+  <text x="235" y="115" text-anchor="middle" style="font-size:10px" fill="var(--blue)">c</text>
+
+  <rect x="264" y="98" width="166" height="24" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="347" y="114" text-anchor="middle" class="formula">0.09 / 0.10 = 0.9 of it</text>
+
+  <text x="216" y="148" class="lbl">c cannot make n add anything up &#8212;</text>
+  <text x="216" y="160" class="lbl">pass 1 already wrote the answer down</text>
+</svg>
