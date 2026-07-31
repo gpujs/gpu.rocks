@@ -1,0 +1,78 @@
+<svg viewBox="0 0 440 178" role="img" aria-label="A row of cells with one strong pixel at the left and a chain of weak ones beside it. Each pass promotes exactly one more weak cell, so the strong front advances one pixel at a time until the whole chain is strong. A separate group of weak pixels, touching nothing strong, is never promoted and is dropped at the end.">
+  <text x="10" y="14" class="lbl-up">ONE PASS BUYS ONE PIXEL OF REACH</text>
+
+  <!-- start -->
+  <text x="10" y="42" class="lbl">start</text>
+  <g fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.5">
+    <rect x="74" y="30" width="20" height="16" rx="3"/>
+  </g>
+  <g fill="var(--ink)" fill-opacity=".08" stroke="var(--line)" stroke-dasharray="3 2">
+    <rect x="96" y="30" width="20" height="16" rx="3"/><rect x="118" y="30" width="20" height="16" rx="3"/>
+    <rect x="140" y="30" width="20" height="16" rx="3"/><rect x="162" y="30" width="20" height="16" rx="3"/>
+    <rect x="184" y="30" width="20" height="16" rx="3"/><rect x="206" y="30" width="20" height="16" rx="3"/>
+    <rect x="272" y="30" width="20" height="16" rx="3"/><rect x="294" y="30" width="20" height="16" rx="3"/>
+    <rect x="316" y="30" width="20" height="16" rx="3"/>
+  </g>
+  <g fill="none" stroke="var(--line)">
+    <rect x="228" y="30" width="20" height="16" rx="3"/><rect x="250" y="30" width="20" height="16" rx="3"/>
+  </g>
+  <text x="84" y="24" text-anchor="middle" style="font-size:9px" fill="var(--teal)">strong</text>
+  <text x="161" y="24" text-anchor="middle" class="lbl">weak</text>
+  <text x="304" y="24" text-anchor="middle" class="lbl">weak, on its own</text>
+
+  <!-- pass 1 -->
+  <text x="10" y="68" class="lbl">pass 1</text>
+  <g fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.5">
+    <rect x="74" y="56" width="20" height="16" rx="3"/><rect x="96" y="56" width="20" height="16" rx="3"/>
+  </g>
+  <rect x="96" y="56" width="20" height="16" rx="3" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g fill="var(--ink)" fill-opacity=".08" stroke="var(--line)" stroke-dasharray="3 2">
+    <rect x="118" y="56" width="20" height="16" rx="3"/>
+    <rect x="140" y="56" width="20" height="16" rx="3"/><rect x="162" y="56" width="20" height="16" rx="3"/>
+    <rect x="184" y="56" width="20" height="16" rx="3"/><rect x="206" y="56" width="20" height="16" rx="3"/>
+    <rect x="272" y="56" width="20" height="16" rx="3"/><rect x="294" y="56" width="20" height="16" rx="3"/>
+    <rect x="316" y="56" width="20" height="16" rx="3"/>
+  </g>
+  <g fill="none" stroke="var(--line)">
+    <rect x="228" y="56" width="20" height="16" rx="3"/><rect x="250" y="56" width="20" height="16" rx="3"/>
+  </g>
+
+  <!-- pass 2 -->
+  <text x="10" y="94" class="lbl">pass 2</text>
+  <g fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.5">
+    <rect x="74" y="82" width="20" height="16" rx="3"/><rect x="96" y="82" width="20" height="16" rx="3"/>
+    <rect x="118" y="82" width="20" height="16" rx="3"/>
+  </g>
+  <rect x="118" y="82" width="20" height="16" rx="3" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g fill="var(--ink)" fill-opacity=".08" stroke="var(--line)" stroke-dasharray="3 2">
+    <rect x="140" y="82" width="20" height="16" rx="3"/><rect x="162" y="82" width="20" height="16" rx="3"/>
+    <rect x="184" y="82" width="20" height="16" rx="3"/><rect x="206" y="82" width="20" height="16" rx="3"/>
+    <rect x="272" y="82" width="20" height="16" rx="3"/><rect x="294" y="82" width="20" height="16" rx="3"/>
+    <rect x="316" y="82" width="20" height="16" rx="3"/>
+  </g>
+  <g fill="none" stroke="var(--line)">
+    <rect x="228" y="82" width="20" height="16" rx="3"/><rect x="250" y="82" width="20" height="16" rx="3"/>
+  </g>
+
+  <text x="119" y="112" text-anchor="middle" class="lbl">. . .</text>
+
+  <!-- settled -->
+  <text x="10" y="136" class="lbl">pass 7</text>
+  <g fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.5">
+    <rect x="74" y="124" width="20" height="16" rx="3"/><rect x="96" y="124" width="20" height="16" rx="3"/>
+    <rect x="118" y="124" width="20" height="16" rx="3"/><rect x="140" y="124" width="20" height="16" rx="3"/>
+    <rect x="162" y="124" width="20" height="16" rx="3"/><rect x="184" y="124" width="20" height="16" rx="3"/>
+    <rect x="206" y="124" width="20" height="16" rx="3"/>
+  </g>
+  <g fill="none" stroke="var(--lred)" stroke-width="1.3" stroke-dasharray="3 2">
+    <rect x="272" y="124" width="20" height="16" rx="3"/><rect x="294" y="124" width="20" height="16" rx="3"/>
+    <rect x="316" y="124" width="20" height="16" rx="3"/>
+  </g>
+  <g fill="none" stroke="var(--line)">
+    <rect x="228" y="124" width="20" height="16" rx="3"/><rect x="250" y="124" width="20" height="16" rx="3"/>
+  </g>
+  <text x="304" y="152" text-anchor="middle" style="font-size:9px" fill="var(--lred)">never connected — dropped</text>
+  <text x="150" y="152" text-anchor="middle" style="font-size:9px" fill="var(--teal)">connected — kept</text>
+
+  <text x="220" y="172" text-anchor="middle" class="formula">a chain of n takes n passes, and only a readback can tell you n</text>
+</svg>

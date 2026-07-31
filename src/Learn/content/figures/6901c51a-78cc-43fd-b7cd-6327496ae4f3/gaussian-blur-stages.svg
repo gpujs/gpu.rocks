@@ -1,0 +1,75 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="The five stages of Canny shown as a strip of pictures: the noisy photo, the same photo blurred, a thick gradient ridge, that ridge suppressed down to one pixel, the thin line split into strong and weak segments, and finally a single unbroken edge after hysteresis.">
+  <text x="10" y="14" class="lbl-up">FIVE STAGES, FIVE KERNELS</text>
+
+  <!-- 1. the photo: a step edge buried in noise -->
+  <g>
+    <rect x="25" y="32" width="20" height="40" fill="var(--ink)" fill-opacity=".08"/>
+    <rect x="45" y="32" width="20" height="40" fill="var(--ink)" fill-opacity=".28"/>
+    <g fill="var(--ink)" fill-opacity=".38">
+      <rect x="30" y="38" width="3" height="3"/><rect x="38" y="52" width="3" height="3"/>
+      <rect x="28" y="63" width="3" height="3"/><rect x="52" y="41" width="3" height="3"/>
+      <rect x="59" y="57" width="3" height="3"/><rect x="48" y="66" width="3" height="3"/>
+    </g>
+    <rect x="25" y="32" width="40" height="40" rx="4" fill="none" stroke="var(--line)"/>
+  </g>
+
+  <!-- 2. blurred: the step becomes a ramp, the noise goes -->
+  <g>
+    <rect x="95" y="32" width="14" height="40" fill="var(--ink)" fill-opacity=".08"/>
+    <rect x="109" y="32" width="6" height="40" fill="var(--ink)" fill-opacity=".14"/>
+    <rect x="115" y="32" width="6" height="40" fill="var(--ink)" fill-opacity=".22"/>
+    <rect x="121" y="32" width="14" height="40" fill="var(--ink)" fill-opacity=".28"/>
+    <rect x="95" y="32" width="40" height="40" rx="4" fill="none" stroke="var(--line)"/>
+  </g>
+
+  <!-- 3. gradient: a thick ridge, plus an angle nobody expects -->
+  <g>
+    <rect x="177" y="32" width="6" height="40" fill="var(--blue)" fill-opacity=".22"/>
+    <rect x="183" y="32" width="4" height="40" fill="var(--blue)" fill-opacity=".55"/>
+    <rect x="187" y="32" width="6" height="40" fill="var(--blue)" fill-opacity=".22"/>
+    <path d="M172 52 H 196" fill="none" stroke="var(--pink)" stroke-width="1.3"/>
+    <path d="M200 52 l -7 -4 v 8 z" fill="var(--pink)"/>
+    <rect x="165" y="32" width="40" height="40" rx="4" fill="none" stroke="var(--line)"/>
+  </g>
+
+  <!-- 4. suppressed: one pixel wide -->
+  <g>
+    <rect x="253" y="32" width="4" height="40" fill="var(--blue)" fill-opacity=".7"/>
+    <rect x="235" y="32" width="40" height="40" rx="4" fill="none" stroke="var(--line)"/>
+  </g>
+
+  <!-- 5. thresholded: strong segments, and a weak gap between them -->
+  <g>
+    <rect x="323" y="34" width="4" height="13" fill="var(--teal)" fill-opacity=".75"/>
+    <rect x="323" y="47" width="4" height="9" fill="var(--teal)" fill-opacity=".2"/>
+    <rect x="323" y="56" width="4" height="14" fill="var(--teal)" fill-opacity=".75"/>
+    <rect x="305" y="32" width="40" height="40" rx="4" fill="none" stroke="var(--line)"/>
+  </g>
+
+  <!-- 6. hysteresis: the gap is bridged, one unbroken edge -->
+  <g>
+    <rect x="393" y="34" width="4" height="36" fill="var(--teal)" fill-opacity=".8"/>
+    <rect x="375" y="32" width="40" height="40" rx="4" fill="none" stroke="var(--teal)" stroke-width="1.5"/>
+  </g>
+
+  <!-- the arrows between stages -->
+  <g>
+    <path class="arrow" d="M69 52 H 85" stroke-width="1.3"/><path class="arrowhead" d="M91 52 l -7 -4 v 8 z"/>
+    <path class="arrow" d="M139 52 H 155" stroke-width="1.3"/><path class="arrowhead" d="M161 52 l -7 -4 v 8 z"/>
+    <path class="arrow" d="M209 52 H 225" stroke-width="1.3"/><path class="arrowhead" d="M231 52 l -7 -4 v 8 z"/>
+    <path class="arrow" d="M279 52 H 295" stroke-width="1.3"/><path class="arrowhead" d="M301 52 l -7 -4 v 8 z"/>
+    <path class="arrow" d="M349 52 H 365" stroke-width="1.3"/><path class="arrowhead" d="M371 52 l -7 -4 v 8 z"/>
+  </g>
+
+  <g class="lbl" text-anchor="middle">
+    <text x="45" y="88">photo</text>
+    <text x="115" y="88">blur</text><text x="115" y="99">1D + 1D</text>
+    <text x="185" y="88">gradient</text><text x="185" y="99">mag + dir</text>
+    <text x="255" y="88">suppress</text><text x="255" y="99">thin it</text>
+    <text x="325" y="88">threshold</text><text x="325" y="99">hi · lo</text>
+    <text x="395" y="88">hysteresis</text><text x="395" y="99">repeat</text>
+  </g>
+
+  <line x1="25" y1="114" x2="415" y2="114" class="cellline"/>
+  <text x="220" y="136" text-anchor="middle" class="formula">one kernel each — and between them, no JavaScript at all</text>
+</svg>

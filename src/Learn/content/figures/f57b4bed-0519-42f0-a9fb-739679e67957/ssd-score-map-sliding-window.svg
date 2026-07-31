@@ -1,0 +1,39 @@
+<svg viewBox="0 0 440 186" role="img" aria-label="A 3 by 3 template laid over a 9 by 6 scene with its top-left corner on cell (4, 2). The whole window is summed into a single score, which becomes cell (4, 2) of a 7 by 4 score map — one thread per candidate position, and a map smaller than the scene by the template size.">
+  <text x="10" y="14" class="lbl-up">ONE THREAD, ONE CANDIDATE POSITION</text>
+  <text x="104.5" y="38" text-anchor="middle" style="font-size:9px" fill="var(--blue)">the template, here</text>
+
+  <!-- the scene -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="22" y="46" width="15" height="15" rx="3"/><rect x="37" y="46" width="15" height="15" rx="3"/><rect x="52" y="46" width="15" height="15" rx="3"/><rect x="67" y="46" width="15" height="15" rx="3"/><rect x="82" y="46" width="15" height="15" rx="3"/><rect x="97" y="46" width="15" height="15" rx="3"/><rect x="112" y="46" width="15" height="15" rx="3"/><rect x="127" y="46" width="15" height="15" rx="3"/><rect x="142" y="46" width="15" height="15" rx="3"/>
+    <rect x="22" y="61" width="15" height="15" rx="3"/><rect x="37" y="61" width="15" height="15" rx="3"/><rect x="52" y="61" width="15" height="15" rx="3"/><rect x="67" y="61" width="15" height="15" rx="3"/><rect x="82" y="61" width="15" height="15" rx="3"/><rect x="97" y="61" width="15" height="15" rx="3"/><rect x="112" y="61" width="15" height="15" rx="3"/><rect x="127" y="61" width="15" height="15" rx="3"/><rect x="142" y="61" width="15" height="15" rx="3"/>
+    <rect x="22" y="76" width="15" height="15" rx="3"/><rect x="37" y="76" width="15" height="15" rx="3"/><rect x="52" y="76" width="15" height="15" rx="3"/><rect x="67" y="76" width="15" height="15" rx="3"/><rect x="82" y="76" width="15" height="15" rx="3"/><rect x="97" y="76" width="15" height="15" rx="3"/><rect x="112" y="76" width="15" height="15" rx="3"/><rect x="127" y="76" width="15" height="15" rx="3"/><rect x="142" y="76" width="15" height="15" rx="3"/>
+    <rect x="22" y="91" width="15" height="15" rx="3"/><rect x="37" y="91" width="15" height="15" rx="3"/><rect x="52" y="91" width="15" height="15" rx="3"/><rect x="67" y="91" width="15" height="15" rx="3"/><rect x="82" y="91" width="15" height="15" rx="3"/><rect x="97" y="91" width="15" height="15" rx="3"/><rect x="112" y="91" width="15" height="15" rx="3"/><rect x="127" y="91" width="15" height="15" rx="3"/><rect x="142" y="91" width="15" height="15" rx="3"/>
+    <rect x="22" y="106" width="15" height="15" rx="3"/><rect x="37" y="106" width="15" height="15" rx="3"/><rect x="52" y="106" width="15" height="15" rx="3"/><rect x="67" y="106" width="15" height="15" rx="3"/><rect x="82" y="106" width="15" height="15" rx="3"/><rect x="97" y="106" width="15" height="15" rx="3"/><rect x="112" y="106" width="15" height="15" rx="3"/><rect x="127" y="106" width="15" height="15" rx="3"/><rect x="142" y="106" width="15" height="15" rx="3"/>
+    <rect x="22" y="121" width="15" height="15" rx="3"/><rect x="37" y="121" width="15" height="15" rx="3"/><rect x="52" y="121" width="15" height="15" rx="3"/><rect x="67" y="121" width="15" height="15" rx="3"/><rect x="82" y="121" width="15" height="15" rx="3"/><rect x="97" y="121" width="15" height="15" rx="3"/><rect x="112" y="121" width="15" height="15" rx="3"/><rect x="127" y="121" width="15" height="15" rx="3"/><rect x="142" y="121" width="15" height="15" rx="3"/>
+  </g>
+
+  <!-- the template, laid over the scene at (4, 2) -->
+  <rect x="82" y="76" width="45" height="45" rx="5" fill="var(--blue)" fill-opacity=".14" stroke="var(--blue)" stroke-width="1.6"/>
+
+  <!-- the corner cell IS this thread's coordinate, and the cell it writes -->
+  <rect x="82" y="76" width="15" height="15" rx="3" fill="none" stroke="var(--teal)" stroke-width="1.8"/>
+
+  <!-- score -->
+  <path class="arrow" d="M169 91 H 240" stroke-width="1.5"/>
+  <path class="arrowhead" d="M246 91 l -7 -4 v 8 z"/>
+  <text x="212" y="84" text-anchor="middle" class="lbl">sum of</text>
+  <text x="212" y="107" text-anchor="middle" class="lbl">squared diffs</text>
+
+  <!-- the score map -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="258" y="61" width="15" height="15" rx="3"/><rect x="273" y="61" width="15" height="15" rx="3"/><rect x="288" y="61" width="15" height="15" rx="3"/><rect x="303" y="61" width="15" height="15" rx="3"/><rect x="318" y="61" width="15" height="15" rx="3"/><rect x="333" y="61" width="15" height="15" rx="3"/><rect x="348" y="61" width="15" height="15" rx="3"/>
+    <rect x="258" y="76" width="15" height="15" rx="3"/><rect x="273" y="76" width="15" height="15" rx="3"/><rect x="288" y="76" width="15" height="15" rx="3"/><rect x="303" y="76" width="15" height="15" rx="3"/><rect x="318" y="76" width="15" height="15" rx="3"/><rect x="333" y="76" width="15" height="15" rx="3"/><rect x="348" y="76" width="15" height="15" rx="3"/>
+    <rect x="258" y="91" width="15" height="15" rx="3"/><rect x="273" y="91" width="15" height="15" rx="3"/><rect x="288" y="91" width="15" height="15" rx="3"/><rect x="303" y="91" width="15" height="15" rx="3"/><rect x="333" y="91" width="15" height="15" rx="3"/><rect x="348" y="91" width="15" height="15" rx="3"/>
+    <rect x="258" y="106" width="15" height="15" rx="3"/><rect x="273" y="106" width="15" height="15" rx="3"/><rect x="288" y="106" width="15" height="15" rx="3"/><rect x="303" y="106" width="15" height="15" rx="3"/><rect x="318" y="106" width="15" height="15" rx="3"/><rect x="333" y="106" width="15" height="15" rx="3"/><rect x="348" y="106" width="15" height="15" rx="3"/>
+  </g>
+  <rect x="318" y="91" width="15" height="15" rx="3" fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.8"/>
+
+  <text x="89.5" y="158" text-anchor="middle" class="lbl">scene 9 × 6 · corner (4, 2)</text>
+  <text x="310.5" y="158" text-anchor="middle" class="lbl">score map 7 × 4 · cell (4, 2)</text>
+  <text x="220" y="180" text-anchor="middle" class="formula">9 − 3 + 1 = 7 per axis&#160;&#160;·&#160;&#160;in the task, 96 − 8 + 1 = 89</text>
+</svg>

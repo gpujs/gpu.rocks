@@ -1,0 +1,49 @@
+<svg viewBox="0 0 440 176" role="img" aria-label="An anti-diagonal edge seen through a small circular aperture. The true motion points right; only its component across the edge, pointing down and right at half the length, can be recovered, and the component along the edge is invisible. Beside it, three different motions drawn from one origin all fit the same pixel's evidence.">
+  <text x="10" y="14" class="lbl-up">ONE PIXEL, A LINE OF ANSWERS</text>
+
+  <!-- what the three arrows mean -->
+  <g style="font-size:9px">
+    <path d="M10 47 H 28" stroke="var(--pink)" stroke-width="1.8" fill="none"/>
+    <text x="32" y="50" fill="var(--pink)">true motion</text>
+    <path d="M10 67 H 28" stroke="var(--teal)" stroke-width="1.8" fill="none"/>
+    <text x="32" y="70" fill="var(--teal)">recoverable</text>
+    <path d="M10 87 H 28" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+    <text x="32" y="90" fill="var(--muted)">invisible</text>
+  </g>
+
+  <!-- the aperture: an edge running anti-diagonally -->
+  <circle cx="185" cy="88" r="44" fill="var(--surface)" stroke="var(--line)" stroke-width="1.4"/>
+  <g stroke="var(--line)" stroke-width="1.3" fill="none">
+    <path d="M141.9 97.1 L 194.1 44.9"/>
+    <path d="M175.9 131.1 L 228.1 78.9"/>
+  </g>
+  <path d="M153.9 119.1 L 216.1 56.9" stroke="var(--ink)" stroke-width="2.2" fill="none"/>
+
+  <!-- the motion, split into the half you can see and the half you cannot -->
+  <path d="M185 88 H 223" stroke="var(--pink)" stroke-width="1.9" fill="none"/>
+  <path d="M228 88 l -7 -4 v 8 z" fill="var(--pink)"/>
+  <path d="M185 88 L 203 106" stroke="var(--teal)" stroke-width="1.9" fill="none"/>
+  <path transform="translate(206.5,109.5) rotate(45)" d="M0 0 l -7 -4 v 8 z" fill="var(--teal)"/>
+  <path d="M206.5 109.5 L 228 88" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+  <path d="M202.3 105.3 L 206.5 101 L 210.7 105.3" stroke="var(--muted)" stroke-width="1" fill="none"/>
+  <circle cx="185" cy="88" r="2.6" fill="var(--ink)"/>
+
+  <!-- three motions, one pixel, no way to tell them apart -->
+  <text x="322" y="30" text-anchor="middle" class="lbl">all of these fit that pixel</text>
+  <path d="M355 45 L 289 111" stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="4 3" fill="none"/>
+  <path d="M300 56 H 339" stroke="var(--pink)" stroke-width="1.9" fill="none"/>
+  <path d="M344 56 l -7 -4 v 8 z" fill="var(--pink)"/>
+  <path d="M300 56 L 318 74" stroke="var(--teal)" stroke-width="1.9" fill="none"/>
+  <path transform="translate(322,78) rotate(45)" d="M0 0 l -7 -4 v 8 z" fill="var(--teal)"/>
+  <path d="M300 56 V 95" stroke="var(--muted)" stroke-width="1.6" fill="none"/>
+  <path d="M300 100 l -4 -7 h 8 z" fill="var(--muted)"/>
+  <circle cx="300" cy="56" r="2.6" fill="var(--ink)"/>
+  <g style="font-size:9px">
+    <text x="350" y="48" fill="var(--pink)">(4, 0)</text>
+    <text x="328" y="79" fill="var(--teal)">(2, 2)</text>
+    <text x="292" y="106" text-anchor="end" fill="var(--muted)">(0, 4)</text>
+  </g>
+
+  <text x="220" y="152" text-anchor="middle" class="formula">Ix&#183;u + Iy&#183;v + It = 0</text>
+  <text x="220" y="168" text-anchor="middle" class="lbl">one equation, two unknowns, a whole line of answers</text>
+</svg>

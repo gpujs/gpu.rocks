@@ -1,0 +1,63 @@
+<svg viewBox="0 0 440 176" role="img" aria-label="Three windows compared. A flat patch has no gradient and both eigenvalues are near zero, so there is nothing to track. A straight edge has gradients in one direction only: the larger eigenvalue is big, the smaller is near zero. A corner has gradients in two directions and both eigenvalues are large, which is the only trustworthy case.">
+  <text x="10" y="14" class="lbl-up">WHICH WINDOWS CAN BE TRACKED</text>
+
+  <g class="lbl" text-anchor="middle">
+    <text x="92" y="30">flat</text>
+    <text x="228" y="30">edge</text>
+    <text x="364" y="30">corner</text>
+  </g>
+
+  <!-- flat: no gradient anywhere -->
+  <rect x="64" y="36" width="56" height="56" rx="3" fill="var(--muted)" fill-opacity=".06" stroke="var(--line)"/>
+
+  <!-- edge: one boundary, every gradient parallel -->
+  <rect x="200" y="36" width="56" height="56" rx="3" fill="none" stroke="var(--line)"/>
+  <rect x="200" y="36" width="28" height="56" fill="var(--muted)" fill-opacity=".14"/>
+  <path d="M228 36 V 92" stroke="var(--ink)" stroke-width="2" fill="none"/>
+  <g stroke="var(--blue)" stroke-width="1.4" fill="none">
+    <path d="M220 50 H 232"/><path d="M220 64 H 232"/><path d="M220 78 H 232"/>
+  </g>
+  <g fill="var(--blue)">
+    <path d="M237 50 l -6 -3.5 v 7 z"/><path d="M237 64 l -6 -3.5 v 7 z"/><path d="M237 78 l -6 -3.5 v 7 z"/>
+  </g>
+
+  <!-- corner: two boundaries, two gradient directions -->
+  <rect x="336" y="36" width="56" height="56" rx="3" fill="none" stroke="var(--line)"/>
+  <rect x="336" y="64" width="28" height="28" fill="var(--muted)" fill-opacity=".14"/>
+  <path d="M336 64 H 364 V 92" stroke="var(--ink)" stroke-width="2" fill="none"/>
+  <g stroke="var(--blue)" stroke-width="1.4" fill="none">
+    <path d="M348 76 V 58"/>
+    <path d="M354 82 H 372"/>
+  </g>
+  <g fill="var(--blue)">
+    <path d="M348 53 l -3.5 6 h 7 z"/>
+    <path d="M377 82 l -6 -3.5 v 7 z"/>
+  </g>
+
+  <!-- the two eigenvalues, as bars -->
+  <g class="lbl" style="font-size:9px">
+    <text x="8" y="112">&#955;max</text>
+    <text x="8" y="126">&#955;min</text>
+  </g>
+  <g fill="none" stroke="var(--line)">
+    <rect x="64" y="104" width="56" height="7" rx="2"/><rect x="64" y="118" width="56" height="7" rx="2"/>
+    <rect x="200" y="104" width="56" height="7" rx="2"/><rect x="200" y="118" width="56" height="7" rx="2"/>
+    <rect x="336" y="104" width="56" height="7" rx="2"/><rect x="336" y="118" width="56" height="7" rx="2"/>
+  </g>
+  <g fill="var(--ink)" fill-opacity=".55">
+    <rect x="64" y="104" width="4" height="7" rx="2"/>
+    <rect x="200" y="104" width="50" height="7" rx="2"/>
+    <rect x="336" y="104" width="46" height="7" rx="2"/>
+  </g>
+  <rect x="64" y="118" width="3" height="7" rx="1.5" fill="var(--lred)"/>
+  <rect x="200" y="118" width="3" height="7" rx="1.5" fill="var(--lred)"/>
+  <rect x="336" y="118" width="38" height="7" rx="2" fill="var(--teal)"/>
+
+  <g class="lbl" text-anchor="middle">
+    <text x="92" y="144">nothing to track</text>
+    <text x="228" y="144">one direction only</text>
+    <text x="364" y="144" fill="var(--teal)">both directions</text>
+  </g>
+
+  <text x="220" y="168" text-anchor="middle" class="formula">&#955;min = (trace &#8722; &#8730;(trace&#178; &#8722; 4&#183;det)) / 2</text>
+</svg>

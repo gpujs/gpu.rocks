@@ -1,0 +1,72 @@
+<svg viewBox="0 0 440 186" role="img" aria-label="A patch of gradient magnitudes holding a three-pixel-wide ridge. The pixel under test, magnitude 0.9, is compared against its two neighbours along the gradient direction, which runs across the ridge; the edge itself runs at right angles to that, down the ridge, and is the wrong axis to compare on. On the right, the three-pixel-wide band becomes a one-pixel line.">
+  <text x="10" y="14" class="lbl-up">COMPARE ACROSS THE EDGE, NOT ALONG IT</text>
+
+  <!-- the patch: a ridge three columns wide, brightest down the middle -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="24" y="44" width="22" height="30" rx="3"/><rect x="112" y="44" width="22" height="30" rx="3"/>
+    <rect x="24" y="74" width="22" height="30" rx="3"/><rect x="112" y="74" width="22" height="30" rx="3"/>
+    <rect x="24" y="104" width="22" height="30" rx="3"/><rect x="112" y="104" width="22" height="30" rx="3"/>
+  </g>
+  <g stroke="var(--line)" fill="var(--blue)">
+    <rect x="46" y="44" width="22" height="30" rx="3" fill-opacity=".2"/>
+    <rect x="68" y="44" width="22" height="30" rx="3" fill-opacity=".4"/>
+    <rect x="90" y="44" width="22" height="30" rx="3" fill-opacity=".15"/>
+    <rect x="46" y="74" width="22" height="30" rx="3" fill-opacity=".2"/>
+    <rect x="90" y="74" width="22" height="30" rx="3" fill-opacity=".15"/>
+    <rect x="46" y="104" width="22" height="30" rx="3" fill-opacity=".2"/>
+    <rect x="68" y="104" width="22" height="30" rx="3" fill-opacity=".4"/>
+    <rect x="90" y="104" width="22" height="30" rx="3" fill-opacity=".15"/>
+  </g>
+
+  <!-- the edge runs down the ridge: the axis NOT to compare on -->
+  <path d="M79 38 V 142" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 4" opacity=".65"/>
+  <text x="79" y="156" text-anchor="middle" class="lbl">the edge runs this way</text>
+
+  <!-- the pixel under test -->
+  <rect x="68" y="74" width="22" height="30" rx="3" fill="var(--blue)" fill-opacity=".4" stroke="var(--blue)" stroke-width="1.8"/>
+
+  <!-- the two neighbours on the gradient axis -->
+  <g fill="none" stroke="var(--pink)" stroke-width="1.6">
+    <rect x="46" y="74" width="22" height="30" rx="3"/>
+    <rect x="90" y="74" width="22" height="30" rx="3"/>
+  </g>
+
+  <!-- the three magnitudes that decide it -->
+  <g text-anchor="middle" style="font-size:10px">
+    <text x="57" y="88" fill="var(--pink)">0.6</text>
+    <text x="79" y="88" fill="var(--ink)">0.9</text>
+    <text x="101" y="88" fill="var(--pink)">0.5</text>
+  </g>
+
+  <!-- the gradient axis: both ways, because an axis has no forwards -->
+  <path d="M26 96 H 132" fill="none" stroke="var(--pink)" stroke-width="1.4"/>
+  <g fill="var(--pink)">
+    <path d="M20 96 l 7 -4 v 8 z"/>
+    <path d="M138 96 l -7 -4 v 8 z"/>
+  </g>
+  <text x="148" y="99" style="font-size:10px" fill="var(--pink)">the gradient</text>
+
+  <!-- what suppression buys: three wide becomes one -->
+  <g fill="var(--blue)" stroke="var(--line)">
+    <rect x="252" y="44" width="14" height="16" rx="2" fill-opacity=".2"/><rect x="266" y="44" width="14" height="16" rx="2" fill-opacity=".4"/><rect x="280" y="44" width="14" height="16" rx="2" fill-opacity=".15"/>
+    <rect x="252" y="62" width="14" height="16" rx="2" fill-opacity=".2"/><rect x="266" y="62" width="14" height="16" rx="2" fill-opacity=".4"/><rect x="280" y="62" width="14" height="16" rx="2" fill-opacity=".15"/>
+    <rect x="252" y="80" width="14" height="16" rx="2" fill-opacity=".2"/><rect x="266" y="80" width="14" height="16" rx="2" fill-opacity=".4"/><rect x="280" y="80" width="14" height="16" rx="2" fill-opacity=".15"/>
+    <rect x="252" y="98" width="14" height="16" rx="2" fill-opacity=".2"/><rect x="266" y="98" width="14" height="16" rx="2" fill-opacity=".4"/><rect x="280" y="98" width="14" height="16" rx="2" fill-opacity=".15"/>
+    <rect x="252" y="116" width="14" height="16" rx="2" fill-opacity=".2"/><rect x="266" y="116" width="14" height="16" rx="2" fill-opacity=".4"/><rect x="280" y="116" width="14" height="16" rx="2" fill-opacity=".15"/>
+  </g>
+  <path class="arrow" d="M304 90 H 326" stroke-width="1.5"/>
+  <path class="arrowhead" d="M332 90 l -7 -4 v 8 z"/>
+  <g fill="var(--teal)" fill-opacity=".22" stroke="var(--teal)" stroke-width="1.5">
+    <rect x="348" y="44" width="14" height="16" rx="2"/>
+    <rect x="348" y="62" width="14" height="16" rx="2"/>
+    <rect x="348" y="80" width="14" height="16" rx="2"/>
+    <rect x="348" y="98" width="14" height="16" rx="2"/>
+    <rect x="348" y="116" width="14" height="16" rx="2"/>
+  </g>
+  <g class="lbl" text-anchor="middle">
+    <text x="273" y="148">three wide</text>
+    <text x="355" y="148">one</text>
+  </g>
+
+  <text x="220" y="178" text-anchor="middle" class="formula">keep it only if it beats BOTH neighbours on that axis</text>
+</svg>

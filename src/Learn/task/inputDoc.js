@@ -331,6 +331,29 @@ function describeArray(name, value) {
   const { dims, leaf, ragged } = arrayShape(value);
   const ctor = ArrayBuffer.isView(value) ? value.constructor.name : null;
 
+  // A sequence of frames — the shape a video task takes. Without this it
+  // described as `array[8]` with an [object Object] sample, which tells a
+  // learner nothing about the one thing they need: that each entry is an
+  // image, indexed [y][x] like every other image in the course.
+  if (dims[0] > 0 && isImageData(value[0])) {
+    const { width, height } = value[0];
+    const uniform = Array.from(value).every(
+      f => isImageData(f) && f.width === width && f.height === height
+    );
+    return {
+      name,
+      type: `${dims[0]} × ImageData ${width}×${height}`,
+      summary: uniform
+        ? `${plural(dims[0], 'frame')}, each ${plural(width * height, 'RGBA pixel')}`
+        : `${plural(dims[0], 'frame')} of differing sizes`,
+      sample: `${name}[0] is the first frame`,
+      preview: `${name} = [ImageData ${width}×${height} × ${dims[0]}]`,
+      note:
+        `Each frame indexes like any other image: ${name}[f][y][x] is the pixel ` +
+        'in row y, column x of frame f — an [r, g, b, a] array with channels from 0 to 1.',
+    };
+  }
+
   if (dims[0] === 0) {
     return {
       name,

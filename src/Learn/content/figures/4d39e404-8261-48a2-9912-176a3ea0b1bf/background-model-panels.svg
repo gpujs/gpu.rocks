@@ -1,0 +1,36 @@
+<svg viewBox="0 0 440 174" role="img" aria-label="Three panels side by side. The first is the current frame: a wall with a poster, a desk in shadow, and a bright object in the middle. The second is the background model: the same room with no object in it. Subtracting them and thresholding gives the third panel, a mask holding the whole object as a solid shape.">
+  <g class="lbl-up" text-anchor="middle">
+    <text x="74" y="24">FRAME n</text>
+    <text x="198" y="24">MODEL</text>
+    <text x="346" y="24">FOREGROUND</text>
+  </g>
+
+  <!-- the frame as the camera sees it -->
+  <rect x="24" y="32" width="100" height="100" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.3"/>
+  <rect x="24" y="110" width="100" height="22" fill="var(--muted)" fill-opacity=".14"/>
+  <rect x="34" y="44" width="30" height="26" fill="none" stroke="var(--muted)" stroke-width="1.1"/>
+  <circle cx="86" cy="86" r="19" fill="var(--blue)" fill-opacity=".55" stroke="var(--blue)" stroke-width="1.4"/>
+
+  <text x="136" y="88" class="formula" text-anchor="middle">−</text>
+
+  <!-- the model: the same room, no object -->
+  <rect x="148" y="32" width="100" height="100" rx="4" fill="var(--surface)" stroke="var(--line)" stroke-width="1.3"/>
+  <rect x="148" y="110" width="100" height="22" fill="var(--muted)" fill-opacity=".14"/>
+  <rect x="158" y="44" width="30" height="26" fill="none" stroke="var(--muted)" stroke-width="1.1"/>
+
+  <path class="arrow" d="M260 82 H 282" stroke-width="1.4"/>
+  <path class="arrowhead" d="M288 82 l -7 -4 v 8 z"/>
+  <text x="274" y="72" class="lbl" text-anchor="middle">&gt; t</text>
+
+  <!-- what is left -->
+  <rect x="296" y="32" width="100" height="100" rx="4" fill="var(--muted)" fill-opacity=".16" stroke="var(--line)" stroke-width="1.3"/>
+  <circle cx="358" cy="86" r="19" fill="var(--teal)" fill-opacity=".85" stroke="var(--teal)" stroke-width="1.4"/>
+
+  <g class="lbl" text-anchor="middle">
+    <text x="74" y="148">this frame</text>
+    <text x="198" y="148">the empty room</text>
+    <text x="346" y="148">solid, not an outline</text>
+  </g>
+
+  <text x="10" y="168" class="lbl">the model is a slow running average of the scene — not the last frame</text>
+</svg>

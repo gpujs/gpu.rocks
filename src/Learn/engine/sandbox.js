@@ -636,35 +636,51 @@ function invokableKernels(runResult) {
 // Graphical and pipeline kernels only ENQUEUE GL commands — without a readback
 // the timed call returns in ~0 ms no matter how much work the GPU is doing.
 // Force the pipeline to drain inside the timed region so the numbers are real.
-function syncKernel(k, result) {
+// Drain the GPU so the timer measures work rather than queue latency.
+//
+// This has to happen ONCE, after the whole chain — never per kernel. A
+// pipeline kernel hands back a texture precisely so the next kernel can
+// consume it without a round trip; calling .toArray() on every intermediate
+// forces a readback per stage, which is the exact cost pipelining exists to
+// avoid. Doing that inside the timing loop made the benchmark measure a
+// pipeline taken apart, and it reported the CPU beating the GPU on the very
+// tasks that teach chaining.
+function drainGpu(kernels, lastResult) {
   try {
-    if (result && typeof result.toArray === 'function') {
-      // pipeline kernels return a texture — reading it back forces completion
-      result.toArray();
+    if (lastResult && typeof lastResult.toArray === 'function') {
+      lastResult.toArray(); // reading the final texture waits for the chain
       return;
     }
-    const built = k.kernel;
-    if (built && built.graphical) {
-      const gl = built.context;
+    // otherwise find a GL context among the kernels and fence on it; reading
+    // one pixel blocks until every queued draw has finished
+    for (let i = kernels.length - 1; i >= 0; i--) {
+      const built = kernels[i].kernel;
+      const gl = built && built.context;
       if (gl && typeof gl.readPixels === 'function') {
-        // reading one pixel blocks until every queued draw has finished
         gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+        return;
       }
     }
   } catch (e) {
-    // sync is best-effort — cpu kernels have nothing to drain
+    // best-effort — cpu kernels have nothing to drain
   }
+}
+
+function runChain(kernels) {
+  let last;
+  for (const k of kernels) last = k(...k.lastArgs);
+  return last;
 }
 
 function timeKernels(kernels) {
   // warm-up (compilation, first-run allocation)
-  for (const k of kernels) syncKernel(k, k(...k.lastArgs));
+  drainGpu(kernels, runChain(kernels));
 
   const times = [];
   const started = performance.now();
   while (times.length < 5 && performance.now() - started < 250) {
     const t0 = performance.now();
-    for (const k of kernels) syncKernel(k, k(...k.lastArgs));
+    drainGpu(kernels, runChain(kernels));
     times.push(performance.now() - t0);
   }
   times.sort((a, b) => a - b);

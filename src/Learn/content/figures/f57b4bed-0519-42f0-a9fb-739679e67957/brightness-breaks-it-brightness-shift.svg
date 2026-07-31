@@ -1,0 +1,34 @@
+<svg viewBox="0 0 440 198" role="img" aria-label="Two SSD number lines. As photographed, the true match scores 0.00 and a dark mismatching patch scores 5.42, so the true match wins. With 0.28 added to every pixel the true match rises to 5.02 and the dark patch falls to 0.40 — the two swap places and SSD picks the wrong one.">
+  <text x="10" y="14" class="lbl-up">SSD · LOWER IS BETTER</text>
+
+  <!-- as photographed -->
+  <text x="10" y="62" class="lbl-up">AS PHOTOGRAPHED</text>
+  <path class="arrow" d="M150 58 H 422" stroke-width="1.2"/>
+  <path class="arrowhead" d="M428 58 l -7 -4 v 8 z"/>
+  <circle cx="160.0" cy="58" r="6" fill="var(--teal)" fill-opacity=".25" stroke="var(--teal)" stroke-width="1.8"/>
+  <circle cx="394.9" cy="58" r="6" fill="none" stroke="var(--muted)" stroke-width="1.4"/>
+  <text x="160.0" y="44" text-anchor="middle" style="font-size:10px" fill="var(--teal)">0.00</text>
+  <text x="394.9" y="44" text-anchor="middle" class="lbl">5.42</text>
+  <text x="160.0" y="80" text-anchor="middle" style="font-size:9px" fill="var(--teal)">✓ the real patch</text>
+  <text x="394.9" y="80" text-anchor="middle" class="lbl">a dark patch</text>
+
+  <!-- the two moves, crossing -->
+  <path d="M160.0 88 Q 280 116 377.5 130" fill="none" stroke="var(--teal)" stroke-width="1.3" opacity=".8"/>
+  <path d="M394.9 88 Q 280 116 177.3 130" fill="none" stroke="var(--lred)" stroke-width="1.3" opacity=".8"/>
+  <path d="M377.5 136 l -7 -6 l 8 -2 z" fill="var(--teal)"/>
+  <path d="M177.3 136 l 7 -6 l -8 -2 z" fill="var(--lred)"/>
+  <text x="280" y="93" text-anchor="middle" class="lbl">+ 0.28 everywhere</text>
+
+  <!-- brighter -->
+  <text x="10" y="150" class="lbl-up">0.28 BRIGHTER</text>
+  <path class="arrow" d="M150 146 H 422" stroke-width="1.2"/>
+  <path class="arrowhead" d="M428 146 l -7 -4 v 8 z"/>
+  <circle cx="177.3" cy="146" r="6" fill="var(--lred)" fill-opacity=".25" stroke="var(--lred)" stroke-width="1.8"/>
+  <circle cx="377.5" cy="146" r="6" fill="none" stroke="var(--teal)" stroke-width="1.4"/>
+  <text x="177.3" y="166" text-anchor="middle" style="font-size:10px" fill="var(--lred)">0.40</text>
+  <text x="377.5" y="166" text-anchor="middle" style="font-size:10px" fill="var(--teal)">5.02</text>
+  <text x="177.3" y="178" text-anchor="middle" style="font-size:9px" fill="var(--lred)">✗ SSD picks this</text>
+  <text x="377.5" y="178" text-anchor="middle" class="lbl">still the real patch</text>
+
+  <text x="220" y="194" text-anchor="middle" class="formula">a perfect match now costs 64 × 0.28² = 5.02</text>
+</svg>

@@ -1,0 +1,58 @@
+<svg viewBox="0 0 440 214" role="img" aria-label="Left: on a number line from 0 to 360, hue 10 sits at the far left and hue 350 at the far right, and their arithmetic mean lands at 180 in the middle — struck through, because 180 is cyan. Right: on a wheel with 0 at the top, the same two hues are neighbours twenty degrees apart across the seam, their true midpoint is 0 degrees, and 180 is the point diametrically opposite.">
+  <text x="10" y="14" class="lbl-up">AS NUMBERS</text>
+  <text x="286" y="14" class="lbl-up">AS ANGLES</text>
+
+  <!-- the number line -->
+  <path d="M26 74 H236" stroke="var(--line)" stroke-width="1.4" fill="none"/>
+  <g fill="none" stroke="var(--line)">
+    <path d="M26 70 V78"/>
+    <path d="M78.5 71 V77"/>
+    <path d="M131 70 V78"/>
+    <path d="M183.5 71 V77"/>
+    <path d="M236 70 V78"/>
+  </g>
+  <g class="lbl" text-anchor="middle">
+    <text x="26" y="91">0</text>
+    <text x="131" y="91">180</text>
+    <text x="236" y="91">360</text>
+  </g>
+
+  <g fill="var(--pink)">
+    <circle cx="31.8" cy="74" r="4"/>
+    <circle cx="230.2" cy="74" r="4"/>
+  </g>
+  <g class="lbl" fill="var(--pink)" text-anchor="middle">
+    <text x="31.8" y="62">10°</text>
+    <text x="230.2" y="62">350°</text>
+  </g>
+
+  <path d="M31.8 106 H230.2" stroke="var(--lred)" stroke-width="1.2" stroke-dasharray="4 3" fill="none"/>
+  <g stroke="var(--lred)" stroke-width="1.8" fill="none">
+    <path d="M125 100 l 12 12"/>
+    <path d="M137 100 l -12 12"/>
+  </g>
+  <text x="131" y="130" text-anchor="middle" style="font-size:10px" fill="var(--lred)">(350 + 10) / 2 = 180</text>
+  <text x="131" y="142" text-anchor="middle" class="lbl">cyan, out of two reds</text>
+
+  <!-- the wheel, 0 at the top -->
+  <circle cx="344" cy="100" r="58" fill="none" stroke="var(--line)" stroke-width="1.4"/>
+  <path d="M333.9 42.9A58 58 0 0 1 354.1 42.9" stroke="var(--pink)" stroke-width="3.4" fill="none"/>
+  <g fill="var(--pink)">
+    <circle cx="333.9" cy="42.9" r="3.6"/>
+    <circle cx="354.1" cy="42.9" r="3.6"/>
+  </g>
+  <path d="M333.2 38.9V28 M354.8 38.9V28 M333.2 31H354.8" stroke="var(--pink)" stroke-width="1.1" fill="none"/>
+  <text x="344" y="27" text-anchor="middle" class="lbl" fill="var(--pink)">20°</text>
+  <g class="lbl" fill="var(--pink)">
+    <text x="318" y="29" text-anchor="end">350°</text>
+    <text x="370" y="29" text-anchor="start">10°</text>
+  </g>
+  <circle cx="344" cy="42" r="4.6" fill="var(--teal)"/>
+  <path d="M344 48 V70" stroke="var(--teal)" stroke-width="1.2" fill="none"/>
+  <text x="344" y="80" text-anchor="middle" style="font-size:10px" fill="var(--teal)">midpoint 0°</text>
+
+  <circle cx="344" cy="158" r="4" fill="var(--lred)"/>
+  <text x="344" y="174" text-anchor="middle" style="font-size:10px" fill="var(--lred)">180° — all the way round</text>
+
+  <text x="220" y="204" text-anchor="middle" class="formula">fold b − a into −180 … 180, then walk half of it</text>
+</svg>

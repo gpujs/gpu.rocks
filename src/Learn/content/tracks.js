@@ -43,17 +43,30 @@ const tracks = [
   },
   {
     number: 3,
-    title: 'Mathematical Applications',
+    title: 'Math & Simulation',
     tagline: 'Heavy math, thousands of threads at once',
     modules: [
       '972e080b-a2a9-4151-ac98-d1d9caf7b6b9', // Matrix Multiply
-      '66933805-3a1d-48c0-a287-16d3d7d00016', // Convolution & Filters
       '9ea19810-b622-4611-a049-9daa49021ca2', // Monte Carlo Methods
       '5de47751-c27a-47ca-ad4a-17f875176788', // N-Body Gravity
     ],
   },
   {
     number: 4,
+    title: 'Computer Vision',
+    tagline: 'Teaching a GPU to look at pictures, not just draw them',
+    modules: [
+      '8d79c6af-784c-4156-8d39-16e66467345e', // Colour Spaces
+      '66933805-3a1d-48c0-a287-16d3d7d00016', // Convolution & Filters
+      '670eaafa-4b13-4e77-88b3-f2904105c615', // Thresholding & Morphology
+      '6901c51a-78cc-43fd-b7cd-6327496ae4f3', // The Canny Edge Pipeline
+      'f57b4bed-0519-42f0-a9fb-739679e67957', // Template Matching
+      'e85c6dfa-70f9-4abc-b772-3f30f151a121', // Optical Flow
+      '4d39e404-8261-48a2-9912-176a3ea0b1bf', // Video Filters
+    ],
+  },
+  {
+    number: 5,
     title: 'Computational Graphics',
     tagline: 'Pictures computed, not drawn',
     modules: [

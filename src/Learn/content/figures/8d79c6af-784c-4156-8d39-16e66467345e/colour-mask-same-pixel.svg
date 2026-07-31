@@ -1,0 +1,71 @@
+<svg viewBox="0 0 440 204" role="img" aria-label="The same red pixel measured twice: in full light and at roughly a third of the light. In RGB all three channels shrink with the light, so a threshold on the red channel stops being true. In HSV the hue stays at 4 degrees and the saturation at 0.87 while only the value falls, so a test on hue and saturation never notices the shadow.">
+  <text x="10" y="14" class="lbl-up">IN RGB — EVERYTHING MOVES</text>
+  <text x="236" y="14" class="lbl-up">IN HSV — ONLY V MOVES</text>
+
+  <!-- RGB in full light -->
+  <text x="10" y="38" class="lbl">full light</text>
+  <g class="lbl" text-anchor="end">
+    <text x="40" y="56">r</text><text x="40" y="70">g</text><text x="40" y="84">b</text>
+  </g>
+  <rect x="48" y="48" width="96" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="48" y="48" width="82.6" height="9" rx="2" fill="#e0635f"/>
+  <rect x="48" y="62" width="96" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="48" y="62" width="15.4" height="9" rx="2" fill="#5fae5c"/>
+  <rect x="48" y="76" width="96" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="48" y="76" width="10.6" height="9" rx="2" fill="#5d8fd6"/>
+  <g class="lbl">
+    <text x="150" y="56">.86</text><text x="150" y="70">.16</text><text x="150" y="84">.11</text>
+  </g>
+
+  <!-- RGB in shadow -->
+  <text x="10" y="110" class="lbl">a third of it</text>
+  <g class="lbl" text-anchor="end">
+    <text x="40" y="128">r</text><text x="40" y="142">g</text><text x="40" y="156">b</text>
+  </g>
+  <rect x="48" y="120" width="96" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="48" y="120" width="29" height="9" rx="2" fill="#e0635f" fill-opacity="0.55"/>
+  <rect x="48" y="134" width="96" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="48" y="134" width="5.3" height="9" rx="2" fill="#5fae5c" fill-opacity="0.55"/>
+  <rect x="48" y="148" width="96" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="48" y="148" width="3.8" height="9" rx="2" fill="#5d8fd6" fill-opacity="0.55"/>
+  <g class="lbl">
+    <text x="150" y="128">.30</text><text x="150" y="142">.05</text><text x="150" y="156">.04</text>
+  </g>
+  <g stroke="var(--lred)" stroke-width="1.2" stroke-dasharray="3 3" fill="none">
+    <path d="M130.6 57 V 120"/>
+  </g>
+  <text x="10" y="192" style="font-size:10px" fill="var(--lred)">r &gt; 0.5 stops being true</text>
+
+  <!-- HSV in full light -->
+  <g class="lbl" text-anchor="end">
+    <text x="256" y="56">h</text><text x="256" y="70">s</text><text x="256" y="84">v</text>
+  </g>
+  <circle cx="276" cy="52" r="5.5" fill="#e0635f"/>
+  <text x="290" y="56" class="lbl">4°</text>
+  <rect x="270" y="62" width="80" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="270" y="62" width="70" height="9" rx="2" fill="var(--teal)" fill-opacity=".55"/>
+  <rect x="270" y="76" width="80" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="270" y="76" width="69" height="9" rx="2" fill="var(--lred)" fill-opacity=".55"/>
+  <g class="lbl">
+    <text x="358" y="70">.87</text><text x="358" y="84">.86</text>
+  </g>
+
+  <!-- HSV in shadow -->
+  <g class="lbl" text-anchor="end">
+    <text x="256" y="128">h</text><text x="256" y="142">s</text><text x="256" y="156">v</text>
+  </g>
+  <circle cx="276" cy="124" r="5.5" fill="#e0635f"/>
+  <text x="290" y="128" class="lbl">4°</text>
+  <rect x="270" y="134" width="80" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="270" y="134" width="70" height="9" rx="2" fill="var(--teal)" fill-opacity=".55"/>
+  <rect x="270" y="148" width="80" height="9" rx="2" fill="none" stroke="var(--line)"/>
+  <rect x="270" y="148" width="24" height="9" rx="2" fill="var(--lred)" fill-opacity=".55"/>
+  <g class="lbl">
+    <text x="358" y="142">.87</text><text x="358" y="156">.30</text>
+  </g>
+  <g stroke="var(--teal)" stroke-width="1.2" stroke-dasharray="3 3" fill="none">
+    <path d="M264 52 H 270 M264 52 V 124 M264 124 H 270"/>
+    <path d="M340 72 V 134"/>
+  </g>
+  <text x="236" y="192" style="font-size:10px" fill="var(--teal)">h and s never moved</text>
+</svg>

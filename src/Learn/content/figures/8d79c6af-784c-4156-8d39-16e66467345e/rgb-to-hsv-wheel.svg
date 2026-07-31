@@ -1,0 +1,48 @@
+<svg viewBox="0 0 440 212" role="img" aria-label="A colour wheel cut into six sixty-degree wedges — red at 0 degrees, yellow at 60, green at 120, cyan at 180, blue at 240, magenta at 300 — closing back onto red at 360. The hub is blank and labelled chroma zero, no hue, minus one. A pink mark on the right edge shows where 0 and 360 meet. Beside the wheel, the three formulas for hue, one for each channel that can be the largest.">
+  <text x="10" y="14" class="lbl-up">HUE IS AN ANGLE</text>
+
+  <!-- the wheel -->
+  <g>
+    <path d="M152 110A56 56 0 0 0 124 61.5L111.5 83.2A31 31 0 0 1 127 110Z" fill="#e0635f"/>
+    <path d="M124 61.5A56 56 0 0 0 68 61.5L80.5 83.2A31 31 0 0 1 111.5 83.2Z" fill="#d9a441"/>
+    <path d="M68 61.5A56 56 0 0 0 40 110L65 110A31 31 0 0 1 80.5 83.2Z" fill="#5fae5c"/>
+    <path d="M40 110A56 56 0 0 0 68 158.5L80.5 136.8A31 31 0 0 1 65 110Z" fill="#4fb8a5"/>
+    <path d="M68 158.5A56 56 0 0 0 124 158.5L111.5 136.8A31 31 0 0 1 80.5 136.8Z" fill="#5d8fd6"/>
+    <path d="M124 158.5A56 56 0 0 0 152 110L127 110A31 31 0 0 1 111.5 136.8Z" fill="#9a67c9"/>
+  </g>
+  <circle cx="96" cy="110" r="31" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="96" y="104" text-anchor="middle" class="lbl">C = 0</text>
+  <text x="96" y="116" text-anchor="middle" class="lbl">no hue</text>
+  <text x="96" y="129" text-anchor="middle" style="font-size:11px" fill="var(--pink)">-1</text>
+
+  <text x="168" y="113.5" text-anchor="start" class="lbl">0°</text>
+  <text x="132" y="45.6" text-anchor="start" class="lbl">60°</text>
+  <text x="60" y="45.6" text-anchor="end" class="lbl">120°</text>
+  <text x="24" y="113.5" text-anchor="end" class="lbl">180°</text>
+  <text x="60" y="181.4" text-anchor="end" class="lbl">240°</text>
+  <text x="132" y="181.4" text-anchor="start" class="lbl">300°</text>
+
+  <!-- the seam -->
+  <path d="M150 110 L164 110" stroke="var(--pink)" stroke-width="1.8" fill="none"/>
+  <circle cx="164" cy="110" r="2.6" fill="var(--pink)"/>
+  <text x="96" y="200" text-anchor="middle" style="font-size:10px" fill="var(--pink)">0° and 360° are the same place</text>
+
+  <!-- which channel is the max picks the wedge -->
+  <text x="200" y="14" class="lbl-up">THE MAX PICKS THE WEDGE</text>
+
+  <circle cx="206" cy="42" r="5" fill="#e0635f"/>
+  <text x="220" y="46" class="lbl">V is r</text>
+  <text x="262" y="46" class="formula">60 × ((g − b) / C)</text>
+  <text x="262" y="59" class="lbl">+ 360 when that is negative</text>
+
+  <circle cx="206" cy="88" r="5" fill="#5fae5c"/>
+  <text x="220" y="92" class="lbl">V is g</text>
+  <text x="262" y="92" class="formula">60 × ((b − r) / C + 2)</text>
+
+  <circle cx="206" cy="120" r="5" fill="#5d8fd6"/>
+  <text x="220" y="124" class="lbl">V is b</text>
+  <text x="262" y="124" class="formula">60 × ((r − g) / C + 4)</text>
+
+  <text x="200" y="160" class="lbl">C = max(r, g, b) − min(r, g, b)</text>
+  <text x="200" y="174" class="lbl">and when C is 0 there is no wedge at all</text>
+</svg>

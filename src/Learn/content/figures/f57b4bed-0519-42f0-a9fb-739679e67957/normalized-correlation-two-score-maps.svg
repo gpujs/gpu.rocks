@@ -1,0 +1,35 @@
+<svg viewBox="0 0 440 190" role="img" aria-label="Two 9 by 9 score maps of the same brightened scene. A dashed outline marks where the patch really is. On the SSD map the lowest score sits in a completely different cell, bottom left. On the NCC map the highest score sits exactly on the dashed outline.">
+  <text x="24" y="18" class="lbl-up">SSD · BRIGHTENED SCENE</text>
+  <text x="234" y="18" class="lbl-up">NCC · SAME SCENE</text>
+
+  <g fill="none" class="cellline">
+    <path d="M44 34 V 142"/><path d="M56 34 V 142"/><path d="M68 34 V 142"/><path d="M80 34 V 142"/><path d="M92 34 V 142"/><path d="M104 34 V 142"/><path d="M116 34 V 142"/><path d="M128 34 V 142"/><path d="M140 34 V 142"/><path d="M152 34 V 142"/><path d="M44 34 H 152"/><path d="M44 46 H 152"/><path d="M44 58 H 152"/><path d="M44 70 H 152"/><path d="M44 82 H 152"/><path d="M44 94 H 152"/><path d="M44 106 H 152"/><path d="M44 118 H 152"/><path d="M44 130 H 152"/><path d="M44 142 H 152"/>
+    <path d="M254 34 V 142"/><path d="M266 34 V 142"/><path d="M278 34 V 142"/><path d="M290 34 V 142"/><path d="M302 34 V 142"/><path d="M314 34 V 142"/><path d="M326 34 V 142"/><path d="M338 34 V 142"/><path d="M350 34 V 142"/><path d="M362 34 V 142"/><path d="M254 34 H 362"/><path d="M254 46 H 362"/><path d="M254 58 H 362"/><path d="M254 70 H 362"/><path d="M254 82 H 362"/><path d="M254 94 H 362"/><path d="M254 106 H 362"/><path d="M254 118 H 362"/><path d="M254 130 H 362"/><path d="M254 142 H 362"/>
+  </g>
+
+  <!-- where the patch really is -->
+  <g fill="none" stroke="var(--pink)" stroke-width="1.6" stroke-dasharray="3 2">
+    <rect x="116" y="58" width="12" height="12" rx="2"/>
+    <rect x="326" y="58" width="12" height="12" rx="2"/>
+  </g>
+
+  <!-- SSD's minimum: somewhere else entirely -->
+  <rect x="56" y="106" width="12" height="12" rx="2" fill="var(--lred)" fill-opacity=".3" stroke="var(--lred)" stroke-width="1.6"/>
+  <path class="arrow" d="M52 112 H 26" stroke="var(--lred)" stroke-width="1.2"/>
+  <path d="M53 112 l -6 -4 v 8 z" fill="var(--lred)"/>
+  <text x="10" y="128" style="font-size:9px" fill="var(--lred)">lowest</text>
+
+  <!-- NCC's maximum: exactly on the mark -->
+  <rect x="326" y="58" width="12" height="12" rx="2" fill="var(--teal)" fill-opacity=".35" stroke="var(--teal)" stroke-width="1.6"/>
+  <path class="arrow" d="M342 64 H 404" stroke="var(--teal)" stroke-width="1.2"/>
+  <path d="M341 64 l 6 -4 v 8 z" fill="var(--teal)"/>
+  <text x="392" y="54" style="font-size:9px" fill="var(--teal)">highest</text>
+
+  <line x1="216" y1="12" x2="216" y2="156" class="cellline"/>
+
+  <text x="98" y="160" text-anchor="middle" style="font-size:9px" fill="var(--lred)">✗ best score, wrong place</text>
+  <text x="308" y="160" text-anchor="middle" style="font-size:9px" fill="var(--teal)">✓ best score, right place</text>
+
+  <rect x="146" y="174" width="9" height="9" rx="2" fill="none" stroke="var(--pink)" stroke-width="1.4" stroke-dasharray="3 2"/>
+  <text x="161" y="182" class="lbl">where the patch actually is</text>
+</svg>
