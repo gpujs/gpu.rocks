@@ -39,6 +39,12 @@
 const SCAN_BUDGET = 65536;
 const SAMPLE_COUNT = 3; // leading values shown in `sample`
 const MAX_SAMPLE_CHARS = 64;
+// `preview` is the wider list the starter preamble prints. The cap is the whole
+// rendered string, chosen so that even at the narrowest wrap width the preamble
+// uses (56 columns, minus a 7-column comment indent) the list still fits on ONE
+// line — a `[1, 2,` / `3, … 9 more]` split across two comment lines reads as a
+// mistake.
+const MAX_PREVIEW_CHARS = 46;
 const MAX_DEPTH = 4; // deeper nesting is reported as an opaque array
 
 // ---- primitives ------------------------------------------------------------
@@ -83,12 +89,101 @@ function fmtLeaf(v, depth = 0) {
   return '{…}';
 }
 
+// ---- representative samples -------------------------------------------------
+//
+// A leading slice lies about sparse data: a 128-wide spike field, a Life grid,
+// a seeded reaction square all start `[0, 0, 0, …]`, which flatly contradicts
+// the range clause beside it ("each 0 or 1"). So whenever the values shown are
+// all the same, look ahead for the first one that ISN'T and show it with its
+// index. Applied to every array — it simply finds nothing to add when the head
+// already varies, which is the common case.
+
+const PROBE_BUDGET = 65536; // elements scanned looking for a differing value
+
+function isPrimitiveLeaf(v) {
+  return v !== null && typeof v !== 'object' && typeof v !== 'function' && !Number.isNaN(v);
+}
+
+// index of the first element at or after `from` that differs from `seed`, or -1
+function firstDifferent(arr, seed, from) {
+  const limit = Math.min(arr.length, from + PROBE_BUDGET);
+  for (let i = from; i < limit; i++) {
+    if (arr[i] !== seed) return i;
+  }
+  return -1;
+}
+
+function allSame(arr, n) {
+  for (let i = 1; i < n; i++) {
+    if (arr[i] !== arr[0]) return false;
+  }
+  return true;
+}
+
+/**
+ * One elided list of an array's values.
+ *   mode 'short' → `[0, 0, 0, …, 64: 1, …]`         (tooltips, brief pane)
+ *   mode 'wide'  → `[0, 0, 0, 0, 0, …, 64: 1, … 62 more]`  (starter preamble)
+ */
+function listSample(arr, mode = 'short', budget = 0) {
+  const wide = mode === 'wide';
+  const maxItems = wide ? 8 : SAMPLE_COUNT;
+  // reserve room for the "…, 64: 1, … 62 more]" tail so the whole string fits
+  const maxChars = (budget || (wide ? MAX_PREVIEW_CHARS : MAX_SAMPLE_CHARS)) - (wide ? 14 : 0);
+  const parts = [];
+  let used = 1;
+  let shown = 0;
+  for (; shown < arr.length && shown < maxItems; shown++) {
+    const text = fmtLeaf(arr[shown]);
+    if (shown > 0 && used + text.length + 2 > maxChars) break;
+    parts.push(text);
+    used += text.length + 2;
+  }
+  let probe = -1;
+  if (arr.length > shown && shown > 0 && isPrimitiveLeaf(arr[0]) && allSame(arr, shown)) {
+    probe = firstDifferent(arr, arr[0], shown);
+  }
+  let tail = '';
+  if (probe >= 0) {
+    parts.push('…', `${probe}: ${fmtLeaf(arr[probe])}`);
+    const rest = arr.length - probe - 1;
+    if (rest > 0) tail = wide ? `, … ${rest.toLocaleString('en-US')} more` : ', …';
+  } else if (arr.length > shown) {
+    const rest = arr.length - shown;
+    tail = wide ? `, … ${rest.toLocaleString('en-US')} more` : ', …';
+  }
+  return `[${parts.join(', ')}${tail}]`;
+}
+
 function sampleList(arr) {
-  const head = [];
-  for (let i = 0; i < Math.min(arr.length, SAMPLE_COUNT); i++) head.push(fmtLeaf(arr[i]));
-  let text = `[${head.join(', ')}${arr.length > SAMPLE_COUNT ? ', …' : ''}]`;
-  if (text.length > MAX_SAMPLE_CHARS) text = `${text.slice(0, MAX_SAMPLE_CHARS - 2)}…]`;
-  return text;
+  return listSample(arr, 'short');
+}
+
+// Row 0 is not always worth showing: in a Life world or a seeded grid it is a
+// wall of zeros. Pick the first row that actually contains something else.
+function representativeRow(value) {
+  const row0 = value[0];
+  if (!isArrayLike(row0) || row0.length === 0) return 0;
+  const seed = row0[0];
+  if (!isPrimitiveLeaf(seed)) return 0;
+  if (firstDifferent(row0, seed, 1) >= 0) return 0; // row 0 already varies
+  let budget = PROBE_BUDGET;
+  for (let y = 1; y < value.length && budget > 0; y++) {
+    const row = value[y];
+    if (!isArrayLike(row)) break;
+    budget -= row.length;
+    if (firstDifferent(row, seed, 0) >= 0) return y;
+  }
+  return 0;
+}
+
+// `row 6: [0, 0, 0, …, 6: 1, …]` — the `row N: ` prefix comes out of the same
+// budget, so a wide row sample still fits one preamble line
+function rowSample(value, mode = 'short') {
+  const y = representativeRow(value);
+  const prefix = `row ${y}: `;
+  const budget = mode === 'wide' ? MAX_PREVIEW_CHARS - prefix.length : 0;
+  return `${prefix}${listSample(value[y], mode, budget)}`;
 }
 
 // ---- shape + range ---------------------------------------------------------
@@ -237,7 +332,14 @@ function describeArray(name, value) {
   const ctor = ArrayBuffer.isView(value) ? value.constructor.name : null;
 
   if (dims[0] === 0) {
-    return { name, type: ctor ? `${ctor}[0]` : 'array[0]', summary: 'empty', sample: '', note: '' };
+    return {
+      name,
+      type: ctor ? `${ctor}[0]` : 'array[0]',
+      summary: 'empty',
+      sample: '',
+      preview: '',
+      note: '',
+    };
   }
 
   // ---- flat ----
@@ -249,7 +351,14 @@ function describeArray(name, value) {
     const summary = range
       ? `${plural(dims[0], 'number')}, ${clause}`
       : `${plural(dims[0], 'value')}`;
-    return { name, type, summary, sample: sampleList(value), note: '' };
+    return {
+      name,
+      type,
+      summary,
+      sample: listSample(value, 'short'),
+      preview: listSample(value, 'wide'),
+      note: '',
+    };
   }
 
   // ---- ragged ----
@@ -258,7 +367,8 @@ function describeArray(name, value) {
       name,
       type: `array[${dims[0]}][…]`,
       summary: `${plural(dims[0], 'row')} of varying length`,
-      sample: `row 0: ${sampleList(value[0])}`,
+      sample: rowSample(value, 'short'),
+      preview: rowSample(value, 'wide'),
       note: `Indexed ${name}[y][x] — row y, column x.`,
     };
   }
@@ -274,7 +384,8 @@ function describeArray(name, value) {
       name,
       type,
       summary,
-      sample: `row 0: ${sampleList(value[0])}`,
+      sample: rowSample(value, 'short'),
+      preview: rowSample(value, 'wide'),
       note: `Indexed ${name}[y][x] — row y, column x.`,
     };
   }
@@ -342,11 +453,28 @@ function describeObject(name, value) {
   };
 }
 
+// Every descriptor carries all five fields; `preview` falls back to the short
+// sample for the kinds where one line says everything there is to say.
+function normalize(doc) {
+  return {
+    name: doc.name,
+    type: doc.type,
+    summary: doc.summary,
+    sample: doc.sample || '',
+    preview: doc.preview !== undefined ? doc.preview : doc.sample || '',
+    note: doc.note || '',
+  };
+}
+
 /**
- * describeInput(name, value) → { name, type, summary, sample, note }
+ * describeInput(name, value) → { name, type, summary, sample, preview, note }
  * Never throws: an unrecognisable value still gets a usable type line.
  */
 export function describeInput(name, value) {
+  return normalize(describeValue(name, value));
+}
+
+function describeValue(name, value) {
   try {
     if (value === null) return { name, type: 'null', summary: 'no value', sample: '', note: '' };
     if (value === undefined) {

@@ -31,6 +31,7 @@ import { keymap } from '@codemirror/view';
 import { Prec } from '@codemirror/state';
 import { byName } from './gpujsApi';
 import { inputDocDom } from '../inputDoc';
+import { documentIdentifierDocs } from '../kernelDoc';
 
 // ---- rendering -------------------------------------------------------------
 
@@ -238,16 +239,20 @@ function memberOptions(state, path, node) {
   return null;
 }
 
-// ---- task inputs -----------------------------------------------------------
+// ---- documented bare identifiers -------------------------------------------
 
-// The task's injected globals, described from their REAL values (task/
-// inputDoc.js) instead of the old one-line "injected as a global for this
-// task", which told a learner nothing about shape, size or range.
+// Two families of name get real documentation in the bare-identifier list:
+//   * the task's injected globals, described from their REAL values
+//     (task/inputDoc.js) instead of the old one-line "injected as a global for
+//     this task", which told a learner nothing about shape, size or range;
+//   * the names in the learner's OWN code that the editor can explain by static
+//     analysis (task/kernelDoc.js) — the kernels they declared, the variables
+//     they assigned from a kernel call, and, inside a kernel function, its
+//     parameters.
 //
-// THE DUPLICATE. These names are usually bound in the learner's code too — the
-// starter names the kernel function's parameter after the global it receives —
-// and CodeMirror's own JavaScript local-scope source offers every such binding.
-// Two sources, same label, so `data` appeared twice, and the entry a learner
+// THE DUPLICATE. Every one of these names is usually a binding in the document
+// too, and CodeMirror's own JavaScript local-scope source offers every binding.
+// Two sources, same label, so `data` appeared twice and the entry a learner
 // landed on first was the undocumented one.
 //
 // @codemirror/autocomplete's sortOptions() collapses two options only when
@@ -256,10 +261,22 @@ function memberOptions(state, path, node) {
 // binding shadows the name we emit an option shaped exactly like that local one
 // — its type, no boost, no detail — and the survivor is OURS, carrying the
 // documentation. One entry, always documented. Names with no local binding
-// can't collide, so those keep the boost that lifts task inputs above the
-// generic globals.
-function inputOptions(context, docs) {
+// can't collide, so those keep the boost that lifts them above generic globals.
+function documentedOptions(context, inputDocs) {
+  const byName = new Map(inputDocs.map(d => [d.name, d]));
+  const docs = [...inputDocs];
+  const seen = new Set(byName.keys());
+  // document-derived docs win over the task input of the same name: inside a
+  // kernel function `data` is that kernel's argument, and its descriptor
+  // already embeds the input it receives
+  for (const doc of documentIdentifierDocs(context.state, context.pos, byName)) {
+    const at = docs.findIndex(d => d.name === doc.name);
+    if (at >= 0) docs[at] = doc;
+    else docs.push(doc);
+    seen.add(doc.name);
+  }
   if (docs.length === 0) return [];
+
   const local = localCompletionSource(context);
   const shadow = new Map();
   if (local) {
@@ -306,8 +323,11 @@ export function buildCompletionSource(inputDocs = []) {
     }
     return {
       from,
-      options: [...bareGlobalOptions, ...inputOptions(context, inputDocs)],
-      validFor: /^[\w$]*$/,
+      options: [...bareGlobalOptions, ...documentedOptions(context, inputDocs)],
+      // NOT validFor: the document-derived entries depend on where the cursor
+      // is (inside which kernel) and on what the learner has typed, so the
+      // source must re-run rather than have a stale option list refiltered.
+      // documentAnalysis memoizes per document version, so this is cheap.
     };
   };
 }

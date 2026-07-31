@@ -16,6 +16,7 @@ import { StateField, StateEffect } from '@codemirror/state';
 import { showTooltip, keymap } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { getSignature, byName } from './gpujsApi';
+import { kernelSignature } from '../kernelDoc';
 
 const triggerSignature = StateEffect.define(); // Mod-Shift-Space
 const dismissSignature = StateEffect.define(); // Esc
@@ -220,11 +221,16 @@ function withTooltip(val) {
   };
 }
 
-// innermost enclosing call (of `chain`) whose callee the dataset knows
+// Innermost enclosing call (of `chain`) we can name. The gpu.js dataset is
+// asked first; a callee it does not know may still be one of the kernels the
+// learner declared in this very document, in which case kernelDoc synthesizes a
+// dataset-shaped entry — `double(data): Float32Array(64)` — so `double(` gets
+// exactly the parameter hints `gpu.createKernel(` already gets.
 function resolveChain(state, chain, pos) {
   for (const { argList, call } of chain) {
     const path = calleePath(state, call);
-    const entry = path && getSignature(path);
+    if (!path) continue;
+    const entry = getSignature(path) || kernelSignature(state, path);
     if (entry) return makeValue(state, argList, entry, pos);
   }
   return null;

@@ -1,8 +1,15 @@
-// inputHover.js — hover an injected input name in the editor and get exactly
-// the description the brief pane's "Task inputs" section and the completion
-// popup show (all three render task/inputDoc.js descriptors).
+// inputHover.js — hover any name the editor can explain and get exactly the
+// description the brief pane and the completion popup show.
 //
-// This is the path that still works when the completion popup can't help:
+// Four kinds of name resolve here, most specific first (task/kernelDoc.js
+// describeIdentifier owns the precedence):
+//   * a kernel function's parameter        → which argument it is, and what the
+//                                            call site actually passes
+//   * a kernel variable                    → what calling it returns
+//   * a variable assigned from a kernel     → that same output, by its own name
+//   * a task input                          → task/inputDoc.js
+//
+// This is also the path that still works when the completion popup can't help:
 // once `data` is a binding in the learner's own code, CodeMirror's local-scope
 // source owns that name in the popup, and hovering is how you ask what the
 // value actually is.
@@ -15,6 +22,7 @@
 import { hoverTooltip } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { inputDocDom } from '../inputDoc';
+import { describeIdentifier } from '../kernelDoc';
 
 const WORD = /[\w$]/;
 
@@ -26,7 +34,6 @@ const WORD = /[\w$]/;
 const NOT_A_REFERENCE = /Comment|String|Regexp|PropertyName|PropertyDefinition/;
 
 export function inputHover(docs = []) {
-  if (!docs.length) return [];
   const byName = new Map(docs.map(d => [d.name, d]));
   return [
     hoverTooltip(
@@ -39,9 +46,10 @@ export function inputHover(docs = []) {
         while (end < line.to && WORD.test(line.text[end - line.from])) end++;
         // pointer sits in the gap beside a word rather than on it
         if ((start === pos && side < 0) || (end === pos && side > 0)) return null;
-        const doc = byName.get(line.text.slice(start - line.from, end - line.from));
-        if (!doc) return null;
         if (NOT_A_REFERENCE.test(syntaxTree(state).resolveInner(start, 1).name)) return null;
+        const word = line.text.slice(start - line.from, end - line.from);
+        const doc = describeIdentifier(state, start, word, byName);
+        if (!doc) return null;
         return {
           pos: start,
           end,

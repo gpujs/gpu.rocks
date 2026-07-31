@@ -42,6 +42,7 @@ import { learnCompletions } from './completion/completions';
 import { signatureHelp } from './completion/signatureHelp';
 import { inputHover } from './completion/inputHover';
 import { taskInputDocs } from './inputDoc';
+import { starterCodeFor } from './starterPreamble';
 import ConsolePane from './ConsolePane';
 import CompletionModal from './CompletionModal';
 import { highlightCodeBlocks } from './highlightCode';
@@ -303,6 +304,17 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   const navigate = useNavigate();
   const { theme } = useTheme();
 
+  // The task's injected globals, described from their real values. One shared
+  // set of descriptors feeds the brief pane, the starter preamble, the
+  // completion popup and the editor hover — and taskInputDocs memoizes per task
+  // object, so building the inputs (a 512×512 test image, for one task) happens
+  // once, never per keystroke and not again on remount.
+  const inputDocs = useMemo(() => taskInputDocs(task, utils), [task]);
+
+  // THE starter code, comment preamble and all. Both the initial document and
+  // Reset read this one value, so they cannot drift apart.
+  const starterCode = useMemo(() => starterCodeFor(task, inputDocs), [task, inputDocs]);
+
   // The editor is intentionally UNcontrolled after mount (stable `value` prop):
   // @uiw/react-codemirror's controlled-value sync can arm a stale forceUpdate
   // while its "typing latch" is active (its 1 ms-interval scheduler is clamped
@@ -310,9 +322,11 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   // deleting the user's last keystrokes. TaskWorkspace remounts per task
   // (key={taskId}), so the initial doc is all the value prop ever needs to
   // carry; edits flow through onChange → codeRef, resets dispatch to the view.
+  // Saved code always wins: a learner who has written anything never has the
+  // preamble pushed back into their document.
   const [initialCode] = useState(() => {
     const saved = getSavedCode(taskId);
-    return saved != null ? saved : task.starterCode;
+    return saved != null ? saved : starterCode;
   });
   const [mode, setMode] = useState('auto');
   const [logs, setLogs] = useState([]);
@@ -432,16 +446,16 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     clearTimeout(saveTimer.current);
     saveTimer.current = null; // an explicit Reset must not be flushed back on unmount
     clearCode(taskId);
-    codeRef.current = task.starterCode;
+    codeRef.current = starterCode;
     const view = viewRef.current;
     if (view) {
       view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: task.starterCode },
+        changes: { from: 0, to: view.state.doc.length, insert: starterCode },
       });
     }
     setReport(null);
     setBench(null);
-  }, [task, taskId]);
+  }, [starterCode, taskId]);
 
   // The next module WITHIN this module's track, or null — the registry already
   // refuses to cross a track boundary, and always returns null for an orphan.
@@ -500,13 +514,6 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [handleRun]);
-
-  // The task's injected globals, described from their real values. One shared
-  // set of descriptors feeds the brief pane, the completion popup and the
-  // editor hover — and taskInputDocs memoizes per task object, so building the
-  // inputs (a 512×512 test image, for one task) happens once, never per
-  // keystroke and not again on remount.
-  const inputDocs = useMemo(() => taskInputDocs(task, utils), [task]);
 
   const extensions = useMemo(
     () => [
