@@ -819,17 +819,23 @@ const rate = 0.1;
 let m = 0;
 let c = 0;
 
+const curve = [];
+
 for (let step = 1; step <= 60; step++) {
   const g = await gradientAt(m, c);
   // TODO: move m and c one step DOWNHILL.
   // g[0] is dL/dm and g[1] is dL/dc — both point UPHILL.
 
+  curve.push(await lossAt(m, c));
   if (step % 10 === 0) console.log('step', step, '· loss', await lossAt(m, c));
 }
 
 console.log('fitted slope:', m);
 console.log('fitted intercept:', c);
 console.log('final loss:', await lossAt(m, c));
+
+// The shape is the lesson: a steep drop, then a floor. Watch WHERE it flattens.
+plot({ loss: curve }, { title: 'loss per step' });
 `,
       solutionCode: `// Both kernels are already written. The algorithm is yours.
 const gpu = new GPU({ mode });
@@ -881,17 +887,24 @@ const rate = 0.1;
 let m = 0;
 let c = 0;
 
+const curve = [];
+
 for (let step = 1; step <= 60; step++) {
   const g = await gradientAt(m, c);
   m = m - rate * g[0];
   c = c - rate * g[1];
 
+  curve.push(await lossAt(m, c));
   if (step % 10 === 0) console.log('step', step, '· loss', await lossAt(m, c));
 }
 
 console.log('fitted slope:', m);
 console.log('fitted intercept:', c);
 console.log('final loss:', await lossAt(m, c));
+
+// The curve does not go to zero. It flattens onto 0.5 — the noise that was
+// baked into the data and that no line can fit away.
+plot({ loss: curve }, { title: 'loss per step' });
 `,
       inputs: () => makeFit(4096),
       publicTests: [

@@ -802,7 +802,13 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   constants: { xMin: -1.6, yMin: -1.6, step: 0.025 },
 });
 
-await julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
+// A real dial. slider() returns the value this run is using and puts a control
+// under the console; moving it re-runs the whole program, so the set redraws as
+// you drag. Defaults are the classic dendrite c = -0.7269 + 0.1889i.
+const cRe = slider('c real', { min: -1, max: 0.4, value: -0.7269, step: 0.001 });
+const cIm = slider('c imag', { min: -0.8, max: 0.8, value: 0.1889, step: 0.001 });
+
+await julia(cRe, cIm);
 render(julia.canvas);
 `,
       solutionCode: `// Same loop, roles flipped: the pixel is z₀, and c is a knob you turn.
@@ -836,7 +842,13 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   constants: { xMin: -1.6, yMin: -1.6, step: 0.025 },
 });
 
-await julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
+// A real dial. slider() returns the value this run is using and puts a control
+// under the console; moving it re-runs the whole program, so the set redraws as
+// you drag. Defaults are the classic dendrite c = -0.7269 + 0.1889i.
+const cRe = slider('c real', { min: -1, max: 0.4, value: -0.7269, step: 0.001 });
+const cIm = slider('c imag', { min: -0.8, max: 0.8, value: 0.1889, step: 0.001 });
+
+await julia(cRe, cIm);
 render(julia.canvas);
 `,
       publicTests: [

@@ -1638,6 +1638,10 @@ for (let i = 0; i < verletCurve.length; i++) {
 console.log('RK4    final energy:', rk4Curve[1023].toFixed(4));
 console.log('Verlet final energy:', verletCurve[1023].toFixed(4));
 console.log('Verlet never fell below:', verletLow.toFixed(4));
+
+// The numbers say it; the picture is why anyone believes it. One line slides
+// steadily downhill for a thousand steps. The other ripples and comes back.
+plot({ RK4: rk4Curve, Verlet: verletCurve }, { title: 'energy / E0 over 1,024 steps' });
 `,
       publicTests: [
         {

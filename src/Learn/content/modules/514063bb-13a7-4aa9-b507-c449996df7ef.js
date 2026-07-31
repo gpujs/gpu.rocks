@@ -729,7 +729,11 @@ console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
           title: 'Hint 2 — the two runs',
           body: `<pre><code>const dtMax = dx * dx / (2 * D * DIMS);
 await run('SAFE', 0.4 * dtMax);
-await run('PAST THE LINE', 1.6 * dtMax);</code></pre>`,
+await run('PAST THE LINE', 1.6 * dtMax);
+
+// One trace is a flat line hugging the bottom; the other walks off the top.
+// No linear axis can hold both, which is what the log option is for.
+plot(traces, { title: 'hottest |u| per step', log: true });</code></pre>`,
         },
       ],
       transfer: `Every production explicit solver computes this number and refuses to exceed it:
@@ -762,6 +766,8 @@ function hottest(u) {
   return m;
 }
 
+const traces = {};
+
 async function run(label, dt) {
   const alpha = D * dt / (dx * dx);
   const step = gpu.createKernel(function (u) {
@@ -778,10 +784,13 @@ async function run(label, dt) {
 
   console.log(label, '— dt =', dt, ' alpha =', alpha, ' centre weight =', 1 - 4 * alpha);
   let u = seed;
+  const trace = [];
   for (let i = 1; i <= STEPS; i++) {
     u = await step(u);
+    trace.push(hottest(u));
     if (i % 20 === 0) console.log('   step', i, '→ hottest |u| =', hottest(u));
   }
+  traces[label] = trace;
   return u;
 }
 
@@ -789,6 +798,10 @@ console.log('stability limit: dt <=', dtMax);
 
 // TODO: run twice — at 0.4 * dtMax, then at 1.6 * dtMax.
 //       run() is async now (it awaits the kernel), so await each call.
+//       Then draw both traces together with
+//       plot(traces, { title: 'hottest |u| per step', log: true })
+//       — a LOG axis, because one of them is about to leave the other behind
+//       by twenty orders of magnitude.
 `,
       solutionCode: `// Two runs of the same simulation. Only the step size differs.
 const gpu = new GPU({ mode });
@@ -813,6 +826,8 @@ function hottest(u) {
   return m;
 }
 
+const traces = {};
+
 async function run(label, dt) {
   const alpha = D * dt / (dx * dx);
   const step = gpu.createKernel(function (u) {
@@ -829,10 +844,13 @@ async function run(label, dt) {
 
   console.log(label, '— dt =', dt, ' alpha =', alpha, ' centre weight =', 1 - 4 * alpha);
   let u = seed;
+  const trace = [];
   for (let i = 1; i <= STEPS; i++) {
     u = await step(u);
+    trace.push(hottest(u));
     if (i % 20 === 0) console.log('   step', i, '→ hottest |u| =', hottest(u));
   }
+  traces[label] = trace;
   return u;
 }
 
@@ -840,6 +858,10 @@ console.log('stability limit: dt <=', dtMax);
 
 await run('SAFE', 0.4 * dtMax);
 await run('PAST THE LINE', 1.6 * dtMax);
+
+// One trace is a flat line hugging the bottom; the other walks off the top.
+// No linear axis can hold both, which is what the log option is for.
+plot(traces, { title: 'hottest |u| per step', log: true });
 `,
       inputs: () => ({ seed: hotSquare(48, 8, 1) }),
       publicTests: [

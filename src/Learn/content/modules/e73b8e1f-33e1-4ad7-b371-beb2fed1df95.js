@@ -693,10 +693,16 @@ function rmsOf(grid) {
 }
 
 let u = plate;
+const curve = [];
 for (let k = 0; k <= SWEEPS; k++) {
+  curve.push(rmsOf(await residual(u)));
   if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(await residual(u)));
   u = await sweep(u);
 }
+
+// A residual that falls 36x is a straight-ish line on a LOG axis and an
+// uninformative hook on a linear one. That is the whole reason for the option.
+plot({ residual: curve }, { title: 'RMS residual per sweep', log: true });
 `,
       solutionCode: `// How wrong is the current guess? Plug it back into the equation.
 const gpu = new GPU({ mode });
@@ -709,10 +715,16 @@ ${RESIDUAL_KERNEL}
 ${RMS_HELPER}
 
 let u = plate;
+const curve = [];
 for (let k = 0; k <= SWEEPS; k++) {
+  curve.push(rmsOf(await residual(u)));
   if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(await residual(u)));
   u = await sweep(u);
 }
+
+// A residual that falls 36x is a straight-ish line on a LOG axis and an
+// uninformative hook on a linear one. That is the whole reason for the option.
+plot({ residual: curve }, { title: 'RMS residual per sweep', log: true });
 `,
       inputs: () => ({ plate: makePlate(SIZE) }),
       publicTests: [
