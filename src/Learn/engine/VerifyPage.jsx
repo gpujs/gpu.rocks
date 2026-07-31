@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { modules } from '../content/index.js';
+import { getModule, modules, taskKey } from '../content/index.js';
 import { runUserCode, runTests, sandboxGpuSupported, sandboxInfo } from './runner';
 
 // Headless verification hook for scripts/verify-learn.mjs.
@@ -8,12 +8,14 @@ import { runUserCode, runTests, sandboxGpuSupported, sandboxInfo } from './runne
 // uses, worker sandbox and watchdog included — so what this verifies is what
 // users actually run. It does NOT reach into the execution core directly.
 //
-// window.__verifyLearn({ moduleId?, mode = 'cpu' }) → JSON-serializable:
+// window.__verifyLearn({ module?, mode = 'cpu' }) → JSON-serializable:
 //   { skipped: true, reason }                        // mode 'gpu' without WebGL
 //   { gpuSupported, sandbox, mode, tasks: [taskReport] }
+// `module` names ONE module by uuid, short id, slug or legacy id; omit it to
+// check the whole course.
 //
 // taskReport:
-//   { id, slug, title, ok,
+//   { id, key, slug, title, ok,      // id: '<shortId>:<step>', key: taskKey
 //     metadata: { ok, problems: [] },
 //     solution: { ok, problems: [], tests: [{ name, private, passed, ms, error? }] },
 //     starter:  { ok, problem? } }                   // ok ⇔ starter does NOT pass
@@ -60,7 +62,7 @@ function checkMetadata(task, module, seenSlugs) {
 }
 
 async function verifyTask(task, module, index, mode, seenSlugs) {
-  const id = `${module.id}-${index + 1}`;
+  const id = `${module.shortId}:${index + 1}`;
   const metadata = checkMetadata(task, module, seenSlugs);
 
   // 1. the reference solution must run clean and pass everything
@@ -109,6 +111,7 @@ async function verifyTask(task, module, index, mode, seenSlugs) {
 
   return {
     id,
+    key: taskKey(module, task),
     slug: task.slug,
     title: task.title,
     metadata,
@@ -123,7 +126,7 @@ function VerifyPage() {
     // where the sandbox lives, whether IT has WebGL, and what spawning cost —
     // reported by the harness, and handy when debugging by hand
     window.__learnSandboxInfo = () => sandboxInfo();
-    window.__verifyLearn = async ({ moduleId, mode = 'cpu' } = {}) => {
+    window.__verifyLearn = async ({ module: moduleRef, mode = 'cpu' } = {}) => {
       // ask the thread that will actually build the kernels, not this one
       const gpuSupported = await sandboxGpuSupported();
       const sandbox = await sandboxInfo();
@@ -136,10 +139,11 @@ function VerifyPage() {
           mode,
         };
       }
-      const selected = moduleId ? modules.filter(m => m.id === moduleId) : modules;
-      if (moduleId && selected.length === 0) {
-        return { error: `no module with id "${moduleId}"`, gpuSupported, sandbox, mode };
+      const one = moduleRef ? getModule(moduleRef) : null;
+      if (moduleRef && !one) {
+        return { error: `no module matching "${moduleRef}"`, gpuSupported, sandbox, mode };
       }
+      const selected = one ? [one] : modules;
       const tasks = [];
       for (const module of selected) {
         const seenSlugs = new Set();
@@ -155,7 +159,7 @@ function VerifyPage() {
       delete window.__learnSandboxInfo;
     };
   }, []);
-  return <div className="mono">verify harness ready — window.__verifyLearn(&#123;moduleId, mode&#125;)</div>;
+  return <div className="mono">verify harness ready — window.__verifyLearn(&#123;module, mode&#125;)</div>;
 }
 
 export default VerifyPage;

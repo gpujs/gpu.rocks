@@ -3,9 +3,9 @@ import { Link } from 'react-router';
 import LearnNav from '../components/LearnNav';
 import KernelGrid from '../components/KernelGrid';
 import TaskDots from '../components/TaskDots';
-import { tracks } from '../content/index.js';
+import { moduleNumber, orphanModules, parseTaskKey, tracks } from '../content/index.js';
 import { FEEDBACK_URL } from '../feedback';
-import { moduleProgress } from '../engine/storage.js';
+import { getProgress, moduleProgress } from '../engine/storage.js';
 import { learnHomeMeta } from '../../routeMeta';
 import { setPageMeta } from '../../pageMeta';
 
@@ -30,34 +30,92 @@ function progressOf(module) {
   return fallback;
 }
 
-function stateLabel(progress) {
+// Work the learner did at an EARLIER version of this module.
+//
+// Bumping a module's version starts it unsolved but destroys nothing: the old
+// keys stay in localStorage under the old version (`<uuid>:v<n>:<taskSlug>`).
+// Without this lookup such a card would render as never-started, which is a
+// lie — the point of the note below is to say so plainly.
+//
+// We cannot know how many tasks the older version HAD (that content is gone),
+// so "they finished it" is inferred from an earlier version's completed count
+// reaching the module's CURRENT task total. A miss degrades to the softer
+// "worked on" wording, never to silence.
+//
+// FRICTION: engine/storage.js exposes no archived-version rollup, so this
+// reads the raw progress object and parses keys itself. If storage grows a
+// proper accessor, this should collapse into a call to it.
+function priorVersionOf(module) {
+  const current = Number(module.version) || 1;
+  const total = Array.isArray(module.tasks) ? module.tasks.length : 0;
+  let progress;
+  try {
+    progress = getProgress();
+  } catch (e) {
+    return null; // storage unavailable — nothing to say
+  }
+  const doneByVersion = new Map();
+  Object.keys(progress || {}).forEach(key => {
+    const entry = progress[key];
+    if (!entry || !entry.done) return;
+    const parsed = parseTaskKey(key);
+    if (!parsed || parsed.uuid !== module.uuid || !(parsed.version < current)) return;
+    doneByVersion.set(parsed.version, (doneByVersion.get(parsed.version) || 0) + 1);
+  });
+  if (doneByVersion.size === 0) return null;
+
+  // "Completed" wins over "touched": finishing v1 and then abandoning v2 still
+  // means they finished this module once, which is the more useful thing to
+  // say. The version NUMBER is deliberately not surfaced — it is storage
+  // plumbing, and the learner never chose it.
+  const completed = [...doneByVersion.keys()].some(
+    v => total > 0 && doneByVersion.get(v) >= total
+  );
+  return { completed };
+}
+
+function stateLabel(progress, prior) {
   if (progress.state === 'done') return 'Completed';
   if (progress.state === 'now') return `Continue · ${progress.done}/${progress.total}`;
-  return 'Start';
+  return prior ? 'Start again' : 'Start';
 }
 
 function ModuleCard({ module }) {
   const progress = progressOf(module);
   const taskCount = Array.isArray(module.tasks) ? module.tasks.length : 0;
   const isCurrent = progress.state === 'now';
+  // Only surfaced when the CURRENT version is untouched — that is exactly when
+  // the card would otherwise read as never-started. Once they restart, the
+  // dots and "Continue" already tell the true story and the note is noise.
+  const prior = progress.done === 0 ? priorVersionOf(module) : null;
   return (
     <Link
-      to={`/learn/${module.id}`}
+      to={module.url}
       className={isCurrent ? 'module current' : 'module'}
     >
       <span className="mno">
-        MODULE {String(module.id).replace('-', '.')} · {taskCount} TASK{taskCount === 1 ? '' : 'S'}
+        {/* orphan modules ("Others") have no number — they are unordered */}
+        {moduleNumber(module) ? `MODULE ${moduleNumber(module)} · ` : ''}
+        {taskCount} TASK{taskCount === 1 ? '' : 'S'}
       </span>
       <h3>{module.title}</h3>
       {/* blurbs are trusted course copy authored in-repo; some contain <code> */}
       <p dangerouslySetInnerHTML={{ __html: module.blurb || '' }} />
+      {prior && (
+        <span className="mstale">
+          Updated since you {prior.completed ? 'completed' : 'last worked on'} it — your
+          earlier work is kept.
+        </span>
+      )}
       <div className="foot">
         <TaskDots
           total={progress.total}
           doneCount={progress.done}
           currentIndex={isCurrent ? progress.currentIndex : -1}
         />
-        <span className={`mstate ${progress.state}`}>{stateLabel(progress)}</span>
+        <span className={`mstate ${progress.state}${prior ? ' again' : ''}`}>
+          {stateLabel(progress, prior)}
+        </span>
       </div>
     </Link>
   );
@@ -74,7 +132,32 @@ function Track({ track }) {
         <span className="tagline">{track.tagline}</span>
       </div>
       <div className="modules">
-        {modules.map(module => <ModuleCard key={module.id} module={module} />)}
+        {/* "MODULE 1.2" comes from moduleNumber(), i.e. the module's POSITION
+            in this track's ordered uuid list — never from its id (a uuid). */}
+        {modules.map(module => <ModuleCard key={module.uuid} module={module} />)}
+      </div>
+    </div>
+  );
+}
+
+// Modules in no track. Deliberately the same card language as a track — they
+// are the same kind of thing to work through — but a different promise in the
+// head: no TRACK n, no sequence, and (see CompletionModal) no next module when
+// you finish one. Order is by title, which content/index.js already applies.
+//
+// Renders NOTHING when every module belongs to a track: an empty "Others"
+// heading would advertise a category that isn't there.
+function Others({ modules }) {
+  if (!Array.isArray(modules) || modules.length === 0) return null;
+  return (
+    <div className="track others">
+      <div className="track-head">
+        <span className="tno">OTHERS</span>
+        <h2>Standalone modules</h2>
+        <span className="tagline">Not part of a track — take them in any order</span>
+      </div>
+      <div className="modules">
+        {modules.map(module => <ModuleCard key={module.uuid} module={module} />)}
       </div>
     </div>
   );
@@ -83,6 +166,10 @@ function Track({ track }) {
 function LearnHome() {
   const tracksRef = useRef(null);
   const trackList = Array.isArray(tracks) ? tracks : [];
+  // "Start GPGPU 101" opens the first module of the first track — never a
+  // hardcoded url, so reordering or renaming content cannot strand it.
+  const firstModule = trackList.find(t => t.modules && t.modules.length);
+  const firstModuleUrl = firstModule ? firstModule.modules[0].url : '/learn';
 
   useEffect(() => {
     setPageMeta(learnHomeMeta());
@@ -118,7 +205,7 @@ function LearnHome() {
             computing platform.
           </p>
           <div className="cta-row">
-            <Link to="/learn/1-1" className="btn btn-primary">Start GPGPU 101</Link>
+            <Link to={firstModuleUrl} className="btn btn-primary">Start GPGPU 101</Link>
             <button type="button" className="btn btn-ghost" onClick={scrollToTracks}>
               Browse all modules ↓
             </button>
@@ -158,6 +245,7 @@ function LearnHome() {
         {trackList.map(track => (
           <Track key={track.number != null ? track.number : track.id} track={track} />
         ))}
+        <Others modules={Array.isArray(orphanModules) ? orphanModules : []} />
       </section>
 
       <div className="feedback-card">

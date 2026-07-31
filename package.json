@@ -27,13 +27,14 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "build": "vite build && node scripts/prerender.mjs",
+    "build": "node scripts/validate-content.mjs && vite build && node scripts/prerender.mjs",
     "preview": "vite preview",
     "predeploy": "yarn build",
     "deploy": "gh-pages -d dist",
     "test:smoke": "node scripts/smoke-test.mjs",
     "test:compare": "node scripts/compare.mjs",
-    "verify:learn": "node scripts/verify-learn.mjs"
+    "verify:learn": "node scripts/verify-learn.mjs",
+    "validate:content": "node scripts/validate-content.mjs"
   },
   "browserslist": {
     "production": [

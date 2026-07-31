@@ -2,11 +2,20 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import TaskDots from '../components/TaskDots';
 import Confetti from './Confetti';
 import { FEEDBACK_URL } from '../feedback';
+import { moduleNumber } from '../content/index';
 
 // Completion celebration dialog — opened by TaskWorkspace when Next is clicked
-// on the last task of a fully-done module. kind 'module' congratulates the
-// module and offers the next one; kind 'track' closes out the whole track
-// (and, for the final track, the course) with a single exit.
+// on the last task of a fully-done module. Three kinds, one per shape a module
+// can have in the course:
+//
+//   'module'     — a tracked module with a successor: congratulate the module,
+//                  offer the next one.
+//   'track'      — the last module of a track: close out the whole track (and,
+//                  for the final track, the course) with a single exit.
+//   'standalone' — a module in NO track ("Others"). Unordered by design, so
+//                  there is nothing to offer next: the dialog carries the same
+//                  module congratulation and ONLY the way out. There is no
+//                  track variant for these — they belong to no sequence.
 //
 // A11y: role=dialog + aria-modal, labelled by the headline; focus moves to the
 // primary action on open; Tab cycles inside (simple trap over the dialog's
@@ -68,20 +77,24 @@ function CompletionModal({
   );
 
   const isTrack = kind === 'track';
+  const isStandalone = kind === 'standalone';
   const headline = isTrack
     ? `Track ${track.number} — ${track.title}`
-    : `Module ${String(module.id).replace('-', '.')} — ${module.title}`;
+    : moduleNumber(module)
+      ? `Module ${moduleNumber(module)} — ${module.title}`
+      : module.title; // orphans have no number — they are unordered
   const congrats = isTrack
     ? `Every module in Track ${track.number} is complete — the full track, ` +
       `start to finish.${courseEnd ? ' And that was the final track: you’ve finished the whole course.' : ''}`
-    : `All ${totalTasks} tasks passed. That’s the whole module — nicely done.`;
+    : `All ${totalTasks} tasks passed. That’s the whole module — nicely done.` +
+      (isStandalone ? ' This one stands on its own, so there’s nothing queued up after it.' : '');
 
   return (
     <div className="cmodal-overlay" onMouseDown={handleBackdrop} onKeyDown={handleKeyDown}>
       {/* fires from the panel's top corners; aria-hidden and click-through, so
           it stays out of the focus trap and off the buttons underneath */}
       <Confetti
-        milestone={courseEnd ? 'course' : kind}
+        milestone={courseEnd ? 'course' : isTrack ? 'track' : 'module'}
         anchorRef={panelRef}
       />
       <div
@@ -103,9 +116,10 @@ function CompletionModal({
           — it makes the course better.
         </p>
         <div className="cmodal-actions">
-          {isTrack ? (
+          {isTrack || isStandalone ? (
+            // one action, and it is the primary: nothing follows this module
             <button type="button" className="tb-next" ref={primaryRef} onClick={onEnd}>
-              Exit track
+              {isTrack ? 'Exit track' : 'Exit module'}
             </button>
           ) : (
             <>

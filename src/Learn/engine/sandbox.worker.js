@@ -9,8 +9,9 @@
 //
 // Functions cannot cross postMessage, so the worker cannot be handed a task's
 // inputs()/publicTests/privateTests — it imports the content registry itself
-// and looks the task up by { moduleId, taskNum }. The main thread only ever
-// sends identifiers, code and a mode.
+// and looks the task up by { uuid, taskSlug }: the module's permanent identity
+// and the task's own slug, never a position. The main thread only ever sends
+// identifiers, code and a mode.
 //
 // Protocol — request/response keyed by `id`:
 //   main → worker
@@ -25,7 +26,7 @@
 //     { id, kind: 'result', result }     ImageBitmaps in `transfer`
 //     { id, kind: 'failed', error }      the worker itself broke
 
-import { getTask } from '../content/index';
+import { getTaskBySlug } from '../content/index';
 import {
   executeBenchmark,
   executeRun,
@@ -46,7 +47,7 @@ const MAX_STREAMED_LOGS = 300;
 
 function lookupTask(taskRef) {
   if (!taskRef) return null;
-  const found = getTask(taskRef.moduleId, taskRef.taskNum);
+  const found = getTaskBySlug(taskRef.uuid, taskRef.taskSlug);
   return found ? found.task : null;
 }
 

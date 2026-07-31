@@ -1,53 +1,80 @@
-// content/index.js — course content auto-discovery. THIS FILE IS NEVER EDITED
-// AGAIN: module files self-register simply by existing as
-// content/trackN/module-N-M.js with a default export matching the schema.
+// content/index.js — the app's course registry. VITE ONLY.
+//
+// This file's whole job is the two lines that need a bundler: globbing
+// ./modules/*.js and handing the results to buildRegistry(). Everything else —
+// identity rules, url building, storage-key building, validation — lives in
+// ./registry.js, which is plain node-safe ESM.
+//
+// NEVER import this file from a node script (scripts/prerender.mjs and
+// friends): import.meta.glob only exists inside vite. Node scripts use
+// scripts/contentLoader.mjs, which feeds the same registry from the same
+// files.
+//
+// Module files self-register simply by existing as ./modules/<uuid>.js with a
+// default export carrying { uuid, version, slug, title, tasks }. The file name
+// is opaque on purpose; every file carries a header comment naming its module.
+// Which track a module belongs to is declared in ./tracks.js, not here.
+//
+// Anything wrong with the content (a malformed or duplicated uuid, a colliding
+// short id, duplicate slugs, a track pointing at a module that doesn't exist,
+// a module in two tracks) throws HERE, at import time, before a single pixel
+// renders. scripts/validate-content.mjs runs the same check ahead of the build.
 
-import trackMeta from './tracks';
+import { buildRegistry } from './registry.js';
+import trackMeta from './tracks.js';
 
-const moduleFiles = import.meta.glob('./track*/module-*.js', { eager: true });
+const moduleFiles = import.meta.glob('./modules/*.js', { eager: true });
 
-function idParts(id) {
-  return String(id).split('-').map(Number);
-}
+const registry = buildRegistry(
+  // Sorted by path so the input order is stable across platforms; the
+  // registry's own canonical order comes from tracks.js, not from this.
+  Object.keys(moduleFiles)
+    .sort()
+    .map(path => moduleFiles[path].default),
+  trackMeta
+);
 
-// All modules, sorted by id ('1-2' before '1-10' before '2-1').
-export const modules = Object.values(moduleFiles)
-  .map(file => file.default)
-  .filter(Boolean)
-  .sort((a, b) => {
-    const [aTrack, aNum] = idParts(a.id);
-    const [bTrack, bNum] = idParts(b.id);
-    return aTrack - bTrack || aNum - bNum;
-  });
+// ---- resolved course data --------------------------------------------------
 
-// Tracks (mockup metadata) with their modules attached.
-export const tracks = trackMeta.map(track => ({
-  ...track,
-  modules: modules.filter(module => module.track === track.number),
-}));
+// Every module, decorated with { shortId, track, trackIndex, url }, in
+// canonical order: each track's modules in teaching order, then the orphans
+// (modules in no track) by title.
+export const modules = registry.modules;
 
-export function getModule(moduleId) {
-  return modules.find(module => module.id === moduleId) || null;
-}
+// Tracks with their ordered `modules` resolved from uuids.
+export const tracks = registry.tracks;
 
-// Task id: `${moduleId}-${taskNum}` with taskNum 1-based, e.g. '1-2-3'.
-export function taskId(moduleId, taskNum) {
-  return `${moduleId}-${taskNum}`;
-}
+// Modules belonging to no track — the "Others" category. Sorted by title,
+// unordered by intent: no sequence, and no next-module offer on completion.
+export const orphanModules = registry.orphanModules;
 
-// getTask('1-2', 3) → { module, task, taskNum, taskIndex, taskId, total }
-// or null when the module or task does not exist.
-export function getTask(moduleId, taskNum) {
-  const module = getModule(moduleId);
-  if (!module) return null;
-  const num = Number(taskNum);
-  if (!Number.isInteger(num) || num < 1 || num > module.tasks.length) return null;
-  return {
-    module,
-    task: module.tasks[num - 1],
-    taskNum: num,
-    taskIndex: num - 1,
-    taskId: taskId(moduleId, num),
-    total: module.tasks.length,
-  };
-}
+// ---- lookups ---------------------------------------------------------------
+
+export const getModule = registry.getModule;
+export const moduleByShortId = registry.moduleByShortId;
+export const moduleBySlug = registry.moduleBySlug;
+export const parseModulePath = registry.parseModulePath;
+export const getTask = registry.getTask;
+export const getTaskBySlug = registry.getTaskBySlug;
+export const nextModule = registry.nextModule;
+
+// ---- identity / url / storage-key helpers ----------------------------------
+//
+// Re-exported so app code has ONE import for course identity. They are pure
+// functions; node scripts import them from ./registry.js directly.
+
+export {
+  LEARN_BASE,
+  SHORT_ID_LENGTH,
+  UUID_RE,
+  moduleKeyPrefix,
+  moduleNumber,
+  moduleUrl,
+  parseModuleParam,
+  parseTaskKey,
+  shortId,
+  slugify,
+  taskKey,
+  taskUrl,
+  versionKeyPrefix,
+} from './registry.js';

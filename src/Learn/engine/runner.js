@@ -312,16 +312,18 @@ export async function sandboxGpuSupported() {
 // ---- task identity ---------------------------------------------------------
 
 // Functions cannot cross postMessage, so the worker looks tasks up in its own
-// copy of the content registry. The main thread only sends the coordinates.
+// copy of the content registry. The main thread only sends the coordinates:
+// { uuid, taskSlug } — the module's permanent identity and the task's own
+// slug, never a position, so the ref survives tasks being reordered.
 const taskRefs = new WeakMap();
 let taskRefsBuilt = false;
 
 function buildTaskRefs() {
   taskRefsBuilt = true;
   for (const module of modules) {
-    (module.tasks || []).forEach((task, i) => {
+    (module.tasks || []).forEach(task => {
       if (task && typeof task === 'object') {
-        taskRefs.set(task, { moduleId: module.id, taskNum: i + 1 });
+        taskRefs.set(task, { uuid: module.uuid, taskSlug: task.slug });
       }
     });
   }

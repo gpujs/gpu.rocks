@@ -17,9 +17,17 @@
  *     (public/robots.txt points crawlers at it).
  *
  * Meta values come from src/routeMeta.js — the single source of truth shared
- * with the SPA runtime (src/pageMeta.js). Course content is enumerated by
- * importing src/Learn/content/track* /module-*.js directly (plain ESM data
- * modules, no imports) — NEVER the vite-only content/index.js.
+ * with the SPA runtime (src/pageMeta.js). Course content is enumerated with
+ * scripts/contentLoader.mjs, the node-safe twin of the app's registry —
+ * NEVER the vite-only src/Learn/content/index.js.
+ *
+ * Learn URLs are `/learn/<module-slug>-<shortId>[/<step>]`, built by the
+ * registry (moduleUrl/taskUrl) so the static pages, the sitemap and the running
+ * app can never disagree about what a page is called. The pre-uuid
+ * `/learn/<track>-<module>/<task>` paths are DELIBERATELY not emitted and not
+ * in the sitemap — the owner chose to drop them outright rather than ship
+ * redirect stubs, and the SPA sends any leftover link to /learn. Do not
+ * "restore" them.
  *
  * The build fails loudly on missing/empty meta or output-path collisions.
  *
@@ -27,9 +35,8 @@
  * vite itself; do not touch it here. Same for public/api/ and public/robots.txt.
  */
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { glob } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import {
   ORIGIN,
   SITE_ROUTES,
@@ -37,6 +44,7 @@ import {
   moduleMeta,
   moduleTaskMeta,
 } from '../src/routeMeta.js';
+import { loadContent } from './contentLoader.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -55,23 +63,19 @@ function fail(message) {
 }
 
 // ---- load course content ---------------------------------------------------
+//
+// Identity, ordering and validation all come from the shared registry: modules
+// arrive in canonical order (each track's, in teaching order, then the modules
+// in no track by title) already carrying uuid/version/slug/shortId. Invalid
+// content throws here with every problem listed.
 
 async function loadModules() {
-  const files = [];
-  for await (const file of glob('src/Learn/content/track*/module-*.js', { cwd: root })) {
-    files.push(file);
+  try {
+    return (await loadContent(root)).modules;
+  } catch (e) {
+    fail(e.message);
+    return [];
   }
-  if (files.length === 0) fail('no course content modules found (src/Learn/content/track*/module-*.js)');
-  const modules = [];
-  for (const file of files.sort()) {
-    const mod = (await import(pathToFileURL(join(root, file)).href)).default;
-    if (!mod || !mod.id || !mod.title || !Array.isArray(mod.tasks) || mod.tasks.length === 0) {
-      fail(`content module ${file} is missing id/title/tasks`);
-    }
-    modules.push(mod);
-  }
-  modules.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-  return modules;
 }
 
 // ---- head construction -----------------------------------------------------

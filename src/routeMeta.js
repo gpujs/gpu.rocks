@@ -8,8 +8,11 @@
 // KEEP THIS FILE PLAIN ESM, IMPORTABLE FROM NODE: no JSX, no DOM access, no
 // vite-only syntax (import.meta.glob lives in Learn/content/index.js — never
 // import that from here). Functions that need course content take the module/
-// task objects as ARGUMENTS; a node script can import the content files
-// directly (src/Learn/content/track*/module-*.js and tracks.js are plain ESM).
+// task objects as ARGUMENTS; a node script enumerates them with
+// scripts/contentLoader.mjs. Learn/content/registry.js, imported below for
+// url building, is the node-safe half of the registry and safe to pull in.
+
+import { moduleUrl, taskUrl } from './Learn/content/registry.js';
 
 export const ORIGIN = 'https://gpu.rocks';
 
@@ -68,23 +71,23 @@ export function learnHomeMeta() {
   };
 }
 
-// Meta for /learn/:moduleId. `module` is the object from a course content
-// file (src/Learn/content/track*/module-*.js). In the SPA this path redirects
-// to task 1; as a prerendered page it stands on its own with the module blurb.
+// Meta for /learn/<module-slug>-<shortId>. `module` is the object from a
+// course content file (src/Learn/content/modules/<uuid>.js). In the SPA this
+// path redirects to the current task; as a prerendered page it stands on its
+// own with the module blurb.
 export function moduleMeta(module) {
   return {
-    path: `/learn/${module.id}`,
+    path: moduleUrl(module),
     title: `${module.title} — GPU.js Learn`,
     description: truncate(stripHtml(module.blurb || ''), 160),
   };
 }
 
-// Meta for /learn/:moduleId/:taskNum. `module` and `task` are the objects from
-// the course content files; taskNum is 1-based. (Module redirect pages
-// /learn/:moduleId never settle, so they have no meta.)
-export function moduleTaskMeta(module, task, taskNum) {
+// Meta for /learn/<module-slug>-<shortId>/<step>. `module` and `task` are the
+// objects from the course content files; step is the 1-based task position.
+export function moduleTaskMeta(module, task, step) {
   return {
-    path: `/learn/${module.id}/${taskNum}`,
+    path: taskUrl(module, step),
     title: `${task.title} · ${module.title} — GPU.js Learn`,
     description: truncate(stripHtml(task.goal || task.intro || ''), 160),
   };

@@ -125,6 +125,17 @@
     font-style: italic;
   }
 
+  /* "Others" — modules in no track. Same card language as a track (it is the
+     same kind of work), a quieter head: blue rather than the course-spine
+     pink, and a dashed rule because there is no sequence under it. */
+  .track.others .track-head {
+    border-bottom-style: dashed;
+  }
+
+  .track.others .track-head .tno {
+    color: var(--blue);
+  }
+
   .modules {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -182,6 +193,16 @@
     font-size: .9em;
   }
 
+  /* "Updated since you completed it" — information, not an alarm: no badge,
+     no icon, just a quiet amber rule against muted body text. */
+  .module .mstale {
+    font-size: .74rem;
+    line-height: 1.35;
+    color: var(--muted);
+    border-left: 2px solid var(--amber);
+    padding-left: .55rem;
+  }
+
   .module .foot {
     display: flex;
     align-items: center;
@@ -206,6 +227,12 @@
 
   .mstate.todo {
     color: var(--muted);
+  }
+
+  // "Start again": unsolved at this version, but not untouched. Must come
+  // after .todo — same specificity, source order decides.
+  .mstate.again {
+    color: var(--amber);
   }
 
   .module.current {

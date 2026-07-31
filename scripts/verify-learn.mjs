@@ -11,8 +11,10 @@
  * in engine/sandbox.worker.js, supervised by engine/runner.js — so a task that
  * passes here is a task that works in the app.
  *
- * Usage: node scripts/verify-learn.mjs [--module 1-2] [--mode cpu|gpu|both]
+ * Usage: node scripts/verify-learn.mjs [--module <ref>] [--mode cpu|gpu|both]
  *                                      [--base http://localhost:4173]
+ *   --module names one module by uuid, short id ('f1399353'), slug
+ *   ('hello-kernel') or legacy id ('1-2').
  *   --mode defaults to both; gpu is skipped gracefully when headless WebGL
  *   is unavailable.
  *   --base checks an already-running server instead of spawning one — use it
@@ -34,11 +36,11 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // ---- args -----------------------------------------------------------------
 
 const args = process.argv.slice(2);
-let moduleId = null;
+let moduleRef = null;
 let modeArg = 'both';
 let baseArg = null;
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === '--module') moduleId = args[++i];
+  if (args[i] === '--module') moduleRef = args[++i];
   else if (args[i] === '--mode') modeArg = args[++i];
   else if (args[i] === '--base') baseArg = args[++i];
   else {
@@ -103,14 +105,14 @@ function printModeReport(mode, report) {
     : '';
   console.log(`\n== mode: ${mode} (gpuSupported=${report.gpuSupported}${sandbox}) ==`);
   const pad = (s, w) => String(s).padEnd(w);
-  console.log(pad('RESULT', 7) + pad('TASK', 8) + pad('META', 6) + pad('SOLUTION', 10) + pad('STARTER', 9) + 'TITLE');
+  console.log(pad('RESULT', 7) + pad('TASK', 13) + pad('META', 6) + pad('SOLUTION', 10) + pad('STARTER', 9) + 'TITLE');
   let failures = 0;
   for (const t of report.tasks) {
     const solved = t.solution.tests.filter(r => r.passed).length;
     const total = t.solution.tests.length;
     console.log(
       pad(t.ok ? 'PASS' : 'FAIL', 7) +
-      pad(t.id, 8) +
+      pad(t.id, 13) +
       pad(t.metadata.ok ? 'ok' : 'BAD', 6) +
       pad(total ? `${solved}/${total}` : 'ERROR', 10) +
       pad(t.starter.ok ? 'fails✓' : 'PASSES', 9) +
@@ -155,7 +157,7 @@ try {
   for (const mode of modes) {
     const report = await page.evaluate(
       opts => window.__verifyLearn(opts),
-      { moduleId: moduleId || undefined, mode }
+      { module: moduleRef || undefined, mode }
     );
     if (report.skipped) {
       console.log(`\n== mode: ${mode} — SKIPPED (${report.reason}) ==`);
@@ -167,7 +169,7 @@ try {
       continue;
     }
     if (!report.tasks.length) {
-      console.error(`\n== mode: ${mode} — no tasks found${moduleId ? ` for module ${moduleId}` : ''} ==`);
+      console.error(`\n== mode: ${mode} — no tasks found${moduleRef ? ` for module ${moduleRef}` : ''} ==`);
       failures++;
       continue;
     }

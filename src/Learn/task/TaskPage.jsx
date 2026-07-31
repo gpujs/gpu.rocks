@@ -16,7 +16,14 @@ import { Prec } from '@codemirror/state';
 import LearnNav from '../components/LearnNav';
 import TaskDots from '../components/TaskDots';
 import { useTheme } from '../ThemeContext';
-import { tracks, modules, getTask } from '../content/index';
+import {
+  tracks,
+  getTask,
+  moduleNumber,
+  nextModule as nextModuleOf,
+  parseModulePath,
+  taskUrl,
+} from '../content/index';
 import { getFigures } from '../content/figures/index';
 import { runUserCode, runTests, snapshotCanvas, utils, warmUpSandbox } from '../engine/runner';
 import { runBenchmark } from '../engine/benchmark';
@@ -216,8 +223,8 @@ function Figures({ figures }) {
   ));
 }
 
-function BriefPane({ moduleId, task, taskNum, total }) {
-  const figures = getFigures(moduleId, taskNum);
+function BriefPane({ module, task, taskNum, total }) {
+  const figures = getFigures(module, task);
   const briefRef = useRef(null);
   // Static syntax highlighting for authored <pre><code> blocks. Layout effect
   // so the spans exist before paint (no flash of unhighlighted code, no
@@ -404,13 +411,16 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     setBench(null);
   }, [task, taskId]);
 
-  // next module in the global sorted order; when it belongs to another track
-  // (or doesn't exist) this module is the last of its track
-  const nextModule = useMemo(() => {
-    const idx = modules.findIndex(m => m.id === module.id);
-    return idx >= 0 ? modules[idx + 1] || null : null;
-  }, [module]);
-  const lastInTrack = !nextModule || nextModule.track !== module.track;
+  // The next module WITHIN this module's track, or null — the registry already
+  // refuses to cross a track boundary, and always returns null for an orphan.
+  const nextModule = useMemo(() => nextModuleOf(module), [module]);
+
+  // Which completion this module can reach:
+  //   'standalone' — no track. Finishing it offers only the way out: an
+  //                  unordered module has nothing to be "next".
+  //   'track'      — last module of its track. The track celebration.
+  //   'module'     — anything else. Offers the next module in the track.
+  const completionKind = module.track == null ? 'standalone' : nextModule ? 'module' : 'track';
 
   // Prev walks back within the module only — it never crosses into the
   // previous module (Next does, but backwards that would drop you at the far
@@ -419,27 +429,26 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   const prevEnabled = taskNum > 1;
 
   const handlePrev = useCallback(() => {
-    if (taskNum > 1) navigate(`/learn/${module.id}/${taskNum - 1}`);
+    if (taskNum > 1) navigate(taskUrl(module, taskNum - 1));
   }, [navigate, module, taskNum]);
 
   const handleAllModules = useCallback(() => navigate('/learn'), [navigate]);
 
   const handleNext = useCallback(() => {
     if (taskNum < total) {
-      navigate(`/learn/${module.id}/${taskNum + 1}`);
+      navigate(taskUrl(module, taskNum + 1));
       return;
     }
     // last task of the module AND every task done (including this one):
     // celebrate instead of navigating
     if (moduleProgress(module).done === total) {
-      const kind = lastInTrack ? 'track' : 'module';
-      setCelebration({ kind });
-      setStatus(kind === 'track' ? 'Track complete' : 'Module complete');
+      setCelebration({ kind: completionKind });
+      setStatus(completionKind === 'track' ? 'Track complete' : 'Module complete');
       return;
     }
     // earlier tasks were skipped — keep the plain navigation behavior
-    navigate(nextModule ? `/learn/${nextModule.id}/1` : '/learn');
-  }, [navigate, module, taskNum, total, nextModule, lastInTrack]);
+    navigate(nextModule ? taskUrl(nextModule, 1) : '/learn');
+  }, [navigate, module, taskNum, total, nextModule, completionKind]);
 
   // Esc / backdrop close: stay on the task, hand focus back to the Next button
   const closeCelebration = useCallback(() => {
@@ -518,9 +527,13 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
       <LearnNav />
 
       <div className="crumbbar">
-        <span>Track {module.track}{track ? ` · ${track.title}` : ''}</span>
+        {/* an orphan module has no track and no number: it says what it is */}
+        <span>{track ? `Track ${track.number} · ${track.title}` : 'Standalone module'}</span>
         <span className="sep">/</span>
-        <b>Module {String(module.id).replace('-', '.')} — {module.title}</b>
+        <b>
+          {moduleNumber(module) ? `Module ${moduleNumber(module)} — ` : ''}
+          {module.title}
+        </b>
         <span className="sep">/</span>
         <span className="tcount">Task {taskNum} of {total}</span>
         <TaskDots total={total} doneCount={progress.done} currentIndex={taskIndex} />
@@ -583,7 +596,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
       </div>
 
       <div className="workspace">
-        <BriefPane moduleId={module.id} task={task} taskNum={taskNum} total={total} />
+        <BriefPane module={module} task={task} taskNum={taskNum} total={total} />
 
         <div className="editpane">
           <div className={fullscreen ? 'editor editor-fullscreen' : 'editor'}>
@@ -671,11 +684,14 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           courseEnd={
             celebration.kind === 'track' &&
             Boolean(track) &&
+            tracks.length > 0 &&
             track.number === tracks[tracks.length - 1].number
           }
           onClose={closeCelebration}
           onEnd={() => navigate('/learn')}
-          onNextModule={() => navigate(`/learn/${nextModule.id}/1`)}
+          // only ever called for kind 'module', which is the only kind that
+          // has a next module to go to
+          onNextModule={() => nextModule && navigate(taskUrl(nextModule, 1))}
         />
       )}
     </div>
@@ -685,11 +701,16 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
 // ---- route component -------------------------------------------------------
 
 function TaskPage() {
-  const { moduleId, taskNum } = useParams();
-  const found = getTask(moduleId, taskNum);
+  const { moduleParam, step } = useParams();
+  const resolved = parseModulePath(moduleParam);
+  if (!resolved) return <Navigate to="/learn" replace />;
+  const found = getTask(resolved.module, step);
   if (!found) return <Navigate to="/learn" replace />;
-  // key by taskId so all workspace state (code, logs, tests…) resets per task
-  return <TaskWorkspace key={found.taskId} {...found} />;
+  // The short id resolved but the slug is stale (the module was renamed):
+  // land on the canonical url instead of 404ing. Replace, never push.
+  if (!resolved.canonical) return <Navigate to={found.url} replace />;
+  // key by taskKey so all workspace state (code, logs, tests…) resets per task
+  return <TaskWorkspace key={found.taskKey} {...found} />;
 }
 
 export default TaskPage;
