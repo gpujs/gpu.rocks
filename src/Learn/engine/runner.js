@@ -89,6 +89,17 @@ export {
 //
 // A run is the pre-flight probe plus the real thing.
 const RUN_WATCHDOG_MS = 10000;
+// A task may ask for more (see sandbox.js budgetFor): a payoff task sized so
+// the asymptotically better algorithm actually wins needs room to run. The
+// watchdog has to clear the pre-flight guard's threshold, or the guard would
+// let a run start that the watchdog then kills.
+const WATCHDOG_HEADROOM = 2;
+
+function watchdogFor(task, floorMs) {
+  const asked = task && Number(task.budgetMs);
+  if (!Number.isFinite(asked) || asked <= 0) return floorMs;
+  return Math.max(floorMs, Math.min(asked, 60000) * WATCHDOG_HEADROOM);
+}
 // Tests re-invoke the run's kernels, so they get their own budget.
 const TESTS_BUDGET_MS = 15000;
 // The benchmark is two full runs plus two adaptive timing loops.
@@ -453,8 +464,9 @@ export async function runUserCode(code, { mode = 'auto', task } = {}) {
     if (path !== 'worker' || (task && !taskRef)) return await runOnMainThread(code, mode, task);
 
     const gen = generation;
-    const reply = await call({ kind: 'run', code, mode, taskRef }, RUN_WATCHDOG_MS);
-    if (reply.timedOut) return stoppedResult(mode, reply.logs, RUN_WATCHDOG_MS, 'run');
+    const runBudget = watchdogFor(task, RUN_WATCHDOG_MS);
+    const reply = await call({ kind: 'run', code, mode, taskRef }, runBudget);
+    if (reply.timedOut) return stoppedResult(mode, reply.logs, runBudget, 'run');
     if (reply.failed || !reply.result) return failedResult(mode, reply.error, reply.logs);
     return hydrate(reply.result, gen);
   } catch (e) {
@@ -495,11 +507,12 @@ async function runTestsInner(task, runResult) {
     const token = runResult && runResult.runToken;
     const sameWorker = runResult && runResult.sandboxGeneration === generation;
     if (taskRef && token && sameWorker) {
-      const reply = await call({ kind: 'tests', runToken: token, taskRef }, TESTS_BUDGET_MS);
+      const budget = watchdogFor(task, TESTS_BUDGET_MS);
+      const reply = await call({ kind: 'tests', runToken: token, taskRef }, budget);
       if (reply.timedOut) {
         return syntheticReport(
           task,
-          `stopped after ${Math.round(TESTS_BUDGET_MS / 1000)}s — the tests were still running ` +
+          `stopped after ${Math.round(budget / 1000)}s — the tests were still running ` +
             'and the page would have frozen'
         );
       }
@@ -539,12 +552,13 @@ export async function runBenchmarkInSandbox(code, task) {
       if (!sandbox) return { error: { message: 'the execution engine could not be loaded' } };
       return await sandbox.executeBenchmark(code, task);
     }
-    const reply = await call({ kind: 'benchmark', code, taskRef }, BENCHMARK_BUDGET_MS);
+    const benchBudget = watchdogFor(task, BENCHMARK_BUDGET_MS);
+    const reply = await call({ kind: 'benchmark', code, taskRef }, benchBudget);
     if (reply.timedOut) {
       return {
         error: {
           message:
-            `stopped after ${Math.round(BENCHMARK_BUDGET_MS / 1000)}s — your code was still ` +
+            `stopped after ${Math.round(benchBudget / 1000)}s — your code was still ` +
             'running and the page would have frozen',
         },
       };

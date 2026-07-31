@@ -212,6 +212,19 @@ export function validateContent(modules, trackMeta) {
           `${where} task ${step}: slug "${task.slug}" duplicates task ${taskSlugs.get(task.slug)}`
         );
       } else taskSlugs.set(task.slug, step);
+
+      // Optional: a task sized so the better algorithm actually wins may ask
+      // for more than the default 5 s run budget. Capped, because the guard
+      // exists to stop a learner freezing the page — a task cannot opt out of
+      // it, only widen it.
+      if (task.budgetMs !== undefined) {
+        const asked = Number(task.budgetMs);
+        if (!Number.isFinite(asked) || asked <= 0 || asked > 60000) {
+          problems.push(
+            `${where} task ${step}: budgetMs must be a positive number of ms up to 60000, got ${task.budgetMs}`
+          );
+        }
+      }
     });
   });
 

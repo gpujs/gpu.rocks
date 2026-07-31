@@ -544,6 +544,10 @@ export default {
         No window, no <code>m</code>. The cost collapses to the cost of the transforms, which is
         why every audio plug-in, every software radio and every large-kernel blur is written this
         way. We are going to check that claim rather than believe it.</p>
+        <p>Every task in this module hands you a finished <code>dft</code>/<code>idft</code> pair and
+        asks you to write only the step between them. They are the naive O(n²) transforms rather
+        than the ladder The FFT Butterfly builds, because which transform produced a spectrum
+        changes none of the arithmetic below — and the arithmetic below is the whole point.</p>
         <p>Spectra are complex, and gpu.js has no complex type, so this track carries a complex
         signal as <strong>two planes of floats</strong>. A kernel with <code>output: [n, 2]</code>
         is indexed <code>result[p][i]</code> — plane 0 the real part, plane 1 the imaginary part,
@@ -1141,8 +1145,8 @@ console.log('largest imaginary part:', leftover.toFixed(6));
         scaled by <code>exp(−26²/(2·12²)) ≈ 0.096</code>. And it starts attenuating immediately —
         the harmonic at <code>k = 18</code>, which the brick wall passed at full strength, comes
         through at <code>0.325</code>. The edge that swung in 7 samples now takes 13. That is the
-        whole trade, and it is the same one the windowing module makes from the other end: a
-        smooth taper buys clean tails at the cost of sharpness.</p>
+        whole trade, and it is the same one Windowing &amp; Spectral Leakage makes from the other
+        end, one module back: a smooth taper buys clean tails at the cost of sharpness.</p>
         <p>Convolution &amp; Filters convolved a Gaussian blur directly, tap by tap. This is that
         same filter, arriving from the other side.</p>`,
       goal: `<strong>Goal:</strong> finish <code>rollOff</code> so every bin is scaled by

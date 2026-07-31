@@ -212,6 +212,17 @@ function patchKernel(kernel, push, resolvedMode) {
 const PROBE_AXIS_CAP = 64; // clamp each output axis to this during the probe
 const PROBE_MIN_THREADS = 65536; // only guard runs larger than this
 const RUN_BUDGET_MS = 5000; // refuse a run estimated to exceed this
+// …unless the task says otherwise. Some payoff tasks only make their point at
+// a size where the better algorithm actually wins the race — an FFT beating a
+// brute-force transform needs more than a few thousand elements to pay for its
+// kernel launches. Those tasks declare `budgetMs` and get judged against it.
+const MAX_TASK_BUDGET_MS = 60000;
+
+function budgetFor(task) {
+  const asked = task && Number(task.budgetMs);
+  if (!Number.isFinite(asked) || asked <= 0) return RUN_BUDGET_MS;
+  return Math.min(asked, MAX_TASK_BUDGET_MS);
+}
 
 function clampOutputSetting(output) {
   if (Array.isArray(output)) {
@@ -264,7 +275,7 @@ async function preflight(code, mode, task) {
   if (stats.clampedThreads >= stats.requestedThreads) return null; // nothing was clamped
   if (stats.requestedThreads <= PROBE_MIN_THREADS) return null;
   const scale = stats.requestedThreads / stats.clampedThreads;
-  if (probe.durationMs * scale <= RUN_BUDGET_MS) return null;
+  if (probe.durationMs * scale <= budgetFor(task)) return null;
   // About to refuse — so measure twice. A probe is a single sample of a few tens
   // of milliseconds, most of it fixed cost that `scale` (up to 64×) then
   // multiplies: a GL context, a GLSL compile + link, the first draw. One load
@@ -276,7 +287,7 @@ async function preflight(code, mode, task) {
     ? Math.min(probe.durationMs, again.durationMs)
     : probe.durationMs;
   const estimateMs = durationMs * scale;
-  if (estimateMs <= RUN_BUDGET_MS) return null;
+  if (estimateMs <= budgetFor(task)) return null;
   return { probeMs: durationMs, estimateMs, threads: stats.requestedThreads };
 }
 
