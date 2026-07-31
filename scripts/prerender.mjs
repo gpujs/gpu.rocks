@@ -34,7 +34,8 @@
  * NOTE: public/CNAME → dist/CNAME (the custom-domain mechanism) is copied by
  * vite itself; do not touch it here. Same for public/api/ and public/robots.txt.
  */
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -279,9 +280,20 @@ const sitemap =
   `</urlset>\n`;
 writeFileSync(join(dist, 'sitemap.xml'), sitemap);
 
+// version.json — what a running tab polls to notice it has gone stale.
+//
+// Every deploy replaces the whole gh-pages tree, so a tab left open since the
+// last deploy is holding filenames that no longer exist: the moment it lazily
+// loads a chunk it 404s. The id is derived from the built asset NAMES, which
+// are content hashes, so it changes exactly when the code does and two
+// identical builds stay byte-identical (CI checks that).
+const assetNames = readdirSync(join(dist, 'assets')).sort();
+const buildId = createHash('sha256').update(assetNames.join('\n')).digest('hex').slice(0, 16);
+writeFileSync(join(dist, 'version.json'), `${JSON.stringify({ build: buildId }, null, 2)}\n`);
+
 const taskCount = modules.reduce((sum, mod) => sum + mod.tasks.length, 0);
 console.log(
   `prerender: wrote ${written} pages (${SITE_ROUTES.length} site + 1 learn + ` +
     `${modules.length} modules + ${taskCount} tasks), 404.html (noindex), ` +
-    `sitemap.xml (${pages.length} URLs)`
+    `sitemap.xml (${pages.length} URLs), version.json (build ${buildId})`
 );

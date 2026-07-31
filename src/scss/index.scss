@@ -106,3 +106,61 @@ input:focus {
   box-shadow: 0 1px 0 0 $purple !important;
   border-bottom: 1px solid $purple !important;
 }
+// Redeploy notice (src/UpdateBanner.jsx). Site-wide, so it cannot lean on the
+// learn theme tokens — it carries its own colours and works on both the
+// materialize pages and the course.
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 1.1rem;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  max-width: min(38rem, calc(100vw - 2rem));
+  padding: .7rem .8rem .7rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(158, 140, 220, .35);
+  background: #171040;
+  color: #f6f7f8;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  font-size: .85rem;
+  line-height: 1.4;
+}
+
+.update-banner-text { flex: 1; }
+
+.update-banner-reload {
+  flex: none;
+  background: #20a4f3;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: .4rem 1rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  height: auto;
+  text-transform: none;
+}
+
+.update-banner-reload:hover { filter: brightness(1.08); }
+
+.update-banner-dismiss {
+  flex: none;
+  background: none;
+  border: none;
+  color: #9b94c0;
+  font-size: .9rem;
+  cursor: pointer;
+  padding: .2rem .3rem;
+  height: auto;
+}
+
+.update-banner-dismiss:hover { color: #f6f7f8; }
+
+@media (max-width: 560px) {
+  .update-banner { flex-wrap: wrap; }
+  .update-banner-text { flex-basis: 100%; }
+}
