@@ -129,12 +129,44 @@ export function flatten(arr) {
   return out;
 }
 
+// A Promise is truthy, so `assert(result[0] === 42)` on an un-awaited kernel
+// does not merely fail — `result[0]` is undefined and the comparison is false,
+// which reads as ordinary wrongness. Catch the shape before the condition.
+export function assertNotPromise(value, message) {
+  if (isPromiseLike(value)) {
+    throw new Error(`${message ? `${message} — ` : ''}${AWAIT_HINT}`);
+  }
+}
+
 export function assert(cond, message) {
   if (!cond) throw new Error(message || 'assertion failed');
 }
 
+// The single most likely wrong answer in the whole course, and the one a
+// learner can least diagnose: a kernel call without `await`.
+//
+// Kernels return a Promise on every backend now, so a missing `await` hands
+// the tests a Promise instead of a result. Left alone that surfaces as
+// `undefined`, `{}`, `0`, or "expected 4071.75, got NaN" — a value mismatch
+// that says nothing about the cause, on code whose arithmetic is perfect. The
+// course's own rule is that a probe must name the mistake when it can prove
+// it, and here it can: nothing else in a task is a thenable.
+export function isPromiseLike(v) {
+  return Boolean(v) && (typeof v === 'object' || typeof v === 'function') && typeof v.then === 'function';
+}
+
+export const AWAIT_HINT =
+  'this is a Promise, not a result — a kernel call is missing its `await`. ' +
+  'Kernels hand back a promise on every backend, so write `const out = await myKernel(...)` ' +
+  '(awaiting a plain value is harmless, so the same line works in every mode).';
+
+function promiseGuard(value, prefix) {
+  if (isPromiseLike(value)) throw new Error(`${prefix}${AWAIT_HINT}`);
+}
+
 export function assertClose(a, b, eps = 1e-4, message) {
   const prefix = message ? `${message} — ` : '';
+  promiseGuard(a, prefix);
   if (typeof a !== 'number' || Number.isNaN(a)) {
     throw new Error(`${prefix}expected a number close to ${b}, got ${a}`);
   }
@@ -143,7 +175,15 @@ export function assertClose(a, b, eps = 1e-4, message) {
   }
 }
 
-export const utils = { seededRandom, makeTestImage, flatten, assert, assertClose };
+export const utils = {
+  seededRandom,
+  makeTestImage,
+  flatten,
+  assert,
+  assertClose,
+  assertNotPromise,
+  isPromiseLike,
+};
 
 // ---- console / log formatting ---------------------------------------------
 
@@ -156,6 +196,10 @@ export function timeString() {
 export function formatValue(value, depth = 0) {
   if (value === null) return 'null';
   if (value === undefined) return 'undefined';
+  // JSON.stringify(promise) is '{}', which tells a learner nothing. Naming it
+  // turns the single most confusing console line in the course into the
+  // answer: `console.log(myKernel())` without `await` prints this.
+  if (isPromiseLike(value)) return 'Promise { … } ← missing `await`?';
   const type = typeof value;
   if (type === 'string') return depth === 0 ? value : JSON.stringify(value);
   if (type === 'number' || type === 'boolean' || type === 'bigint') return String(value);

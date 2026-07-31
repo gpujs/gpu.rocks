@@ -15,10 +15,13 @@
 
 import { CPUKernel, GPU, utils as gpuUtils } from 'gpu.js';
 import {
+  AWAIT_HINT,
   utils,
   assert,
   assertClose,
+  assertNotPromise,
   formatValue,
+  isPromiseLike,
   readCanvasPixels,
   snapshotCanvas,
   timeString,
@@ -134,6 +137,9 @@ function isCpuKernel(k) {
 
 function makeConsoleProxy(push) {
   const real = typeof console !== 'undefined' ? console : null;
+  // Say it once per run, not once per line: a learner who forgot `await` in a
+  // loop would otherwise get the same paragraph fifty times.
+  let awaitHintGiven = false;
   const capture = type => (...args) => {
     if (real && real[type]) real[type](...args);
     push({
@@ -141,6 +147,10 @@ function makeConsoleProxy(push) {
       time: timeString(),
       text: args.map(a => formatValue(a)).join(' '),
     });
+    if (!awaitHintGiven && args.some(isPromiseLike)) {
+      awaitHintGiven = true;
+      push({ type: 'warn', time: timeString(), text: `▸ ${AWAIT_HINT}` });
+    }
   };
   return {
     log: capture('log'),
@@ -218,6 +228,30 @@ function substituteCpuImages(args) {
 
 // Wraps a kernel-run shortcut so every invocation records .lastArgs and the
 // first invocation emits a "kernel compiled" system log line.
+// Reading a value off a kernel's promise instead of awaiting it is the single
+// most likely mistake in the course now, and the least diagnosable: `result[0]`
+// and `result.length` on a Promise are `undefined`, so the learner sees
+// "expected 4071.75, got NaN" on arithmetic that is perfectly correct.
+//
+// A Promise has no `length`, no `[0]` and no `toArray`, so ANY such access is
+// unambiguously the missing-await bug — which makes throwing the honest move
+// rather than a guess. `then`/`catch`/`finally` and the internals `await`
+// itself touches are passed through untouched, so awaiting works exactly as
+// before and correct code never meets this proxy at all.
+const PROMISE_PASSTHROUGH = new Set(['then', 'catch', 'finally', 'constructor', 'toString']);
+
+function guardUnawaited(promise) {
+  return new Proxy(promise, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'symbol' || PROMISE_PASSTHROUGH.has(prop)) {
+        const value = Reflect.get(target, prop, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+      throw new Error(`you read ".${String(prop)}" off a kernel's result, but ${AWAIT_HINT}`);
+    },
+  });
+}
+
 function patchKernel(kernel, push, resolvedMode) {
   let announced = false;
   // In 'async' mode the kernel is not built until its first call RESOLVES —
@@ -255,10 +289,11 @@ function patchKernel(kernel, push, resolvedMode) {
       applyImageArgumentTypes(target, callArgs);
       const result = Reflect.apply(target, thisArg, callArgs);
       if (result && typeof result.then === 'function') {
-        return result.then(value => {
+        const settled = result.then(value => {
           announce(target);
           return value;
         });
+        return guardUnawaited(settled);
       }
       announce(target);
       return result;
@@ -738,6 +773,7 @@ export function buildTestContext(runResult, task) {
     utils,
     assert,
     assertClose,
+    assertNotPromise,
     // Uint8ClampedArray from the last graphical kernel's getPixels();
     // falls back to a 2D readback of the run's canvas.
     getPixels(flip) {
