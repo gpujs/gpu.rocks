@@ -82,10 +82,12 @@ function blurColsRef(grid) {
   return out;
 }
 
-// Run the learner's two kernels in creation order on a fresh grid.
-function composeBlur(ctx, grid) {
-  const pass1 = ctx.kernels[0](grid);
-  return ctx.kernels[1](pass1);
+// Run the learner's two kernels in creation order on a fresh grid. Awaited in
+// order: pass 2 reads pass 1's output, and under the async contract a kernel
+// call is a Promise on every backend.
+async function composeBlur(ctx, grid) {
+  const pass1 = await ctx.kernels[0](grid);
+  return await ctx.kernels[1](pass1);
 }
 
 // ---- near-miss diagnosis --------------------------------------------------
@@ -144,6 +146,30 @@ function wrapHint(got) {
     ? null
     : 'thread 0 read index −1 — % keeps its left operand\'s sign, so add n first: (this.thread.x − 1 + n) % n';
 }
+
+// Task 4: what the last cell comes back holding when the read past the end was
+// never fixed. 0 is the one that matters. It is what clamping the NEIGHBOR
+// index produces — thread 63 reads itself and subtracts itself — and it is also
+// exactly what the WebGPU backend hands back for signal[64] entirely on its
+// own, so a learner who changed nothing at all sees it on the default mode.
+// "expected 6.06, got 0" cannot tell those two apart; this can.
+function edgeProbes(expected) {
+  return [
+    [0,
+      'the last cell came back 0 — that is signal[63] minus itself. Clamping the NEIGHBOR index ' +
+      'gives you that, and so does leaving the read alone on a backend that clamps for you. ' +
+      'Clamp the index you read FROM instead: Math.min(this.thread.x, n − 2)'],
+    [-expected,
+      'the sign is flipped — a forward difference is signal[i + 1] − signal[i], next minus current'],
+  ];
+}
+
+// The same cell, when the read really did go off the end and the backend said
+// so. Only the CPU backend is this honest; the message names the others.
+const EDGE_UNDEFINED =
+  'the last cell read past the end of the array. signal[64] does not exist, and what you get for ' +
+  'it is undefined — NaN here, a garbage texel on WebGL, a silently clamped signal[63] on WebGPU. ' +
+  'Clamp the index you read FROM so the pair you read is a pair that exists';
 
 // Task 5: the window a learner gets from the raw loop variable d instead of
 // d − 2 — five taps starting at this thread rather than centered on it.
@@ -242,7 +268,7 @@ const toFahrenheit = gpu.createKernel(function (celsius) {
   return celsius[this.thread.x];
 }, { output: [64] });
 
-const result = toFahrenheit(celsius);
+const result = await toFahrenheit(celsius);
 console.log('first reading:', celsius[0], '°C →', result[0], '°F');
 `,
       solutionCode: `// Map: output[i] depends ONLY on input[i]. One thread per reading.
@@ -252,7 +278,7 @@ const toFahrenheit = gpu.createKernel(function (celsius) {
   return celsius[this.thread.x] * 9 / 5 + 32;
 }, { output: [64] });
 
-const result = toFahrenheit(celsius);
+const result = await toFahrenheit(celsius);
 console.log('first reading:', celsius[0], '°C →', result[0], '°F');
 `,
       inputs: utils => ({ celsius: makeCelsius(utils) }),
@@ -261,7 +287,7 @@ console.log('first reading:', celsius[0], '°C →', result[0], '°F');
           name: 'converts all 64 readings — one output per thread',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(makeCelsius(ctx.utils));
+            const out = await ctx.kernel(makeCelsius(ctx.utils));
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
           },
         },
@@ -270,7 +296,7 @@ console.log('first reading:', celsius[0], '°C →', result[0], '°F');
           run: async ctx => {
             const arr = new Array(64);
             for (let i = 0; i < 64; i++) arr[i] = i * 2 - 20; // includes 0 and 100
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             for (let i = 0; i < 64; i++) {
               const expected = arr[i] * 9 / 5 + 32;
               const hint = diagnose(out[i], expected, 1e-2, fahrenheitProbes(arr[i]));
@@ -284,7 +310,7 @@ console.log('first reading:', celsius[0], '°C →', result[0], '°F');
           name: 'private test #1',
           run: async ctx => {
             const data = makeCelsius(ctx.utils, 999);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out.length === 64, 'expected 64 output values');
             for (let i = 0; i < 64; i++) {
               const expected = data[i] * 9 / 5 + 32;
@@ -342,7 +368,7 @@ const reverse = gpu.createKernel(function (data) {
   constants: { n: 64 },
 });
 
-const result = reverse(data);
+const result = await reverse(data);
 console.log('first:', result[0], '(should be the old last:', data[63] + ')');
 `,
       solutionCode: `// A gather kernel computes WHERE to read from its own thread id.
@@ -355,7 +381,7 @@ const reverse = gpu.createKernel(function (data) {
   constants: { n: 64 },
 });
 
-const result = reverse(data);
+const result = await reverse(data);
 console.log('first:', result[0], '(should be the old last:', data[63] + ')');
 `,
       inputs: utils => ({ data: makeSamples(utils, 64, 1101) }),
@@ -366,7 +392,7 @@ console.log('first:', result[0], '(should be the old last:', data[63] + ')');
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const arr = new Array(64);
             for (let i = 0; i < 64; i++) arr[i] = i + 1;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
             const first = diagnose(out[0], 64, 1e-3, mirrorProbes(arr, 0));
             ctx.assertClose(out[0], 64, 1e-3, first || 'out[0] should hold the last input value');
@@ -379,7 +405,7 @@ console.log('first:', result[0], '(should be the old last:', data[63] + ')');
           run: async ctx => {
             const arr = new Array(64);
             for (let i = 0; i < 64; i++) arr[i] = i * 1.5 + 3;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             for (let i = 0; i < 64; i++) {
               const hint = diagnose(out[i], arr[63 - i], 1e-3, mirrorProbes(arr, i));
               ctx.assertClose(out[i], arr[63 - i], 1e-3, hint || `element ${i}`);
@@ -392,7 +418,7 @@ console.log('first:', result[0], '(should be the old last:', data[63] + ')');
           name: 'private test #1',
           run: async ctx => {
             const data = makeSamples(ctx.utils, 64, 4242);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out.length === 64, 'expected 64 output values');
             for (let i = 0; i < 64; i++) {
               const hint = diagnose(out[i], data[63 - i], 1e-3, mirrorProbes(data, i));
@@ -456,7 +482,7 @@ const rotate = gpu.createKernel(function (ring) {
   constants: { n: 64 },
 });
 
-const result = rotate(ring);
+const result = await rotate(ring);
 console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', result[1]);
 `,
       solutionCode: `// There is no out[i + 1] = value on a GPU. Threads only fill their OWN cell.
@@ -470,7 +496,7 @@ const rotate = gpu.createKernel(function (ring) {
   constants: { n: 64 },
 });
 
-const result = rotate(ring);
+const result = await rotate(ring);
 console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', result[1]);
 `,
       inputs: utils => ({ ring: makeSamples(utils, 64, 3301) }),
@@ -481,7 +507,7 @@ console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', resul
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const arr = new Array(64);
             for (let i = 0; i < 64; i++) arr[i] = i * 2 + 5;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
             for (let i = 1; i < 64; i++) {
               const hint = diagnose(out[i], arr[i - 1], 1e-3, rotateProbes(arr, i));
@@ -494,7 +520,7 @@ console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', resul
           run: async ctx => {
             const arr = new Array(64);
             for (let i = 0; i < 64; i++) arr[i] = i + 10;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             const hint = wrapHint(out[0]) || diagnose(out[0], arr[63], 1e-3, rotateProbes(arr, 0));
             ctx.assertClose(out[0], arr[63], 1e-3, hint || 'out[0] should hold the last input value');
           },
@@ -505,7 +531,7 @@ console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', resul
           name: 'private test #1',
           run: async ctx => {
             const ring = makeSamples(ctx.utils, 64, 8088);
-            const out = ctx.kernel(ring);
+            const out = await ctx.kernel(ring);
             ctx.assert(out.length === 64, 'expected 64 output values');
             for (let i = 0; i < 64; i++) {
               const expected = ring[(i - 1 + 64) % 64];
@@ -524,66 +550,90 @@ console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', resul
       title: 'Life on the Edge',
       intro: `<p>The moment a gather reads a <em>neighbor</em>, the edges bite. Take the forward
         difference — <code>out[i] = signal[i+1] − signal[i]</code>, "how much does the signal jump
-        here?". Thread 63 asks for <code>signal[64]</code>, which doesn't exist. On the CPU that
-        read is <code>NaN</code>; on the GPU it's whatever the hardware feels like. Either way,
-        garbage.</p>
-        <p>The standard fix is <strong>clamping</strong>: pin the index inside
-        <code>0 … n−1</code> with <code>Math.min</code>/<code>Math.max</code> before reading.
-        The clamped edge cell reads itself, so its difference is exactly 0 — a defined,
-        deliberate answer instead of an accident.</p>`,
-      goal: `<strong>Goal:</strong> compute the forward difference with a clamped read, so the
-        last cell returns exactly <code>0</code> instead of garbage.`,
+        here?". Thread 63 asks for <code>signal[64]</code>, which does not exist.</p>
+        <p>What comes back is <strong>whatever the backend decides</strong> — and the three this
+        course runs on decide three different things. Run the starter, then switch
+        <strong>Mode</strong> and run it again: the CPU backend gives you <code>NaN</code>, WebGL
+        gives you a garbage texel from elsewhere in the texture, and WebGPU quietly
+        <em>clamps</em> the index and gives you <code>signal[63]</code> — a perfectly plausible
+        number that you never asked for. That last one is the dangerous one: nothing looks wrong,
+        so nothing gets fixed.</p>
+        <p>Reading off the end isn't <em>wrong</em>, it is <strong>undefined</strong>: every
+        platform is free to answer differently, and they do. So never rely on the read. Decide what
+        the edge <em>means</em>, and write that down. The usual convention — the one every image
+        filter uses — is <strong>replicate</strong>: the last cell repeats the last real
+        difference, <code>signal[63] − signal[62]</code>. You get it by clamping the index you
+        start <em>from</em>, so the pair you read is always a pair that exists.</p>`,
+      goal: `<strong>Goal:</strong> compute the forward difference with a clamped <em>base</em>
+        index, so the last cell repeats the last real difference —
+        <code>signal[63] − signal[62]</code> — instead of depending on what this backend happens to
+        do with a read past the end.`,
       requirements: [
-        'Clamp the neighbor index: <code>Math.min(this.thread.x + 1, this.constants.n - 1)</code>',
+        'Clamp the index you read <em>from</em>: <code>Math.min(this.thread.x, this.constants.n - 2)</code>',
         'Interior cells still return <code>signal[i+1] − signal[i]</code>',
-        'The last cell returns exactly <code>0</code>',
+        'The last cell repeats the one before it — never a value read past the end',
       ],
       hints: [
         {
-          title: 'Hint 1 — where the garbage comes from',
+          title: 'Hint 1 — which read is out of range',
           body: `<p>Only thread 63 misbehaves: <code>this.thread.x + 1</code> is 64, one past the
-            end. Every other thread's read is fine — the fix should change <em>only</em> that
-            one thread's read.</p>`,
+            end. Every other thread's pair is fine, so the fix has to leave 0 … 62 exactly as they
+            are and hand 63 a pair that exists.</p>
+            <p>Careful which index you pin. Clamping the <em>neighbor</em> —
+            <code>Math.min(this.thread.x + 1, n - 1)</code> — makes thread 63 read itself twice and
+            return 0, which is the answer WebGPU was already inventing for you. Clamp the
+            <em>base</em> instead.</p>`,
         },
         {
-          title: 'Hint 2 — the clamped read',
-          body: `<pre><code>const j = Math.min(this.thread.x + 1, this.constants.n - 1);
-return signal[j] - signal[this.thread.x];</code></pre>
-<p>For thread 63, <code>j</code> is 63, and <code>signal[63] - signal[63]</code> is 0.</p>`,
+          title: 'Hint 2 — the clamped base',
+          body: `<pre><code>const i = Math.min(this.thread.x, this.constants.n - 2);
+return signal[i + 1] - signal[i];</code></pre>
+<p>For thread 63, <code>i</code> is 62, so the answer is
+            <code>signal[63] - signal[62]</code> — the last real jump, repeated. Cells 62 and 63
+            come back holding the same number, which is exactly what "replicate" means.</p>`,
         },
       ],
-      transfer: `Graphics hardware ships this as a sampler setting — <code>clamp-to-edge</code>
-        address mode in WebGPU and Metal, <code>cudaAddressModeClamp</code> on CUDA texture
-        objects. Reading a raw buffer instead of a texture? Then you clamp by hand, exactly like
-        here.`,
+      transfer: `Edge conventions are shipped as sampler settings on real hardware —
+        <code>clamp-to-edge</code> address mode in WebGPU and Metal,
+        <code>cudaAddressModeClamp</code> on CUDA texture objects, with <code>repeat</code> and
+        <code>mirror</code> sitting beside them as the alternatives. Reading a raw buffer instead
+        of a texture? Then you pick the convention by hand, exactly like here — and you <em>do</em>
+        pick one, because an unguarded read past the end is undefined everywhere: CUDA will happily
+        hand you another allocation's memory, and WGSL leaves out-of-range buffer access loose
+        enough that two implementations can disagree. The three answers you just got from three
+        backends are that fact, one level up.`,
       starterCode: `// Forward difference: out[i] = signal[i + 1] - signal[i].
 const gpu = new GPU({ mode });
 
 const delta = gpu.createKernel(function (signal) {
-  // TODO: thread 63 reads signal[64] — one past the end. Clamp the
-  // neighbor index so the last cell returns 0 instead of garbage.
+  // TODO: thread 63 reads signal[64] — one past the end, and what comes
+  // back is undefined: NaN on cpu, a garbage texel on webgl, a silently
+  // clamped signal[63] on webgpu. Clamp the index you read FROM so the
+  // last cell repeats the last real difference instead.
   return signal[this.thread.x + 1] - signal[this.thread.x];
 }, {
   output: [64],
   constants: { n: 64 },
 });
 
-const result = delta(signal);
-console.log('last delta (should be exactly 0):', result[63]);
+const result = await delta(signal);
+console.log('last two deltas (they should match):', result[62], result[63]);
 `,
       solutionCode: `// Forward difference: out[i] = signal[i + 1] - signal[i].
 const gpu = new GPU({ mode });
 
 const delta = gpu.createKernel(function (signal) {
-  const j = Math.min(this.thread.x + 1, this.constants.n - 1);
-  return signal[j] - signal[this.thread.x];
+  // Clamp the BASE index, so the pair (i, i + 1) always exists. Thread 63
+  // reads the pair thread 62 read — the replicate edge convention.
+  const i = Math.min(this.thread.x, this.constants.n - 2);
+  return signal[i + 1] - signal[i];
 }, {
   output: [64],
   constants: { n: 64 },
 });
 
-const result = delta(signal);
-console.log('last delta (should be exactly 0):', result[63]);
+const result = await delta(signal);
+console.log('last two deltas (they should match):', result[62], result[63]);
 `,
       inputs: utils => ({ signal: makeSamples(utils, 64, 5150) }),
       publicTests: [
@@ -592,7 +642,7 @@ console.log('last delta (should be exactly 0):', result[63]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const data = makeSamples(ctx.utils, 64, 5150);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
             for (let i = 0; i < 63; i++) {
               const expected = data[i + 1] - data[i];
@@ -605,12 +655,38 @@ console.log('last delta (should be exactly 0):', result[63]);
           },
         },
         {
-          name: 'the last cell clamps to <code>0</code> — no read past the end',
+          name: 'the last cell repeats the last real difference — no read past the end',
           run: async ctx => {
+            // A ramp first, because on 1, 2, 3, … every one of the wrong
+            // answers is a different round number: the right answer is
+            // exactly 1, a clamped-neighbor read is exactly 0, and a raw read
+            // off the end is whatever the backend invented. No tolerance
+            // argument can blur those together.
+            const ramp = new Array(64);
+            for (let i = 0; i < 64; i++) ramp[i] = i + 1;
+            const rampOut = await ctx.kernel(ramp);
+            ctx.assert(Number.isFinite(rampOut[63]), EDGE_UNDEFINED);
+            ctx.assertClose(
+              rampOut[63], 1, 1e-4,
+              diagnose(rampOut[63], 1, 1e-4, edgeProbes(1)) ||
+                'on a 1, 2, 3, … ramp every difference is 1, and the repeated last one is no exception'
+            );
+
             const data = makeSamples(ctx.utils, 64, 5150);
-            const out = ctx.kernel(data);
-            ctx.assert(Number.isFinite(out[63]), `out[63] is ${out[63]} — an out-of-bounds read`);
-            ctx.assertClose(out[63], 0, 1e-4, 'the clamped edge cell should be exactly 0');
+            const out = await ctx.kernel(data);
+            const expected = data[63] - data[62];
+            ctx.assert(Number.isFinite(out[63]), EDGE_UNDEFINED);
+            ctx.assertClose(
+              out[63], expected, 1e-3,
+              diagnose(out[63], expected, 1e-3, edgeProbes(expected)) ||
+                'the last cell should hold signal[63] − signal[62], the last difference there is'
+            );
+            // Structural, and independent of the numbers: replicate means the
+            // final pair is read twice, so the last two cells must agree.
+            ctx.assertClose(
+              out[63], out[62], 1e-3,
+              'cells 62 and 63 read the same pair, so they must come back holding the same difference'
+            );
           },
         },
       ],
@@ -619,7 +695,7 @@ console.log('last delta (should be exactly 0):', result[63]);
           name: 'private test #1',
           run: async ctx => {
             const data = makeSamples(ctx.utils, 64, 6006);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             for (let i = 0; i < 63; i++) {
               const expected = data[i + 1] - data[i];
               const hint = diagnose(out[i], expected, 1e-3, [
@@ -628,7 +704,14 @@ console.log('last delta (should be exactly 0):', result[63]);
               ]);
               ctx.assertClose(out[i], expected, 1e-3, hint || `element ${i}`);
             }
-            ctx.assertClose(out[63], 0, 1e-4, 'last cell should clamp to 0');
+            const last = data[63] - data[62];
+            ctx.assert(Number.isFinite(out[63]), EDGE_UNDEFINED);
+            ctx.assertClose(
+              out[63], last, 1e-3,
+              diagnose(out[63], last, 1e-3, edgeProbes(last)) ||
+                'the last cell should repeat signal[63] − signal[62]'
+            );
+            ctx.assertClose(out[63], out[62], 1e-3, 'the last two cells read the same pair');
           },
         },
       ],
@@ -691,7 +774,7 @@ const smooth = gpu.createKernel(function (signal) {
   constants: { n: 128 },
 });
 
-const result = smooth(signal);
+const result = await smooth(signal);
 console.log('raw:', signal[64], '→ smoothed:', result[64]);
 `,
       solutionCode: `// A 5-tap stencil: mean of signal[x-2 ... x+2], edges clamped.
@@ -709,7 +792,7 @@ const smooth = gpu.createKernel(function (signal) {
   constants: { n: 128 },
 });
 
-const result = smooth(signal);
+const result = await smooth(signal);
 console.log('raw:', signal[64], '→ smoothed:', result[64]);
 `,
       inputs: utils => ({ signal: makeSamples(utils, 128, 7203) }),
@@ -719,7 +802,7 @@ console.log('raw:', signal[64], '→ smoothed:', result[64]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const data = makeSamples(ctx.utils, 128, 7203);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out && out.length === 128, `expected 128 output values, got ${out && out.length}`);
             const ref = movingAverageRef(data);
             const shifted = shiftedAverageRef(data);
@@ -733,7 +816,7 @@ console.log('raw:', signal[64], '→ smoothed:', result[64]);
           name: 'edge cells clamp — <code>out[0]</code> averages indexes 0, 0, 0, 1, 2',
           run: async ctx => {
             const data = makeSamples(ctx.utils, 128, 7203);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             const n = data.length;
             const ref = movingAverageRef(data);
             const shifted = shiftedAverageRef(data);
@@ -754,7 +837,7 @@ console.log('raw:', signal[64], '→ smoothed:', result[64]);
           name: 'private test #1',
           run: async ctx => {
             const data = makeSamples(ctx.utils, 128, 9090);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             const ref = movingAverageRef(data);
             const shifted = shiftedAverageRef(data);
             for (let i = 0; i < 128; i++) {
@@ -823,8 +906,8 @@ const blurY = gpu.createKernel(function (grid) {
   return grid[this.thread.y][this.thread.x];
 }, { output: [48, 48], constants: { n: 48 } });
 
-const pass1 = blurX(heightmap);
-const smooth = blurY(pass1);
+const pass1 = await blurX(heightmap);
+const smooth = await blurY(pass1);
 console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
 `,
       solutionCode: `// Two passes at right angles = one 3×3 box blur, for 6 reads instead of 9.
@@ -848,8 +931,8 @@ const blurY = gpu.createKernel(function (grid) {
   return sum / 3;
 }, { output: [48, 48], constants: { n: 48 } });
 
-const pass1 = blurX(heightmap);
-const smooth = blurY(pass1);
+const pass1 = await blurX(heightmap);
+const smooth = await blurY(pass1);
 console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
 `,
       inputs: utils => ({ heightmap: makeGrid(utils, 48) }),
@@ -858,7 +941,7 @@ console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
           name: 'two passes compose into a 48×48 grid',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 2, `expected 2 kernels, found ${ctx.kernels.length}`);
-            const out = composeBlur(ctx, makeGrid(ctx.utils, 48));
+            const out = await composeBlur(ctx, makeGrid(ctx.utils, 48));
             ctx.assert(out && out.length === 48, `expected 48 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 48, 'each row should hold 48 values');
           },
@@ -867,7 +950,7 @@ console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
           name: 'interior cells equal the full 3×3 box average',
           run: async ctx => {
             const grid = makeGrid(ctx.utils, 48);
-            const out = composeBlur(ctx, grid);
+            const out = await composeBlur(ctx, grid);
             const ref = blurColsRef(blurRowsRef(grid));
             const alts = blurAlternatives(grid);
             for (const [y, x] of [[1, 1], [10, 30], [24, 24], [40, 7], [46, 46]]) {
@@ -880,7 +963,7 @@ console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
           name: 'edges and corners clamp — no zero-padding creeping in',
           run: async ctx => {
             const grid = makeGrid(ctx.utils, 48);
-            const out = composeBlur(ctx, grid);
+            const out = await composeBlur(ctx, grid);
             const ref = blurColsRef(blurRowsRef(grid));
             const alts = blurAlternatives(grid);
             for (const [y, x] of [[0, 0], [0, 47], [47, 0], [47, 47], [0, 20], [20, 0]]) {
@@ -895,7 +978,7 @@ console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
           name: 'private test #1',
           run: async ctx => {
             const grid = makeGrid(ctx.utils, 48, 555);
-            const out = composeBlur(ctx, grid);
+            const out = await composeBlur(ctx, grid);
             const ref = blurColsRef(blurRowsRef(grid));
             const alts = blurAlternatives(grid);
             for (let y = 0; y < 48; y++) {

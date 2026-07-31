@@ -179,7 +179,7 @@ const sliceSDF = gpu.createKernel(function (cx, cy, r) {
   return 0;
 }, { output: [64, 64] });
 
-const field = sliceSDF(0, 0, 1);
+const field = await sliceSDF(0, 0, 1);
 console.log('center (inside, should be -1):', field[32][32]);
 console.log('far corner (outside):', field[0][0]);
 `,
@@ -194,7 +194,7 @@ const sliceSDF = gpu.createKernel(function (cx, cy, r) {
   return Math.sqrt(dx * dx + dy * dy) - r;
 }, { output: [64, 64] });
 
-const field = sliceSDF(0, 0, 1);
+const field = await sliceSDF(0, 0, 1);
 console.log('center (inside, should be -1):', field[32][32]);
 console.log('far corner (outside):', field[0][0]);
 `,
@@ -203,7 +203,7 @@ console.log('far corner (outside):', field[0][0]);
           name: 'unit sphere: center reads −1, surface reads 0, corner reads ≈1.83',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(0, 0, 1);
+            const out = await ctx.kernel(0, 0, 1);
             ctx.assert(out && out.length === 64 && out[0].length === 64, 'expected a 64×64 field');
             const hint = (y, x, expected) => diagnose(out[y][x], expected, 2e-3,
               sdfProbes(worldCoord(x), worldCoord(y), 0, 0, 1));
@@ -218,7 +218,7 @@ console.log('far corner (outside):', field[0][0]);
         {
           name: 'the field is radially symmetric around the sphere center',
           run: async ctx => {
-            const out = ctx.kernel(0, 0, 1);
+            const out = await ctx.kernel(0, 0, 1);
             for (const d of [5, 10, 15]) {
               ctx.assertClose(out[32][32 + d], out[32][32 - d], 2e-3, `left/right at offset ${d}`);
               ctx.assertClose(out[32][32 + d], out[32 + d][32], 2e-3, `x/y at offset ${d}`);
@@ -231,7 +231,7 @@ console.log('far corner (outside):', field[0][0]);
           name: 'private test #1',
           run: async ctx => {
             // An off-center, smaller sphere — hardcoding the unit sphere fails here.
-            const out = ctx.kernel(0.5, -0.25, 0.75);
+            const out = await ctx.kernel(0.5, -0.25, 0.75);
             const cases = [[3, 7], [20, 44], [32, 32], [50, 12], [10, 58], [63, 63]];
             for (const [y, x] of cases) {
               const dx = worldCoord(x) - 0.5;
@@ -302,7 +302,7 @@ const metaField = gpu.createKernel(function (sep, r, k) {
   return Math.min(d1, d2);
 }, { output: [64, 64] });
 
-const field = metaField(0.7, 0.5, 0.4);
+const field = await metaField(0.7, 0.5, 0.4);
 console.log('midpoint (should dip to 0.1):', field[32][32]);
 `,
       solutionCode: `// min() gives a hard crease. smin() gives a blend. Metaballs are just smin.
@@ -321,7 +321,7 @@ const metaField = gpu.createKernel(function (sep, r, k) {
   return smin(d1, d2, k);
 }, { output: [64, 64] });
 
-const field = metaField(0.7, 0.5, 0.4);
+const field = await metaField(0.7, 0.5, 0.4);
 console.log('midpoint (should dip to 0.1):', field[32][32]);
 `,
       publicTests: [
@@ -329,7 +329,7 @@ console.log('midpoint (should dip to 0.1):', field[32][32]);
           name: 'midpoint dips below the plain minimum by <code>k / 4</code>',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(0.7, 0.5, 0.4);
+            const out = await ctx.kernel(0.7, 0.5, 0.4);
             // both distances are 0.7 - 0.5 = 0.2 at the midpoint; smin dips by 0.4 / 4
             const hint = diagnose(out[32][32], 0.1, 3e-3, sminProbes(0.2, 0.2, 0.4));
             ctx.assertClose(out[32][32], 0.1, 3e-3, hint || 'field at the midpoint');
@@ -339,7 +339,7 @@ console.log('midpoint (should dip to 0.1):', field[32][32]);
         {
           name: 'field stays symmetric and returns to plain min far from the seam',
           run: async ctx => {
-            const out = ctx.kernel(0.7, 0.5, 0.4);
+            const out = await ctx.kernel(0.7, 0.5, 0.4);
             for (const d of [6, 12, 20]) {
               ctx.assertClose(out[32][32 + d], out[32][32 - d], 3e-3, `mirror pair at offset ${d}`);
             }
@@ -357,7 +357,7 @@ console.log('midpoint (should dip to 0.1):', field[32][32]);
           name: 'private test #1',
           run: async ctx => {
             const [sep, r, k] = [0.9, 0.45, 0.3];
-            const out = ctx.kernel(sep, r, k);
+            const out = await ctx.kernel(sep, r, k);
             for (let y = 1; y < 64; y += 7) {
               for (let x = 1; x < 64; x += 7) {
                 const wx = worldCoord(x);
@@ -449,7 +449,7 @@ const marchScene = gpu.createKernel(function (sep, r, k) {
   else this.color(0.02, 0.03, 0.06, 1);
 }, { output: [64, 64], graphical: true });
 
-marchScene(0.55, 0.5, 0.3);
+await marchScene(0.55, 0.5, 0.3);
 render(marchScene.canvas);
 `,
       solutionCode: `// Sphere tracing: the SDF value IS a safe step size. Step, sample, repeat.
@@ -481,7 +481,7 @@ const marchScene = gpu.createKernel(function (sep, r, k) {
   else this.color(0.02, 0.03, 0.06, 1);
 }, { output: [64, 64], graphical: true });
 
-marchScene(0.55, 0.5, 0.3);
+await marchScene(0.55, 0.5, 0.3);
 render(marchScene.canvas);
 `,
       publicTests: [
@@ -504,7 +504,7 @@ render(marchScene.canvas);
         {
           name: 'rays through the blob hit: center and both lobes come back pink',
           run: async ctx => {
-            ctx.kernel(0.55, 0.5, 0.3);
+            await ctx.kernel(0.55, 0.5, 0.3);
             const pixels = ctx.getPixels();
             const missed = noHitHint(pixels);
             for (const x of [22, 32, 42]) {
@@ -516,7 +516,7 @@ render(marchScene.canvas);
         {
           name: 'the silhouette is left-right symmetric',
           run: async ctx => {
-            ctx.kernel(0.55, 0.5, 0.3);
+            await ctx.kernel(0.55, 0.5, 0.3);
             const pixels = ctx.getPixels();
             for (const d of [6, 10, 14, 18]) {
               const left = redRow32(pixels, 32 - d) > 128;
@@ -534,7 +534,7 @@ render(marchScene.canvas);
           name: 'private test #1',
           run: async ctx => {
             // Pull the spheres apart: the center ray now passes clean between them.
-            ctx.kernel(1.2, 0.45, 0.15);
+            await ctx.kernel(1.2, 0.45, 0.15);
             const pixels = ctx.getPixels();
             ctx.assert(
               redRow32(pixels, 32) < 40,
@@ -630,7 +630,7 @@ const showNormals = gpu.createKernel(function (sep, r, k) {
   }
 }, { output: [64, 64], graphical: true });
 
-showNormals(0.55, 0.5, 0.3);
+await showNormals(0.55, 0.5, 0.3);
 render(showNormals.canvas);
 `,
       solutionCode: `// The normal of an SDF surface is its gradient. Six samples buy it.
@@ -676,7 +676,7 @@ const showNormals = gpu.createKernel(function (sep, r, k) {
   }
 }, { output: [64, 64], graphical: true });
 
-showNormals(0.55, 0.5, 0.3);
+await showNormals(0.55, 0.5, 0.3);
 render(showNormals.canvas);
 `,
       publicTests: [
@@ -684,7 +684,7 @@ render(showNormals.canvas);
           name: 'the head-on center pixel paints <code>rgb(0.5, 0.5, 0)</code> — normal (0, 0, −1)',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            ctx.kernel(0.55, 0.5, 0.3);
+            await ctx.kernel(0.55, 0.5, 0.3);
             const pixels = ctx.getPixels();
             assertCenterRow(ctx, pixels, 32, 0, 128, 14, 'center red (nx = 0)');
             assertCenterRow(ctx, pixels, 32, 1, 128, 14, 'center green (ny = 0)');
@@ -700,7 +700,7 @@ render(showNormals.canvas);
         {
           name: 'mirrored hit pixels have mirrored normals: red channels sum to ≈255',
           run: async ctx => {
-            ctx.kernel(0.55, 0.5, 0.3);
+            await ctx.kernel(0.55, 0.5, 0.3);
             const pixels = ctx.getPixels();
             for (const d of [8, 10]) {
               const left = pixelAt(pixels, 32 - d, 32);
@@ -716,7 +716,7 @@ render(showNormals.canvas);
         {
           name: 'misses keep the background color',
           run: async ctx => {
-            ctx.kernel(0.55, 0.5, 0.3);
+            await ctx.kernel(0.55, 0.5, 0.3);
             const pixels = ctx.getPixels();
             for (const [x, y] of [[0, 0], [63, 0], [0, 63], [63, 63]]) {
               const [, g] = pixelAt(pixels, x, y);
@@ -730,7 +730,7 @@ render(showNormals.canvas);
           name: 'private test #1',
           run: async ctx => {
             // Separated spheres: center misses; a lobe-center pixel faces the camera.
-            ctx.kernel(1.2, 0.45, 0.15);
+            await ctx.kernel(1.2, 0.45, 0.15);
             const pixels = ctx.getPixels();
             ctx.assert(pixelAt(pixels, 32, 32)[1] < 40, 'center should be background now');
             assertCenterRow(ctx, pixels, 51, 0, 124, 16, 'right lobe red (nx ≈ 0)');
@@ -831,7 +831,7 @@ const shadeScene = gpu.createKernel(function (sep, r, k, lx, ly, lz) {
 }, { output: [64, 64], graphical: true });
 
 // light direction: up-left of the camera, pointing at the scene
-shadeScene(0.55, 0.5, 0.3, -0.6, 0, -0.8);
+await shadeScene(0.55, 0.5, 0.3, -0.6, 0, -0.8);
 render(shadeScene.canvas);
 `,
       solutionCode: `// Lighting is a dot product: brightness = how squarely you face the light.
@@ -880,7 +880,7 @@ const shadeScene = gpu.createKernel(function (sep, r, k, lx, ly, lz) {
 }, { output: [64, 64], graphical: true });
 
 // light direction: up-left of the camera, pointing at the scene
-shadeScene(0.55, 0.5, 0.3, -0.6, 0, -0.8);
+await shadeScene(0.55, 0.5, 0.3, -0.6, 0, -0.8);
 render(shadeScene.canvas);
 `,
       publicTests: [
@@ -888,7 +888,7 @@ render(shadeScene.canvas);
           name: 'center pixel brightness matches Lambert: <code>0.15 + 0.85 × 0.8</code>',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
+            await ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
             const pixels = ctx.getPixels();
             // n = (0, 0, -1), l = (-0.6, 0, -0.8) → diff 0.8 → c 0.83 → red ≈ 212
             const flat = ambientOnlyHint(Math.max(redRow32(pixels, 32), pixelAt(pixels, 32, 31)[0]));
@@ -899,7 +899,7 @@ render(shadeScene.canvas);
         {
           name: 'the side facing the light is brighter than the side facing away',
           run: async ctx => {
-            ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
+            await ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
             const pixels = ctx.getPixels();
             const lit = redRow32(pixels, 22);
             const unlit = redRow32(pixels, 42);
@@ -912,7 +912,7 @@ render(shadeScene.canvas);
         {
           name: 'misses keep the background color',
           run: async ctx => {
-            ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
+            await ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
             const pixels = ctx.getPixels();
             for (const [x, y] of [[0, 0], [63, 63]]) {
               const [r] = pixelAt(pixels, x, y);
@@ -926,7 +926,7 @@ render(shadeScene.canvas);
           name: 'private test #1',
           run: async ctx => {
             // Move the light to the right: the gradient must flip with it.
-            ctx.kernel(0.55, 0.5, 0.3, 0.6, 0, -0.8);
+            await ctx.kernel(0.55, 0.5, 0.3, 0.6, 0, -0.8);
             const pixels = ctx.getPixels();
             assertCenterRow(ctx, pixels, 32, 0, 212, 14, 'center red (same head-on dot product)');
             const left = redRow32(pixels, 22);
@@ -1044,7 +1044,7 @@ const finalScene = gpu.createKernel(function (sep, r, k, lx, ly, lz, shadowOn) {
 }, { output: [64, 64], graphical: true });
 
 // light swung low to the left — the left lobe should shade the neck
-finalScene(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
+await finalScene(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
 render(finalScene.canvas);
 `,
       solutionCode: `// One more march — from the surface toward the light — buys shadows.
@@ -1105,7 +1105,7 @@ const finalScene = gpu.createKernel(function (sep, r, k, lx, ly, lz, shadowOn) {
 }, { output: [64, 64], graphical: true });
 
 // light swung low to the left — the left lobe should shade the neck
-finalScene(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
+await finalScene(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
 render(finalScene.canvas);
 `,
       publicTests: [
@@ -1118,7 +1118,7 @@ render(finalScene.canvas);
               ctx.canvas.width === 64 && ctx.canvas.height === 64,
               `expected a 64×64 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
+            await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
             const pixels = ctx.getPixels();
             // even a fully shadowed hit keeps the 0.15 ambient floor (red ≈ 38)
             ctx.assert(
@@ -1134,9 +1134,9 @@ render(finalScene.canvas);
         {
           name: 'toggling <code>shadowOn</code> darkens the neck of the blob by > 60',
           run: async ctx => {
-            ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
+            await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
             const withShadow = Array.from(ctx.getPixels());
-            ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 0);
+            await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 0);
             const noShadow = Array.from(ctx.getPixels());
             let maxDrop = 0;
             for (let x = 28; x <= 40; x++) {
@@ -1151,9 +1151,9 @@ render(finalScene.canvas);
         {
           name: 'shadows only ever darken — and the lit flank is untouched',
           run: async ctx => {
-            ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
+            await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
             const withShadow = Array.from(ctx.getPixels());
-            ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 0);
+            await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 0);
             const noShadow = Array.from(ctx.getPixels());
             for (let x = 0; x < 64; x++) {
               ctx.assert(
@@ -1176,9 +1176,9 @@ render(finalScene.canvas);
           run: async ctx => {
             // New geometry AND a mirrored light: the shadow must move to the
             // other flank, and the now-separated center ray must miss.
-            ctx.kernel(0.6, 0.48, 0.25, 0.86, 0, -0.51, 1);
+            await ctx.kernel(0.6, 0.48, 0.25, 0.86, 0, -0.51, 1);
             const withShadow = Array.from(ctx.getPixels());
-            ctx.kernel(0.6, 0.48, 0.25, 0.86, 0, -0.51, 0);
+            await ctx.kernel(0.6, 0.48, 0.25, 0.86, 0, -0.51, 0);
             const noShadow = Array.from(ctx.getPixels());
             ctx.assert(redRow32(withShadow, 32) < 20, 'center ray should miss the separated blobs');
             let maxDrop = 0;

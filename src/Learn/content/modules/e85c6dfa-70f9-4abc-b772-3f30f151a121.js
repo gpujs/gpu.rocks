@@ -485,7 +485,7 @@ const derivatives = gpu.createKernel(function (frameA, frameB) {
   constants: { last: 63 },
 });
 
-const d = derivatives(frameA, frameB);
+const d = await derivatives(frameA, frameB);
 console.log('Ix at (45, 30):', d[0][30][45]);
 console.log('Iy at (45, 30):', d[1][30][45]);
 console.log('It at (45, 30):', d[2][30][45]);
@@ -533,7 +533,7 @@ const derivatives = gpu.createKernel(function (frameA, frameB) {
   constants: { last: 63 },
 });
 
-const d = derivatives(frameA, frameB);
+const d = await derivatives(frameA, frameB);
 console.log('Ix at (45, 30):', d[0][30][45]);
 console.log('Iy at (45, 30):', d[1][30][45]);
 console.log('It at (45, 30):', d[2][30][45]);
@@ -548,7 +548,7 @@ console.log('It at (45, 30):', d[2][30][45]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const [a, b] = mainFrames();
-            const out = ctx.kernel(grayImage(a), grayImage(b));
+            const out = await ctx.kernel(grayImage(a), grayImage(b));
             ctx.assert(out && out.length === 3, `expected 3 planes, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 64, 'each plane should hold 64 rows');
             ctx.assert(out[0][0] && out[0][0].length === 64, 'each row should hold 64 values');
@@ -559,7 +559,7 @@ console.log('It at (45, 30):', d[2][30][45]);
           run: async ctx => {
             const [a, b] = mainFrames();
             const ref = derivativeRef(a, b);
-            const out = ctx.kernel(grayImage(a), grayImage(b));
+            const out = await ctx.kernel(grayImage(a), grayImage(b));
             // Columns 0-31 are a wash and a set of vertical stripes: nothing
             // changes down a column, so Iy must vanish and Ix must not. A pair
             // of planes read off each other fails this instantly.
@@ -580,7 +580,7 @@ console.log('It at (45, 30):', d[2][30][45]);
           name: 'all three planes match the central differences',
           run: async ctx => {
             const [a, b] = mainFrames();
-            const out = ctx.kernel(grayImage(a), grayImage(b));
+            const out = await ctx.kernel(grayImage(a), grayImage(b));
             const ref = derivativeRef(a, b);
             const fromA = derivativeRef(a, b, 'a');
             const fromB = derivativeRef(a, b, 'b');
@@ -617,7 +617,7 @@ console.log('It at (45, 30):', d[2][30][45]);
           name: 'private test #1',
           run: async ctx => {
             const [a, b] = mainFrames();
-            const out = ctx.kernel(grayImage(a), grayImage(b));
+            const out = await ctx.kernel(grayImage(a), grayImage(b));
             const ref = derivativeRef(a, b);
             const fromA = derivativeRef(a, b, 'a');
             const eps = 1e-5;
@@ -644,7 +644,7 @@ console.log('It at (45, 30):', d[2][30][45]);
             // A second scene, with the motion along the diagonal instead of
             // down-and-right: the same kernel, different numbers.
             const [a, b] = apertureFrames();
-            const out = ctx.kernel(grayImage(a), grayImage(b));
+            const out = await ctx.kernel(grayImage(a), grayImage(b));
             const ref = derivativeRef(a, b);
             const eps = 1e-5;
             for (let z = 0; z < 3; z++) {
@@ -729,7 +729,7 @@ const normalFlow = gpu.createKernel(function (derivs) {
   output: [64, 64, 2],
 });
 
-const flow = normalFlow(derivs);
+const flow = await normalFlow(derivs);
 console.log('true motion: (4, 0)');
 console.log('estimated at (30, 21):', flow[0][21][30], flow[1][21][30]);
 `,
@@ -752,7 +752,7 @@ const normalFlow = gpu.createKernel(function (derivs) {
   output: [64, 64, 2],
 });
 
-const flow = normalFlow(derivs);
+const flow = await normalFlow(derivs);
 console.log('true motion: (4, 0)');
 console.log('estimated at (30, 21):', flow[0][21][30], flow[1][21][30]);
 `,
@@ -766,7 +766,7 @@ console.log('estimated at (30, 21):', flow[0][21][30], flow[1][21][30]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const [a, b] = apertureFrames();
-            const out = ctx.kernel(derivativeRef(a, b));
+            const out = await ctx.kernel(derivativeRef(a, b));
             ctx.assert(out && out.length === 2, `expected 2 planes, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 64, 'each plane should hold 64 rows');
             ctx.assert(out[0][0] && out[0][0].length === 64, 'each row should hold 64 values');
@@ -777,7 +777,7 @@ console.log('estimated at (30, 21):', flow[0][21][30], flow[1][21][30]);
           run: async ctx => {
             const [a, b] = apertureFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             // Away from the sawtooth's reset the ramp is exactly linear, so the
             // normal flow is exactly (2, 2): the projection of the true (4, 0)
             // onto the gradient direction. Nothing approximate about it.
@@ -808,7 +808,7 @@ console.log('estimated at (30, 21):', flow[0][21][30], flow[1][21][30]);
           run: async ctx => {
             const [a, b] = apertureFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             // The point of the whole task: the constraint does not single out an
             // answer. Your (2, 2), the real (4, 0) and the absurd (0, 4) all
             // drive the residual to zero, so the pixel has no way to choose.
@@ -834,7 +834,7 @@ console.log('estimated at (30, 21):', flow[0][21][30], flow[1][21][30]);
           run: async ctx => {
             const [a, b] = apertureFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             const [refU, refV] = normalFlowRef(d);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
@@ -862,7 +862,7 @@ console.log('estimated at (30, 21):', flow[0][21][30], flow[1][21][30]);
             // wrong gradient stops being invisible.
             const [a, b] = mainFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             const [refU, refV] = normalFlowRef(d);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
@@ -1000,7 +1000,7 @@ const lucasKanade = gpu.createKernel(function (derivs) {
   constants: { last: 63, eps: 1e-6 },
 });
 
-const flow = lucasKanade(derivs);
+const flow = await lucasKanade(derivs);
 console.log('textured region, true motion is (1, 1):', flow[0][30][45], flow[1][30][45]);
 console.log('flat region:', flow[0][10][6], flow[1][10][6]);
 `,
@@ -1049,7 +1049,7 @@ const lucasKanade = gpu.createKernel(function (derivs) {
   constants: { last: 63, eps: 1e-6 },
 });
 
-const flow = lucasKanade(derivs);
+const flow = await lucasKanade(derivs);
 console.log('textured region, true motion is (1, 1):', flow[0][30][45], flow[1][30][45]);
 console.log('flat region:', flow[0][10][6], flow[1][10][6]);
 `,
@@ -1064,7 +1064,7 @@ console.log('flat region:', flow[0][10][6], flow[1][10][6]);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const [a, b] = mainFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             ctx.assert(out && out.length === 2, `expected 2 planes, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 64, 'each plane should hold 64 rows');
             const [refU, refV] = flowRef(d);
@@ -1097,7 +1097,7 @@ console.log('flat region:', flow[0][10][6], flow[1][10][6]);
           run: async ctx => {
             const [a, b] = mainFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             // Columns 0-31 never vary with y, so Iy is exactly 0, so Sxy and Syy
             // are exactly 0, so the determinant is exactly 0 — on every backend,
             // in every precision. An unguarded solve divides by it.
@@ -1123,7 +1123,7 @@ console.log('flat region:', flow[0][10][6], flow[1][10][6]);
           run: async ctx => {
             const [a, b] = mainFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             const [refU, refV] = flowRef(d);
             const [noCrossU, noCrossV] = flowRef(d, 'nocross');
             const cases = [[40, 30], [45, 30], [50, 12], [55, 45], [60, 50], [33, 40], [32, 20], [63, 8]];
@@ -1152,7 +1152,7 @@ console.log('flat region:', flow[0][10][6], flow[1][10][6]);
           run: async ctx => {
             const [a, b] = mainFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             const [refU, refV] = flowRef(d);
             const [noCrossU, noCrossV] = flowRef(d, 'nocross');
             for (let y = 0; y < 64; y++) {
@@ -1184,7 +1184,7 @@ console.log('flat region:', flow[0][10][6], flow[1][10][6]);
             // problem.
             const [a, b] = apertureFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             for (let y = 3; y <= 60; y++) {
               for (let x = 3; x <= 60; x++) {
                 for (let z = 0; z < 2; z++) {
@@ -1282,7 +1282,7 @@ const confidence = gpu.createKernel(function (derivs) {
   constants: { last: 63 },
 });
 
-const map = confidence(derivs);
+const map = await confidence(derivs);
 console.log('flat band:', map[20][6]);
 console.log('stripe band:', map[20][24]);
 console.log('textured band:', map[30][45]);
@@ -1323,7 +1323,7 @@ const confidence = gpu.createKernel(function (derivs) {
   constants: { last: 63 },
 });
 
-const map = confidence(derivs);
+const map = await confidence(derivs);
 console.log('flat band:', map[20][6]);
 console.log('stripe band:', map[20][24]);
 console.log('textured band:', map[30][45]);
@@ -1338,7 +1338,7 @@ console.log('textured band:', map[30][45]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const [a, b] = mainFrames();
-            const out = ctx.kernel(derivativeRef(a, b));
+            const out = await ctx.kernel(derivativeRef(a, b));
             ctx.assert(out && out.length === 64, `expected 64 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 64, 'each row should hold 64 values');
           },
@@ -1348,7 +1348,7 @@ console.log('textured band:', map[30][45]);
           run: async ctx => {
             const [a, b] = mainFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             const larger = confidenceRef(d, 'max');
             // Nothing left of column 34 varies with y, so Syy and Sxy are
             // exactly 0 there and the smaller eigenvalue is exactly 0 — for the
@@ -1377,7 +1377,7 @@ console.log('textured band:', map[30][45]);
           run: async ctx => {
             const [a, b] = mainFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             const ref = confidenceRef(d);
             const larger = confidenceRef(d, 'max');
             const determinant = confidenceRef(d, 'det');
@@ -1399,7 +1399,7 @@ console.log('textured band:', map[30][45]);
           run: async ctx => {
             const [a, b] = mainFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             const ref = confidenceRef(d);
             const larger = confidenceRef(d, 'max');
             const determinant = confidenceRef(d, 'det');
@@ -1423,7 +1423,7 @@ console.log('textured band:', map[30][45]);
             // measuring contrast rather than trackability.
             const [a, b] = apertureFrames();
             const d = derivativeRef(a, b);
-            const out = ctx.kernel(d);
+            const out = await ctx.kernel(d);
             const larger = confidenceRef(d, 'max');
             for (let y = 3; y <= 60; y += 1) {
               for (let x = 3; x <= 60; x += 1) {
@@ -1528,7 +1528,7 @@ const paintFlow = gpu.createKernel(function (flow) {
   constants: { maxFlow: 1.5 },
 });
 
-paintFlow(flow);
+await paintFlow(flow);
 render(paintFlow.canvas);
 `,
       solutionCode: `// Direction becomes hue, magnitude becomes saturation, stillness stays white.
@@ -1573,7 +1573,7 @@ const paintFlow = gpu.createKernel(function (flow) {
   constants: { maxFlow: 1.5 },
 });
 
-paintFlow(flow);
+await paintFlow(flow);
 render(paintFlow.canvas);
 `,
       inputs: () => {
@@ -1643,7 +1643,7 @@ render(paintFlow.canvas);
             // leftward is red, downward is violet — three points far apart on
             // the wheel.
             for (const [u, v, name] of [[1, 0, 'rightward'], [-1, 0, 'leftward'], [0, 1, 'downward']]) {
-              ctx.kernel(constantFlow(u, v));
+              await ctx.kernel(constantFlow(u, v));
               const pixels = ctx.getPixels();
               const [er, eg, eb] = flowColour(u, v);
               for (let i = 0; i < pixels.length; i += 397 * 4) {
@@ -1664,14 +1664,14 @@ render(paintFlow.canvas);
           run: async ctx => {
             // Saturation is a length, so it must not care about direction, and a
             // vector past maxFlow must clamp rather than wrap.
-            ctx.kernel(constantFlow(0, 0));
+            await ctx.kernel(constantFlow(0, 0));
             let pixels = ctx.getPixels();
             ctx.assert(
               pixels[0] === 255 && pixels[1] === 255 && pixels[2] === 255,
               `a zero flow field should be pure white, got rgb(${pixels[0]}, ${pixels[1]}, ${pixels[2]})`
             );
             for (const [u, v] of [[6, 6], [-6, 6], [0, -9]]) {
-              ctx.kernel(constantFlow(u, v));
+              await ctx.kernel(constantFlow(u, v));
               pixels = ctx.getPixels();
               const [er, eg, eb] = flowColour(u, v);
               const channels = [pixels[0], pixels[1], pixels[2]];

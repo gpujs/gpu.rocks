@@ -604,25 +604,25 @@ function kernelWithArgs(ctx, n) {
 // by creation order, which a learner is free to change. A flat pure-green image
 // separates every kernel in this module: hue answers 120, saturation answers 1,
 // a red mask answers 0.
-function probeOnGreen(k) {
+async function probeOnGreen(k) {
   try {
-    const out = k(constantImage(SIZE, [0, 1, 0, 1]));
+    const out = await k(constantImage(SIZE, [0, 1, 0, 1]));
     return out && out[0] && typeof out[0][0] === 'number' ? out[0][0] : null;
   } catch (e) {
     return null;
   }
 }
 
-function findGrid(ctx, matches) {
+async function findGrid(ctx, matches) {
   for (const k of numericGrids(ctx, 1)) {
-    const sample = probeOnGreen(k);
+    const sample = await probeOnGreen(k);
     if (sample !== null && matches(sample)) return k;
   }
   return null;
 }
 
 // The provided hue kernel of tasks 4 and 5 — 120° on pure green.
-function hueKernel(ctx) {
+async function hueKernel(ctx) {
   return findGrid(ctx, v => Math.abs(v - 120) <= 1);
 }
 
@@ -630,10 +630,10 @@ function hueKernel(ctx) {
 // fall back to creation order — the order the starter declares them in — so the
 // learner still gets a real failure message about their own kernel rather than
 // "no kernel found".
-function findHueAndSaturation(ctx) {
+async function findHueAndSaturation(ctx) {
   const grids = numericGrids(ctx, 1);
-  const hue = findGrid(ctx, v => Math.abs(v - 120) <= 1);
-  const saturation = findGrid(ctx, v => Math.abs(v - 1) <= 1e-3);
+  const hue = await findGrid(ctx, v => Math.abs(v - 120) <= 1);
+  const saturation = await findGrid(ctx, v => Math.abs(v - 1) <= 1e-3);
   const rest = grids.filter(k => k !== hue && k !== saturation);
   return {
     hue: hue || rest.shift() || null,
@@ -726,7 +726,7 @@ const relativeLuminance = gpu.createKernel(function (photo) {
   return 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2];
 }, { output: [64, 64] });
 
-const map = relativeLuminance(photo);
+const map = await relativeLuminance(photo);
 
 // The same pixel, three ways. Two of them are done for you, on the host —
 // photo.at(x, y) is the host-side view of photo[y][x].
@@ -752,7 +752,7 @@ const relativeLuminance = gpu.createKernel(function (photo) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }, { output: [64, 64] });
 
-const map = relativeLuminance(photo);
+const map = await relativeLuminance(photo);
 
 // The same pixel, three ways. Two of them are done for you, on the host —
 // photo.at(x, y) is the host-side view of photo[y][x].
@@ -767,7 +767,7 @@ console.log('relative luminance:', map[1][35]);
           name: 'produces a 64 × 64 luminance map',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(ctx.utils.makeTestImage(SIZE));
+            const out = await ctx.kernel(ctx.utils.makeTestImage(SIZE));
             ctx.assert(out && out.length === SIZE, `expected ${SIZE} rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === SIZE, `each row should hold ${SIZE} values`);
           },
@@ -777,7 +777,7 @@ console.log('relative luminance:', map[1][35]);
           run: async ctx => {
             const image = ctx.utils.makeTestImage(SIZE);
             const plain = image.plain;
-            const out = ctx.kernel(image);
+            const out = await ctx.kernel(image);
             // Cells chosen for spread: at each of these the six near-misses are
             // at least 0.05 apart, so a probe can speak instead of staying quiet.
             for (const [y, x] of [[10, 62], [2, 57], [17, 62], [5, 51]]) {
@@ -810,7 +810,7 @@ console.log('relative luminance:', map[1][35]);
           run: async ctx => {
             const image = ctx.utils.makeTestImage(SIZE);
             const plain = image.plain;
-            const out = ctx.kernel(image);
+            const out = await ctx.kernel(image);
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) {
                 const p = plain[y][x];
@@ -833,7 +833,7 @@ console.log('relative luminance:', map[1][35]);
               const image = constantImage(SIZE, pixel);
               const p = image.at(0, 0);
               const expected = relativeOf(p);
-              const out = ctx.kernel(image);
+              const out = await ctx.kernel(image);
               const hint = diagnose(out[0][0], expected, 2e-3, luminanceProbes(p));
               ctx.assertClose(out[0][0], expected, 2e-3, hint ||
                 `a flat [${p.slice(0, 3).map(v => v.toFixed(2)).join(', ')}] image`);
@@ -957,12 +957,12 @@ const paintHue = gpu.createKernel(function (h) {
   this.color(r, g, b, 1);
 }, { output: [64, 64], graphical: true });
 
-const hues = hue(chart);
-const sats = saturation(chart);
+const hues = await hue(chart);
+const sats = await saturation(chart);
 console.log('top-left swatch is pure red:  hue', hues[0][0], ' saturation', sats[0][0]);
 console.log('the grey row has no hue:      hue', hues[28][4], ' saturation', sats[28][4]);
 
-paintHue(hues);
+await paintHue(hues);
 render(paintHue.canvas);
 `,
       solutionCode: `// One thread per pixel. Three quantities, two kernels, one branchy angle.
@@ -1015,12 +1015,12 @@ const paintHue = gpu.createKernel(function (h) {
   this.color(r, g, b, 1);
 }, { output: [64, 64], graphical: true });
 
-const hues = hue(chart);
-const sats = saturation(chart);
+const hues = await hue(chart);
+const sats = await saturation(chart);
 console.log('top-left swatch is pure red:  hue', hues[0][0], ' saturation', sats[0][0]);
 console.log('the grey row has no hue:      hue', hues[28][4], ' saturation', sats[28][4]);
 
-paintHue(hues);
+await paintHue(hues);
 render(paintHue.canvas);
 `,
       inputs: () => ({ chart: swatchImage() }),
@@ -1029,9 +1029,9 @@ render(paintHue.canvas);
           name: 'a hue map, a saturation map and a painted canvas',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 2, `expected at least 2 kernels, found ${ctx.kernels.length}`);
-            const { hue, saturation } = findHueAndSaturation(ctx);
+            const { hue, saturation } = await findHueAndSaturation(ctx);
             ctx.assert(hue && saturation, 'expected two numeric 64 × 64 kernels — one hue map, one saturation map');
-            const out = hue(swatchImage());
+            const out = await hue(swatchImage());
             ctx.assert(out && out.length === SIZE && out[0].length === SIZE,
               `the hue map should be ${SIZE} × ${SIZE}`);
             ctx.assert(graphicalKernel(ctx), 'no graphical kernel found — paintHue should still be there');
@@ -1042,11 +1042,11 @@ render(paintHue.canvas);
         {
           name: 'the eight pure swatches land on their wheel positions',
           run: async ctx => {
-            const { hue } = findHueAndSaturation(ctx);
+            const { hue } = await findHueAndSaturation(ctx);
             ctx.assert(hue, 'no hue kernel found');
             const image = swatchImage();
             const plain = image.plain;
-            const out = hue(image);
+            const out = await hue(image);
             for (let col = 0; col < 8; col++) {
               const [y, x] = patchCentre(0, col);
               const p = plain[y][x];
@@ -1061,12 +1061,12 @@ render(paintHue.canvas);
           run: async ctx => {
             // Row 1 is row 0 at half value: the hue must not move at all, and
             // that invariance is the entire reason for this colour space.
-            const { hue, saturation } = findHueAndSaturation(ctx);
+            const { hue, saturation } = await findHueAndSaturation(ctx);
             ctx.assert(hue && saturation, 'expected a hue kernel and a saturation kernel');
             const image = swatchImage();
             const plain = image.plain;
-            const hues = hue(image);
-            const sats = saturation(image);
+            const hues = await hue(image);
+            const sats = await saturation(image);
             for (let col = 0; col < 8; col++) {
               const [y0, x0] = patchCentre(0, col);
               const [y1, x1] = patchCentre(1, col);
@@ -1083,11 +1083,11 @@ render(paintHue.canvas);
         {
           name: 'grey has no hue, and black has no saturation',
           run: async ctx => {
-            const { hue, saturation } = findHueAndSaturation(ctx);
+            const { hue, saturation } = await findHueAndSaturation(ctx);
             ctx.assert(hue && saturation, 'expected a hue kernel and a saturation kernel');
             const image = swatchImage();
-            const hues = hue(image);
-            const sats = saturation(image);
+            const hues = await hue(image);
+            const sats = await saturation(image);
             for (let col = 0; col < 8; col++) {
               const [y, x] = patchCentre(3, col);
               ctx.assertClose(hues[y][x], NO_HUE, 1e-3, noHueHint(hues[y][x]) ||
@@ -1102,12 +1102,12 @@ render(paintHue.canvas);
         {
           name: 'private test #1',
           run: async ctx => {
-            const { hue, saturation } = findHueAndSaturation(ctx);
+            const { hue, saturation } = await findHueAndSaturation(ctx);
             ctx.assert(hue && saturation, 'expected a hue kernel and a saturation kernel');
             const image = swatchImage();
             const plain = image.plain;
-            const hues = hue(image);
-            const sats = saturation(image);
+            const hues = await hue(image);
+            const sats = await saturation(image);
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) {
                 const p = plain[y][x];
@@ -1129,7 +1129,7 @@ render(paintHue.canvas);
           run: async ctx => {
             // Flat colours, one per interesting case: the negative red wedge,
             // the green and blue wedges, pure black, and a mid grey.
-            const { hue, saturation } = findHueAndSaturation(ctx);
+            const { hue, saturation } = await findHueAndSaturation(ctx);
             ctx.assert(hue && saturation, 'expected a hue kernel and a saturation kernel');
             for (const pixel of [
               [1, 0.2, 0.6, 1], [0.2, 0.7, 0.35, 1], [0.15, 0.3, 0.8, 1],
@@ -1137,8 +1137,8 @@ render(paintHue.canvas);
             ]) {
               const image = constantImage(SIZE, pixel);
               const p = image.at(0, 0);
-              const gotH = hue(image)[2][3];
-              const gotS = saturation(image)[2][3];
+              const gotH = (await hue(image))[2][3];
+              const gotS = (await saturation(image))[2][3];
               const expectedH = hueOf(p);
               const hHint = expectedH === NO_HUE
                 ? noHueHint(gotH)
@@ -1222,7 +1222,7 @@ const midpoint = gpu.createKernel(function (a, b) {
   return (a[this.thread.x] + b[this.thread.x]) / 2;
 }, { output: [64] });
 
-const mid = midpoint(hueA, hueB);
+const mid = await midpoint(hueA, hueB);
 
 for (let i = 0; i < 4; i++) {
   console.log(hueA[i] + '° and ' + hueB[i] + '° → ' + mid[i] + '°');
@@ -1244,7 +1244,7 @@ const midpoint = gpu.createKernel(function (a, b) {
   return m;
 }, { output: [64] });
 
-const mid = midpoint(hueA, hueB);
+const mid = await midpoint(hueA, hueB);
 
 for (let i = 0; i < 4; i++) {
   console.log(hueA[i] + '° and ' + hueB[i] + '° → ' + mid[i] + '°');
@@ -1257,7 +1257,7 @@ for (let i = 0; i < 4; i++) {
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const { hueA, hueB } = makeHuePairs(ctx.utils);
-            const out = ctx.kernel(hueA, hueB);
+            const out = await ctx.kernel(hueA, hueB);
             ctx.assert(out && out.length === PAIRS, `expected ${PAIRS} midpoints, got ${out && out.length}`);
             const hint = diagnose(out[0], 0, 1e-2, [
               [180, 'the plain mean of 350 and 10 is 180 — cyan, from two reds. That is the bug this task is about: fold the difference onto the short way round before you halve it'],
@@ -1272,7 +1272,7 @@ for (let i = 0; i < 4; i++) {
           name: 'every one of the 64 midpoints is the circular mean',
           run: async ctx => {
             const { hueA, hueB } = makeHuePairs(ctx.utils);
-            const out = ctx.kernel(hueA, hueB);
+            const out = await ctx.kernel(hueA, hueB);
             const hint = diagnoseAll(PAIRS, i => out[i], i => circularMean(hueA[i], hueB[i]), 1e-2,
               midpointProbes(hueA, hueB));
             for (let i = 0; i < PAIRS; i++) {
@@ -1285,7 +1285,7 @@ for (let i = 0; i < 4; i++) {
           name: 'every answer lands in <code>0 … 360</code>',
           run: async ctx => {
             const { hueA, hueB } = makeHuePairs(ctx.utils);
-            const out = ctx.kernel(hueA, hueB);
+            const out = await ctx.kernel(hueA, hueB);
             for (let i = 0; i < PAIRS; i++) {
               ctx.assert(Number.isFinite(out[i]),
                 `pair ${i} came back as ${out[i]} — an angle has to be a number`);
@@ -1303,7 +1303,7 @@ for (let i = 0; i < 4; i++) {
             // A fresh set of pairs the learner has never seen, plus the six
             // exact cases that a fold either gets right or gets very wrong.
             const { hueA, hueB } = makeHuePairs(ctx.utils, 20261);
-            const out = ctx.kernel(hueA, hueB);
+            const out = await ctx.kernel(hueA, hueB);
             const hint = diagnoseAll(PAIRS, i => out[i], i => circularMean(hueA[i], hueB[i]), 1e-2,
               midpointProbes(hueA, hueB));
             for (let i = 0; i < PAIRS; i++) {
@@ -1326,7 +1326,7 @@ for (let i = 0; i < 4; i++) {
               a[i] = x;
               b[i] = y;
             }
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             for (let i = 0; i < cases.length; i++) {
               const [x, y, expected] = cases[i];
               const hint = diagnose(out[i], expected, 1e-2, [
@@ -1455,9 +1455,9 @@ const hsvMask = gpu.createKernel(function (photo, hueMap) {
   constants: { target: 0, tol: 15, minSat: 0.35 },
 });
 
-const hues = hue(frame);
-const inRgb = rgbMask(frame);
-const inHsv = hsvMask(frame, hues);
+const hues = await hue(frame);
+const inRgb = await rgbMask(frame);
+const inHsv = await hsvMask(frame, hues);
 
 // TODO: total both masks and log the two counts.
 `,
@@ -1517,9 +1517,9 @@ const hsvMask = gpu.createKernel(function (photo, hueMap) {
   constants: { target: 0, tol: 15, minSat: 0.35 },
 });
 
-const hues = hue(frame);
-const inRgb = rgbMask(frame);
-const inHsv = hsvMask(frame, hues);
+const hues = await hue(frame);
+const inRgb = await rgbMask(frame);
+const inHsv = await hsvMask(frame, hues);
 
 let rgbCount = 0;
 let hsvCount = 0;
@@ -1541,9 +1541,9 @@ console.log('HSV threshold found:', hsvCount, 'pixels');
             ctx.assert(mask, 'no kernel taking two arguments found — hsvMask takes the frame and the hue map');
             const image = chromaScene(SIZE);
             const plain = image.plain;
-            const hue = hueKernel(ctx);
+            const hue = await hueKernel(ctx);
             ctx.assert(hue, 'no hue-map kernel found — the one provided answers 120 for pure green, and hsvMask needs its output');
-            const out = mask(image, hue(image));
+            const out = await mask(image, await hue(image));
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) {
                 ctx.assert(out[y][x] === 0 || out[y][x] === 1,
@@ -1562,11 +1562,11 @@ console.log('HSV threshold found:', hsvCount, 'pixels');
           name: 'the mask survives the shadow the RGB threshold loses',
           run: async ctx => {
             const mask = kernelWithArgs(ctx, 2);
-            const hue = hueKernel(ctx);
+            const hue = await hueKernel(ctx);
             ctx.assert(mask && hue, 'expected a hue-map kernel and a two-argument mask kernel');
             const image = chromaScene(SIZE);
             const plain = image.plain;
-            const out = mask(image, hue(image));
+            const out = await mask(image, await hue(image));
             let got = 0;
             let expected = 0;
             let inRgb = 0;
@@ -1606,11 +1606,11 @@ console.log('HSV threshold found:', hsvCount, 'pixels');
           name: 'private test #1',
           run: async ctx => {
             const mask = kernelWithArgs(ctx, 2);
-            const hue = hueKernel(ctx);
+            const hue = await hueKernel(ctx);
             ctx.assert(mask && hue, 'expected a hue-map kernel and a two-argument mask kernel');
             const image = chromaScene(SIZE);
             const plain = image.plain;
-            const out = mask(image, hue(image));
+            const out = await mask(image, await hue(image));
             const hint = diagnoseGrid(out, plain, hsvMask, 0.5, maskProbes());
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) {
@@ -1625,14 +1625,14 @@ console.log('HSV threshold found:', hsvCount, 'pixels');
             // The thesis, as an assertion: dim the WHOLE frame by half and the
             // mask must not change by a single pixel.
             const mask = kernelWithArgs(ctx, 2);
-            const hue = hueKernel(ctx);
+            const hue = await hueKernel(ctx);
             ctx.assert(mask && hue, 'expected a hue-map kernel and a two-argument mask kernel');
             const bright = chromaScene(SIZE);
             const dimmed = plainToImageData(
               bright.plain.map(row => row.map(p => quantizePixel([p[0] / 2, p[1] / 2, p[2] / 2, 1])))
             );
-            const a = mask(bright, hue(bright));
-            const b = mask(dimmed, hue(dimmed));
+            const a = await mask(bright, await hue(bright));
+            const b = await mask(dimmed, await hue(dimmed));
             let differences = 0;
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) if (a[y][x] !== b[y][x]) differences++;
@@ -1766,7 +1766,7 @@ const histogram = gpu.createKernel(function (bins) {
   return count;
 }, { output: [12], constants: { size: 64 } });
 
-const counts = histogram(hueBin(hue(photo), saturation(photo)));
+const counts = await histogram(await hueBin(await hue(photo), await saturation(photo)));
 console.log('counts:', counts);
 
 // TODO: find the fullest bin and log it. Bin b covers b * 30 ... (b + 1) * 30 degrees.
@@ -1831,7 +1831,7 @@ const histogram = gpu.createKernel(function (bins) {
   return count;
 }, { output: [12], constants: { size: 64 } });
 
-const counts = histogram(hueBin(hue(photo), saturation(photo)));
+const counts = await histogram(await hueBin(await hue(photo), await saturation(photo)));
 console.log('counts:', counts);
 
 let total = 0;
@@ -1854,9 +1854,9 @@ console.log('fullest bin:', fullest, '=', fullest * 30, '...', (fullest + 1) * 3
             ctx.assert(bin, 'no kernel taking two arguments found — hueBin takes the hue map and the saturation map');
             const image = forestImage(ctx.utils, SIZE);
             const plain = image.plain;
-            const { hue, saturation } = findHueAndSaturation(ctx);
+            const { hue, saturation } = await findHueAndSaturation(ctx);
             ctx.assert(hue && saturation, 'the provided hue and saturation kernels should still be there');
-            const out = bin(hue(image), saturation(image));
+            const out = await bin(await hue(image), await saturation(image));
             ctx.assert(out && out.length === SIZE && out[0].length === SIZE,
               `the bin map should be ${SIZE} × ${SIZE}`);
             for (let y = 0; y < SIZE; y++) {
@@ -1883,10 +1883,10 @@ console.log('fullest bin:', fullest, '=', fullest * 30, '...', (fullest + 1) * 3
             ctx.assert(bin && line, 'expected a two-argument bin kernel and a 12-thread histogram kernel');
             const image = forestImage(ctx.utils, SIZE);
             const plain = image.plain;
-            const { hue, saturation } = findHueAndSaturation(ctx);
+            const { hue, saturation } = await findHueAndSaturation(ctx);
             ctx.assert(hue && saturation, 'the provided hue and saturation kernels should still be there');
-            const bins = bin(hue(image), saturation(image));
-            const counts = line(bins);
+            const bins = await bin(await hue(image), await saturation(image));
+            const counts = await line(bins);
             const expected = histogramOf(plain, binOf);
             const noHue = SIZE * SIZE - sumOf(expected);
             const hint = floorHint(bins, plain) || diagnoseGrid(bins, plain, binOf, 0.5, binProbes()) ||
@@ -1917,9 +1917,9 @@ console.log('fullest bin:', fullest, '=', fullest * 30, '...', (fullest + 1) * 3
             ctx.assert(bin, 'expected a two-argument bin kernel');
             const image = forestImage(ctx.utils, SIZE, 771);
             const plain = image.plain;
-            const { hue, saturation } = findHueAndSaturation(ctx);
+            const { hue, saturation } = await findHueAndSaturation(ctx);
             ctx.assert(hue && saturation, 'the provided hue and saturation kernels should still be there');
-            const out = bin(hue(image), saturation(image));
+            const out = await bin(await hue(image), await saturation(image));
             const hint = floorHint(out, plain) || diagnoseGrid(out, plain, binOf, 0.5, binProbes());
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) {
@@ -1937,14 +1937,14 @@ console.log('fullest bin:', fullest, '=', fullest * 30, '...', (fullest + 1) * 3
             const bin = kernelWithArgs(ctx, 2);
             const line = kernelOfRank(ctx, 1);
             ctx.assert(bin && line, 'expected a bin kernel and a histogram kernel');
-            const { hue, saturation } = findHueAndSaturation(ctx);
+            const { hue, saturation } = await findHueAndSaturation(ctx);
             ctx.assert(hue && saturation, 'the provided hue and saturation kernels should still be there');
             for (const [pixel, expected] of [
               [[1, 0, 0, 1], 0], [[0, 1, 0, 1], 4], [[0, 0, 1, 1], 8],
               [[0, 1, 1, 1], 6], [[0.5, 0.5, 0.5, 1], -1], [[0, 0, 0, 1], -1],
             ]) {
               const image = constantImage(SIZE, pixel);
-              const out = bin(hue(image), saturation(image));
+              const out = await bin(await hue(image), await saturation(image));
               const hint = diagnose(out[3][7], expected, 0.5, [
                 [expected + 1, 'the bin index is one too high — a hue exactly on a bin edge belongs to the bin ABOVE it, so this wants Math.floor, not Math.round'],
                 [binNoFloor(image.at(0, 0)), 'a pixel with no usable hue was binned anyway — check the saturation floor before the angle'],
@@ -1954,7 +1954,7 @@ console.log('fullest bin:', fullest, '=', fullest * 30, '...', (fullest + 1) * 3
             }
             // …and one that is entirely grey has an empty histogram.
             const grey = constantImage(SIZE, [0.6, 0.6, 0.6, 1]);
-            const counts = line(bin(hue(grey), saturation(grey)));
+            const counts = await line(await bin(await hue(grey), await saturation(grey)));
             ctx.assertClose(sumOf(Array.from(counts)), 0, 0.5,
               'a picture with no colour in it at all should produce an empty histogram — every ' +
               'pixel is below the saturation floor, so no bin gets anything');

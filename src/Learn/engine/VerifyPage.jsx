@@ -130,10 +130,14 @@ function VerifyPage() {
       // ask the thread that will actually build the kernels, not this one
       const gpuSupported = await sandboxGpuSupported();
       const sandbox = await sandboxInfo();
-      if (mode === 'gpu' && !gpuSupported) {
+      // Any mode that needs a GPU backend is skipped rather than failed when
+      // the sandbox has none. 'auto' is NOT in this list: it degrades to cpu by
+      // itself, so it is always runnable — which matters, because auto is the
+      // mode a learner actually gets and therefore the one most worth checking.
+      if ((mode === 'gpu' || mode === 'webgl' || mode === 'webgpu') && !gpuSupported) {
         return {
           skipped: true,
-          reason: 'WebGL unavailable in the sandbox',
+          reason: `no GPU backend in the sandbox (mode "${mode}")`,
           gpuSupported,
           sandbox,
           mode,

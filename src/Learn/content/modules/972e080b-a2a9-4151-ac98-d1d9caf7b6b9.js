@@ -205,7 +205,7 @@ const dot = gpu.createKernel(function (a, b) {
   output: [16],
 });
 
-console.log(dot(a, b));
+console.log(await dot(a, b));
 `,
       solutionCode: `// A dot product folds two 16-vectors into ONE number.
 const gpu = new GPU({ mode });
@@ -218,7 +218,7 @@ const dot = gpu.createKernel(function (a, b) {
   return sum;
 }, { output: [1] });
 
-console.log(dot(a, b));
+console.log(await dot(a, b));
 `,
       inputs: utils => ({
         a: makeVector(utils, 16, 1101),
@@ -230,7 +230,7 @@ console.log(dot(a, b));
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const ones = new Array(16).fill(1);
-            const out = ctx.kernel(ones, ones);
+            const out = await ctx.kernel(ones, ones);
             ctx.assert(
               out && out.length === 1,
               `expected 1 output value, got ${out && out.length} — a dot product is one number`
@@ -244,7 +244,7 @@ console.log(dot(a, b));
           run: async ctx => {
             const a = makeVector(ctx.utils, 16, 1101);
             const b = makeVector(ctx.utils, 16, 1102);
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             const hint = diagnose(out[0], dotRef(a, b), 1e-2, dotProbes(a, b));
             ctx.assertClose(out[0], dotRef(a, b), 1e-2, hint || 'dot product of the provided vectors');
           },
@@ -257,12 +257,12 @@ console.log(dot(a, b));
             // Fresh vectors, plus a basis vector that picks out one element.
             const a = makeVector(ctx.utils, 16, 1177);
             const b = makeVector(ctx.utils, 16, 1178);
-            const got = ctx.kernel(a, b)[0];
+            const got = (await ctx.kernel(a, b))[0];
             const hint = diagnose(got, dotRef(a, b), 1e-2, dotProbes(a, b));
             ctx.assertClose(got, dotRef(a, b), 1e-2, hint || 'dot of fresh vectors');
             const basis = new Array(16).fill(0);
             basis[11] = 1;
-            ctx.assertClose(ctx.kernel(a, basis)[0], a[11], 1e-2, 'dot with a basis vector picks a[11]');
+            ctx.assertClose((await ctx.kernel(a, basis))[0], a[11], 1e-2, 'dot with a basis vector picks a[11]');
           },
         },
       ],
@@ -317,7 +317,7 @@ const multiply = gpu.createKernel(function (a, b) {
   return a[this.thread.y][this.thread.x] * b[this.thread.y][this.thread.x];
 }, { output: [16, 16] });
 
-const c = multiply(matA, matB);
+const c = await multiply(matA, matB);
 console.log('C[0][0] =', c[0][0]);
 `,
       solutionCode: `// output: [16, 16] launches 256 threads — one per cell of C.
@@ -331,7 +331,7 @@ const multiply = gpu.createKernel(function (a, b) {
   return sum;
 }, { output: [16, 16] });
 
-const c = multiply(matA, matB);
+const c = await multiply(matA, matB);
 console.log('C[0][0] =', c[0][0]);
 `,
       inputs: utils => ({
@@ -345,7 +345,7 @@ console.log('C[0][0] =', c[0][0]);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const a = makeMatrix(ctx.utils, 16, 16, 2101);
             const b = makeMatrix(ctx.utils, 16, 16, 2102);
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             ctx.assert(out && out.length === 16, `expected 16 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 16, 'each row should hold 16 values');
           },
@@ -355,7 +355,7 @@ console.log('C[0][0] =', c[0][0]);
           run: async ctx => {
             const a = makeMatrix(ctx.utils, 16, 16, 2101);
             const b = makeMatrix(ctx.utils, 16, 16, 2102);
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             const ref = matmulRef(a, b);
             const reversed = matmulRef(b, a);
             const cases = [[0, 0], [3, 12], [8, 8], [15, 1], [15, 15]];
@@ -370,7 +370,7 @@ console.log('C[0][0] =', c[0][0]);
           name: 'multiplying by the identity gives A back',
           run: async ctx => {
             const a = makeMatrix(ctx.utils, 16, 16, 2101);
-            const out = ctx.kernel(a, identityMatrix(16));
+            const out = await ctx.kernel(a, identityMatrix(16));
             for (let y = 0; y < 16; y++) {
               for (let x = 0; x < 16; x++) {
                 ctx.assertClose(out[y][x], a[y][x], 1e-2, `cell [${y}][${x}] of A × I`);
@@ -385,7 +385,7 @@ console.log('C[0][0] =', c[0][0]);
           run: async ctx => {
             const a = makeMatrix(ctx.utils, 16, 16, 2777);
             const b = makeMatrix(ctx.utils, 16, 16, 2778);
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             const ref = matmulRef(a, b);
             const reversed = matmulRef(b, a);
             for (let y = 0; y < 16; y++) {
@@ -451,7 +451,7 @@ const multiply = gpu.createKernel(function (a, b) {
   output: [12, 8],
 });
 
-const c = multiply(rectA, rectB);
+const c = await multiply(rectA, rectB);
 console.log('rows:', c.length, 'cols:', c[0].length);
 `,
       solutionCode: `// (8×32) times (32×12) → 8×12. Three sizes, three different jobs.
@@ -469,7 +469,7 @@ const multiply = gpu.createKernel(function (a, b) {
   output: [12, 8],
 });
 
-const c = multiply(rectA, rectB);
+const c = await multiply(rectA, rectB);
 console.log('rows:', c.length, 'cols:', c[0].length);
 `,
       inputs: utils => ({
@@ -483,7 +483,7 @@ console.log('rows:', c.length, 'cols:', c[0].length);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const a = makeMatrix(ctx.utils, 8, 32, 3101);
             const b = makeMatrix(ctx.utils, 32, 12, 3102);
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             ctx.assert(out && out.length === 8, `expected 8 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 12, `expected 12 columns, got ${out[0] && out[0].length}`);
           },
@@ -493,7 +493,7 @@ console.log('rows:', c.length, 'cols:', c[0].length);
           run: async ctx => {
             const a = makeMatrix(ctx.utils, 8, 32, 3101);
             const b = makeMatrix(ctx.utils, 32, 12, 3102);
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             const ref = matmulRef(a, b);
             const pairs = loopBoundPairs(a, b, 32, [12, 8],
               "k has to run over the shared dimension — A's columns and B's rows, not the output's width or height");
@@ -511,7 +511,7 @@ console.log('rows:', c.length, 'cols:', c[0].length);
           run: async ctx => {
             const a = makeMatrix(ctx.utils, 8, 32, 3777);
             const b = makeMatrix(ctx.utils, 32, 12, 3778);
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             const ref = matmulRef(a, b);
             const pairs = loopBoundPairs(a, b, 32, [12, 8],
               "k has to run over the shared dimension — A's columns and B's rows, not the output's width or height");
@@ -573,7 +573,7 @@ const transpose = gpu.createKernel(function (m) {
   output: [24, 40],
 });
 
-const t = transpose(matWide);
+const t = await transpose(matWide);
 console.log('rows:', t.length, 'cols:', t[0].length);
 `,
       solutionCode: `// The thread for output [y][x] reads input... where?
@@ -586,7 +586,7 @@ const transpose = gpu.createKernel(function (m) {
   output: [24, 40],
 });
 
-const t = transpose(matWide);
+const t = await transpose(matWide);
 console.log('rows:', t.length, 'cols:', t[0].length);
 `,
       inputs: utils => ({ matWide: makeMatrix(utils, 24, 40, 4101) }),
@@ -596,7 +596,7 @@ console.log('rows:', t.length, 'cols:', t[0].length);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const m = makeMatrix(ctx.utils, 24, 40, 4101);
-            const out = ctx.kernel(m);
+            const out = await ctx.kernel(m);
             ctx.assert(out && out.length === 40, `expected 40 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 24, `expected 24 columns, got ${out[0] && out[0].length}`);
           },
@@ -605,7 +605,7 @@ console.log('rows:', t.length, 'cols:', t[0].length);
           name: 'cell [y][x] equals input [x][y]',
           run: async ctx => {
             const m = makeMatrix(ctx.utils, 24, 40, 4101);
-            const out = ctx.kernel(m);
+            const out = await ctx.kernel(m);
             const cases = [[0, 0], [0, 23], [39, 0], [17, 5], [39, 23]];
             for (const [y, x] of cases) {
               const hint = diagnose(out[y][x], m[x][y], 1e-3, unswappedProbes(m, y, x));
@@ -620,7 +620,7 @@ console.log('rows:', t.length, 'cols:', t[0].length);
           name: 'private test #1',
           run: async ctx => {
             const m = makeMatrix(ctx.utils, 24, 40, 4777);
-            const out = ctx.kernel(m);
+            const out = await ctx.kernel(m);
             for (let y = 0; y < 40; y++) {
               for (let x = 0; x < 24; x++) {
                 const hint = diagnose(out[y][x], m[x][y], 1e-3, unswappedProbes(m, y, x));
@@ -650,7 +650,7 @@ console.log('rows:', t.length, 'cols:', t[0].length);
       requirements: [
         'Kernel options: <code>dynamicOutput</code>, <code>dynamicArguments</code>, and <code>loopMaxIterations: 64</code>',
         'Take <code>size</code> as a third kernel argument and loop <code>k &lt; size</code>',
-        'In <code>multiply</code>, call <code>matmul.setOutput([n, n])</code> before invoking',
+        'In <code>multiply</code>, call <code>matmul.setOutput([n, n])</code> before <code>await</code>-ing the kernel',
         'Exactly one <code>createKernel</code> call serves both sizes',
       ],
       hints: [
@@ -666,12 +666,14 @@ console.log('rows:', t.length, 'cols:', t[0].length);
         },
         {
           title: 'Hint 2 — sizing per call',
-          body: `<p>Inside <code>multiply</code>:</p>
+          body: `<p>Inside <code>multiply</code> — which is <code>async</code>, because a kernel call
+            is awaited:</p>
 <pre><code>const n = a.length;
 matmul.setOutput([n, n]);
-return matmul(a, b, n);</code></pre>
+return await matmul(a, b, n);</code></pre>
 <p>— set the launch shape first,
-            then invoke with the size as the last argument.</p>`,
+            then invoke with the size as the last argument. Its callers then
+            <code>await multiply(…)</code> in turn.</p>`,
         },
         {
           title: 'Hint 3 — the kernel',
@@ -707,15 +709,15 @@ const matmul = gpu.createKernel(function (a, b) {
   return sum;
 }, { output: [8, 8] });
 
-function multiply(a, b) {
+async function multiply(a, b) {
   const n = a.length;
   // TODO: point the kernel at an n×n launch before invoking,
   // and pass n in so the loop knows where to stop.
-  return matmul(a, b);
+  return await matmul(a, b);
 }
 
-console.log('8×8  C[0][0] =', multiply(smallA, smallB)[0][0]);
-console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
+console.log('8×8  C[0][0] =', (await multiply(smallA, smallB))[0][0]);
+console.log('48×48 C[0][0] =', (await multiply(bigA, bigB))[0][0]);
 `,
       solutionCode: `// One kernel, any size — no rebuilding between calls.
 const gpu = new GPU({ mode });
@@ -732,14 +734,14 @@ const matmul = gpu.createKernel(function (a, b, size) {
   loopMaxIterations: 64,
 });
 
-function multiply(a, b) {
+async function multiply(a, b) {
   const n = a.length;
   matmul.setOutput([n, n]);
-  return matmul(a, b, n);
+  return await matmul(a, b, n);
 }
 
-console.log('8×8  C[0][0] =', multiply(smallA, smallB)[0][0]);
-console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
+console.log('8×8  C[0][0] =', (await multiply(smallA, smallB))[0][0]);
+console.log('48×48 C[0][0] =', (await multiply(bigA, bigB))[0][0]);
 `,
       inputs: utils => ({
         smallA: makeMatrix(utils, 8, 8, 5101),
@@ -763,7 +765,7 @@ console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
             const a = makeMatrix(ctx.utils, 8, 8, 5101);
             const b = makeMatrix(ctx.utils, 8, 8, 5102);
             ctx.kernel.setOutput([8, 8]);
-            const out = ctx.kernel(a, b, 8);
+            const out = await ctx.kernel(a, b, 8);
             const ref = matmulRef(a, b);
             for (let y = 0; y < 8; y++) {
               for (let x = 0; x < 8; x++) {
@@ -778,7 +780,7 @@ console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
             const a = makeMatrix(ctx.utils, 48, 48, 5103);
             const b = makeMatrix(ctx.utils, 48, 48, 5104);
             ctx.kernel.setOutput([48, 48]);
-            const out = ctx.kernel(a, b, 48);
+            const out = await ctx.kernel(a, b, 48);
             ctx.assert(out.length === 48 && out[0].length === 48, 'expected a 48×48 result');
             const ref = matmulRef(a, b);
             const pairs = loopBoundPairs(a, b, 48, [8],
@@ -799,7 +801,7 @@ console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
             const a = makeMatrix(ctx.utils, 32, 32, 5777);
             const b = makeMatrix(ctx.utils, 32, 32, 5778);
             ctx.kernel.setOutput([32, 32]);
-            const out = ctx.kernel(a, b, 32);
+            const out = await ctx.kernel(a, b, 32);
             const ref = matmulRef(a, b);
             const pairs = loopBoundPairs(a, b, 32, [8],
               'the loop bound has to be the size argument, not the literal the kernel was born with');
@@ -818,7 +820,7 @@ console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
             const a = makeMatrix(ctx.utils, 16, 16, 5888);
             const identity = identityMatrix(16);
             ctx.kernel.setOutput([16, 16]);
-            const out = ctx.kernel(a, identity, 16);
+            const out = await ctx.kernel(a, identity, 16);
             const pairs = loopBoundPairs(a, identity, 16, [8],
               'the loop bound has to be the size argument, not the literal the kernel was born with');
             for (let y = 0; y < 16; y++) {

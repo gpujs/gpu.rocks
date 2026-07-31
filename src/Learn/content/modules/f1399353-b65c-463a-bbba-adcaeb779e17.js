@@ -133,7 +133,12 @@ export default {
         in a loop; you tell the GPU how many cells you want, and it runs that many copies.</p>
         <p>That cell count is the <code>output</code> option: <code>output: [16]</code> means
         &ldquo;give me 16 cells&rdquo;, so 16 threads run and their 16 return values come back to you
-        collected into one array.</p>`,
+        collected into one array.</p>
+        <p>One habit to pick up right now, because it runs through the whole course: <strong>calling a
+        kernel is asynchronous</strong>. The call hands you a promise while the GPU gets on with the
+        work, so you write <code>await</code> in front of it and receive the finished result —
+        <code>const result = await answer();</code>. Building the kernel with
+        <code>createKernel</code> stays ordinary and synchronous; only the <em>call</em> is awaited.</p>`,
       goal: `<strong>Goal:</strong> finish the kernel so that <strong>16 threads</strong> each return
         the number <code>42</code> — your first parallel program.`,
       requirements: [
@@ -156,7 +161,7 @@ export default {
 }, {
   output: [16],
 })</code></pre>
-<p>Calling it returns an array of sixteen 42s.</p>`,
+<p>And <code>await answer()</code> gives you an array of sixteen 42s.</p>`,
         },
       ],
       transfer: `Launching N copies of one function is <em>the</em> primitive of every GPU API:
@@ -174,7 +179,8 @@ const answer = gpu.createKernel(function () {
   output: [1],
 });
 
-const result = answer();
+// Calling a kernel is asynchronous — await it to get the finished result.
+const result = await answer();
 console.log(result);
 `,
       solutionCode: `// A kernel runs once per output cell — in parallel, not in a loop.
@@ -186,7 +192,8 @@ const answer = gpu.createKernel(function () {
   output: [16],
 });
 
-const result = answer();
+// Calling a kernel is asynchronous — await it to get the finished result.
+const result = await answer();
 console.log(result);
 `,
       publicTests: [
@@ -194,14 +201,14 @@ console.log(result);
           name: 'kernel runs 16 threads — the result has 16 values',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out && out.length === 16, `expected 16 output values, got ${out && out.length}`);
           },
         },
         {
           name: 'every thread returns <code>42</code>',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             for (let i = 0; i < 16; i++) {
               ctx.assertClose(out[i], 42, 1e-3, `value from thread ${i}`);
             }
@@ -213,7 +220,7 @@ console.log(result);
           name: 'private test #1',
           run: async ctx => {
             // Re-invoke: same kernel, same result — 16 forty-twos, every time.
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out.length === 16, 'expected 16 output values');
             let sum = 0;
             for (let i = 0; i < out.length; i++) sum += out[i];
@@ -263,7 +270,7 @@ const whoAmI = gpu.createKernel(function () {
   return 0;
 }, { output: [32] });
 
-const result = whoAmI();
+const result = await whoAmI();
 console.log(result);
 `,
       solutionCode: `// Every thread runs the same body — this.thread.x is what differs.
@@ -273,7 +280,7 @@ const whoAmI = gpu.createKernel(function () {
   return this.thread.x;
 }, { output: [32] });
 
-const result = whoAmI();
+const result = await whoAmI();
 console.log(result);
 `,
       publicTests: [
@@ -281,14 +288,14 @@ console.log(result);
           name: 'result holds 32 values',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out && out.length === 32, `expected 32 output values, got ${out && out.length}`);
           },
         },
         {
           name: 'cell <code>i</code> holds <code>i</code> — each thread reports its index',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             const hint = diagnoseAll(32, i => out[i], i => i, 1e-3, [
               [i => i + 1,
                 'every cell is one more than its index — this.thread.x already counts from 0, so the first cell holds 0'],
@@ -303,7 +310,7 @@ console.log(result);
         {
           name: 'private test #1',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             // 0 + 1 + … + 31, and spot-check both ends and the middle.
             let sum = 0;
             for (let i = 0; i < out.length; i++) sum += out[i];
@@ -363,7 +370,7 @@ const wave = gpu.createKernel(function () {
   return 0;
 }, { output: [64] });
 
-const samples = wave();
+const samples = await wave();
 console.log(samples);
 `,
       solutionCode: `// The for-loop is gone — 64 threads each compute one sample.
@@ -373,7 +380,7 @@ const wave = gpu.createKernel(function () {
   return Math.sin(this.thread.x / 64 * 2 * Math.PI);
 }, { output: [64] });
 
-const samples = wave();
+const samples = await wave();
 console.log(samples);
 `,
       publicTests: [
@@ -381,14 +388,14 @@ console.log(samples);
           name: 'kernel produces 64 samples',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out && out.length === 64, `expected 64 samples, got ${out && out.length}`);
           },
         },
         {
           name: 'samples trace <code>sin(x / 64 · 2π)</code> — starts at 0, peaks at thread 16',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             const expected = expectedWave(64);
             ctx.assertClose(out[0], 0, 1e-3, 'thread 0: sin(0) = 0');
             const at16 = diagnose(out[16], 1, 1e-3, waveProbes(16));
@@ -406,7 +413,7 @@ console.log(samples);
         {
           name: 'private test #1',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             const expected = expectedWave(64);
             for (let i = 0; i < 64; i++) {
               const hint = diagnose(out[i], expected[i], 1e-3, waveProbes(i));
@@ -465,7 +472,7 @@ const board = gpu.createKernel(function () {
   output: [8],
 });
 
-const result = board();
+const result = await board();
 console.log(result);
 `,
       solutionCode: `// output: [width, height] launches a whole grid of threads.
@@ -477,7 +484,7 @@ const board = gpu.createKernel(function () {
   output: [8, 8],
 });
 
-const result = board();
+const result = await board();
 console.log(result);
 `,
       publicTests: [
@@ -485,7 +492,7 @@ console.log(result);
           name: 'result is an 8×8 grid — 8 rows of 8 values',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out && out.length === 8, `expected 8 rows, got ${out && out.length}`);
             ctx.assert(
               out[0] && typeof out[0] !== 'number' && out[0].length === 8,
@@ -496,7 +503,7 @@ console.log(result);
         {
           name: 'cells alternate like a checkerboard: <code>(x + y) % 2</code>',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             const stripes = parityHint(out);
             ctx.assertClose(out[0][0], 0, 1e-3, stripes || 'corner [0][0] is 0');
             ctx.assertClose(out[0][1], 1, 1e-3, stripes || 'its neighbour [0][1] is 1');
@@ -509,7 +516,7 @@ console.log(result);
         {
           name: 'private test #1',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             const stripes = parityHint(out);
             for (let y = 0; y < 8; y++) {
               for (let x = 0; x < 8; x++) {
@@ -544,8 +551,8 @@ console.log(result);
         {
           title: 'Hint 1 — where arguments come from',
           body: `<p>Kernel arguments are ordinary function parameters:
-            <code>function (scale) { … }</code>, called as <code>ramp(3)</code>. Every one of the
-            64 threads receives the same <code>3</code>.</p>`,
+            <code>function (scale) { … }</code>, called as <code>await ramp(3)</code>. Every one of
+            the 64 threads receives the same <code>3</code>.</p>`,
         },
         {
           title: 'Hint 2 — the body',
@@ -562,32 +569,30 @@ const gpu = new GPU({ mode });
 
 const ramp = gpu.createKernel(function (scale) {
   // TODO: scale this thread's index by the argument
-  // (keep the float argument on the LEFT of the multiply)
   return this.thread.x;
 }, { output: [64] });
 
 // One kernel, two launches — no recompilation between calls.
-console.log('scale 2.5:', ramp(2.5));
-console.log('scale 0.5:', ramp(0.5));
+console.log('scale 2.5:', await ramp(2.5));
+console.log('scale 0.5:', await ramp(0.5));
 `,
       solutionCode: `// Arguments are shared by all threads; this.thread.x stays per-thread.
 const gpu = new GPU({ mode });
 
 const ramp = gpu.createKernel(function (scale) {
-  // float on the left → float math on the GPU
   return scale * this.thread.x;
 }, { output: [64] });
 
 // One kernel, two launches — no recompilation between calls.
-console.log('scale 2.5:', ramp(2.5));
-console.log('scale 0.5:', ramp(0.5));
+console.log('scale 2.5:', await ramp(2.5));
+console.log('scale 0.5:', await ramp(0.5));
 `,
       publicTests: [
         {
           name: 'called with <code>2.5</code>, cell <code>i</code> holds <code>i * 2.5</code>',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(2.5);
+            const out = await ctx.kernel(2.5);
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
             const hint = scaleHint(out, 2.5);
             for (let i = 0; i < 64; i++) {
@@ -598,7 +603,7 @@ console.log('scale 0.5:', ramp(0.5));
         {
           name: 'the same kernel re-launches with <code>0.5</code> — no rebuild needed',
           run: async ctx => {
-            const out = ctx.kernel(0.5);
+            const out = await ctx.kernel(0.5);
             const hint = scaleHint(out, 0.5);
             for (let i = 0; i < 64; i++) {
               ctx.assertClose(out[i], i * 0.5, 1e-2, hint || `cell ${i} with scale 0.5`);
@@ -612,7 +617,7 @@ console.log('scale 0.5:', ramp(0.5));
           run: async ctx => {
             // A scale the public tests never use — hardcoding their answers fails here.
             const scale = -2.25;
-            const out = ctx.kernel(scale);
+            const out = await ctx.kernel(scale);
             ctx.assert(out.length === 64, 'expected 64 output values');
             const hint = scaleHint(out, scale);
             for (let i = 0; i < 64; i++) {

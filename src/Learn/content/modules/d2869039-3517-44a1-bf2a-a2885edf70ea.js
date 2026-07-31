@@ -196,7 +196,7 @@ const gradient = gpu.createKernel(function () {
   graphical: true,
 });
 
-gradient();
+await gradient();
 render(gradient.canvas);
 `,
       solutionCode: `// graphical: true turns a kernel into a painter — one thread per pixel.
@@ -209,7 +209,7 @@ const gradient = gpu.createKernel(function () {
   graphical: true,
 });
 
-gradient();
+await gradient();
 render(gradient.canvas);
 `,
       publicTests: [
@@ -341,7 +341,7 @@ const board = gpu.createKernel(function () {
   graphical: true,
 });
 
-board();
+await board();
 render(board.canvas);
 `,
       solutionCode: `// Modular arithmetic turns smooth coordinates into repeating patterns.
@@ -357,7 +357,7 @@ const board = gpu.createKernel(function () {
   graphical: true,
 });
 
-board();
+await board();
 render(board.canvas);
 `,
       publicTests: [
@@ -505,7 +505,7 @@ const plot = gpu.createKernel(function () {
   graphical: true,
 });
 
-plot();
+await plot();
 render(plot.canvas);
 `,
       solutionCode: `// A plot is a per-pixel question: how far am I from the curve?
@@ -524,7 +524,7 @@ const plot = gpu.createKernel(function () {
   graphical: true,
 });
 
-plot();
+await plot();
 render(plot.canvas);
 `,
       publicTests: [
@@ -670,7 +670,7 @@ const ripples = gpu.createKernel(function () {
   graphical: true,
 });
 
-ripples();
+await ripples();
 render(ripples.canvas);
 `,
       solutionCode: `// Change coordinates INSIDE the kernel: position → radius from center.
@@ -691,7 +691,7 @@ const ripples = gpu.createKernel(function () {
   graphical: true,
 });
 
-ripples();
+await ripples();
 render(ripples.canvas);
 `,
       publicTests: [

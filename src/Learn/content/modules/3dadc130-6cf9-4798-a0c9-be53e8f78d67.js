@@ -50,13 +50,15 @@ function stridedPartial(arr, x, threads, chunk) {
 // Drive a dynamic halving-ladder kernel from JS: n → n/2 → … → 1.
 // gpu.js locks an argument's type on the kernel's first invocation, so the
 // ladder must see Float32Arrays throughout — the same type its rungs return.
-function runLadder(step, values) {
+// Each rung is awaited before the next is launched: rung k + 1 folds rung k's
+// output, so the ladder is sequential by construction — never Promise.all.
+async function runLadder(step, values) {
   let v = values instanceof Float32Array ? values : Float32Array.from(values);
   let n = v.length;
   while (n > 1) {
     n = n / 2;
     step.setOutput([n]);
-    v = step(v);
+    v = await step(v);
   }
   return v[0];
 }
@@ -112,13 +114,13 @@ function foldProbes(data, x) {
 // it is read. On an all-2s input that yields (64 · 2)² = 16,384 per thread
 // where the fused kernel yields 64 · 4 = 256 — a signature worth naming.
 // Only called once the fused kernel has already been ruled out.
-function unfusedSquareHint(ctx) {
+async function unfusedSquareHint(ctx) {
   const twos = new Array(4096).fill(2);
   for (const k of ctx.kernels) {
     if (!k.kernel || k.kernel.dynamicOutput) continue;
     let out;
     try {
-      out = k(twos);
+      out = await k(twos);
     } catch (e) {
       continue;
     }
@@ -148,7 +150,7 @@ function findDynamicKernel(ctx) {
 // Identify the two fixed partial-sum kernels by behaviour: on an all-2s input
 // each partialSums thread yields 64 · 2 = 128, each partialSquares thread
 // 64 · 4 = 256. The dynamic ladder kernel is excluded by its flag.
-function findPartialKernels(ctx) {
+async function findPartialKernels(ctx) {
   const twos = new Array(4096).fill(2);
   let sums = null;
   let squares = null;
@@ -156,7 +158,7 @@ function findPartialKernels(ctx) {
     if (!k.kernel || k.kernel.dynamicOutput) continue;
     let out;
     try {
-      out = k(twos);
+      out = await k(twos);
     } catch (e) {
       continue;
     }
@@ -222,7 +224,7 @@ const sumAll = gpu.createKernel(function (data) {
   constants: { n: 4096 },
 });
 
-console.log('total:', sumAll(data)[0]);
+console.log('total:', (await sumAll(data))[0]);
 `,
       solutionCode: `// 4096 values, ONE output cell — so exactly one thread does everything.
 const gpu = new GPU({ mode });
@@ -238,7 +240,7 @@ const sumAll = gpu.createKernel(function (data) {
   constants: { n: 4096 },
 });
 
-console.log('total:', sumAll(data)[0]);
+console.log('total:', (await sumAll(data))[0]);
 `,
       inputs: utils => ({ data: makeValues(utils, 4096) }),
       publicTests: [
@@ -246,7 +248,7 @@ console.log('total:', sumAll(data)[0]);
           name: 'one output cell holds the sum of 4096 ones',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(new Array(4096).fill(1));
+            const out = await ctx.kernel(new Array(4096).fill(1));
             ctx.assert(out && out.length === 1, `expected 1 output value, got ${out && out.length}`);
             ctx.assertClose(out[0], 4096, 0.5, 'sum of 4096 ones');
           },
@@ -256,7 +258,7 @@ console.log('total:', sumAll(data)[0]);
           run: async ctx => {
             const arr = new Array(4096);
             for (let i = 0; i < 4096; i++) arr[i] = ((i * 7) % 13) * 0.125;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             const hint = diagnose(out[0], sumOf(arr), 2, [
               [4096 * arr[0], 'the loop added the same element 4096 times — the accumulation has to index with the loop variable: data[i]'],
             ]);
@@ -269,7 +271,7 @@ console.log('total:', sumAll(data)[0]);
           name: 'private test #1',
           run: async ctx => {
             const data = makeValues(ctx.utils, 4096, 4242);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out && out.length === 1, 'expected 1 output value');
             const hint = diagnose(out[0], sumOf(data), 2, [
               [4096 * data[0], 'the loop added the same element 4096 times — the accumulation has to index with the loop variable: data[i]'],
@@ -312,7 +314,7 @@ console.log('total:', sumAll(data)[0]);
         },
         {
           title: 'Hint 3 — finishing in JS',
-          body: `<p>After <code>const partial = partials(data);</code> a plain loop does it:</p>
+          body: `<p>After <code>const partial = await partials(data);</code> a plain loop does it:</p>
 <pre><code>let total = 0;
 for (let i = 0; i &lt; partial.length; i++) {
   total += partial[i];
@@ -336,7 +338,7 @@ const partials = gpu.createKernel(function (data) {
   constants: { threads: 64, chunk: 64 },
 });
 
-const partial = partials(data);
+const partial = await partials(data);
 console.log('partials:', partial.length);
 
 let total = 0;
@@ -357,7 +359,7 @@ const partials = gpu.createKernel(function (data) {
   constants: { threads: 64, chunk: 64 },
 });
 
-const partial = partials(data);
+const partial = await partials(data);
 console.log('partials:', partial.length);
 
 let total = 0;
@@ -370,7 +372,7 @@ console.log('total:', total);
           name: '64 partial sums — all-ones input gives 64 everywhere',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(new Array(4096).fill(1));
+            const out = await ctx.kernel(new Array(4096).fill(1));
             ctx.assert(out && out.length === 64, `expected 64 partial sums, got ${out && out.length}`);
             for (let x = 0; x < 64; x++) {
               ctx.assertClose(out[x], 64, 1e-3, `partial ${x} should sum 64 ones`);
@@ -382,7 +384,7 @@ console.log('total:', total);
           run: async ctx => {
             const arr = new Array(4096);
             for (let i = 0; i < 4096; i++) arr[i] = i;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             for (const x of [0, 1, 31, 63]) {
               // Σ over i of (i * 64 + x) = 129024 + 64x — contiguous chunks would differ.
               const hint = diagnose(out[x], 129024 + 64 * x, 0.5, partialProbes(arr, x, 64, 64));
@@ -408,7 +410,7 @@ console.log('total:', total);
           name: 'private test #1',
           run: async ctx => {
             const data = makeValues(ctx.utils, 4096, 555);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out && out.length === 64, 'expected 64 partial sums');
             for (let x = 0; x < 64; x++) {
               const expected = stridedPartial(data, x, 64, 64);
@@ -467,7 +469,7 @@ const halve = gpu.createKernel(function (data) {
   output: [256],
 });
 
-const folded = halve(data);
+const folded = await halve(data);
 console.log('folded length:', folded.length);
 console.log('first pair sum:', folded[0]);
 `,
@@ -480,7 +482,7 @@ const halve = gpu.createKernel(function (data) {
   output: [256],
 });
 
-const folded = halve(data);
+const folded = await halve(data);
 console.log('folded length:', folded.length);
 console.log('first pair sum:', folded[0]);
 `,
@@ -490,7 +492,7 @@ console.log('first pair sum:', folded[0]);
           name: 'one rung: 512 values fold to 256',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(makeValues(ctx.utils, 512, 1131));
+            const out = await ctx.kernel(makeValues(ctx.utils, 512, 1131));
             ctx.assert(out && out.length === 256, `expected 256 values after the fold, got ${out && out.length}`);
           },
         },
@@ -499,7 +501,7 @@ console.log('first pair sum:', folded[0]);
           run: async ctx => {
             const arr = new Array(512);
             for (let i = 0; i < 512; i++) arr[i] = i;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             for (let x = 0; x < 256; x++) {
               const hint = diagnose(out[x], 2 * x + 256, 1e-3, foldProbes(arr, x));
               ctx.assertClose(out[x], 2 * x + 256, 1e-3, hint || `cell ${x}`);
@@ -512,7 +514,7 @@ console.log('first pair sum:', folded[0]);
           name: 'private test #1',
           run: async ctx => {
             const data = makeValues(ctx.utils, 512, 9091);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out && out.length === 256, 'expected 256 values after the fold');
             for (let x = 0; x < 256; x++) {
               const expected = data[x] + data[x + 256];
@@ -568,7 +570,7 @@ while (n &gt; 1) {
           body: `<pre><code>while (n &gt; 1) {
   n = n / 2;
   halve.setOutput([n]);
-  values = halve(values);
+  values = await halve(values);
 }</code></pre>
 <p>— then the answer is <code>values[0]</code>.</p>`,
         },
@@ -595,7 +597,7 @@ let n = values.length;
 while (n > 1) {
   n = n / 2;
   halve.setOutput([n]);
-  values = halve(values);
+  values = await halve(values);
 }
 console.log('total:', values[0]);
 `,
@@ -616,7 +618,7 @@ let n = values.length;
 while (n > 1) {
   n = n / 2;
   halve.setOutput([n]);
-  values = halve(values);
+  values = await halve(values);
 }
 console.log('total:', values[0]);
 `,
@@ -629,7 +631,7 @@ console.log('total:', values[0]);
             ctx.assert(halve, 'no kernel with dynamicOutput: true found — pass it in the kernel options');
             halve.setOutput([2]);
             const rung = [1, 2, 3, 4];
-            const out = halve(Float32Array.from(rung));
+            const out = await halve(Float32Array.from(rung));
             ctx.assert(out && out.length === 2, `expected 2 values after one rung, got ${out && out.length}`);
             const cell0 = diagnose(out[0], 4, 1e-3, foldProbes(rung, 0));
             ctx.assertClose(out[0], 4, 1e-3, cell0 || 'cell 0 should fold data[0] + data[2]');
@@ -644,7 +646,7 @@ console.log('total:', values[0]);
             ctx.assert(halve, 'no kernel with dynamicOutput: true found');
             const arr = new Array(1024);
             for (let i = 0; i < 1024; i++) arr[i] = (i % 10) * 0.25;
-            ctx.assertClose(runLadder(halve, arr), sumOf(arr), 0.1, 'the ladder total');
+            ctx.assertClose(await runLadder(halve, arr), sumOf(arr), 0.1, 'the ladder total');
           },
         },
         {
@@ -666,7 +668,7 @@ console.log('total:', values[0]);
             const halve = findDynamicKernel(ctx);
             ctx.assert(halve, 'expected a dynamicOutput kernel');
             const data = makeValues(ctx.utils, 256, 40961);
-            ctx.assertClose(runLadder(halve, data), sumOf(data), 0.1, 'ladder total on 256 values');
+            ctx.assertClose(await runLadder(halve, data), sumOf(data), 0.1, 'ladder total on 256 values');
           },
         },
       ],
@@ -700,7 +702,7 @@ console.log('total:', values[0]);
         {
           title: 'Hint 2 — one driver, two ladders',
           body: `<p>Wrap last task's while-loop in a plain JS function that takes the kernel as
-            a parameter — <code>reduce(minStep, data)</code>, <code>reduce(maxStep, data)</code>
+            a parameter — <code>await reduce(minStep, data)</code>, <code>await reduce(maxStep, data)</code>
             — instead of writing it twice.</p>`,
         },
       ],
@@ -722,20 +724,20 @@ const maxStep = gpu.createKernel(function (data) {
   return data[this.thread.x] + data[this.thread.x + this.output.x];
 }, { dynamicOutput: true, dynamicArguments: true });
 
-function reduce(step, values) {
+async function reduce(step, values) {
   // Float32Array from the start — an argument's type is locked on first call.
   let v = Float32Array.from(values);
   let n = v.length;
   while (n > 1) {
     n = n / 2;
     step.setOutput([n]);
-    v = step(v);
+    v = await step(v);
   }
   return v[0];
 }
 
-console.log('min:', reduce(minStep, data));
-console.log('max:', reduce(maxStep, data));
+console.log('min:', await reduce(minStep, data));
+console.log('max:', await reduce(maxStep, data));
 `,
       solutionCode: `// Same ladder, new fold rule. Only the operator changes.
 const gpu = new GPU({ mode });
@@ -748,20 +750,20 @@ const maxStep = gpu.createKernel(function (data) {
   return Math.max(data[this.thread.x], data[this.thread.x + this.output.x]);
 }, { dynamicOutput: true, dynamicArguments: true });
 
-function reduce(step, values) {
+async function reduce(step, values) {
   // Float32Array from the start — an argument's type is locked on first call.
   let v = Float32Array.from(values);
   let n = v.length;
   while (n > 1) {
     n = n / 2;
     step.setOutput([n]);
-    v = step(v);
+    v = await step(v);
   }
   return v[0];
 }
 
-console.log('min:', reduce(minStep, data));
-console.log('max:', reduce(maxStep, data));
+console.log('min:', await reduce(minStep, data));
+console.log('max:', await reduce(maxStep, data));
 `,
       inputs: utils => ({ data: makeValues(utils, 1024, 5150) }),
       publicTests: [
@@ -773,8 +775,8 @@ console.log('max:', reduce(maxStep, data));
             for (const k of ctx.kernels) {
               if (!k.kernel || !k.kernel.dynamicOutput) continue;
               k.setOutput([1]);
-              const a = k(Float32Array.from([3, 5]))[0];
-              const b = k(Float32Array.from([8, 2]))[0];
+              const a = (await k(Float32Array.from([3, 5])))[0];
+              const b = (await k(Float32Array.from([8, 2])))[0];
               if (Math.abs(a - 3) < 1e-3 && Math.abs(b - 2) < 1e-3) minK = k;
               if (Math.abs(a - 5) < 1e-3 && Math.abs(b - 8) < 1e-3) maxK = k;
             }
@@ -793,13 +795,13 @@ console.log('max:', reduce(maxStep, data));
             for (const k of ctx.kernels) {
               if (!k.kernel || !k.kernel.dynamicOutput) continue;
               k.setOutput([1]);
-              const probe = k(Float32Array.from([3, 5]))[0];
+              const probe = (await k(Float32Array.from([3, 5])))[0];
               if (Math.abs(probe - 3) < 1e-3) minK = k;
               else if (Math.abs(probe - 5) < 1e-3) maxK = k;
             }
             ctx.assert(minK && maxK, 'expected a Math.min ladder and a Math.max ladder');
-            ctx.assertClose(runLadder(minK, arr), minOf(arr), 1e-3, 'the minimum');
-            ctx.assertClose(runLadder(maxK, arr), maxOf(arr), 1e-3, 'the maximum');
+            ctx.assertClose(await runLadder(minK, arr), minOf(arr), 1e-3, 'the minimum');
+            ctx.assertClose(await runLadder(maxK, arr), maxOf(arr), 1e-3, 'the maximum');
           },
         },
       ],
@@ -813,13 +815,13 @@ console.log('max:', reduce(maxStep, data));
             for (const k of ctx.kernels) {
               if (!k.kernel || !k.kernel.dynamicOutput) continue;
               k.setOutput([1]);
-              const probe = k(Float32Array.from([-4, 9]))[0];
+              const probe = (await k(Float32Array.from([-4, 9])))[0];
               if (Math.abs(probe - -4) < 1e-3) minK = k;
               else if (Math.abs(probe - 9) < 1e-3) maxK = k;
             }
             ctx.assert(minK && maxK, 'expected a Math.min ladder and a Math.max ladder');
-            ctx.assertClose(runLadder(minK, data), minOf(data), 1e-3, 'the minimum');
-            ctx.assertClose(runLadder(maxK, data), maxOf(data), 1e-3, 'the maximum');
+            ctx.assertClose(await runLadder(minK, data), minOf(data), 1e-3, 'the minimum');
+            ctx.assertClose(await runLadder(maxK, data), maxOf(data), 1e-3, 'the maximum');
           },
         },
       ],
@@ -862,8 +864,8 @@ sum += v * v;</code></pre>`,
         },
         {
           title: 'Hint 3 — the whole shape',
-          body: `<pre><code>const total = ladder(partialSums(data));
-const totalSq = ladder(partialSquares(data));</code></pre>
+          body: `<pre><code>const total = await ladder(await partialSums(data));
+const totalSq = await ladder(await partialSquares(data));</code></pre>
 <p>then divide, square-root,
             and log.</p>`,
         },
@@ -891,19 +893,19 @@ const halve = gpu.createKernel(function (data) {
   return data[this.thread.x] + data[this.thread.x + this.output.x];
 }, { dynamicOutput: true, dynamicArguments: true });
 
-function ladder(values) {
+async function ladder(values) {
   let v = values;
   let n = v.length;
   while (n > 1) {
     n = n / 2;
     halve.setOutput([n]);
-    v = halve(v);
+    v = await halve(v);
   }
   return v[0];
 }
 
-const total = ladder(partialSums(data));
-const totalSq = ladder(partialSquares(data));
+const total = await ladder(await partialSums(data));
+const totalSq = await ladder(await partialSquares(data));
 
 const mean = total / 4096;
 const rms = Math.sqrt(totalSq / 4096);
@@ -936,19 +938,19 @@ const halve = gpu.createKernel(function (data) {
   return data[this.thread.x] + data[this.thread.x + this.output.x];
 }, { dynamicOutput: true, dynamicArguments: true });
 
-function ladder(values) {
+async function ladder(values) {
   let v = values;
   let n = v.length;
   while (n > 1) {
     n = n / 2;
     halve.setOutput([n]);
-    v = halve(v);
+    v = await halve(v);
   }
   return v[0];
 }
 
-const total = ladder(partialSums(data));
-const totalSq = ladder(partialSquares(data));
+const total = await ladder(await partialSums(data));
+const totalSq = await ladder(await partialSquares(data));
 
 const mean = total / 4096;
 const rms = Math.sqrt(totalSq / 4096);
@@ -960,9 +962,9 @@ console.log('rms:', rms);
         {
           name: 'three kernels: plain partials, fused squared partials, dynamic ladder',
           run: async ctx => {
-            const { sums, squares } = findPartialKernels(ctx);
+            const { sums, squares } = await findPartialKernels(ctx);
             ctx.assert(sums, 'no kernel producing 64 partial sums found (all-2s input should give 128 per thread)');
-            const squaresHint = squares ? null : unfusedSquareHint(ctx);
+            const squaresHint = squares ? null : await unfusedSquareHint(ctx);
             ctx.assert(squares, squaresHint ||
               'no fused kernel producing 64 partial sums of squares found (all-2s input should give 256 per thread)');
             ctx.assert(findDynamicKernel(ctx), 'no dynamicOutput halving-ladder kernel found');
@@ -971,9 +973,9 @@ console.log('rms:', rms);
         {
           name: 'full pipeline: mean and RMS of a fresh array',
           run: async ctx => {
-            const { sums, squares } = findPartialKernels(ctx);
+            const { sums, squares } = await findPartialKernels(ctx);
             const halve = findDynamicKernel(ctx);
-            const fusion = squares ? null : unfusedSquareHint(ctx);
+            const fusion = squares ? null : await unfusedSquareHint(ctx);
             ctx.assert(sums && squares && halve,
               fusion || 'expected partialSums, partialSquares and a dynamic ladder kernel');
             const arr = new Array(4096);
@@ -984,8 +986,8 @@ console.log('rms:', rms);
               s += arr[i];
               s2 += arr[i] * arr[i];
             }
-            const total = runLadder(halve, sums(arr));
-            const totalSq = runLadder(halve, squares(arr));
+            const total = await runLadder(halve, await sums(arr));
+            const totalSq = await runLadder(halve, await squares(arr));
             ctx.assertClose(total / 4096, s / 4096, 1e-3, 'the mean');
             ctx.assertClose(Math.sqrt(totalSq / 4096), Math.sqrt(s2 / 4096), 1e-3, 'the RMS');
           },
@@ -1018,9 +1020,9 @@ console.log('rms:', rms);
         {
           name: 'private test #1',
           run: async ctx => {
-            const { sums, squares } = findPartialKernels(ctx);
+            const { sums, squares } = await findPartialKernels(ctx);
             const halve = findDynamicKernel(ctx);
-            const fusion = squares ? null : unfusedSquareHint(ctx);
+            const fusion = squares ? null : await unfusedSquareHint(ctx);
             ctx.assert(sums && squares && halve,
               fusion || 'expected partialSums, partialSquares and a dynamic ladder kernel');
             const data = makeValues(ctx.utils, 4096, 909);
@@ -1030,8 +1032,8 @@ console.log('rms:', rms);
               s += data[i];
               s2 += data[i] * data[i];
             }
-            const total = runLadder(halve, sums(data));
-            const totalSq = runLadder(halve, squares(data));
+            const total = await runLadder(halve, await sums(data));
+            const totalSq = await runLadder(halve, await squares(data));
             ctx.assertClose(total / 4096, s / 4096, 0.01, 'the mean');
             ctx.assertClose(Math.sqrt(totalSq / 4096), Math.sqrt(s2 / 4096), 0.01, 'the RMS');
           },

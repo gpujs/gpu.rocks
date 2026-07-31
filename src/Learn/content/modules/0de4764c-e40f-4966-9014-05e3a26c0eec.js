@@ -174,7 +174,7 @@ const distanceField = gpu.createKernel(function (xMin, yMin, step) {
   return this.thread.x;
 }, { output: [64, 64] });
 
-const field = distanceField(-2, -2, 4 / 64);
+const field = await distanceField(-2, -2, 4 / 64);
 console.log('cell [32][32] sits at the origin:', field[32][32]);
 console.log('corner cell [0][0]:', field[0][0]);
 `,
@@ -189,7 +189,7 @@ const distanceField = gpu.createKernel(function (xMin, yMin, step) {
   return cr * cr + ci * ci;
 }, { output: [64, 64] });
 
-const field = distanceField(-2, -2, 4 / 64);
+const field = await distanceField(-2, -2, 4 / 64);
 console.log('cell [32][32] sits at the origin:', field[32][32]);
 console.log('corner cell [0][0]:', field[0][0]);
 `,
@@ -198,7 +198,7 @@ console.log('corner cell [0][0]:', field[0][0]);
           name: 'the view <code>(-2, -2, 4/64)</code> puts the origin at cell [32][32]',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(-2, -2, 4 / 64);
+            const out = await ctx.kernel(-2, -2, 4 / 64);
             ctx.assert(out && out.length === 64, `expected 64 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 64, 'each row should hold 64 values');
             const step = 4 / 64;
@@ -215,7 +215,7 @@ console.log('corner cell [0][0]:', field[0][0]);
         {
           name: 'a different camera — <code>(0, 0, 0.5)</code> — moves every cell',
           run: async ctx => {
-            const out = ctx.kernel(0, 0, 0.5);
+            const out = await ctx.kernel(0, 0, 0.5);
             const cases = [[0, 0], [2, 3], [7, 7], [63, 1]];
             for (const [y, x] of cases) {
               const expected = 0.25 * (x * x + y * y);
@@ -229,7 +229,7 @@ console.log('corner cell [0][0]:', field[0][0]);
         {
           name: 'private test #1',
           run: async ctx => {
-            const out = ctx.kernel(-1, 2, 0.25);
+            const out = await ctx.kernel(-1, 2, 0.25);
             for (let y = 0; y < 64; y += 3) {
               for (let x = 0; x < 64; x += 3) {
                 const cr = -1 + x * 0.25;
@@ -309,7 +309,7 @@ const mandelbrot = gpu.createKernel(function (xMin, yMin, step) {
   return count;
 }, { output: [64, 64] });
 
-const counts = mandelbrot(-2.2, -1.6, 3.2 / 64);
+const counts = await mandelbrot(-2.2, -1.6, 3.2 / 64);
 console.log('c = 0, deep inside the set:', counts[32][44]);
 console.log('far corner, escapes at once:', counts[0][0]);
 `,
@@ -336,7 +336,7 @@ const mandelbrot = gpu.createKernel(function (xMin, yMin, step) {
   return count;
 }, { output: [64, 64] });
 
-const counts = mandelbrot(-2.2, -1.6, 3.2 / 64);
+const counts = await mandelbrot(-2.2, -1.6, 3.2 / 64);
 console.log('c = 0, deep inside the set:', counts[32][44]);
 console.log('far corner, escapes at once:', counts[0][0]);
 `,
@@ -345,7 +345,7 @@ console.log('far corner, escapes at once:', counts[0][0]);
           name: 'interior points never escape — <code>c = 0</code> and <code>c = -1</code> hit the 100 cap',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(-2.2, -1.6, 0.05);
+            const out = await ctx.kernel(-2.2, -1.6, 0.05);
             ctx.assert(out && out.length === 64 && out[0].length === 64, 'expected a 64×64 grid');
             const countHint = (y, x, expected) => diagnose(out[y][x], expected, 1e-3, escapeProbes());
             ctx.assertClose(out[32][44], 100, 1e-3, countHint(32, 44, 100) ||
@@ -359,7 +359,7 @@ console.log('far corner, escapes at once:', counts[0][0]);
         {
           name: 'everything with <code>|c| &gt; 2</code> escapes on the very first pass',
           run: async ctx => {
-            const out = ctx.kernel(2.5, 0.5, 0.01);
+            const out = await ctx.kernel(2.5, 0.5, 0.01);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
                 const hint = diagnose(out[y][x], 1, 1e-3, escapeProbes());
@@ -375,7 +375,7 @@ console.log('far corner, escapes at once:', counts[0][0]);
           name: 'private test #1',
           run: async ctx => {
             // A window strictly inside the main cardioid: everything bounded.
-            const inside = ctx.kernel(-0.2, -0.1, 0.003);
+            const inside = await ctx.kernel(-0.2, -0.1, 0.003);
             for (let y = 0; y < 64; y += 5) {
               for (let x = 0; x < 64; x += 5) {
                 const hint = diagnose(inside[y][x], 100, 1e-3, escapeProbes());
@@ -383,7 +383,7 @@ console.log('far corner, escapes at once:', counts[0][0]);
               }
             }
             // A window far above the set: |c| > 2 everywhere.
-            const above = ctx.kernel(-0.32, 2.5, 0.01);
+            const above = await ctx.kernel(-0.32, 2.5, 0.01);
             for (let y = 0; y < 64; y += 5) {
               for (let x = 0; x < 64; x += 5) {
                 const hint = diagnose(above[y][x], 1, 1e-3, escapeProbes());
@@ -455,7 +455,7 @@ const paint = gpu.createKernel(function (xMin, yMin, step) {
   this.color(1, 0, 1, 1);
 }, { output: [128, 128], graphical: true });
 
-paint(-2.2, -1.6, 3.2 / 128);
+await paint(-2.2, -1.6, 3.2 / 128);
 render(paint.canvas);
 `,
       solutionCode: `// The counts become the picture: one thread paints one pixel.
@@ -485,7 +485,7 @@ const paint = gpu.createKernel(function (xMin, yMin, step) {
   }
 }, { output: [128, 128], graphical: true });
 
-paint(-2.2, -1.6, 3.2 / 128);
+await paint(-2.2, -1.6, 3.2 / 128);
 render(paint.canvas);
 `,
       publicTests: [
@@ -512,7 +512,7 @@ render(paint.canvas);
         {
           name: 'a window inside the set is pure black',
           run: async ctx => {
-            ctx.kernel(-0.2, -0.05, 0.001);
+            await ctx.kernel(-0.2, -0.05, 0.001);
             const pixels = ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 401 * 4) {
               ctx.assert(
@@ -526,7 +526,7 @@ render(paint.canvas);
         {
           name: 'far outside, every pixel wears the count-1 shade',
           run: async ctx => {
-            ctx.kernel(2.5, 2.5, 0.001);
+            await ctx.kernel(2.5, 2.5, 0.001);
             const pixels = ctx.getPixels();
             const [r, g, b] = paletteBytes(1 / MAX_ITER);
             for (let i = 0; i < pixels.length; i += 401 * 4) {
@@ -542,7 +542,7 @@ render(paint.canvas);
           name: 'private test #1',
           run: async ctx => {
             // Inside the period-2 bulb around c = -1: all black.
-            ctx.kernel(-1.05, -0.05, 0.0008);
+            await ctx.kernel(-1.05, -0.05, 0.0008);
             let pixels = ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 293 * 4) {
               ctx.assert(
@@ -552,7 +552,7 @@ render(paint.canvas);
               );
             }
             // Far left of the set: uniform count-1 shade.
-            ctx.kernel(-9, 0, 0.001);
+            await ctx.kernel(-9, 0, 0.001);
             pixels = ctx.getPixels();
             const [r, g, b] = paletteBytes(1 / MAX_ITER);
             for (let i = 0; i < pixels.length; i += 293 * 4) {
@@ -633,7 +633,7 @@ const smoothField = gpu.createKernel(function (xMin, yMin, step) {
   return count;
 }, { output: [64, 64] });
 
-const field = smoothField(3, 1, 0.01);
+const field = await smoothField(3, 1, 0.01);
 console.log('a fractional escape value:', field[0][0]);
 `,
       solutionCode: `// Counts are integers — that's why the shading shows rings.
@@ -663,7 +663,7 @@ const smoothField = gpu.createKernel(function (xMin, yMin, step) {
   return 100;
 }, { output: [64, 64] });
 
-const field = smoothField(3, 1, 0.01);
+const field = await smoothField(3, 1, 0.01);
 console.log('a fractional escape value:', field[0][0]);
 `,
       publicTests: [
@@ -671,7 +671,7 @@ console.log('a fractional escape value:', field[0][0]);
           name: 'interior cells still return exactly 100',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(-0.2, -0.05, 0.002);
+            const out = await ctx.kernel(-0.2, -0.05, 0.002);
             ctx.assert(out && out.length === 64 && out[0].length === 64, 'expected a 64×64 grid');
             for (let y = 0; y < 64; y += 7) {
               for (let x = 0; x < 64; x += 7) {
@@ -683,7 +683,7 @@ console.log('a fractional escape value:', field[0][0]);
         {
           name: 'escaped cells carry a fraction that matches the formula',
           run: async ctx => {
-            const out = ctx.kernel(3, 1, 0.01);
+            const out = await ctx.kernel(3, 1, 0.01);
             let sawFraction = false;
             const cases = [[0, 0], [10, 20], [33, 7], [63, 63]];
             for (const [y, x] of cases) {
@@ -705,7 +705,7 @@ console.log('a fractional escape value:', field[0][0]);
           name: 'private test #1',
           run: async ctx => {
             // Count-1 territory, far from the set.
-            const far = ctx.kernel(-4, 2, 0.005);
+            const far = await ctx.kernel(-4, 2, 0.005);
             for (let y = 0; y < 64; y += 9) {
               for (let x = 0; x < 64; x += 9) {
                 const expected = smoothEscape(0, 0, -4 + x * 0.005, 2 + y * 0.005);
@@ -715,7 +715,7 @@ console.log('a fractional escape value:', field[0][0]);
               }
             }
             // Count-2 territory on the positive real side.
-            const near = ctx.kernel(1.5, -0.032, 0.001);
+            const near = await ctx.kernel(1.5, -0.032, 0.001);
             for (let y = 0; y < 64; y += 9) {
               for (let x = 0; x < 64; x += 9) {
                 const expected = smoothEscape(0, 0, 1.5 + x * 0.001, -0.032 + y * 0.001);
@@ -802,7 +802,7 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   constants: { xMin: -1.6, yMin: -1.6, step: 0.025 },
 });
 
-julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
+await julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
 render(julia.canvas);
 `,
       solutionCode: `// Same loop, roles flipped: the pixel is z₀, and c is a knob you turn.
@@ -836,7 +836,7 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   constants: { xMin: -1.6, yMin: -1.6, step: 0.025 },
 });
 
-julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
+await julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
 render(julia.canvas);
 `,
       publicTests: [
@@ -849,7 +849,7 @@ render(julia.canvas);
               ctx.canvas.width === 128 && ctx.canvas.height === 128,
               `expected a 128×128 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            ctx.kernel(0, 0);
+            await ctx.kernel(0, 0);
             const pixels = ctx.getPixels();
             for (let y = 4; y < 128; y += 8) {
               for (let x = 4; x < 128; x += 8) {
@@ -875,14 +875,14 @@ render(julia.canvas);
         {
           name: 'c is a live argument — turn the dial and the center pixel flips',
           run: async ctx => {
-            ctx.kernel(0, 0);
+            await ctx.kernel(0, 0);
             let pixels = ctx.getPixels();
             const center = (64 * 128 + 64) * 4;
             ctx.assert(
               pixels[center] + pixels[center + 1] + pixels[center + 2] <= 3,
               'with c = 0 the center pixel (z₀ = 0) never escapes — it should be black'
             );
-            ctx.kernel(-2.5, 0);
+            await ctx.kernel(-2.5, 0);
             pixels = ctx.getPixels();
             ctx.assert(
               pixels[center + 2] > 100,
@@ -895,7 +895,7 @@ render(julia.canvas);
         {
           name: 'private test #1',
           run: async ctx => {
-            ctx.kernel(0, 0);
+            await ctx.kernel(0, 0);
             const pixels = ctx.getPixels();
             // z₀ = (0.5, 0.5): inside the unit disk → black.
             let i = (84 * 128 + 84) * 4;

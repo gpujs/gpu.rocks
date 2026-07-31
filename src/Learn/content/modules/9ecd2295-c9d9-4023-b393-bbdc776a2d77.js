@@ -650,8 +650,8 @@ function peakBin(mag) {
   return best;
 }
 
-const magAB = magnitudes(spectrum(orderAB));
-const magBA = magnitudes(spectrum(orderBA));
+const magAB = magnitudes(await spectrum(orderAB));
+const magBA = magnitudes(await spectrum(orderBA));
 
 let worst = 0;
 for (let k = 0; k < 256; k++) worst = Math.max(worst, Math.abs(magAB[k] - magBA[k]));
@@ -701,8 +701,8 @@ function peakBin(mag) {
   return best;
 }
 
-const magAB = magnitudes(spectrum(orderAB));
-const magBA = magnitudes(spectrum(orderBA));
+const magAB = magnitudes(await spectrum(orderAB));
+const magBA = magnitudes(await spectrum(orderBA));
 
 let worst = 0;
 for (let k = 0; k < 256; k++) worst = Math.max(worst, Math.abs(magAB[k] - magBA[k]));
@@ -717,7 +717,7 @@ console.log('largest disagreement between the two spectra:', worst);
           name: 'the spectrum comes back as two planes of 256 bins',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(twoToneAB());
+            const out = await ctx.kernel(twoToneAB());
             ctx.assert(out && out.length, 'the kernel returned nothing');
             ctx.assert(
               out.length === 2,
@@ -735,7 +735,7 @@ console.log('largest disagreement between the two spectra:', worst);
           name: 'plane 0 is the real part, plane 1 the imaginary part',
           run: async ctx => {
             const signal = twoToneAB();
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             const ref = once('ref:ab', () => refSpectrum(signal, DFT_BINS));
             for (const k of [0, 16, 31, 32, 33, 79, 80, 81, 120, 200]) {
               for (const plane of [0, 1]) {
@@ -755,8 +755,8 @@ console.log('largest disagreement between the two spectra:', worst);
         {
           name: 'both orders give the same magnitudes, bin for bin',
           run: async ctx => {
-            const ab = ctx.kernel(twoToneAB());
-            const ba = ctx.kernel(twoToneBA());
+            const ab = await ctx.kernel(twoToneAB());
+            const ba = await ctx.kernel(twoToneBA());
             const mag = spec => {
               const m = [];
               for (let k = 0; k < DFT_BINS; k++) {
@@ -794,7 +794,7 @@ console.log('largest disagreement between the two spectra:', worst);
           name: 'private test #1',
           run: async ctx => {
             const signal = twoToneAlt();
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             const ref = once('ref:alt', () => refSpectrum(signal, DFT_BINS));
             for (let k = 0; k < DFT_BINS; k++) {
               for (const plane of [0, 1]) {
@@ -811,8 +811,8 @@ console.log('largest disagreement between the two spectra:', worst);
             // The reversal identity on a signal this task never showed.
             const forward = twoToneAlt();
             const backward = forward.slice().reverse();
-            const a = ctx.kernel(forward);
-            const b = ctx.kernel(backward);
+            const a = await ctx.kernel(forward);
+            const b = await ctx.kernel(backward);
             for (let k = 0; k < DFT_BINS; k++) {
               const ma = Math.sqrt(a[0][k] * a[0][k] + a[1][k] * a[1][k]);
               const mb = Math.sqrt(b[0][k] * b[0][k] + b[1][k] * b[1][k]);
@@ -921,7 +921,7 @@ const spectrogram = gpu.createKernel(function (signal) {
   constants: { win: WIN, hop: HOP },
 });
 
-const spec = spectrogram(signal);
+const spec = await spectrogram(signal);
 console.log('spectrogram:', spec.length, 'bins ×', spec[0].length, 'frames');
 
 // signal is a chirp — a tone sliding steadily upward — so the loudest bin
@@ -963,7 +963,7 @@ const spectrogram = gpu.createKernel(function (signal) {
   constants: { win: WIN, hop: HOP },
 });
 
-const spec = spectrogram(signal);
+const spec = await spectrogram(signal);
 console.log('spectrogram:', spec.length, 'bins ×', spec[0].length, 'frames');
 
 // signal is a chirp — a tone sliding steadily upward — so the loudest bin
@@ -980,7 +980,7 @@ for (const f of [0, 16, 32, 48]) {
           name: 'the picture is <code>128</code> bins tall and <code>64</code> frames wide',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(chirpSignal());
+            const out = await ctx.kernel(chirpSignal());
             ctx.assert(out && out.length, 'the kernel returned nothing');
             ctx.assert(
               out.length === BINS,
@@ -1001,7 +1001,7 @@ for (const f of [0, 16, 32, 48]) {
           name: 'every cell is the windowed magnitude of its own frame',
           run: async ctx => {
             const signal = chirpSignal();
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             ctx.assert(out && out.length === BINS && out[0].length === FRAMES, 'wrong output shape');
             assertSpectrogram(ctx, out, standardStft('chirp', signal), signal, {
               win: WIN,
@@ -1015,7 +1015,7 @@ for (const f of [0, 16, 32, 48]) {
         {
           name: 'the chirp draws a diagonal — the loudest bin climbs by one per frame',
           run: async ctx => {
-            const out = ctx.kernel(chirpSignal());
+            const out = await ctx.kernel(chirpSignal());
             for (const f of [0, 16, 32, 48, 63]) {
               let best = 0;
               for (let b = 1; b < BINS; b++) if (out[b][f] > out[best][f]) best = b;
@@ -1034,7 +1034,7 @@ for (const f of [0, 16, 32, 48]) {
           run: async ctx => {
             // A chirp sweeping the other way: same kernel, a signal it never saw.
             const signal = chirpSignal(1536, -1024);
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             assertSpectrogram(ctx, out, standardStft('down', signal), signal, {
               win: WIN,
               hop: HOP,
@@ -1053,7 +1053,7 @@ for (const f of [0, 16, 32, 48]) {
           run: async ctx => {
             // Silence in, silence out — and no NaN from a frame that overran.
             const quiet = new Array(SIGNAL_N).fill(0);
-            const out = ctx.kernel(quiet);
+            const out = await ctx.kernel(quiet);
             for (let b = 0; b < BINS; b++) {
               for (let f = 0; f < FRAMES; f++) {
                 ctx.assert(
@@ -1193,8 +1193,8 @@ function clickFrames(spec) {
   return n;
 }
 
-const shortPic = shortSpec(signal);
-const longPic = longSpec(signal);
+const shortPic = await shortSpec(signal);
+const longPic = await longSpec(signal);
 
 console.log('short window:', tonePeaks(shortPic, 64), 'tone peaks,', clickFrames(shortPic), 'frames of click');
 console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames(longPic), 'frames of click');
@@ -1266,8 +1266,8 @@ function clickFrames(spec) {
   return n;
 }
 
-const shortPic = shortSpec(signal);
-const longPic = longSpec(signal);
+const shortPic = await shortSpec(signal);
+const longPic = await longSpec(signal);
 
 console.log('short window:', tonePeaks(shortPic, 64), 'tone peaks,', clickFrames(shortPic), 'frames of click');
 console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames(longPic), 'frames of click');
@@ -1299,7 +1299,7 @@ console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames
             const short = kernelWithOutput(ctx, [T_FRAMES, SHORT_BINS]);
             ctx.assert(short, 'no short-window kernel found');
             const signal = tradeSignal();
-            const out = short(signal);
+            const out = await short(signal);
             const ref = once('stft:short', () =>
               refStft(signal, { win: SHORT_WIN, hop: T_HOP, frames: T_FRAMES, bins: SHORT_BINS })
             );
@@ -1318,7 +1318,7 @@ console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames
             const long = kernelWithOutput(ctx, [T_FRAMES, LONG_BINS]);
             ctx.assert(long, 'no long-window kernel found');
             const signal = tradeSignal();
-            const out = long(signal);
+            const out = await long(signal);
             const ref = once('stft:long', () =>
               refStft(signal, { win: LONG_WIN, hop: T_HOP, frames: T_FRAMES, bins: LONG_BINS })
             );
@@ -1338,8 +1338,8 @@ console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames
             const long = kernelWithOutput(ctx, [T_FRAMES, LONG_BINS]);
             ctx.assert(short && long, 'expected a short-window kernel and a long-window kernel');
             const signal = tradeSignal();
-            const s = short(signal);
-            const l = long(signal);
+            const s = await short(signal);
+            const l = await long(signal);
             const peaks = (spec, win) => {
               const lo = Math.round((400 * win) / SR);
               const hi = Math.round((800 * win) / SR);
@@ -1403,10 +1403,10 @@ console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames
             const refLong = refStft(signal, {
               win: LONG_WIN, hop: T_HOP, frames: T_FRAMES, bins: LONG_BINS,
             });
-            assertSpectrogram(ctx, short(signal), refShort, signal, {
+            assertSpectrogram(ctx, await short(signal), refShort, signal, {
               win: SHORT_WIN, hop: T_HOP, frames: T_FRAMES, bins: SHORT_BINS, eps: SPEC_EPS,
             });
-            assertSpectrogram(ctx, long(signal), refLong, signal, {
+            assertSpectrogram(ctx, await long(signal), refLong, signal, {
               win: LONG_WIN, hop: T_HOP, frames: T_FRAMES, bins: LONG_BINS, eps: SPEC_EPS,
             });
           },
@@ -1482,7 +1482,7 @@ const FRAMES = Math.floor((signal.length - WIN) / HOP) + 1;
 
 ${STFT_BODY}
 
-const spec = spectrogram(signal);
+const spec = await spectrogram(signal);
 
 // How wide is the range you are about to map?
 let peak = 0;
@@ -1515,7 +1515,7 @@ ${RAMP_SOURCE}
   constants: { range: 60 },
 });
 
-paint(spec, peak);
+await paint(spec, peak);
 render(paint.canvas);
 `,
       solutionCode: `// The spectrogram from task 2, already built. What is missing is the part
@@ -1529,7 +1529,7 @@ const FRAMES = Math.floor((signal.length - WIN) / HOP) + 1;
 
 ${STFT_BODY}
 
-const spec = spectrogram(signal);
+const spec = await spectrogram(signal);
 
 // How wide is the range you are about to map?
 let peak = 0;
@@ -1560,7 +1560,7 @@ ${RAMP_SOURCE}
   constants: { range: 60 },
 });
 
-paint(spec, peak);
+await paint(spec, peak);
 render(paint.canvas);
 `,
       inputs: () => ({ signal: noteSignal() }),
@@ -1589,12 +1589,12 @@ render(paint.canvas);
             const paint = graphicalKernel(ctx);
             ctx.assert(stft && paint, 'expected a spectrogram kernel and a graphical paint kernel');
             const signal = noteSignal();
-            const spec = stft(signal);
+            const spec = await stft(signal);
             let peak = 0;
             for (let b = 0; b < BINS; b++) {
               for (let f = 0; f < FRAMES; f++) if (spec[b][f] > peak) peak = spec[b][f];
             }
-            paint(spec, peak);
+            await paint(spec, peak);
             const pixels = ctx.getPixels();
 
             // Sample the cells nearest a spread of loudnesses, so the check
@@ -1681,12 +1681,12 @@ render(paint.canvas);
             const stft = kernelWithOutput(ctx, [FRAMES, BINS]);
             const paint = graphicalKernel(ctx);
             ctx.assert(stft && paint, 'expected a spectrogram kernel and a graphical paint kernel');
-            const spec = stft(noteSignal());
+            const spec = await stft(noteSignal());
             let peak = 0;
             for (let b = 0; b < BINS; b++) {
               for (let f = 0; f < FRAMES; f++) if (spec[b][f] > peak) peak = spec[b][f];
             }
-            paint(spec, peak);
+            await paint(spec, peak);
             const pixels = ctx.getPixels();
             const read = (tx, ty, flipped) => {
               const row = flipped ? ty : 255 - ty;
@@ -1728,12 +1728,12 @@ render(paint.canvas);
             ctx.assert(stft && paint, 'expected a spectrogram kernel and a graphical paint kernel');
             const tone = new Array(SIGNAL_N);
             for (let n = 0; n < SIGNAL_N; n++) tone[n] = 0.4 * Math.sin((2 * Math.PI * 640 * n) / SR);
-            const spec = stft(tone);
+            const spec = await stft(tone);
             let peak = 0;
             for (let b = 0; b < BINS; b++) {
               for (let f = 0; f < FRAMES; f++) if (spec[b][f] > peak) peak = spec[b][f];
             }
-            paint(spec, peak);
+            await paint(spec, peak);
             const pixels = ctx.getPixels();
             const read = (tx, ty, flipped) => {
               const row = flipped ? ty : 255 - ty;
@@ -1791,9 +1791,9 @@ audio.createMediaStreamSource(stream).connect(tap);
 const gpu = new GPU();
 const spectrogram = gpu.createKernel(/* the kernel you already wrote */);
 
-tap.port.onmessage = event =&gt; {
-  const spec = spectrogram(event.data);   // event.data is the ring buffer
-  paint(spec, peakOf(spec));
+tap.port.onmessage = async event =&gt; {
+  const spec = await spectrogram(event.data);   // event.data is the ring buffer
+  await paint(spec, peakOf(spec));
 };</code></pre>
         <p><strong>That code cannot run here, and this course is not going to pretend otherwise.</strong>
         Your code executes inside a Web Worker — which is what lets a runaway kernel be killed
@@ -1869,8 +1869,8 @@ const ridge = gpu.createKernel(function (spec) {
   constants: { bins: BINS },
 });
 
-const spec = spectrogram(signal);
-const line = ridge(spec);
+const spec = await spectrogram(signal);
+const line = await ridge(spec);
 console.log('ridge bins:', Array.from(line).join(' '));
 
 // TODO: turn the slope into hertz per second and log it.
@@ -1905,8 +1905,8 @@ const ridge = gpu.createKernel(function (spec) {
   constants: { bins: BINS },
 });
 
-const spec = spectrogram(signal);
-const line = ridge(spec);
+const spec = await spectrogram(signal);
+const line = await ridge(spec);
 console.log('ridge bins:', Array.from(line).join(' '));
 
 const binsPerFrame = (line[FRAMES - 1] - line[0]) / (FRAMES - 1);
@@ -1923,7 +1923,7 @@ console.log('sweep rate:', hzPerSecond, 'Hz per second');
             ctx.assert(ridge, `no kernel with output [${FRAMES}] found — one thread per frame`);
             const stft = kernelWithOutput(ctx, [FRAMES, BINS]);
             ctx.assert(stft, 'the spectrogram kernel went missing');
-            const line = Array.from(ridge(stft(chirpSignal())));
+            const line = Array.from(await ridge(await stft(chirpSignal())));
             ctx.assert(line.length === FRAMES, `expected ${FRAMES} values, got ${line.length}`);
             const fractional = line.some(v => v > 0 && v !== Math.round(v));
             const allSmall = line.every(v => v < 1);
@@ -1951,8 +1951,8 @@ console.log('sweep rate:', hzPerSecond, 'Hz per second');
             const ridge = kernelWithOutput(ctx, [FRAMES]);
             const stft = kernelWithOutput(ctx, [FRAMES, BINS]);
             ctx.assert(ridge && stft, 'expected a spectrogram kernel and a ridge kernel');
-            const spec = stft(chirpSignal());
-            const line = Array.from(ridge(spec));
+            const spec = await stft(chirpSignal());
+            const line = Array.from(await ridge(spec));
             // Scanning the wrong axis reads along a row of the picture instead
             // of down a column, and on this signal that produces a distinctive
             // sequence of its own — it has to predict every frame before it
@@ -1996,7 +1996,7 @@ console.log('sweep rate:', hzPerSecond, 'Hz per second');
             const ridge = kernelWithOutput(ctx, [FRAMES]);
             const stft = kernelWithOutput(ctx, [FRAMES, BINS]);
             ctx.assert(ridge && stft, 'expected a spectrogram kernel and a ridge kernel');
-            const line = Array.from(ridge(stft(chirpSignal(1536, -1024))));
+            const line = Array.from(await ridge(await stft(chirpSignal(1536, -1024))));
             for (let f = 0; f < FRAMES; f++) {
               ctx.assert(
                 line[f] === 94 - f,
@@ -2018,7 +2018,7 @@ console.log('sweep rate:', hzPerSecond, 'Hz per second');
             ctx.assert(ridge && stft, 'expected a spectrogram kernel and a ridge kernel');
             const tone = new Array(SIGNAL_N);
             for (let n = 0; n < SIGNAL_N; n++) tone[n] = Math.sin((2 * Math.PI * 640 * n) / SR);
-            const line = Array.from(ridge(stft(tone)));
+            const line = Array.from(await ridge(await stft(tone)));
             for (let f = 0; f < FRAMES; f++) {
               ctx.assert(line[f] === 40, `a steady 640 Hz tone is bin 40 in every frame; frame ${f} gave ${line[f]}`);
             }

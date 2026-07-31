@@ -632,8 +632,8 @@ const mulSpectra = gpu.createKernel(function (a, b) {
   return ai * bi;
 }, { output: [64, 2] });
 
-const slow = directConv(signal, filt);
-const fast = idft(mulSpectra(dft(signal), dft(filt)));
+const slow = await directConv(signal, filt);
+const fast = await idft(await mulSpectra(await dft(signal), await dft(filt)));
 
 let worst = 0;
 let leftover = 0;
@@ -674,8 +674,8 @@ const mulSpectra = gpu.createKernel(function (a, b) {
   return ar * bi + ai * br;
 }, { output: [64, 2] });
 
-const slow = directConv(signal, filt);
-const fast = idft(mulSpectra(dft(signal), dft(filt)));
+const slow = await directConv(signal, filt);
+const fast = await idft(await mulSpectra(await dft(signal), await dft(filt)));
 
 let worst = 0;
 let leftover = 0;
@@ -697,7 +697,7 @@ console.log('largest imaginary part:', leftover.toFixed(9));
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const a = dftRef(pluck(N1, SUPPORT1));
             const b = dftRef(inBuffer(TAPS1, N1));
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             ctx.assert(out && out.length === 2, `expected 2 planes, got ${out && out.length}`);
             ctx.assert(
               out[0] && out[0].length === N1,
@@ -710,7 +710,7 @@ console.log('largest imaginary part:', leftover.toFixed(9));
           run: async ctx => {
             const a = dftRef(pluck(N1, SUPPORT1));
             const b = dftRef(inBuffer(TAPS1, N1));
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             const want = productRef(a, b);
             const eps = 5e-3;
             const probe = variant => planeReader(productRef(a, b, variant));
@@ -751,7 +751,7 @@ console.log('largest imaginary part:', leftover.toFixed(9));
           run: async ctx => {
             const signal = pluck(N1, SUPPORT1);
             const filt = inBuffer(TAPS1, N1);
-            const out = ctx.kernel(dftRef(signal), dftRef(filt));
+            const out = await ctx.kernel(dftRef(signal), dftRef(filt));
             // Inverse-transform what the learner's kernel produced, in float64,
             // and hold it against the sliding window's answer.
             const back = idftRef([out[0], out[1]]);
@@ -807,7 +807,7 @@ console.log('largest imaginary part:', leftover.toFixed(9));
             const filt = inBuffer(TAPS1, N1);
             const a = dftRef(signal);
             const b = dftRef(filt);
-            const out = ctx.kernel(a, b);
+            const out = await ctx.kernel(a, b);
             const want = productRef(a, b);
             const eps = 5e-3;
             const nocross = planeReader(productRef(a, b, 'nocross'));
@@ -836,7 +836,7 @@ console.log('largest imaginary part:', leftover.toFixed(9));
             // The theorem again, on the second pair, end to end.
             const signal = decay(N1, SUPPORT1);
             const filt = inBuffer(TAPS1, N1);
-            const back = idftRef(ctx.kernel(dftRef(signal), dftRef(filt)));
+            const back = idftRef(await ctx.kernel(dftRef(signal), dftRef(filt)));
             const direct = linearConv(signal, TAPS1, N1);
             for (let i = 0; i < N1; i++) {
               ctx.assertClose(back[0][i], direct[i], 1e-4, `sample ${i} of the round trip`);
@@ -928,7 +928,7 @@ const lowPass = gpu.createKernel(function (spec) {
   return spec[1][k];
 }, { output: [256, 2], constants: { n: 256, cut: 20 } });
 
-const filtered = idft(lowPass(dft(wave)));
+const filtered = await idft(await lowPass(await dft(wave)));
 
 let peak = filtered[0][0];
 let leftover = 0;
@@ -962,7 +962,7 @@ const lowPass = gpu.createKernel(function (spec) {
   return spec[1][k];
 }, { output: [256, 2], constants: { n: 256, cut: 20 } });
 
-const filtered = idft(lowPass(dft(wave)));
+const filtered = await idft(await lowPass(await dft(wave)));
 
 let peak = filtered[0][0];
 let leftover = 0;
@@ -986,7 +986,7 @@ console.log('largest imaginary part:', leftover.toFixed(6));
           name: 'the mask returns two planes of 256 bins',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(dftRef(squareWave()));
+            const out = await ctx.kernel(dftRef(squareWave()));
             ctx.assert(out && out.length === 2, `expected 2 planes, got ${out && out.length}`);
             ctx.assert(
               out[0] && out[0].length === N,
@@ -998,7 +998,7 @@ console.log('largest imaginary part:', leftover.toFixed(6));
           name: 'bins within <code>20</code> of DC survive — <strong>including their mirrors</strong>',
           run: async ctx => {
             const spec = dftRef(squareWave());
-            const out = ctx.kernel(spec);
+            const out = await ctx.kernel(spec);
             const want = brickRef(spec, CUT);
             const eps = 5e-3;
             const unfolded = planeReader(brickRef(spec, CUT, 'unfolded'));
@@ -1029,7 +1029,7 @@ console.log('largest imaginary part:', leftover.toFixed(6));
           name: 'the filtered wave is real, and it rings',
           run: async ctx => {
             const spec = dftRef(squareWave());
-            const back = idftRef(ctx.kernel(spec));
+            const back = idftRef(await ctx.kernel(spec));
             const want = idftRef(brickRef(spec, CUT));
             let leftover = 0;
             for (let i = 0; i < N; i++) leftover = Math.max(leftover, Math.abs(back[1][i]));
@@ -1088,7 +1088,7 @@ console.log('largest imaginary part:', leftover.toFixed(6));
           run: async ctx => {
             // Every bin, not just the sixteen sampled above.
             const spec = dftRef(squareWave());
-            const out = ctx.kernel(spec);
+            const out = await ctx.kernel(spec);
             const want = brickRef(spec, CUT);
             const eps = 5e-3;
             const unfolded = planeReader(brickRef(spec, CUT, 'unfolded'));
@@ -1117,7 +1117,7 @@ console.log('largest imaginary part:', leftover.toFixed(6));
             const pulse = new Array(N).fill(-1);
             for (let i = 40; i < 110; i++) pulse[i] = 1;
             const spec = dftRef(pulse);
-            const out = ctx.kernel(spec);
+            const out = await ctx.kernel(spec);
             const want = brickRef(spec, CUT);
             for (let k = 0; k < N; k++) {
               ctx.assertClose(out[0][k], want[0][k], 5e-3, `bin ${k}, real part`);
@@ -1204,7 +1204,7 @@ const rollOff = gpu.createKernel(function (spec) {
   return spec[1][k] * h;
 }, { output: [256, 2], constants: { n: 256, sigma: 12 } });
 
-const filtered = idft(rollOff(dft(wave)));
+const filtered = await idft(await rollOff(await dft(wave)));
 
 let peak = filtered[0][0];
 for (let i = 0; i < 256; i++) peak = Math.max(peak, filtered[0][i]);
@@ -1233,7 +1233,7 @@ const rollOff = gpu.createKernel(function (spec) {
   return spec[1][k] * h;
 }, { output: [256, 2], constants: { n: 256, sigma: 12 } });
 
-const filtered = idft(rollOff(dft(wave)));
+const filtered = await idft(await rollOff(await dft(wave)));
 
 let peak = filtered[0][0];
 for (let i = 0; i < 256; i++) peak = Math.max(peak, filtered[0][i]);
@@ -1253,7 +1253,7 @@ console.log('just after the edge:', Array.from({ length: 8 },
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const spec = dftRef(squareWave());
-            const out = ctx.kernel(spec);
+            const out = await ctx.kernel(spec);
             ctx.assert(out && out.length === 2, `expected 2 planes, got ${out && out.length}`);
             ctx.assert(
               out[0] && out[0].length === N,
@@ -1291,7 +1291,7 @@ console.log('just after the edge:', Array.from({ length: 8 },
           name: 'the response is symmetric, so the filtered wave is still real',
           run: async ctx => {
             const spec = dftRef(squareWave());
-            const back = idftRef(ctx.kernel(spec));
+            const back = idftRef(await ctx.kernel(spec));
             let leftover = 0;
             for (let i = 0; i < N; i++) leftover = Math.max(leftover, Math.abs(back[1][i]));
             ctx.assert(
@@ -1306,7 +1306,7 @@ console.log('just after the edge:', Array.from({ length: 8 },
           name: 'the ringing is gone — overshoot below 0.5% of the jump',
           run: async ctx => {
             const spec = dftRef(squareWave());
-            const back = idftRef(ctx.kernel(spec));
+            const back = idftRef(await ctx.kernel(spec));
             const want = idftRef(gaussRef(spec, SIGMA));
             let peak = -Infinity;
             for (let i = 0; i < N; i++) {
@@ -1359,7 +1359,7 @@ console.log('just after the edge:', Array.from({ length: 8 },
           name: 'private test #1',
           run: async ctx => {
             const spec = dftRef(squareWave());
-            const out = ctx.kernel(spec);
+            const out = await ctx.kernel(spec);
             const want = gaussRef(spec, SIGMA);
             const eps = 5e-3;
             const unfolded = planeReader(gaussRef(spec, SIGMA, 'unfolded'));
@@ -1390,7 +1390,7 @@ console.log('just after the edge:', Array.from({ length: 8 },
             const pulse = new Array(N).fill(-1);
             for (let i = 40; i < 110; i++) pulse[i] = 1;
             const spec = dftRef(pulse);
-            const out = ctx.kernel(spec);
+            const out = await ctx.kernel(spec);
             const want = gaussRef(spec, SIGMA);
             for (let k = 0; k < N; k++) {
               ctx.assertClose(out[0][k], want[0][k], 5e-3, `bin ${k}, real part`);
@@ -1494,7 +1494,7 @@ const gate = gpu.createKernel(function (spec) {
   return im;
 }, { output: [256, 2], constants: { gate: 30 } });
 
-const cleaned = idft(gate(dft(noisy)));
+const cleaned = await idft(await gate(await dft(noisy)));
 
 function snr(test) {
   let signal = 0;
@@ -1528,7 +1528,7 @@ const gate = gpu.createKernel(function (spec) {
   return im;
 }, { output: [256, 2], constants: { gate: 30 } });
 
-const cleaned = idft(gate(dft(noisy)));
+const cleaned = await idft(await gate(await dft(noisy)));
 
 function snr(test) {
   let signal = 0;
@@ -1552,7 +1552,7 @@ console.log('SNR after:', snr(cleaned[0]).toFixed(2), 'dB');
           name: 'the gate returns two planes of 256 bins',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(dftRef(noisySignal(ctx.utils, NOISE_SEED)));
+            const out = await ctx.kernel(dftRef(noisySignal(ctx.utils, NOISE_SEED)));
             ctx.assert(out && out.length === 2, `expected 2 planes, got ${out && out.length}`);
             ctx.assert(
               out[0] && out[0].length === N,
@@ -1564,7 +1564,7 @@ console.log('SNR after:', snr(cleaned[0]).toFixed(2), 'dB');
           name: 'exactly the six tone bins survive the gate',
           run: async ctx => {
             const spec = dftRef(noisySignal(ctx.utils, NOISE_SEED));
-            const out = ctx.kernel(spec);
+            const out = await ctx.kernel(spec);
             const want = gateRef(spec, GATE);
             const eps = 5e-3;
             const reonly = planeReader(gateRef(spec, GATE, 'reonly'));
@@ -1611,7 +1611,7 @@ console.log('SNR after:', snr(cleaned[0]).toFixed(2), 'dB');
           run: async ctx => {
             const noisy = noisySignal(ctx.utils, NOISE_SEED);
             const clean = toneSignal();
-            const back = idftRef(ctx.kernel(dftRef(noisy)));
+            const back = idftRef(await ctx.kernel(dftRef(noisy)));
             let leftover = 0;
             for (let i = 0; i < N; i++) leftover = Math.max(leftover, Math.abs(back[1][i]));
             ctx.assert(
@@ -1653,7 +1653,7 @@ console.log('SNR after:', snr(cleaned[0]).toFixed(2), 'dB');
           name: 'private test #1',
           run: async ctx => {
             const spec = dftRef(noisySignal(ctx.utils, NOISE_SEED));
-            const out = ctx.kernel(spec);
+            const out = await ctx.kernel(spec);
             const want = gateRef(spec, GATE);
             const eps = 5e-3;
             const reonly = planeReader(gateRef(spec, GATE, 'reonly'));
@@ -1684,7 +1684,7 @@ console.log('SNR after:', snr(cleaned[0]).toFixed(2), 'dB');
             const noisy = noisySignal(ctx.utils, 4242);
             const clean = toneSignal();
             const spec = dftRef(noisy);
-            const out = ctx.kernel(spec);
+            const out = await ctx.kernel(spec);
             const want = gateRef(spec, GATE);
             for (let k = 0; k < N; k++) {
               ctx.assertClose(out[0][k], want[0][k], 5e-3, `bin ${k}, real part`);
@@ -1828,7 +1828,10 @@ const pad = gpu.createKernel(function (src) {
   return src[this.thread.x];
 }, { output: [PAD], constants: { src: SRC } });
 
-const result = idft(mulSpectra(dft(pad(sig)), dft(pad(filt))));
+const result = await idft(await mulSpectra(
+  await dft(await pad(sig)),
+  await dft(await pad(filt))
+));
 
 let worst = 0;
 const compared = Math.min(40, result[0].length);
@@ -1896,7 +1899,10 @@ const pad = gpu.createKernel(function (src) {
   return 0;
 }, { output: [PAD], constants: { src: SRC } });
 
-const result = idft(mulSpectra(dft(pad(sig)), dft(pad(filt))));
+const result = await idft(await mulSpectra(
+  await dft(await pad(sig)),
+  await dft(await pad(filt))
+));
 
 let worst = 0;
 const compared = Math.min(40, result[0].length);
@@ -1917,7 +1923,7 @@ console.log('last 8 of direct: ', Array.from({ length: 8 },
           name: 'the padded buffer is long enough to hold the whole convolution',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(shortSignal());
+            const out = await ctx.kernel(shortSignal());
             ctx.assert(out && out.length, 'the padding kernel returned nothing');
             ctx.assert(
               out.length >= LINEAR5,
@@ -1939,7 +1945,7 @@ console.log('last 8 of direct: ', Array.from({ length: 8 },
           name: 'padding copies the source and zeroes the rest',
           run: async ctx => {
             const sig = shortSignal();
-            const out = ctx.kernel(sig);
+            const out = await ctx.kernel(sig);
             for (let i = 0; i < N5; i++) {
               ctx.assert(
                 Number.isFinite(out[i]),
@@ -1958,7 +1964,7 @@ console.log('last 8 of direct: ', Array.from({ length: 8 },
             // The filter travels in a buffer of the same shape, so the same
             // kernel has to pad it too.
             const filt = inBuffer(TAPS5, N5);
-            const padded = ctx.kernel(filt);
+            const padded = await ctx.kernel(filt);
             for (let i = 0; i < TAPS5.length; i++) {
               ctx.assertClose(padded[i], TAPS5[i], 1e-4, `tap ${i} of the padded filter`);
             }
@@ -1975,8 +1981,8 @@ console.log('last 8 of direct: ', Array.from({ length: 8 },
             const direct = linearConv(sig, TAPS5, LINEAR5);
             // Run the theorem over the learner's OWN padded buffers, in float64:
             // whatever length they chose, this is what their pipeline computes.
-            const paddedSig = Array.from(ctx.kernel(sig));
-            const paddedFilt = Array.from(ctx.kernel(filt));
+            const paddedSig = Array.from(await ctx.kernel(sig));
+            const paddedFilt = Array.from(await ctx.kernel(filt));
             const product = productRef(dftRef(paddedSig), dftRef(paddedFilt));
             const back = idftRef(product);
             const wrapped = circularConv(sig, TAPS5, N5);
@@ -2031,7 +2037,7 @@ console.log('last 8 of direct: ', Array.from({ length: 8 },
             // to be about the buffer, not about these particular numbers.
             const other = new Array(N5);
             for (let i = 0; i < N5; i++) other[i] = round3(Math.cos((2 * Math.PI * i) / 5) - i / 40);
-            const out = ctx.kernel(other);
+            const out = await ctx.kernel(other);
             ctx.assert(out.length >= LINEAR5, `the padded buffer is only ${out.length} samples`);
             for (let i = 0; i < N5; i++) {
               ctx.assertClose(out[i], other[i], 1e-4, `sample ${i} should be the source value`);
@@ -2039,7 +2045,7 @@ console.log('last 8 of direct: ', Array.from({ length: 8 },
             for (let i = N5; i < out.length; i++) {
               ctx.assertClose(out[i], 0, 1e-6, `sample ${i} is past the source and should be 0`);
             }
-            const paddedFilt = Array.from(ctx.kernel(inBuffer(TAPS5, N5)));
+            const paddedFilt = Array.from(await ctx.kernel(inBuffer(TAPS5, N5)));
             const back = idftRef(productRef(dftRef(Array.from(out)), dftRef(paddedFilt)));
             const direct = linearConv(other, TAPS5, LINEAR5);
             for (let i = 0; i < LINEAR5; i++) {
@@ -2054,8 +2060,8 @@ console.log('last 8 of direct: ', Array.from({ length: 8 },
             // 32 samples with 9 taps is 40 samples and then silence. A buffer
             // that still wraps fails this even where the head happens to agree.
             const sig = shortSignal();
-            const paddedSig = Array.from(ctx.kernel(sig));
-            const paddedFilt = Array.from(ctx.kernel(inBuffer(TAPS5, N5)));
+            const paddedSig = Array.from(await ctx.kernel(sig));
+            const paddedFilt = Array.from(await ctx.kernel(inBuffer(TAPS5, N5)));
             const back = idftRef(productRef(dftRef(paddedSig), dftRef(paddedFilt)));
             for (let i = LINEAR5; i < paddedSig.length; i++) {
               ctx.assertClose(

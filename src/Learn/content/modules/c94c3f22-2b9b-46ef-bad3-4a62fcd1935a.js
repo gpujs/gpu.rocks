@@ -263,11 +263,11 @@ function findByOutput(ctx, want) {
 }
 
 // Task 3: drive a learner's gradient kernel through the descent ourselves.
-function driveDescent(gradKernel, xs, ys, rate, steps, m0, c0) {
+async function driveDescent(gradKernel, xs, ys, rate, steps, m0, c0) {
   let m = m0;
   let c = c0;
   for (let s = 0; s < steps; s++) {
-    const rows = gradKernel(xs, ys, m, c);
+    const rows = await gradKernel(xs, ys, m, c);
     let sumMx = 0;
     let sumC = 0;
     for (let i = 0; i < 64; i++) {
@@ -399,7 +399,7 @@ const lossPartials = gpu.createKernel(function (xs, ys, m, c) {
   constants: { threads: 64, chunk: 64 },
 });
 
-const partials = lossPartials(xs, ys, 0, 0);
+const partials = await lossPartials(xs, ys, 0, 0);
 
 let total = 0;
 for (let i = 0; i < partials.length; i++) total += partials[i];
@@ -424,7 +424,7 @@ const lossPartials = gpu.createKernel(function (xs, ys, m, c) {
   constants: { threads: 64, chunk: 64 },
 });
 
-const partials = lossPartials(xs, ys, 0, 0);
+const partials = await lossPartials(xs, ys, 0, 0);
 
 let total = 0;
 for (let i = 0; i < partials.length; i++) total += partials[i];
@@ -438,7 +438,7 @@ console.log('loss at m = 0, c = 0:', total / 4096);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const { xs, ys } = makeFit(4096);
-            const out = ctx.kernel(xs, ys, 0, 0);
+            const out = await ctx.kernel(xs, ys, 0, 0);
             ctx.assert(out && out.length === 64, `expected 64 partial sums, got ${out && out.length}`);
             let total = 0;
             for (let i = 0; i < out.length; i++) total += out[i];
@@ -452,7 +452,7 @@ console.log('loss at m = 0, c = 0:', total / 4096);
           run: async ctx => {
             const { xs, ys } = makeFit(4096);
             for (const [m, c] of [[0, 0], [1, 2]]) {
-              const out = ctx.kernel(xs, ys, m, c);
+              const out = await ctx.kernel(xs, ys, m, c);
               const weight = { m, c };
               for (const t of [0, 1, 7, 63]) {
                 const expected = stridedResidualSum(xs, ys, t, weight, true);
@@ -481,7 +481,7 @@ console.log('loss at m = 0, c = 0:', total / 4096);
             const { xs, ys } = makeFit(4096);
             // The surface is L(m, c) = (m − 3)² + (c − 4)² + 0.5 exactly.
             for (const [m, c] of [[3, 4], [2, 5], [-1, 6], [4.5, 4]]) {
-              const out = ctx.kernel(xs, ys, m, c);
+              const out = await ctx.kernel(xs, ys, m, c);
               ctx.assert(out && out.length === 64, 'expected 64 partial sums');
               let total = 0;
               for (let i = 0; i < out.length; i++) total += out[i];
@@ -575,7 +575,7 @@ const gradPartials = gpu.createKernel(function (xs, ys, m, c) {
   constants: { threads: 64, chunk: 64 },
 });
 
-const rows = gradPartials(xs, ys, 0, 0);
+const rows = await gradPartials(xs, ys, 0, 0);
 
 let sumMx = 0;
 let sumC = 0;
@@ -612,7 +612,7 @@ const gradPartials = gpu.createKernel(function (xs, ys, m, c) {
   constants: { threads: 64, chunk: 64 },
 });
 
-const rows = gradPartials(xs, ys, 0, 0);
+const rows = await gradPartials(xs, ys, 0, 0);
 
 let sumMx = 0;
 let sumC = 0;
@@ -633,7 +633,7 @@ console.log('so downhill from here is:', -gm, -gc);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const { xs, ys } = makeFit(4096);
-            const out = ctx.kernel(xs, ys, 0, 0);
+            const out = await ctx.kernel(xs, ys, 0, 0);
             ctx.assert(out && out.length === 2, `expected 2 rows, got ${out && out.length}`);
             ctx.assert(
               out[0] && typeof out[0] !== 'number' && out[0].length === 64,
@@ -646,7 +646,7 @@ console.log('so downhill from here is:', -gm, -gc);
           run: async ctx => {
             const { xs, ys } = makeFit(4096);
             for (const [m, c] of [[0, 0], [1, 2], [4, 4]]) {
-              const rows = ctx.kernel(xs, ys, m, c);
+              const rows = await ctx.kernel(xs, ys, m, c);
               let sumMx = 0;
               let sumC = 0;
               for (let i = 0; i < 64; i++) {
@@ -667,7 +667,7 @@ console.log('so downhill from here is:', -gm, -gc);
           name: 'each row is a strided slice, not a contiguous block',
           run: async ctx => {
             const { xs, ys } = makeFit(4096);
-            const rows = ctx.kernel(xs, ys, 1, 2);
+            const rows = await ctx.kernel(xs, ys, 1, 2);
             for (const t of [0, 5, 63]) {
               const wantM = stridedResidualSum(xs, ys, t, { m: 1, c: 2, byX: true }, false);
               const hintM = diagnose(rows[0][t], wantM, 0.02,
@@ -700,7 +700,7 @@ console.log('so downhill from here is:', -gm, -gc);
             // wrong scaling agrees with the right one, so it is checked for its
             // own sake and the diagnosis is left to the points around it.
             for (const [m, c] of [[3, 4], [-2, 9], [6.5, 1.25]]) {
-              const rows = ctx.kernel(xs, ys, m, c);
+              const rows = await ctx.kernel(xs, ys, m, c);
               let sumMx = 0;
               let sumC = 0;
               for (let i = 0; i < 64; i++) {
@@ -745,7 +745,7 @@ c ← c − η · ∂L/∂c</code></pre>
       requirements: [
         'Step <em>against</em> the gradient — subtract, do not add',
         'Scale each step by <code>rate</code>: <code>m = m - rate * g[0]</code>',
-        'Use the averaged gradient <code>gradientAt()</code> returns, not a raw sum',
+        '<code>gradientAt()</code> is async — <code>await</code> it, and use the averaged gradient it returns, not a raw sum',
         'The logged final slope and intercept should read <code>3</code> and <code>4</code>',
       ],
       hints: [
@@ -797,8 +797,8 @@ const lossPartials = gpu.createKernel(function (xs, ys, m, c) {
   return sum;
 }, { output: [64], constants: { threads: 64, chunk: 64 } });
 
-function gradientAt(m, c) {
-  const rows = gradPartials(xs, ys, m, c);
+async function gradientAt(m, c) {
+  const rows = await gradPartials(xs, ys, m, c);
   let sumMx = 0;
   let sumC = 0;
   for (let i = 0; i < 64; i++) {
@@ -808,8 +808,8 @@ function gradientAt(m, c) {
   return [(2 * sumMx) / 4096, (2 * sumC) / 4096];
 }
 
-function lossAt(m, c) {
-  const partials = lossPartials(xs, ys, m, c);
+async function lossAt(m, c) {
+  const partials = await lossPartials(xs, ys, m, c);
   let total = 0;
   for (let i = 0; i < 64; i++) total += partials[i];
   return total / 4096;
@@ -820,16 +820,16 @@ let m = 0;
 let c = 0;
 
 for (let step = 1; step <= 60; step++) {
-  const g = gradientAt(m, c);
+  const g = await gradientAt(m, c);
   // TODO: move m and c one step DOWNHILL.
   // g[0] is dL/dm and g[1] is dL/dc — both point UPHILL.
 
-  if (step % 10 === 0) console.log('step', step, '· loss', lossAt(m, c));
+  if (step % 10 === 0) console.log('step', step, '· loss', await lossAt(m, c));
 }
 
 console.log('fitted slope:', m);
 console.log('fitted intercept:', c);
-console.log('final loss:', lossAt(m, c));
+console.log('final loss:', await lossAt(m, c));
 `,
       solutionCode: `// Both kernels are already written. The algorithm is yours.
 const gpu = new GPU({ mode });
@@ -859,8 +859,8 @@ const lossPartials = gpu.createKernel(function (xs, ys, m, c) {
   return sum;
 }, { output: [64], constants: { threads: 64, chunk: 64 } });
 
-function gradientAt(m, c) {
-  const rows = gradPartials(xs, ys, m, c);
+async function gradientAt(m, c) {
+  const rows = await gradPartials(xs, ys, m, c);
   let sumMx = 0;
   let sumC = 0;
   for (let i = 0; i < 64; i++) {
@@ -870,8 +870,8 @@ function gradientAt(m, c) {
   return [(2 * sumMx) / 4096, (2 * sumC) / 4096];
 }
 
-function lossAt(m, c) {
-  const partials = lossPartials(xs, ys, m, c);
+async function lossAt(m, c) {
+  const partials = await lossPartials(xs, ys, m, c);
   let total = 0;
   for (let i = 0; i < 64; i++) total += partials[i];
   return total / 4096;
@@ -882,16 +882,16 @@ let m = 0;
 let c = 0;
 
 for (let step = 1; step <= 60; step++) {
-  const g = gradientAt(m, c);
+  const g = await gradientAt(m, c);
   m = m - rate * g[0];
   c = c - rate * g[1];
 
-  if (step % 10 === 0) console.log('step', step, '· loss', lossAt(m, c));
+  if (step % 10 === 0) console.log('step', step, '· loss', await lossAt(m, c));
 }
 
 console.log('fitted slope:', m);
 console.log('fitted intercept:', c);
-console.log('final loss:', lossAt(m, c));
+console.log('final loss:', await lossAt(m, c));
 `,
       inputs: () => makeFit(4096),
       publicTests: [
@@ -903,7 +903,7 @@ console.log('final loss:', lossAt(m, c));
             ctx.assert(grad, 'no kernel with output [64, 2] found — keep the gradient kernel');
             ctx.assert(loss, 'no kernel with output [64] found — keep the loss kernel');
             const { xs, ys } = makeFit(4096);
-            const rows = grad(xs, ys, 0, 0);
+            const rows = await grad(xs, ys, 0, 0);
             let sumMx = 0;
             let sumC = 0;
             for (let i = 0; i < 64; i++) {
@@ -912,7 +912,7 @@ console.log('final loss:', lossAt(m, c));
             }
             ctx.assertClose((2 * sumMx) / 4096, -6, 2e-3, '∂L/∂m at m = 0, c = 0');
             ctx.assertClose((2 * sumC) / 4096, -8, 2e-3, '∂L/∂c at m = 0, c = 0');
-            const partials = loss(xs, ys, 0, 0);
+            const partials = await loss(xs, ys, 0, 0);
             let total = 0;
             for (let i = 0; i < 64; i++) total += partials[i];
             ctx.assertClose(total / 4096, 25.5, 2e-3, 'the loss at m = 0, c = 0');
@@ -955,11 +955,11 @@ console.log('final loss:', lossAt(m, c));
             const grad = findByOutput(ctx, [64, 2]);
             ctx.assert(grad, 'expected a kernel with output [64, 2]');
             const { xs, ys } = makeFit(4096);
-            const [m, c] = driveDescent(grad, xs, ys, 0.1, 60, 10, -5);
+            const [m, c] = await driveDescent(grad, xs, ys, 0.1, 60, 10, -5);
             ctx.assertClose(m, M_STAR, 1e-3, 'slope after 60 steps from (10, −5)');
             ctx.assertClose(c, C_STAR, 1e-3, 'intercept after 60 steps from (10, −5)');
             // One step from (0, 0) at rate 0.1 must be exactly (0.6, 0.8).
-            const [m1, c1] = driveDescent(grad, xs, ys, 0.1, 1, 0, 0);
+            const [m1, c1] = await driveDescent(grad, xs, ys, 0.1, 1, 0, 0);
             ctx.assertClose(m1, 0.6, 1e-4, 'slope after exactly one step from (0, 0)');
             ctx.assertClose(c1, 0.8, 1e-4, 'intercept after exactly one step from (0, 0)');
           },
@@ -977,7 +977,7 @@ console.log('final loss:', lossAt(m, c));
             ctx.assert(loss, 'expected a kernel with output [64]');
             const { xs, ys } = makeFit(4096);
             for (const [m, c] of [[3, 4], [2.5, 4.5], [-1, 1]]) {
-              const partials = loss(xs, ys, m, c);
+              const partials = await loss(xs, ys, m, c);
               let total = 0;
               for (let i = 0; i < 64; i++) total += partials[i];
               ctx.assertClose(total / 4096, trueLoss(m, c), 2e-3,
@@ -1083,7 +1083,7 @@ const sweep = gpu.createKernel(function (xs, ys, rates) {
   constants: { points: 64, steps: 80, gradScale: 2 / 64, invPoints: 1 / 64 },
 });
 
-const finalLoss = sweep(xs, ys, rates);
+const finalLoss = await sweep(xs, ys, rates);
 
 let converged = 0;
 for (let k = 0; k < finalLoss.length; k++) {
@@ -1129,7 +1129,7 @@ const sweep = gpu.createKernel(function (xs, ys, rates) {
   constants: { points: 64, steps: 80, gradScale: 2 / 64, invPoints: 1 / 64 },
 });
 
-const finalLoss = sweep(xs, ys, rates);
+const finalLoss = await sweep(xs, ys, rates);
 
 let converged = 0;
 for (let k = 0; k < finalLoss.length; k++) {
@@ -1150,7 +1150,7 @@ console.log('rates that got under loss 1:', converged, 'of 256');
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const { xs, ys } = makeFit(64);
             const rates = makeRates();
-            const out = ctx.kernel(xs, ys, rates);
+            const out = await ctx.kernel(xs, ys, rates);
             ctx.assert(out && out.length === 256, `expected 256 final losses, got ${out && out.length}`);
             const identical = out.every(v => Math.abs(v - out[0]) < 1e-9);
             ctx.assert(
@@ -1164,7 +1164,7 @@ console.log('rates that got under loss 1:', converged, 'of 256');
           run: async ctx => {
             const { xs, ys } = makeFit(64);
             const rates = makeRates();
-            const out = ctx.kernel(xs, ys, rates);
+            const out = await ctx.kernel(xs, ys, rates);
             const hint = sweepShapeHint(out);
             // measured worst deviation across this band: 1.2e-7 (float32),
             // 2.2e-16 (float64) — asserted three orders of magnitude looser
@@ -1179,7 +1179,7 @@ console.log('rates that got under loss 1:', converged, 'of 256');
           run: async ctx => {
             const { xs, ys } = makeFit(64);
             const rates = makeRates();
-            const out = ctx.kernel(xs, ys, rates);
+            const out = await ctx.kernel(xs, ys, rates);
             const hint = sweepShapeHint(out);
             // rate exactly 1: |1 − η·λ| = 1, so the error flips sign forever and
             // the loss stays at its starting value, L(0, 0) = 25.5
@@ -1220,7 +1220,7 @@ console.log('rates that got under loss 1:', converged, 'of 256');
           run: async ctx => {
             const { xs, ys } = makeFit(64);
             const rates = makeRates();
-            const out = ctx.kernel(xs, ys, rates);
+            const out = await ctx.kernel(xs, ys, rates);
             const hint = sweepShapeHint(out);
             // The shape of the whole sweep: a converged band, a blown-up tail,
             // and both counts identical in float32 and float64 (125 / 124).
@@ -1323,7 +1323,7 @@ const walk = gpu.createKernel(function (starts) {
   constants: { steps: 200, rate: 0.02 },
 });
 
-const ends = walk(starts);
+const ends = await walk(starts);
 
 let left = 0;
 let middle = 0;
@@ -1355,7 +1355,7 @@ const walk = gpu.createKernel(function (starts) {
   constants: { steps: 200, rate: 0.02 },
 });
 
-const ends = walk(starts);
+const ends = await walk(starts);
 
 let left = 0;
 let middle = 0;
@@ -1377,7 +1377,7 @@ console.log('start', starts[320], '→', ends[320]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const starts = makeStarts();
-            const out = ctx.kernel(starts);
+            const out = await ctx.kernel(starts);
             ctx.assert(out && out.length === 1024, `expected 1024 results, got ${out && out.length}`);
             const hint = wellsHint(Array.from(out), starts);
             ctx.assert(!hint, hint || 'the walks did not settle');
@@ -1387,7 +1387,7 @@ console.log('start', starts[320], '→', ends[320]);
           name: 'every thread lands in the valley its start was already in',
           run: async ctx => {
             const starts = makeStarts();
-            const out = ctx.kernel(starts);
+            const out = await ctx.kernel(starts);
             const hint = wellsHint(Array.from(out), starts);
             // measured worst |w − minimum| over all 1,024 threads: 2.0e−6, in
             // both float32 and float64
@@ -1418,7 +1418,7 @@ console.log('start', starts[320], '→', ends[320]);
             // that sit deliberately close to a ridge on either side.
             const starts = [];
             for (let k = 0; k < 1024; k++) starts.push(-2.4 + k * (4.8 / 1024));
-            const out = ctx.kernel(starts);
+            const out = await ctx.kernel(starts);
             const hint = wellsHint(Array.from(out), starts);
             const counts = { left: 0, middle: 0, right: 0 };
             for (let k = 0; k < 1024; k++) {

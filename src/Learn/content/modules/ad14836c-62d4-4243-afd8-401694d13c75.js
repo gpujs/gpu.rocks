@@ -485,7 +485,7 @@ audio.createMediaStreamSource(stream).connect(analyser);
 
 const buffer = new Float32Array(analyser.fftSize);
 analyser.getFloatTimeDomainData(buffer);   // ← 2048 real samples
-kernel(buffer);</code></pre>`,
+await kernel(buffer);</code></pre>`,
       goal: `<strong>Goal:</strong> fill 256 samples of a one-second signal — each thread turns its own
         index into a time and sums the three components of <code>tones</code> at that time.`,
       requirements: [
@@ -529,7 +529,7 @@ const synth = gpu.createKernel(function (tones) {
   constants: { sampleRate: 256, parts: 3 },
 });
 
-const signal = synth(tones);
+const signal = await synth(tones);
 console.log('samples:', signal.length);
 console.log('first four:', signal[0], signal[1], signal[2], signal[3]);
 `,
@@ -548,7 +548,7 @@ const synth = gpu.createKernel(function (tones) {
   constants: { sampleRate: 256, parts: 3 },
 });
 
-const signal = synth(tones);
+const signal = await synth(tones);
 console.log('samples:', signal.length);
 console.log('first four:', signal[0], signal[1], signal[2], signal[3]);
 `,
@@ -558,7 +558,7 @@ console.log('first four:', signal[0], signal[1], signal[2], signal[3]);
           name: 'the kernel returns 256 samples',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(TONES.map(t => t.slice()));
+            const out = await ctx.kernel(TONES.map(t => t.slice()));
             ctx.assert(out && out.length === N, `expected ${N} samples, got ${out && out.length}`);
           },
         },
@@ -566,7 +566,7 @@ console.log('first four:', signal[0], signal[1], signal[2], signal[3]);
           name: 'sample <code>i</code> is the sum of the components at <code>t = i / 256</code>',
           run: async ctx => {
             const tones = TONES.map(t => t.slice());
-            const out = ctx.kernel(tones);
+            const out = await ctx.kernel(tones);
             const hint = signalProbes(out, tones, N, SAMPLE_RATE);
             for (const i of [0, 1, 7, 64, 128, 200, 255]) {
               ctx.assertClose(out[i], sampleAt(tones, i, SAMPLE_RATE), 2e-3, hint || `sample ${i}`);
@@ -580,7 +580,7 @@ console.log('first four:', signal[0], signal[1], signal[2], signal[3]);
           run: async ctx => {
             // Different amplitudes, frequencies and phases: nothing may be baked in.
             const tones = [[0.7, 3, 0.25], [0.9, 17, 2.4], [0.4, 31, 1.1]];
-            const out = ctx.kernel(tones);
+            const out = await ctx.kernel(tones);
             ctx.assert(out && out.length === N, `expected ${N} samples`);
             const hint = signalProbes(out, tones, N, SAMPLE_RATE);
             for (let i = 0; i < N; i++) {
@@ -676,13 +676,13 @@ const sample = gpu.createKernel(function (pair) {
   constants: { sampleRate: 256, phase: 0.9 },
 });
 
-const folded = fold(freqs);
+const folded = await fold(freqs);
 console.log('folded:', Array.from(folded));
 
 const alias = folded[3];   // freqs[3] is the 200 Hz tone
 console.log('200 Hz sampled at 256 Hz comes back as', alias, 'Hz');
 
-const rows = sample([200, alias]);
+const rows = await sample([200, alias]);
 console.log('plane 0:', rows[0][0], rows[0][1], rows[0][2], rows[0][3]);
 console.log('plane 1:', rows[1][0], rows[1][1], rows[1][2], rows[1][3]);
 `,
@@ -708,13 +708,13 @@ const sample = gpu.createKernel(function (pair) {
   constants: { sampleRate: 256, phase: 0.9 },
 });
 
-const folded = fold(freqs);
+const folded = await fold(freqs);
 console.log('folded:', Array.from(folded));
 
 const alias = folded[3];   // freqs[3] is the 200 Hz tone
 console.log('200 Hz sampled at 256 Hz comes back as', alias, 'Hz');
 
-const rows = sample([200, alias]);
+const rows = await sample([200, alias]);
 console.log('plane 0:', rows[0][0], rows[0][1], rows[0][2], rows[0][3]);
 console.log('plane 1:', rows[1][0], rows[1][1], rows[1][2], rows[1][3]);
 `,
@@ -725,7 +725,7 @@ console.log('plane 1:', rows[1][0], rows[1][1], rows[1][2], rows[1][3]);
           run: async ctx => {
             const folder = kernelWithOutput(ctx, [FOLD_FREQS.length]);
             ctx.assert(folder, `no kernel with output: [${FOLD_FREQS.length}] found — that is the fold kernel`);
-            const out = folder(FOLD_FREQS.slice());
+            const out = await folder(FOLD_FREQS.slice());
             ctx.assert(out && out.length === FOLD_FREQS.length,
               `expected ${FOLD_FREQS.length} folded frequencies, got ${out && out.length}`);
             const hint = foldProbes(out, FOLD_FREQS, SAMPLE_RATE);
@@ -745,7 +745,7 @@ console.log('plane 1:', rows[1][0], rows[1][1], rows[1][2], rows[1][3]);
             const sampler = kernelWithOutput(ctx, [N, 2]);
             ctx.assert(sampler, 'no kernel with output: [256, 2] found — the sample kernel needs two planes');
             const alias = fold(ALIAS_TEST, SAMPLE_RATE);
-            const rows = sampler([ALIAS_TEST, alias]);
+            const rows = await sampler([ALIAS_TEST, alias]);
             ctx.assert(rows && rows.length === 2, `expected 2 planes, got ${rows && rows.length}`);
             ctx.assert(rows[0] && rows[0].length === N && rows[1] && rows[1].length === N,
               'each plane should hold 256 samples');
@@ -786,7 +786,7 @@ console.log('plane 1:', rows[1][0], rows[1][1], rows[1][2], rows[1][3]);
             const folder = kernelWithOutput(ctx, [FOLD_FREQS.length]);
             ctx.assert(folder, 'expected a fold kernel with 6 outputs');
             const fresh = [3, 77, 129, 255, 257, 384];
-            const out = folder(fresh);
+            const out = await folder(fresh);
             const hint = foldProbes(out, fresh, SAMPLE_RATE);
             for (let i = 0; i < fresh.length; i++) {
               ctx.assertClose(out[i], fold(fresh[i], SAMPLE_RATE), 1e-3, hint || `${fresh[i]} Hz`);
@@ -802,7 +802,7 @@ console.log('plane 1:', rows[1][0], rows[1][1], rows[1][2], rows[1][3]);
             ctx.assert(sampler, 'expected a sample kernel with output: [256, 2]');
             const f = 300;
             const alias = fold(f, SAMPLE_RATE);
-            const rows = sampler([f, alias]);
+            const rows = await sampler([f, alias]);
             const hint = aliasRowProbes(rows[1], alias, ALIAS_PHASE, SAMPLE_RATE, N);
             for (let i = 0; i < N; i++) {
               ctx.assertClose(
@@ -904,7 +904,7 @@ const rebuild = gpu.createKernel(function (samples) {
   constants: { up: 4, n: 64, a: 8, width: 17 },
 });
 
-const curve = rebuild(samples);
+const curve = await rebuild(samples);
 console.log('reconstructed points:', curve.length);
 console.log('on top of sample 10:', curve[40], 'vs', samples[10]);
 `,
@@ -935,7 +935,7 @@ const rebuild = gpu.createKernel(function (samples) {
   constants: { up: 4, n: 64, a: 8, width: 17 },
 });
 
-const curve = rebuild(samples);
+const curve = await rebuild(samples);
 console.log('reconstructed points:', curve.length);
 console.log('on top of sample 10:', curve[40], 'vs', samples[10]);
 `,
@@ -946,7 +946,7 @@ console.log('on top of sample 10:', curve[40], 'vs', samples[10]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const samples = reconSamples();
-            const out = ctx.kernel(samples);
+            const out = await ctx.kernel(samples);
             ctx.assert(out && out.length === RECON_M,
               `expected ${RECON_M} reconstructed points, got ${out && out.length}`);
             for (let k = 0; k < RECON_N; k++) {
@@ -960,7 +960,7 @@ console.log('on top of sample 10:', curve[40], 'vs', samples[10]);
           name: 'each point is the windowed-sinc sum of its 17 neighbours',
           run: async ctx => {
             const samples = reconSamples();
-            const out = ctx.kernel(samples);
+            const out = await ctx.kernel(samples);
             const hint = reconProbes(out, samples, RECON_M);
             for (let j = 0; j < RECON_M; j++) {
               ctx.assertClose(out[j], reconstruct(samples, j), 2e-3, hint || `point ${j}`);
@@ -972,7 +972,7 @@ console.log('on top of sample 10:', curve[40], 'vs', samples[10]);
           run: async ctx => {
             // The payoff: 64 numbers, and the curve between them is right.
             const samples = reconSamples();
-            const out = ctx.kernel(samples);
+            const out = await ctx.kernel(samples);
             const hint = reconProbes(out, samples, RECON_M);
             for (let j = TAPS * UP; j < RECON_M - TAPS * UP; j++) {
               ctx.assertClose(out[j], reconContinuous(j / (UP * RECON_FS)), 4e-3,
@@ -987,7 +987,7 @@ console.log('on top of sample 10:', curve[40], 'vs', samples[10]);
           run: async ctx => {
             // Fresh samples — a different pair of tones, still under Nyquist.
             const fresh = synthesise([[0.6, 7, 1.3], [0.5, 11, 0.2]], RECON_N, RECON_FS);
-            const out = ctx.kernel(fresh);
+            const out = await ctx.kernel(fresh);
             const hint = reconProbes(out, fresh, RECON_M);
             for (let j = 0; j < RECON_M; j++) {
               ctx.assertClose(out[j], reconstruct(fresh, j), 2e-3, hint || `point ${j}`);
@@ -1069,7 +1069,7 @@ const quantise = gpu.createKernel(function (signal, bits) {
 });
 
 for (const bits of [4, 6, 8, 10, 12]) {
-  const planes = quantise(signal, bits);
+  const planes = await quantise(signal, bits);
   let sigPower = 0;
   let errPower = 0;
   for (let i = 0; i < signal.length; i++) {
@@ -1097,7 +1097,7 @@ const quantise = gpu.createKernel(function (signal, bits) {
 });
 
 for (const bits of [4, 6, 8, 10, 12]) {
-  const planes = quantise(signal, bits);
+  const planes = await quantise(signal, bits);
   let sigPower = 0;
   let errPower = 0;
   for (let i = 0; i < signal.length; i++) {
@@ -1116,7 +1116,7 @@ for (const bits of [4, 6, 8, 10, 12]) {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const signal = quantSignal();
             for (const bits of [4, 6, 8]) {
-              const planes = ctx.kernel(signal, bits);
+              const planes = await ctx.kernel(signal, bits);
               ctx.assert(planes && planes.length === 2, `expected 2 planes, got ${planes && planes.length}`);
               ctx.assert(planes[0] && planes[0].length === N, 'each plane should hold 256 values');
               const hint = quantProbes(planes[0], signal, bits, N);
@@ -1132,7 +1132,7 @@ for (const bits of [4, 6, 8, 10, 12]) {
           run: async ctx => {
             const signal = quantSignal();
             const bits = 6;
-            const planes = ctx.kernel(signal, bits);
+            const planes = await ctx.kernel(signal, bits);
             const step = quantStep(bits);
             const hint = diagnoseAll(N, i => planes[1][i], i => quantise(signal[i], bits) - signal[i],
               step / 100, [
@@ -1183,7 +1183,7 @@ for (const bits of [4, 6, 8, 10, 12]) {
             // A depth the driver loop never runs, so nothing can be memoised.
             const signal = quantSignal();
             const bits = 5;
-            const planes = ctx.kernel(signal, bits);
+            const planes = await ctx.kernel(signal, bits);
             const step = quantStep(bits);
             const hint = quantProbes(planes[0], signal, bits, N);
             for (let i = 0; i < N; i++) {
@@ -1271,7 +1271,7 @@ const decimate = gpu.createKernel(function (signal, tones) {
   constants: { sampleRate: 256, factor: 4, parts: 3 },
 });
 
-const planes = decimate(signal, tones);
+const planes = await decimate(signal, tones);
 console.log('kept:', planes[0].length, 'samples at', 256 / 4, 'Hz');
 console.log('first four kept:     ', planes[0][0], planes[0][1], planes[0][2], planes[0][3]);
 console.log('first four predicted:', planes[1][0], planes[1][1], planes[1][2], planes[1][3]);
@@ -1301,7 +1301,7 @@ const decimate = gpu.createKernel(function (signal, tones) {
   constants: { sampleRate: 256, factor: 4, parts: 3 },
 });
 
-const planes = decimate(signal, tones);
+const planes = await decimate(signal, tones);
 console.log('kept:', planes[0].length, 'samples at', 256 / 4, 'Hz');
 console.log('first four kept:     ', planes[0][0], planes[0][1], planes[0][2], planes[0][3]);
 console.log('first four predicted:', planes[1][0], planes[1][1], planes[1][2], planes[1][3]);
@@ -1322,7 +1322,7 @@ for (const t of tones) {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const signal = synthesise(TONES, N, SAMPLE_RATE);
             const tones = TONES.map(t => t.slice());
-            const planes = ctx.kernel(signal, tones);
+            const planes = await ctx.kernel(signal, tones);
             ctx.assert(planes && planes.length === 2, `expected 2 planes, got ${planes && planes.length}`);
             ctx.assert(planes[0] && planes[0].length === DECIM_N,
               `expected ${DECIM_N} kept samples, got ${planes[0] && planes[0].length}`);
@@ -1337,7 +1337,7 @@ for (const t of tones) {
           run: async ctx => {
             const signal = synthesise(TONES, N, SAMPLE_RATE);
             const tones = TONES.map(t => t.slice());
-            const planes = ctx.kernel(signal, tones);
+            const planes = await ctx.kernel(signal, tones);
             const hint = predictionProbes(planes[1], tones, DECIM_N);
             for (let i = 0; i < DECIM_N; i++) {
               ctx.assertClose(planes[1][i], decimatedPrediction(tones, i), 1e-3,
@@ -1350,7 +1350,7 @@ for (const t of tones) {
           run: async ctx => {
             const signal = synthesise(TONES, N, SAMPLE_RATE);
             const tones = TONES.map(t => t.slice());
-            const planes = ctx.kernel(signal, tones);
+            const planes = await ctx.kernel(signal, tones);
             for (let i = 0; i < DECIM_N; i++) {
               ctx.assertClose(planes[0][i], planes[1][i], 2e-3,
                 `sample ${i} differs between the planes — decimating by 4 must give exactly the folded signal`);
@@ -1374,7 +1374,7 @@ for (const t of tones) {
             // Fresh components, including two that alias: 45 Hz → −19, 60 Hz → −4.
             const tones = [[0.8, 7, 0.35], [0.6, 45, 2.1], [0.35, 60, 1.4]];
             const signal = synthesise(tones, N, SAMPLE_RATE);
-            const planes = ctx.kernel(signal, tones);
+            const planes = await ctx.kernel(signal, tones);
             const keptHint = decimateProbes(planes[0], signal, DECIM_N);
             const predHint = predictionProbes(planes[1], tones, DECIM_N);
             for (let i = 0; i < DECIM_N; i++) {

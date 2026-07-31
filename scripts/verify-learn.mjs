@@ -11,12 +11,17 @@
  * in engine/sandbox.worker.js, supervised by engine/runner.js — so a task that
  * passes here is a task that works in the app.
  *
- * Usage: node scripts/verify-learn.mjs [--module <ref>] [--mode cpu|gpu|both]
- *                                      [--base http://localhost:4173]
+ * Usage: node scripts/verify-learn.mjs [--module <ref>]
+ *              [--mode cpu|webgl|webgpu|auto|both|all] [--base http://…]
  *   --module names one module by uuid, short id ('f1399353'), slug
  *   ('hello-kernel') or legacy id ('1-2').
- *   --mode defaults to both; gpu is skipped gracefully when headless WebGL
- *   is unavailable.
+ *   --mode defaults to ALL = cpu + webgl + auto. 'auto' is the mode a learner
+ *   actually gets (gpu.js `async`: WebGPU where the kernel allows it, WebGL
+ *   where it does not) and is the one that catches a kernel call missing its
+ *   `await` — invisible on the synchronous backends, where the same call just
+ *   returns its value. 'both' is the old cpu+webgl pair. 'gpu' is an alias for
+ *   'webgl'. GPU modes are skipped gracefully when the sandbox has no GPU;
+ *   'auto' is never skipped, because it degrades to cpu by itself.
  *   --base checks an already-running server instead of spawning one — use it
  *   to gate the PRODUCTION build (`yarn build && yarn preview`), where the
  *   worker bundle is a separate minified chunk and a dev-only worker URL would
@@ -48,11 +53,24 @@ for (let i = 0; i < args.length; i++) {
     process.exit(2);
   }
 }
-if (!['cpu', 'gpu', 'both'].includes(modeArg)) {
-  console.error(`--mode must be cpu, gpu or both (got "${modeArg}")`);
+// 'auto' is the mode a learner actually gets — gpu.js `async`, WebGPU where the
+// kernel allows it and WebGL where it does not — so it belongs in the default
+// gate. Before it was added here, a task could pass cpu and webgl and still be
+// broken on the setting everyone uses: a kernel call missing its `await`
+// compares against a Promise, which is invisible on the synchronous backends.
+// 'both' keeps its old meaning (cpu + webgl) so existing invocations still work.
+const MODE_SETS = {
+  all: ['cpu', 'webgl', 'auto'],
+  both: ['cpu', 'webgl'],
+};
+const SINGLE_MODES = ['cpu', 'gpu', 'webgl', 'webgpu', 'auto'];
+if (!MODE_SETS[modeArg] && !SINGLE_MODES.includes(modeArg)) {
+  console.error(
+    `--mode must be one of ${SINGLE_MODES.join(', ')}, both or all (got "${modeArg}")`
+  );
   process.exit(2);
 }
-const modes = modeArg === 'both' ? ['cpu', 'gpu'] : [modeArg];
+const modes = MODE_SETS[modeArg] || [modeArg];
 
 // ---- dev server on an ephemeral port --------------------------------------
 

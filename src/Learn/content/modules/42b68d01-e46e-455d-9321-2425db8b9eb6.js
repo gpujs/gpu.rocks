@@ -238,7 +238,7 @@ const double = gpu.createKernel(function (data) {
   return 0;
 }, { output: [64] });
 
-const result = double(data);
+const result = await double(data);
 console.log(result);
 `,
       solutionCode: `// A kernel runs once per output cell — 64 cells here, 64 threads.
@@ -248,7 +248,7 @@ const double = gpu.createKernel(function (data) {
   return data[this.thread.x] * 2;
 }, { output: [64] });
 
-const result = double(data);
+const result = await double(data);
 console.log(result);
 `,
       inputs: utils => ({ data: makeSignal(utils) }),
@@ -257,7 +257,7 @@ console.log(result);
           name: 'kernel returns 64 values — one per thread',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(makeSignal(ctx.utils));
+            const out = await ctx.kernel(makeSignal(ctx.utils));
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
           },
         },
@@ -266,7 +266,7 @@ console.log(result);
           run: async ctx => {
             const arr = new Array(64);
             for (let i = 0; i < 64; i++) arr[i] = i * 1.5 - 10;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             const hint = doubleHint(out, arr);
             for (let i = 0; i < 64; i++) {
               ctx.assertClose(out[i], arr[i] * 2, 1e-3, hint || `element ${i}`);
@@ -279,7 +279,7 @@ console.log(result);
           name: 'private test #1',
           run: async ctx => {
             const data = makeSignal(ctx.utils, 777);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out.length === 64, 'expected 64 output values');
             const hint = doubleHint(out, data);
             for (let i = 0; i < 64; i++) {
@@ -329,7 +329,7 @@ const table = gpu.createKernel(function () {
   output: [16],
 });
 
-const result = table();
+const result = await table();
 console.log('rows:', result.length);
 console.log('row 0:', result[0]);
 `,
@@ -342,7 +342,7 @@ const table = gpu.createKernel(function () {
   output: [16, 16],
 });
 
-const result = table();
+const result = await table();
 console.log('rows:', result.length);
 console.log('row 0:', result[0]);
 `,
@@ -351,7 +351,7 @@ console.log('row 0:', result[0]);
           name: 'result is a 16×16 grid — 16 rows of 16 values',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out && out.length === 16, `expected 16 rows, got ${out && out.length}`);
             ctx.assert(
               out[0] && typeof out[0] !== 'number' && out[0].length === 16,
@@ -362,7 +362,7 @@ console.log('row 0:', result[0]);
         {
           name: 'cell [y][x] equals <code>(x + 1) * (y + 1)</code>',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             const cases = [[0, 0, 1], [2, 3, 12], [7, 0, 8], [0, 7, 8], [15, 15, 256]];
             const hint = tableHint(out);
             for (const [y, x, expected] of cases) {
@@ -375,7 +375,7 @@ console.log('row 0:', result[0]);
         {
           name: 'private test #1',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             const hint = tableHint(out);
             for (let y = 0; y < 16; y++) {
               for (let x = 0; x < 16; x++) {
@@ -429,7 +429,7 @@ const grayscale = gpu.createKernel(function (image) {
   graphical: true,
 });
 
-grayscale(inputImage);
+await grayscale(inputImage);
 render(grayscale.canvas);
 `,
       solutionCode: `// One thread per pixel. No loops over pixels — ever.
@@ -446,7 +446,7 @@ const grayscale = gpu.createKernel(function (image) {
   graphical: true,
 });
 
-grayscale(inputImage);
+await grayscale(inputImage);
 render(grayscale.canvas);
 `,
       inputs: utils => ({ inputImage: utils.makeTestImage(512) }),
@@ -505,7 +505,7 @@ render(grayscale.canvas);
             // Constant-color image → every output pixel must be its luminance.
             const image = constantImage(512, [0.2, 0.4, 0.6, 1]);
             const expected = luminanceOf(image.at(0, 0)) * 255;
-            ctx.kernel(image);
+            await ctx.kernel(image);
             const pixels = ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 4999 * 4) {
               ctx.assertClose(pixels[i], expected, 2, `red at byte ${i}`);
@@ -520,7 +520,7 @@ render(grayscale.canvas);
             // Mean output luminance must match the input's mean luminance —
             // independent of row order.
             const img = ctx.utils.makeTestImage(512);
-            ctx.kernel(img);
+            await ctx.kernel(img);
             const pixels = ctx.getPixels();
             let gotMean = 0;
             for (let i = 0; i < pixels.length; i += 4) gotMean += pixels[i];
@@ -540,7 +540,7 @@ render(grayscale.canvas);
     {
       slug: 'read-it-back',
       title: 'Read the Results Back',
-      intro: `<p>A kernel's return value doesn't stay on the GPU — invoking the kernel hands you the
+      intro: `<p>A kernel's return value doesn't stay on the GPU — awaiting the call hands you the
         finished result as an ordinary (typed) array. From there it's plain JavaScript: loop over it,
         sum it, feed it to a chart, whatever you like.</p>
         <p>This round trip is the heartbeat of GPGPU: <strong>upload → compute in parallel →
@@ -555,7 +555,7 @@ render(grayscale.canvas);
       hints: [
         {
           title: 'Hint 1 — what comes back?',
-          body: `<p>With <code>output: [128]</code> the call <code>squares()</code> returns a
+          body: `<p>With <code>output: [128]</code>, <code>await squares()</code> gives you a
             <code>Float32Array</code> of 128 numbers. It's indexable and loopable like any array.</p>`,
         },
         {
@@ -578,7 +578,7 @@ const squares = gpu.createKernel(function () {
   return this.thread.x;
 }, { output: [128] });
 
-const result = squares();
+const result = await squares();
 console.log(result);
 
 // TODO: total up \`result\` in plain JavaScript, then:
@@ -591,7 +591,7 @@ const squares = gpu.createKernel(function () {
   return this.thread.x * this.thread.x;
 }, { output: [128] });
 
-const result = squares();
+const result = await squares();
 console.log(result);
 
 let total = 0;
@@ -603,7 +603,7 @@ console.log('sum of squares:', total);
           name: 'kernel returns <code>x²</code> for each of 128 threads',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out && out.length === 128, `expected 128 values, got ${out && out.length}`);
             const hint = squareHint(out);
             for (let i = 0; i < 128; i++) {
@@ -628,7 +628,7 @@ console.log('sum of squares:', total);
         {
           name: 'private test #1',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             let total = 0;
             for (let i = 0; i < out.length; i++) total += out[i];
             // 8128 is 0 + 1 + … + 127: the indices themselves, unsquared.
@@ -683,7 +683,7 @@ const brightness = gpu.createKernel(function (photo) {
   return pixel[0];
 }, { output: [64, 64] });
 
-const map = brightness(photo);
+const map = await brightness(photo);
 console.log('top-left brightness:', map[0][0]);
 `,
       solutionCode: `// An image is a nested array: photo[y][x] → [r, g, b, a], all 0–1.
@@ -694,7 +694,7 @@ const brightness = gpu.createKernel(function (photo) {
   return (pixel[0] + pixel[1] + pixel[2]) / 3;
 }, { output: [64, 64] });
 
-const map = brightness(photo);
+const map = await brightness(photo);
 console.log('top-left brightness:', map[0][0]);
 `,
       inputs: utils => ({ photo: utils.makeTestImage(64) }),
@@ -703,7 +703,7 @@ console.log('top-left brightness:', map[0][0]);
           name: 'produces a 64×64 brightness map',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(ctx.utils.makeTestImage(64));
+            const out = await ctx.kernel(ctx.utils.makeTestImage(64));
             ctx.assert(out && out.length === 64, `expected 64 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 64, 'each row should hold 64 values');
           },
@@ -712,7 +712,7 @@ console.log('top-left brightness:', map[0][0]);
           name: 'each cell averages the channels — <code>(r + g + b) / 3</code>',
           run: async ctx => {
             const img = ctx.utils.makeTestImage(64);
-            const out = ctx.kernel(img);
+            const out = await ctx.kernel(img);
             const plain = img.plain; // host-side view of the same pixels
             const cases = [[0, 0], [10, 3], [31, 40], [63, 63]];
             for (const [y, x] of cases) {
@@ -731,7 +731,7 @@ console.log('top-left brightness:', map[0][0]);
           name: 'private test #1',
           run: async ctx => {
             const img = ctx.utils.makeTestImage(64);
-            const out = ctx.kernel(img);
+            const out = await ctx.kernel(img);
             const plain = img.plain;
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
@@ -797,8 +797,8 @@ const paint = gpu.createKernel(function (map) {
   this.color(1, 0, 1, 1);
 }, { output: [64, 64], graphical: true });
 
-const map = luminance(photo);
-paint(map);
+const map = await luminance(photo);
+await paint(map);
 render(paint.canvas);
 `,
       solutionCode: `// Kernel 1 turns the photo into numbers. Kernel 2 turns numbers into pixels.
@@ -814,8 +814,8 @@ const paint = gpu.createKernel(function (map) {
   this.color(l, l, l, 1);
 }, { output: [64, 64], graphical: true });
 
-const map = luminance(photo);
-paint(map);
+const map = await luminance(photo);
+await paint(map);
 render(paint.canvas);
 `,
       inputs: utils => ({ photo: utils.makeTestImage(64) }),
@@ -836,7 +836,7 @@ render(paint.canvas);
             const numeric = ctx.kernels.find(k => k.kernel && !k.kernel.graphical);
             ctx.assert(numeric, 'no numeric kernel found');
             const img = ctx.utils.makeTestImage(64);
-            const out = numeric(img);
+            const out = await numeric(img);
             const plain = img.plain;
             const cases = [[0, 0], [5, 50], [33, 12], [63, 63]];
             for (const [y, x] of cases) {
@@ -878,8 +878,8 @@ render(paint.canvas);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
             const image = constantImage(64, [0.6, 0.2, 0.4, 1]);
             const expected = luminanceOf(image.at(0, 0)) * 255;
-            const map = numeric(image);
-            graphical(map);
+            const map = await numeric(image);
+            await graphical(map);
             const pixels = graphical.getPixels();
             for (let i = 0; i < pixels.length; i += 149 * 4) {
               ctx.assertClose(pixels[i], expected, 2, `red at byte ${i}`);

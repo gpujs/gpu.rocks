@@ -274,12 +274,16 @@ function spectrumProbes(signal, reference) {
 // (task 5) — never by creation order, which a learner is free to change.
 
 // Every kernel that answers a 256-value numeric array — task 4's two.
-function unitKernels(ctx, probeSignal) {
+// Async because invoking a kernel is: under gpu.js's async mode every call
+// returns a Promise, so the probe has to be awaited — and sequentially, one
+// candidate at a time, so a kernel that throws is still isolated by its own
+// try/catch. Everything that calls this is async all the way up.
+async function unitKernels(ctx, probeSignal) {
   const out = [];
   for (const k of ctx.kernels) {
     let v;
     try {
-      v = k(probeSignal);
+      v = await k(probeSignal);
     } catch (e) {
       continue; // a kernel of a different shape — not a candidate
     }
@@ -295,9 +299,9 @@ function unitKernels(ctx, probeSignal) {
 // because a magnitude kernel that is merely wrong (no square root, a stray
 // factor of 2) should still be recognised as the magnitude kernel and get a
 // numeric diagnosis rather than "not found".
-function magnitudeAndPhase(ctx) {
+async function magnitudeAndPhase(ctx) {
   const probe = tones([[8, 1, 1]]);
-  const candidates = unitKernels(ctx, probe);
+  const candidates = await unitKernels(ctx, probe);
   let magnitude = null;
   let phase = null;
   for (const c of candidates) {
@@ -406,8 +410,8 @@ export default {
           title: 'Hint 3 — asking for a bin',
           body: `<p><code>k</code> is an ordinary kernel argument, so one kernel answers every
             bin — call it again with a different number:</p>
-<pre><code>console.log('bin 8:', bin(signal, 8)[0]);
-console.log('bin 20:', bin(signal, 20)[0]);</code></pre>`,
+<pre><code>console.log('bin 8:', (await bin(signal, 8))[0]);
+console.log('bin 20:', (await bin(signal, 20))[0]);</code></pre>`,
         },
       ],
       transfer: `Correlating against a basis function is the move behind far more than audio:
@@ -427,9 +431,9 @@ const bin = gpu.createKernel(function (signal, k) {
   constants: { n: 256 },
 });
 
-console.log('bin 8  (the loud tone):', bin(signal, 8)[0]);
-console.log('bin 20 (the quiet one):', bin(signal, 20)[0]);
-console.log('bin 13 (nothing there):', bin(signal, 13)[0]);
+console.log('bin 8  (the loud tone):', (await bin(signal, 8))[0]);
+console.log('bin 20 (the quiet one):', (await bin(signal, 20))[0]);
+console.log('bin 13 (nothing there):', (await bin(signal, 13))[0]);
 `,
       solutionCode: `// One bin of a transform is one dot product: signal · test wave.
 const gpu = new GPU({ mode });
@@ -446,10 +450,10 @@ const bin = gpu.createKernel(function (signal, k) {
   constants: { n: 256 },
 });
 
-console.log('bin 8  (the loud tone):', bin(signal, 8)[0]);
-console.log('bin 20 (the quiet one):', bin(signal, 20)[0]);
-console.log('bin 13 (nothing there):', bin(signal, 13)[0]);
-console.log('bin 0  (the DC level):', bin(signal, 0)[0]);
+console.log('bin 8  (the loud tone):', (await bin(signal, 8))[0]);
+console.log('bin 20 (the quiet one):', (await bin(signal, 20))[0]);
+console.log('bin 13 (nothing there):', (await bin(signal, 13))[0]);
+console.log('bin 0  (the DC level):', (await bin(signal, 0))[0]);
 `,
       inputs: () => ({ signal: tones([[0, 0.375], [8, 1], [20, 0.5]]) }),
       publicTests: [
@@ -458,7 +462,7 @@ console.log('bin 0  (the DC level):', bin(signal, 0)[0]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const signal = tones([[0, 0.375], [8, 1], [20, 0.5]]);
-            const out = ctx.kernel(signal, 8);
+            const out = await ctx.kernel(signal, 8);
             ctx.assert(out && out.length === 1, `expected 1 output value, got ${out && out.length}`);
           },
         },
@@ -467,7 +471,7 @@ console.log('bin 0  (the DC level):', bin(signal, 0)[0]);
           run: async ctx => {
             const signal = tones([[0, 0.375], [8, 1], [20, 0.5]]);
             for (const [k, expected] of [[8, 128], [20, 64], [13, 0], [0, 96]]) {
-              const got = ctx.kernel(signal, k)[0];
+              const got = (await ctx.kernel(signal, k))[0];
               const hint = diagnose(got, expected, 0.05, binProbes(signal, k));
               ctx.assertClose(got, expected, 0.05, hint || `bin ${k}`);
             }
@@ -497,7 +501,7 @@ console.log('bin 0  (the DC level):', bin(signal, 0)[0]);
             const signal = tones([[0, 0.5], [5, 0.25], [17, 1], [31, 0.75, 0.6]]);
             for (const k of [0, 5, 17, 31, 9, 64]) {
               const expected = cosineBin(signal, k);
-              const got = ctx.kernel(signal, k)[0];
+              const got = (await ctx.kernel(signal, k))[0];
               const hint = diagnose(got, expected, 0.05, binProbes(signal, k));
               ctx.assertClose(got, expected, 0.05, hint || `bin ${k}`);
             }
@@ -557,7 +561,7 @@ else acc -= signal[i] * Math.sin(angle);</code></pre>`,
         {
           title: 'Hint 3 — reading the pair back',
           body: `<p>With <code>output: [1, 2]</code> the result is two rows of one value:</p>
-<pre><code>const out = bin8(tone);
+<pre><code>const out = await bin8(tone);
 const re = out[0][0];
 const im = out[1][0];
 console.log('magnitude:', Math.sqrt(re * re + im * im));</code></pre>`,
@@ -592,8 +596,8 @@ function report(name, out) {
   console.log(name, 'real:', re, 'imaginary:', im);
 }
 
-report('tone       ', bin8(tone));
-report('shiftedTone', bin8(shiftedTone));
+report('tone       ', await bin8(tone));
+report('shiftedTone', await bin8(shiftedTone));
 `,
       solutionCode: `// Two planes, one bin: plane 0 real, plane 1 imaginary.
 const gpu = new GPU({ mode });
@@ -618,8 +622,8 @@ function report(name, out) {
     'magnitude:', Math.sqrt(re * re + im * im));
 }
 
-report('tone       ', bin8(tone));
-report('shiftedTone', bin8(shiftedTone));
+report('tone       ', await bin8(tone));
+report('shiftedTone', await bin8(shiftedTone));
 `,
       inputs: () => ({ tone: tones([[8, 1]]), shiftedTone: delayedTone(8, 8) }),
       publicTests: [
@@ -627,7 +631,7 @@ report('shiftedTone', bin8(shiftedTone));
           name: 'the result is two planes of one bin',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(tones([[8, 1]]));
+            const out = await ctx.kernel(tones([[8, 1]]));
             ctx.assert(out && out.length === 2, `expected 2 planes, got ${out && out.length}`);
             ctx.assert(
               out[0] && typeof out[0] !== 'number' && out[0].length === 1,
@@ -641,7 +645,7 @@ report('shiftedTone', bin8(shiftedTone));
             const signal = tones([[8, 1]]);
             const reference = referenceDft(signal);
             const expected = [reference[0][8], reference[1][8]];
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             const got = p => (out[p] ? out[p][0] : NaN);
             const hint = diagnoseAll(2, got, p => expected[p], 0.05, [
               [p => (p === 0 ? reference[0][8] : -reference[1][8]), SIGN_FLIPPED],
@@ -658,7 +662,7 @@ report('shiftedTone', bin8(shiftedTone));
             const signal = delayedTone(8, 8);
             const reference = referenceDft(signal);
             const expected = [reference[0][8], reference[1][8]];
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             const got = p => (out[p] ? out[p][0] : NaN);
             const noTwoPi = referenceDft(signal, 1);
             const hint = diagnoseAll(2, got, p => expected[p], 0.05, [
@@ -694,7 +698,7 @@ report('shiftedTone', bin8(shiftedTone));
             // unremarkable angle and the magnitude still reads 128.
             const signal = tones([[8, 1, 0.7]]);
             const reference = referenceDft(signal);
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             const got = p => (out[p] ? out[p][0] : NaN);
             const hint = diagnoseAll(2, got, p => reference[p][8], 0.05, [
               [p => (p === 0 ? reference[0][8] : -reference[1][8]), SIGN_FLIPPED],
@@ -751,7 +755,7 @@ report('shiftedTone', bin8(shiftedTone));
         {
           title: 'Hint 2 — reading the spectrum back',
           body: `<p><code>output: [256, 2]</code> comes back as two rows of 256:</p>
-<pre><code>const spectrum = dft(signal);
+<pre><code>const spectrum = await dft(signal);
 const re = spectrum[0][k];
 const im = spectrum[1][k];</code></pre>`,
         },
@@ -785,7 +789,7 @@ const dft = gpu.createKernel(function (signal) {
   constants: { n: 256 },
 });
 
-const spectrum = dft(signal);
+const spectrum = await dft(signal);
 console.log('bin 10 — real:', spectrum[0][10], 'imaginary:', spectrum[1][10]);
 
 // TODO: scan bins 1…128, and for every bin whose magnitude clears 20,
@@ -807,7 +811,7 @@ const dft = gpu.createKernel(function (signal) {
   constants: { n: 256 },
 });
 
-const spectrum = dft(signal);
+const spectrum = await dft(signal);
 console.log('bin 10 — real:', spectrum[0][10], 'imaginary:', spectrum[1][10]);
 
 for (let k = 1; k <= 128; k++) {
@@ -828,7 +832,7 @@ for (let k = 1; k <= 128; k++) {
           name: 'the spectrum is two planes of 256 bins',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(tones([[10, 1, 0.4], [25, 0.6, 0.9], [40, 0.3, -1.7]]));
+            const out = await ctx.kernel(tones([[10, 1, 0.4], [25, 0.6, 0.9], [40, 0.3, -1.7]]));
             ctx.assert(out && out.length === 2, `expected 2 planes, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 256, 'each plane should hold 256 bins');
           },
@@ -838,7 +842,7 @@ for (let k = 1; k <= 128; k++) {
           run: async ctx => {
             const signal = tones([[10, 1, 0.4], [25, 0.6, 0.9], [40, 0.3, -1.7]]);
             const reference = referenceDft(signal);
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             const got = flatPlanes(out);
             const expected = idx => (idx < N ? reference[0][idx] : reference[1][idx - N]);
             const hint = diagnoseAll(2 * N, got, expected, 0.05, spectrumProbes(signal, reference));
@@ -873,7 +877,7 @@ for (let k = 1; k <= 128; k++) {
             // all 512 values rather than a sample of them.
             const signal = tones([[0, 0.5], [6, 0.8, -0.3], [51, 1, 2.2], [90, 0.4, 1.4]]);
             const reference = referenceDft(signal);
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             ctx.assert(out && out.length === 2 && out[0].length === 256, 'expected a [2][256] spectrum');
             const got = flatPlanes(out);
             const expected = idx => (idx < N ? reference[0][idx] : reference[1][idx - N]);
@@ -912,7 +916,7 @@ audio.createMediaStreamSource(stream).connect(analyser);
 
 const samples = new Float32Array(analyser.fftSize);
 analyser.getFloatTimeDomainData(samples);
-const magnitudes = magnitude(Array.from(samples)); // ← this task's kernel</code></pre>`,
+const magnitudes = await magnitude(Array.from(samples)); // ← this task's kernel</code></pre>`,
       goal: `<strong>Goal:</strong> write two kernels over <code>signal</code>, each
         <code>output: [256]</code> — one returning the magnitude of every bin, one returning the
         phase — then confirm the mirror in JavaScript and log how many bins are genuinely
@@ -988,8 +992,8 @@ const phase = gpu.createKernel(function (signal) {
   constants: { n: 256 },
 });
 
-const mag = magnitude(signal);
-const ph = phase(signal);
+const mag = await magnitude(signal);
+const ph = await phase(signal);
 console.log('peak bin 12:', mag[12], 'phase', ph[12]);
 
 // TODO: compare mag[k] with mag[256 - k] across the bottom half, and log how
@@ -1026,8 +1030,8 @@ const phase = gpu.createKernel(function (signal) {
   constants: { n: 256 },
 });
 
-const mag = magnitude(signal);
-const ph = phase(signal);
+const mag = await magnitude(signal);
+const ph = await phase(signal);
 console.log('peak bin 12:', mag[12], 'phase', ph[12]);
 console.log('its mirror 244:', mag[244], 'phase', ph[244]);
 
@@ -1046,7 +1050,7 @@ console.log('independent bins:', independent);
           name: 'a magnitude kernel and a phase kernel, 256 bins each',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 2, `expected 2 kernels, found ${ctx.kernels.length}`);
-            const { magnitude, phase, candidates, probe } = magnitudeAndPhase(ctx);
+            const { magnitude, phase, candidates, probe } = await magnitudeAndPhase(ctx);
             const flat = flatSpectrumHint(candidates, probe);
             ctx.assert(
               magnitude,
@@ -1063,12 +1067,12 @@ console.log('independent bins:', independent);
         {
           name: 'magnitude: <code>64</code> at bin 0, <code>102.4</code> at bin 12, <code>57.6</code> at bin 33',
           run: async ctx => {
-            const { magnitude, candidates, probe } = magnitudeAndPhase(ctx);
+            const { magnitude, candidates, probe } = await magnitudeAndPhase(ctx);
             ctx.assert(magnitude, flatSpectrumHint(candidates, probe) || 'no magnitude kernel found');
             const signal = tones([[0, 0.25], [12, 0.8, 1.1], [33, 0.45, -0.6]]);
             const reference = referenceDft(signal);
             const flat = sumAbsOf(signal);
-            const out = magnitude(signal);
+            const out = await magnitude(signal);
             for (const k of [0, 12, 33, 50, 128, 223, 244]) {
               const expected = magnitudeOf(reference, k);
               const hint = diagnose(out[k], expected, 0.05, [
@@ -1087,11 +1091,11 @@ console.log('independent bins:', independent);
         {
           name: 'phase: <code>1.1</code> at bin 12, <code>−0.6</code> at bin 33',
           run: async ctx => {
-            const { phase } = magnitudeAndPhase(ctx);
+            const { phase } = await magnitudeAndPhase(ctx);
             ctx.assert(phase, 'no phase kernel found');
             const signal = tones([[0, 0.25], [12, 0.8, 1.1], [33, 0.45, -0.6]]);
             const reference = referenceDft(signal);
-            const out = phase(signal);
+            const out = await phase(signal);
             // Only bins with real energy in BOTH parts: where the magnitude is
             // float noise the phase is float noise too, and a bin whose
             // imaginary part is zero sits on atan2's ±π seam, where a hair of
@@ -1124,14 +1128,14 @@ console.log('independent bins:', independent);
         {
           name: 'private test #1',
           run: async ctx => {
-            const { magnitude, phase, candidates, probe } = magnitudeAndPhase(ctx);
+            const { magnitude, phase, candidates, probe } = await magnitudeAndPhase(ctx);
             ctx.assert(magnitude, flatSpectrumHint(candidates, probe) || 'no magnitude kernel found');
             ctx.assert(phase, 'no phase kernel found');
             const signal = tones([[0, -0.4], [7, 1, 0.25], [44, 0.5, -2.4], [61, 0.9, 1.9]]);
             const reference = referenceDft(signal);
             const flat = sumAbsOf(signal);
-            const mag = magnitude(signal);
-            const ph = phase(signal);
+            const mag = await magnitude(signal);
+            const ph = await phase(signal);
             for (let k = 0; k < N; k++) {
               const expected = magnitudeOf(reference, k);
               const hint = diagnose(mag[k], expected, 0.05, [
@@ -1249,8 +1253,8 @@ const idft = gpu.createKernel(function (spectrum) {
   constants: { n: 256 },
 });
 
-const spectrum = dft(signal);
-const back = idft(spectrum);
+const spectrum = await dft(signal);
+const back = await idft(spectrum);
 
 let worst = 0;
 let matched = 0;
@@ -1294,8 +1298,8 @@ const idft = gpu.createKernel(function (spectrum) {
   constants: { n: 256 },
 });
 
-const spectrum = dft(signal);
-const back = idft(spectrum);
+const spectrum = await dft(signal);
+const back = await idft(spectrum);
 
 let worst = 0;
 let matched = 0;
@@ -1328,7 +1332,7 @@ console.log('samples recovered within 1e-3:', matched);
             ctx.assert(inverse, 'no inverse kernel found');
             const signal = pluck();
             const reference = referenceDft(signal);
-            const out = inverse(asPlanes(reference[0], reference[1]));
+            const out = await inverse(asPlanes(reference[0], reference[1]));
             ctx.assert(out && out.length === 2 && out[0].length === 256,
               'the inverse should return [2][256] — plane 0 real, plane 1 imaginary');
             const reversed = i => signal[(N - i) % N];
@@ -1373,7 +1377,7 @@ console.log('samples recovered within 1e-3:', matched);
             const { forward, inverse } = transformKernels(ctx);
             ctx.assert(forward && inverse, 'expected a forward and an inverse kernel');
             const signal = tones([[0, 0.3], [4, 1, 1.3], [29, 0.65, -0.8], [77, 0.2, 2.9]]);
-            const back = inverse(forward(signal));
+            const back = await inverse(await forward(signal));
             const reversed = i => signal[(N - i) % N];
             const hint = diagnoseAll(N, i => back[0][i], i => signal[i], 5e-3, [
               [i => signal[i] * N,

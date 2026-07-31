@@ -226,6 +226,16 @@ export function validateContent(modules, trackMeta) {
         }
       }
 
+      // A task may pin the GPU path to one backend. Only 'webgl' is meaningful
+      // today: it stops mode "auto" using gpu.js's per-kernel WebGPU upgrade,
+      // which would let a pipelined chain hand a texture across backends and
+      // pay a readback the task exists to teach away.
+      if (task.backend !== undefined && task.backend !== 'webgl') {
+        problems.push(
+          `${where} task ${step}: backend must be 'webgl' if set, got ${JSON.stringify(task.backend)}`
+        );
+      }
+
       // Hint TITLES are rendered as JSX text (<summary>{hint.title}</summary>),
       // so React escapes them and any markup shows up as literal tags to the
       // learner. Hint BODIES are trusted HTML and may contain markup.

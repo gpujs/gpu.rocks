@@ -305,13 +305,15 @@ function windowKernels(ctx) {
 
 // The window kernel under test, plus its shape on a signal of 256 ones — which
 // is the window itself, since every window kernel here is "sample x taper".
-function windowUnderTest(ctx, what) {
+// Async because it invokes the kernel, and under gpu.js's async mode a kernel
+// call is a Promise on every backend. Every caller awaits it.
+async function windowUnderTest(ctx, what) {
   const candidates = windowKernels(ctx);
   if (!candidates.length) {
     return { error: `no kernel with output: [256] taking a 256-sample signal was found — ${what}` };
   }
   const kernel = candidates[candidates.length - 1];
-  const shape = Array.from(kernel(ones()));
+  const shape = Array.from(await kernel(ones()));
   return { kernel, shape };
 }
 
@@ -521,16 +523,18 @@ const magnitude = gpu.createKernel(function (spec) {
   return 0;
 }, { output: [256] });
 
-function report(label, signal) {
-  const mag = magnitude(spectrum(signal));
+// Every kernel call is awaited: gpu.js's async mode hands one back a Promise
+// whichever backend it picks, so the helper that calls them is async too.
+async function report(label, signal) {
+  const mag = await magnitude(await spectrum(signal));
   // TODO: peak      = the largest magnitude in bins 0…128
   //       amplitude = 2 * peak / 256
   //       busy      = how many of bins 0…128 exceed 0.01 * peak
   console.log(label, 'amplitude:', 0, 'busy bins:', 0);
 }
 
-report('onBin ', onBin);
-report('offBin', offBin);
+await report('onBin ', onBin);
+await report('offBin', offBin);
 `,
       solutionCode: `// Two tones, one window. Only one of them fits.
 const gpu = new GPU({ mode });
@@ -544,8 +548,10 @@ ${SPECTRUM_KERNEL}
 
 ${MAGNITUDE_KERNEL}
 
-function report(label, signal) {
-  const mag = magnitude(spectrum(signal));
+// Every kernel call is awaited: gpu.js's async mode hands one back a Promise
+// whichever backend it picks, so the helper that calls them is async too.
+async function report(label, signal) {
+  const mag = await magnitude(await spectrum(signal));
   let peak = 0;
   for (let k = 0; k <= 128; k++) if (mag[k] > peak) peak = mag[k];
   let busy = 0;
@@ -553,8 +559,8 @@ function report(label, signal) {
   console.log(label, 'amplitude:', 2 * peak / 256, 'busy bins:', busy);
 }
 
-report('onBin ', onBin);
-report('offBin', offBin);
+await report('onBin ', onBin);
+await report('offBin', offBin);
 `,
       inputs: () => ({ onBin: tone(ON_BIN), offBin: tone(OFF_BIN) }),
       publicTests: [
@@ -582,7 +588,7 @@ report('offBin', offBin);
               re[k] = ((k * 7) % 11) - 4.75;
               im[k] = ((k * 5) % 13) - 5.5;
             }
-            const out = magnitude([re, im]);
+            const out = await magnitude([re, im]);
             ctx.assert(out && out.length === N, `expected 256 magnitudes, got ${out && out.length}`);
             for (const k of [0, 1, 3, 17, 64, 128, 255]) {
               const expected = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
@@ -642,7 +648,7 @@ report('offBin', offBin);
               re[k] = Math.cos(k * 0.37) * 3 + 0.6;
               im[k] = Math.sin(k * 0.11) * 5 - 0.9;
             }
-            const out = magnitude([re, im]);
+            const out = await magnitude([re, im]);
             for (let k = 0; k < N; k++) {
               const expected = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
               const hint = diagnose(out[k], expected, 1e-3, magnitudeProbes(re[k], im[k]));
@@ -659,7 +665,7 @@ report('offBin', offBin);
             const spectrum = kernelWithOutput(ctx, [N, 2]);
             ctx.assert(magnitude && spectrum, 'expected the given spectrum kernel and a magnitude kernel');
             const signal = tone(11.25);
-            const got = magnitude(spectrum(signal));
+            const got = await magnitude(await spectrum(signal));
             const expected = dftMag(signal);
             for (let k = 0; k <= N / 2; k++) {
               ctx.assertClose(got[k], expected[k], 2e-2, `bin ${k} of a fresh 11.25-cycle tone`);
@@ -734,15 +740,15 @@ const wrappedStep = gpu.createKernel(function (signal) {
   return 0;
 }, { output: [256], constants: { n: 256 } });
 
-function report(label, signal) {
-  const step = wrappedStep(signal);
+async function report(label, signal) {
+  const step = await wrappedStep(signal);
   // TODO: seam    = Math.abs(step[255])
   //       biggest = the largest Math.abs(step[i]) over all 256 cells
   console.log(label, 'seam:', 0, 'biggest step:', 0);
 }
 
-report('onBin ', onBin);
-report('offBin', offBin);
+await report('onBin ', onBin);
+await report('offBin', offBin);
 `,
       solutionCode: `// The DFT tiles your window end to end. Measure the seam.
 const gpu = new GPU({ mode });
@@ -752,8 +758,8 @@ const wrappedStep = gpu.createKernel(function (signal) {
   return signal[(i + 1) % this.constants.n] - signal[i];
 }, { output: [256], constants: { n: 256 } });
 
-function report(label, signal) {
-  const step = wrappedStep(signal);
+async function report(label, signal) {
+  const step = await wrappedStep(signal);
   const seam = Math.abs(step[255]);
   let biggest = 0;
   for (let i = 0; i < step.length; i++) {
@@ -762,8 +768,8 @@ function report(label, signal) {
   console.log(label, 'seam:', seam, 'biggest step:', biggest);
 }
 
-report('onBin ', onBin);
-report('offBin', offBin);
+await report('onBin ', onBin);
+await report('offBin', offBin);
 `,
       inputs: () => ({ onBin: tone(ON_BIN), offBin: tone(OFF_BIN) }),
       publicTests: [
@@ -776,7 +782,7 @@ report('offBin', offBin);
             // every interior step is +1/256 and the seam is -255/256.
             const ramp = new Array(N);
             for (let i = 0; i < N; i++) ramp[i] = i / N;
-            const out = step(ramp);
+            const out = await step(ramp);
             ctx.assert(out && out.length === N, `expected 256 steps, got ${out && out.length}`);
             const expected = wrappedSteps(ramp);
             const hint = diagnoseAll(N, i => out[i], i => expected[i], 1e-4, stepProbes(ramp));
@@ -836,7 +842,7 @@ report('offBin', offBin);
             const step = kernelWithOutput(ctx, [N]);
             ctx.assert(step, 'no kernel with output: [256] found');
             const signal = tone(6.25, 0.8);
-            const out = step(signal);
+            const out = await step(signal);
             const expected = wrappedSteps(signal);
             const hint = diagnoseAll(N, i => out[i], i => expected[i], 1e-4, stepProbes(signal));
             for (let i = 0; i < N; i++) {
@@ -853,7 +859,7 @@ report('offBin', offBin);
             const step = kernelWithOutput(ctx, [N]);
             ctx.assert(step, 'no kernel with output: [256] found');
             const signal = tone(3.5, 1.4);
-            const out = step(signal);
+            const out = await step(signal);
             ctx.assertClose(sumOf(Array.from(out)), 0, 1e-3,
               'the 256 wrapped steps should sum to 0 — they walk once round the circle and back to the start, which only works if the last cell wraps');
           },
@@ -908,7 +914,7 @@ return signal[i] * w;</code></pre>`,
           title: 'Hint 2 — and then use it',
           body: `<p>The taper goes on the samples, so it has to run <em>before</em> the
             transform sees them:</p>
-<pre><code>const tapered = measure(magnitude(spectrum(hann(offBin))));</code></pre>
+<pre><code>const tapered = measure(await magnitude(await spectrum(await hann(offBin))));</code></pre>
 <p>If the number you get back is the rectangular one again, the windowed signal
             never reached <code>spectrum</code>.</p>`,
         },
@@ -956,11 +962,11 @@ function measure(mag) {
   return { db: 20 * Math.log10(worst / peak), amplitude: 2 * peak / 256 };
 }
 
-const plain = measure(magnitude(spectrum(rect(offBin))));
+const plain = measure(await magnitude(await spectrum(await rect(offBin))));
 console.log('rect  leak:', plain.db, 'dB');
 
 // TODO: taper offBin with hann FIRST, then transform the windowed samples.
-const tapered = measure(magnitude(spectrum(rect(offBin))));
+const tapered = measure(await magnitude(await spectrum(await rect(offBin))));
 console.log('hann  leak:', tapered.db, 'dB   amplitude:', tapered.amplitude);
 `,
       solutionCode: `// A taper the signal can end on. Then transform it.
@@ -986,11 +992,11 @@ function measure(mag) {
   return { db: 20 * Math.log10(worst / peak), amplitude: 2 * peak / 256 };
 }
 
-const plain = measure(magnitude(spectrum(rect(offBin))));
+const plain = measure(await magnitude(await spectrum(await rect(offBin))));
 console.log('rect  leak:', plain.db, 'dB');
 
 // The taper goes on the SAMPLES, before the transform.
-const tapered = measure(magnitude(spectrum(hann(offBin))));
+const tapered = measure(await magnitude(await spectrum(await hann(offBin))));
 console.log('hann  leak:', tapered.db, 'dB   amplitude:', tapered.amplitude);
 `,
       inputs: () => ({ offBin: tone(OFF_BIN) }),
@@ -998,7 +1004,7 @@ console.log('hann  leak:', tapered.db, 'dB   amplitude:', tapered.amplitude);
         {
           name: 'the window kernel is the Hann taper',
           run: async ctx => {
-            const found = windowUnderTest(ctx, 'the Hann taper needs one thread per sample');
+            const found = await windowUnderTest(ctx, 'the Hann taper needs one thread per sample');
             ctx.assert(!found.error, found.error);
             ctx.assert(
               Math.abs(found.shape[0] - 1) > 1e-6 || Math.abs(found.shape[N / 2] - 1) > 1e-6,
@@ -1016,10 +1022,10 @@ console.log('hann  leak:', tapered.db, 'dB   amplitude:', tapered.amplitude);
         {
           name: 'the taper multiplies the signal, not just itself',
           run: async ctx => {
-            const found = windowUnderTest(ctx, 'the Hann taper needs one thread per sample');
+            const found = await windowUnderTest(ctx, 'the Hann taper needs one thread per sample');
             ctx.assert(!found.error, found.error);
             const signal = tone(5.5, 0.9);
-            const out = found.kernel(signal);
+            const out = await found.kernel(signal);
             const hint = diagnoseAll(N, i => out[i], i => signal[i] * hannWindow(i), 1e-4,
               hannProbes(signal));
             for (let i = 0; i < N; i++) {
@@ -1070,10 +1076,10 @@ console.log('hann  leak:', tapered.db, 'dB   amplitude:', tapered.amplitude);
         {
           name: 'private test #1',
           run: async ctx => {
-            const found = windowUnderTest(ctx, 'the Hann taper needs one thread per sample');
+            const found = await windowUnderTest(ctx, 'the Hann taper needs one thread per sample');
             ctx.assert(!found.error, found.error);
             const signal = tone(9.25, 1.3);
-            const out = found.kernel(signal);
+            const out = await found.kernel(signal);
             const hint = diagnoseAll(N, i => out[i], i => signal[i] * hannWindow(i), 1e-4,
               hannProbes(signal));
             for (let i = 0; i < N; i++) {
@@ -1188,8 +1194,8 @@ const blackman = gpu.createKernel(function (signal) {
   return signal[i];
 }, { output: [256], constants: { n: 256 } });
 
-function analyse(windowed) {
-  const mag = paddedMagnitude(paddedSpectrum(windowed));
+async function analyse(windowed) {
+  const mag = await paddedMagnitude(await paddedSpectrum(windowed));
   const peakAt = 32 * 4;        // the tone sits on bin 32, 4 grid points per bin
   const peak = mag[peakAt];
 
@@ -1206,12 +1212,15 @@ function analyse(windowed) {
   return { bins, db: 20 * Math.log10(worst / peak) };
 }
 
-for (const [label, windowed] of [
-  ['rect    ', rect(signal)],
-  ['hann    ', hann(signal)],
-  ['blackman', blackman(signal)],
-]) {
-  const r = analyse(windowed);
+// Each window runs, and is awaited, before the next one starts.
+const rows = [
+  ['rect    ', await rect(signal)],
+  ['hann    ', await hann(signal)],
+  ['blackman', await blackman(signal)],
+];
+
+for (const [label, windowed] of rows) {
+  const r = await analyse(windowed);
   console.log(label, 'main lobe:', r.bins, 'bins   peak side lobe:', r.db, 'dB');
 }
 `,
@@ -1251,8 +1260,8 @@ const blackman = gpu.createKernel(function (signal) {
   return signal[i] * w;
 }, { output: [256], constants: { n: 256 } });
 
-function analyse(windowed) {
-  const mag = paddedMagnitude(paddedSpectrum(windowed));
+async function analyse(windowed) {
+  const mag = await paddedMagnitude(await paddedSpectrum(windowed));
   const peakAt = 32 * 4;        // the tone sits on bin 32, 4 grid points per bin
   const peak = mag[peakAt];
 
@@ -1267,12 +1276,15 @@ function analyse(windowed) {
   return { bins, db: 20 * Math.log10(worst / peak) };
 }
 
-for (const [label, windowed] of [
-  ['rect    ', rect(signal)],
-  ['hann    ', hann(signal)],
-  ['blackman', blackman(signal)],
-]) {
-  const r = analyse(windowed);
+// Each window runs, and is awaited, before the next one starts.
+const rows = [
+  ['rect    ', await rect(signal)],
+  ['hann    ', await hann(signal)],
+  ['blackman', await blackman(signal)],
+];
+
+for (const [label, windowed] of rows) {
+  const r = await analyse(windowed);
   console.log(label, 'main lobe:', r.bins, 'bins   peak side lobe:', r.db, 'dB');
 }
 `,
@@ -1281,7 +1293,7 @@ for (const [label, windowed] of [
         {
           name: 'the Blackman kernel is the three-term window',
           run: async ctx => {
-            const found = windowUnderTest(ctx, 'the Blackman taper needs one thread per sample');
+            const found = await windowUnderTest(ctx, 'the Blackman taper needs one thread per sample');
             ctx.assert(!found.error, found.error);
             ctx.assert(
               Math.abs(found.shape[N / 4] - 1) > 1e-6,
@@ -1299,10 +1311,10 @@ for (const [label, windowed] of [
         {
           name: 'Blackman multiplies the signal it is given',
           run: async ctx => {
-            const found = windowUnderTest(ctx, 'the Blackman taper needs one thread per sample');
+            const found = await windowUnderTest(ctx, 'the Blackman taper needs one thread per sample');
             ctx.assert(!found.error, found.error);
             const signal = tone(7.5, 1.2);
-            const out = found.kernel(signal);
+            const out = await found.kernel(signal);
             const hint = diagnoseAll(N, i => out[i], i => signal[i] * blackmanWindow(i), 1e-4,
               blackmanProbes(signal));
             for (let i = 0; i < N; i++) {
@@ -1356,10 +1368,10 @@ for (const [label, windowed] of [
         {
           name: 'private test #1',
           run: async ctx => {
-            const found = windowUnderTest(ctx, 'the Blackman taper needs one thread per sample');
+            const found = await windowUnderTest(ctx, 'the Blackman taper needs one thread per sample');
             ctx.assert(!found.error, found.error);
             const signal = tone(13.5, 0.7);
-            const out = found.kernel(signal);
+            const out = await found.kernel(signal);
             const hint = diagnoseAll(N, i => out[i], i => signal[i] * blackmanWindow(i), 1e-4,
               blackmanProbes(signal));
             for (let i = 0; i < N; i++) {
@@ -1431,14 +1443,14 @@ return 2 * Math.sqrt(re * re + im * im) / sumW;</code></pre>`,
           title: 'Hint 2 — the window, from the window kernel',
           body: `<p>Every window kernel here is "sample × taper", so a signal of ones makes it
             return the taper:</p>
-<pre><code>const w = hann(flat);            // flat = new Array(256).fill(1)
+<pre><code>const w = await hann(flat);      // flat = new Array(256).fill(1)
 let sumW = 0;
 let sumW2 = 0;
 for (let i = 0; i &lt; w.length; i++) {
   sumW += w[i];
   sumW2 += w[i] * w[i];
 }</code></pre>
-<p>Which also gives the rectangular case for free: <code>rect(flat)</code> is 256
+<p>Which also gives the rectangular case for free: <code>await rect(flat)</code> is 256
             ones, so its <code>sumW</code> is 256.</p>`,
         },
         {
@@ -1480,12 +1492,12 @@ const amplitudeSpectrum = gpu.createKernel(function (spec, sumW) {
 
 const flat = new Array(256).fill(1);
 
-function report(label, window, windowed) {
+async function report(label, window, windowed) {
   // TODO: sumW = the sum of the window, sumW2 = the sum of its squares
   const sumW = 256;
   const sumW2 = 256;
 
-  const amp = amplitudeSpectrum(spectrum(windowed), sumW);
+  const amp = await amplitudeSpectrum(await spectrum(windowed), sumW);
   let peak = 0;
   for (let k = 0; k <= 128; k++) if (amp[k] > peak) peak = amp[k];
 
@@ -1493,9 +1505,9 @@ function report(label, window, windowed) {
   return { sumW, sumW2 };
 }
 
-report('rect    ', rect(flat), rect(signal));
-const h = report('hann    ', hann(flat), hann(signal));
-report('blackman', blackman(flat), blackman(signal));
+await report('rect    ', await rect(flat), await rect(signal));
+const h = await report('hann    ', await hann(flat), await hann(signal));
+await report('blackman', await blackman(flat), await blackman(signal));
 console.log('hann gains — coherent:', h.sumW / 256, 'noise:', h.sumW2 / 256);
 `,
       solutionCode: `// Three windows, three different peaks, one true amplitude.
@@ -1523,7 +1535,7 @@ const amplitudeSpectrum = gpu.createKernel(function (spec, sumW) {
 
 const flat = new Array(256).fill(1);
 
-function report(label, window, windowed) {
+async function report(label, window, windowed) {
   let sumW = 0;
   let sumW2 = 0;
   for (let i = 0; i < window.length; i++) {
@@ -1531,7 +1543,7 @@ function report(label, window, windowed) {
     sumW2 += window[i] * window[i];
   }
 
-  const amp = amplitudeSpectrum(spectrum(windowed), sumW);
+  const amp = await amplitudeSpectrum(await spectrum(windowed), sumW);
   let peak = 0;
   for (let k = 0; k <= 128; k++) if (amp[k] > peak) peak = amp[k];
 
@@ -1539,9 +1551,9 @@ function report(label, window, windowed) {
   return { sumW, sumW2 };
 }
 
-report('rect    ', rect(flat), rect(signal));
-const h = report('hann    ', hann(flat), hann(signal));
-report('blackman', blackman(flat), blackman(signal));
+await report('rect    ', await rect(flat), await rect(signal));
+const h = await report('hann    ', await hann(flat), await hann(signal));
+await report('blackman', await blackman(flat), await blackman(signal));
 console.log('hann gains — coherent:', h.sumW / 256, 'noise:', h.sumW2 / 256);
 `,
       inputs: () => ({ signal: tone(GAIN_BIN, GAIN_AMP) }),
@@ -1558,7 +1570,7 @@ console.log('hann gains — coherent:', h.sumW / 256, 'noise:', h.sumW2 / 256);
               re[k] = ((k * 3) % 7) + 1.5;
               im[k] = ((k * 5) % 9) - 3.25;
             }
-            const got = amp([re, im], 128);
+            const got = await amp([re, im], 128);
             ctx.assert(got && got.length === N, `expected 256 values, got ${got && got.length}`);
             for (const k of [0, 5, 64, 200]) {
               const mag = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
@@ -1571,7 +1583,7 @@ console.log('hann gains — coherent:', h.sumW / 256, 'noise:', h.sumW2 / 256);
               ctx.assertClose(got[k], expected, 1e-3, hint || `bin ${k}`);
             }
             // Structural: halve sumW and every value must exactly double.
-            const halved = amp([re, im], 64);
+            const halved = await amp([re, im], 64);
             ctx.assertClose(halved[7] / got[7], 2, 1e-3,
               'halving sumW must double every value — this kernel is ignoring its sumW argument and dividing by a constant instead');
           },
@@ -1660,7 +1672,7 @@ console.log('hann gains — coherent:', h.sumW / 256, 'noise:', h.sumW2 / 256);
               re[k] = Math.cos(k * 0.21) * 4 + 1.1;
               im[k] = Math.sin(k * 0.43) * 2 - 0.7;
             }
-            const got = amp([re, im], 107.52);
+            const got = await amp([re, im], 107.52);
             for (let k = 0; k < N; k++) {
               const expected = (2 * Math.sqrt(re[k] * re[k] + im[k] * im[k])) / 107.52;
               ctx.assertClose(got[k], expected, 1e-3, `bin ${k}`);

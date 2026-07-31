@@ -322,7 +322,7 @@ const flag = gpu.createKernel(function (samples) {
   constants: { threshold: 50 },
 });
 
-const flags = flag(samples);
+const flags = await flag(samples);
 console.log('samples:', samples.slice(0, 12).join(', '));
 console.log('flags:  ', Array.from(flags).slice(0, 12).join(', '));
 console.log('same 64 slots, holes and all — a flag says WHO survives, not WHERE it goes.');
@@ -337,7 +337,7 @@ const flag = gpu.createKernel(function (samples) {
   constants: { threshold: 50 },
 });
 
-const flags = flag(samples);
+const flags = await flag(samples);
 console.log('samples:', samples.slice(0, 12).join(', '));
 console.log('flags:  ', Array.from(flags).slice(0, 12).join(', '));
 console.log('same 64 slots, holes and all — a flag says WHO survives, not WHERE it goes.');
@@ -349,7 +349,7 @@ console.log('same 64 slots, holes and all — a flag says WHO survives, not WHER
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const arr = makeSamples(ctx.utils, N, 1130);
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             ctx.assert(out && out.length === N, `expected ${N} output values, got ${out && out.length}`);
             const hint = diagnoseAll(N, i => out[i], i => flagsOf(arr)[i], 1e-3, flagProbes(arr));
             for (let i = 0; i < N; i++) {
@@ -366,7 +366,7 @@ console.log('same 64 slots, holes and all — a flag says WHO survives, not WHER
             // 20 … 83, so index 30 sits exactly on the threshold.
             const arr = new Array(N);
             for (let i = 0; i < N; i++) arr[i] = i + 20;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             const want = flagsOf(arr);
             const hint = diagnoseAll(N, i => out[i], i => want[i], 1e-3, flagProbes(arr));
             for (let i = 0; i < N; i++) {
@@ -380,7 +380,7 @@ console.log('same 64 slots, holes and all — a flag says WHO survives, not WHER
           name: 'private test #1',
           run: async ctx => {
             const arr = makeSamples(ctx.utils, N, 40961);
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             ctx.assert(out && out.length === N, `expected ${N} output values`);
             const want = flagsOf(arr);
             const hint = diagnoseAll(N, i => out[i], i => want[i], 1e-3, flagProbes(arr));
@@ -395,11 +395,11 @@ console.log('same 64 slots, holes and all — a flag says WHO survives, not WHER
             // Both extremes: nothing survives, then everything does.
             const none = new Array(N).fill(THRESHOLD - 1);
             const all = new Array(N).fill(THRESHOLD);
-            const low = ctx.kernel(none);
+            const low = await ctx.kernel(none);
             for (let i = 0; i < N; i++) {
               ctx.assertClose(low[i], 0, 1e-3, `sample ${THRESHOLD - 1} is below the threshold — element ${i}`);
             }
-            const high = ctx.kernel(all);
+            const high = await ctx.kernel(all);
             for (let i = 0; i < N; i++) {
               ctx.assertClose(high[i], 1, 1e-3, `sample ${THRESHOLD} is ON the threshold, so it survives — element ${i}`);
             }
@@ -473,7 +473,7 @@ const destination = gpu.createKernel(function (flags) {
   constants: { n: 64 },
 });
 
-const offsets = destination(flags);
+const offsets = await destination(flags);
 console.log('flags:   ', Array.from(flags).slice(0, 12).join(', '));
 console.log('offsets: ', Array.from(offsets).slice(0, 12).join(', '));
 `,
@@ -493,7 +493,7 @@ const destination = gpu.createKernel(function (flags) {
   constants: { n: 64 },
 });
 
-const offsets = destination(flags);
+const offsets = await destination(flags);
 console.log('flags:   ', Array.from(flags).slice(0, 12).join(', '));
 console.log('offsets: ', Array.from(offsets).slice(0, 12).join(', '));
 `,
@@ -505,7 +505,7 @@ console.log('offsets: ', Array.from(offsets).slice(0, 12).join(', '));
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const arr = new Array(N);
             for (let i = 0; i < N; i++) arr[i] = i % 3 === 0 ? 1 : 0; // arr[0] === 1
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             ctx.assert(out && out.length === N, `expected ${N} output values, got ${out && out.length}`);
             const want = scanOf(arr);
             const hint = diagnoseAll(N, i => out[i], i => want[i], 1e-3, scanProbes(arr));
@@ -518,7 +518,7 @@ console.log('offsets: ', Array.from(offsets).slice(0, 12).join(', '));
           run: async ctx => {
             const arr = new Array(N);
             for (let i = 0; i < N; i++) arr[i] = i % 3 === 0 ? 1 : 0;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             const want = scanOf(arr);
             const hint = diagnoseAll(N, i => out[i], i => want[i], 1e-3, scanProbes(arr));
             for (let i = 0; i < N; i++) {
@@ -532,7 +532,7 @@ console.log('offsets: ', Array.from(offsets).slice(0, 12).join(', '));
           name: 'private test #1',
           run: async ctx => {
             const arr = flagsOf(makeSamples(ctx.utils, N, 8088));
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             const want = scanOf(arr);
             const hint = diagnoseAll(N, i => out[i], i => want[i], 1e-3, scanProbes(arr));
             for (let i = 0; i < N; i++) {
@@ -544,11 +544,11 @@ console.log('offsets: ', Array.from(offsets).slice(0, 12).join(', '));
           name: 'private test #2',
           run: async ctx => {
             // All ones: the scan is the index itself. All zeros: flat 0.
-            const ones = ctx.kernel(new Array(N).fill(1));
+            const ones = await ctx.kernel(new Array(N).fill(1));
             for (let i = 0; i < N; i++) {
               ctx.assertClose(ones[i], i, 1e-3, `with every flag set, cell ${i} counts ${i} survivors before it`);
             }
-            const zeros = ctx.kernel(new Array(N).fill(0));
+            const zeros = await ctx.kernel(new Array(N).fill(0));
             for (let i = 0; i < N; i++) {
               ctx.assertClose(zeros[i], 0, 1e-3, `with no flags set, cell ${i} counts nothing`);
             }
@@ -628,7 +628,7 @@ const compact = gpu.createKernel(function (samples, flags, offsets) {
   constants: { n: 64 },
 });
 
-const packed = compact(samples, flags, offsets);
+const packed = await compact(samples, flags, offsets);
 console.log('samples:', samples.slice(0, 12).join(', '));
 console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
 `,
@@ -648,7 +648,7 @@ const compact = gpu.createKernel(function (samples, flags, offsets) {
   constants: { n: 64 },
 });
 
-const packed = compact(samples, flags, offsets);
+const packed = await compact(samples, flags, offsets);
 console.log('samples:', samples.slice(0, 12).join(', '));
 console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
 `,
@@ -664,7 +664,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const samples = makeSamples(ctx.utils, N, 1042);
             const flags = flagsOf(samples);
-            const out = ctx.kernel(samples, flags, scanOf(flags));
+            const out = await ctx.kernel(samples, flags, scanOf(flags));
             ctx.assert(out && out.length === N, `expected ${N} output values, got ${out && out.length}`);
             const want = compactRef(samples);
             const count = countOf(flags);
@@ -679,7 +679,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
           run: async ctx => {
             const samples = makeSamples(ctx.utils, N, 6001);
             const flags = flagsOf(samples);
-            const out = ctx.kernel(samples, flags, scanOf(flags));
+            const out = await ctx.kernel(samples, flags, scanOf(flags));
             const want = compactRef(samples);
             const count = countOf(flags);
             const hint = diagnoseAll(count, i => out[i], i => want[i], 1e-3, compactProbes(samples));
@@ -699,7 +699,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
           run: async ctx => {
             const samples = makeSamples(ctx.utils, N, 31337);
             const flags = flagsOf(samples);
-            const out = ctx.kernel(samples, flags, scanOf(flags));
+            const out = await ctx.kernel(samples, flags, scanOf(flags));
             const want = compactRef(samples);
             const count = countOf(flags);
             const hint = diagnoseAll(count, i => out[i], i => want[i], 1e-3, compactProbes(samples));
@@ -716,7 +716,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
             const all = new Array(N);
             for (let i = 0; i < N; i++) all[i] = THRESHOLD + (i % 40);
             const allFlags = flagsOf(all);
-            const allOut = ctx.kernel(all, allFlags, scanOf(allFlags));
+            const allOut = await ctx.kernel(all, allFlags, scanOf(allFlags));
             for (let j = 0; j < N; j++) {
               ctx.assertClose(allOut[j], all[j], 1e-3,
                 `with every sample surviving the compaction is the identity — slot ${j}`);
@@ -725,13 +725,13 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
             const one = new Array(N).fill(0);
             one[N - 1] = 77;
             const oneFlags = flagsOf(one);
-            const oneOut = ctx.kernel(one, oneFlags, scanOf(oneFlags));
+            const oneOut = await ctx.kernel(one, oneFlags, scanOf(oneFlags));
             ctx.assertClose(oneOut[0], 77, 1e-3,
               'the only survivor sits at the END of the input, so it lands in slot 0');
 
             const none = new Array(N).fill(0);
             const noneFlags = flagsOf(none);
-            const noneOut = ctx.kernel(none, noneFlags, scanOf(noneFlags));
+            const noneOut = await ctx.kernel(none, noneFlags, scanOf(noneFlags));
             ctx.assert(noneOut && noneOut.length === N,
               'with nothing surviving the kernel must still return its 64 cells');
           },
@@ -824,7 +824,7 @@ const compact = gpu.createKernel(function (samples, flags, offsets) {
   constants: { n: 64, steps: 7 },
 });
 
-const packed = compact(samples, flags, offsets);
+const packed = await compact(samples, flags, offsets);
 console.log('samples:', samples.slice(0, 12).join(', '));
 console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
 `,
@@ -850,7 +850,7 @@ const compact = gpu.createKernel(function (samples, flags, offsets) {
   constants: { n: 64, steps: 7 },
 });
 
-const packed = compact(samples, flags, offsets);
+const packed = await compact(samples, flags, offsets);
 console.log('samples:', samples.slice(0, 12).join(', '));
 console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
 `,
@@ -866,7 +866,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const samples = makeSamples(ctx.utils, N, 1181);
             const flags = flagsOf(samples);
-            const out = ctx.kernel(samples, flags, scanOf(flags));
+            const out = await ctx.kernel(samples, flags, scanOf(flags));
             ctx.assert(out && out.length === N, `expected ${N} output values, got ${out && out.length}`);
             const want = compactRef(samples);
             const count = countOf(flags);
@@ -883,7 +883,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
             const firstOnly = new Array(N).fill(0);
             firstOnly[0] = 91;
             let flags = flagsOf(firstOnly);
-            let out = ctx.kernel(firstOnly, flags, scanOf(flags));
+            let out = await ctx.kernel(firstOnly, flags, scanOf(flags));
             ctx.assertClose(out[0], 91, 1e-3,
               'the only survivor is element 0, so slot 0 holds it — the window has to be able to stop at index 0');
 
@@ -891,7 +891,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
             const lastOnly = new Array(N).fill(0);
             lastOnly[N - 1] = 88;
             flags = flagsOf(lastOnly);
-            out = ctx.kernel(lastOnly, flags, scanOf(flags));
+            out = await ctx.kernel(lastOnly, flags, scanOf(flags));
             ctx.assertClose(out[0], 88, 1e-3,
               'the only survivor is the LAST element, so slot 0 holds it — the window has to be able to reach index 63');
 
@@ -899,7 +899,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
             const all = new Array(N);
             for (let i = 0; i < N; i++) all[i] = THRESHOLD + (i % 40);
             flags = flagsOf(all);
-            out = ctx.kernel(all, flags, scanOf(flags));
+            out = await ctx.kernel(all, flags, scanOf(flags));
             const hint = diagnoseAll(N, i => out[i], i => all[i], 1e-3, searchProbes(all, flags));
             for (let j = 0; j < N; j++) {
               ctx.assertClose(out[j], all[j], 1e-3, hint || `with every sample surviving, slot ${j} is element ${j}`);
@@ -913,7 +913,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
           run: async ctx => {
             const samples = makeSamples(ctx.utils, N, 9091);
             const flags = flagsOf(samples);
-            const out = ctx.kernel(samples, flags, scanOf(flags));
+            const out = await ctx.kernel(samples, flags, scanOf(flags));
             const want = compactRef(samples);
             const count = countOf(flags);
             const hint = diagnoseAll(count, i => out[i], i => want[i], 1e-3, searchProbes(samples, flags));
@@ -932,7 +932,7 @@ console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
               blocks[i] = Math.floor(i / 8) % 2 === 0 ? 10 + (i % 8) : 60 + (i % 8);
             }
             const flags = flagsOf(blocks);
-            const out = ctx.kernel(blocks, flags, scanOf(flags));
+            const out = await ctx.kernel(blocks, flags, scanOf(flags));
             const want = compactRef(blocks);
             const count = countOf(flags);
             const hint = diagnoseAll(count, i => out[i], i => want[i], 1e-3, searchProbes(blocks, flags));
@@ -1023,9 +1023,9 @@ const compact = gpu.createKernel(function (samples, flags, offsets) {
   return value;
 }, { output: [64], constants: { n: 64 } });
 
-const flags = flag(samples);
-const offsets = destination(flags);
-const packed = compact(samples, flags, offsets);
+const flags = await flag(samples);
+const offsets = await destination(flags);
+const packed = await compact(samples, flags, offsets);
 
 // TODO: the scan stops one short — offsets[63] counts everyone BEFORE
 // element 63, so element 63's own flag is still missing from the total.
@@ -1065,9 +1065,9 @@ const compact = gpu.createKernel(function (samples, flags, offsets) {
   return value;
 }, { output: [64], constants: { n: 64 } });
 
-const flags = flag(samples);
-const offsets = destination(flags);
-const packed = compact(samples, flags, offsets);
+const flags = await flag(samples);
+const offsets = await destination(flags);
+const packed = await compact(samples, flags, offsets);
 
 // The last offset counts everyone before element 63; its own flag finishes it.
 const count = offsets[63] + flags[63];
@@ -1088,9 +1088,9 @@ console.log('kept:', kept.join(', '));
             );
             const [flag, destination, compact] = ctx.kernels;
             const samples = makeSamples(ctx.utils, N, 1170);
-            const flags = flag(samples);
-            const offsets = destination(flags);
-            const out = compact(samples, flags, offsets);
+            const flags = await flag(samples);
+            const offsets = await destination(flags);
+            const out = await compact(samples, flags, offsets);
             ctx.assert(out && out.length === N, `expected ${N} output cells, got ${out && out.length}`);
             const want = compactRef(samples);
             const count = countOf(flagsOf(samples));
@@ -1142,9 +1142,9 @@ console.log('kept:', kept.join(', '));
             const [flag, destination, compact] = ctx.kernels;
             ctx.assert(flag && destination && compact, 'expected three kernels — flags, scan, gather');
             const samples = makeSamples(ctx.utils, N, 1200);
-            const flags = flag(samples);
-            const offsets = destination(flags);
-            const out = compact(samples, flags, offsets);
+            const flags = await flag(samples);
+            const offsets = await destination(flags);
+            const out = await compact(samples, flags, offsets);
             const want = compactRef(samples);
             const refFlags = flagsOf(samples);
             const count = countOf(refFlags);
@@ -1166,9 +1166,9 @@ console.log('kept:', kept.join(', '));
             const [flag, destination, compact] = ctx.kernels;
             ctx.assert(flag && destination && compact, 'expected three kernels — flags, scan, gather');
             const samples = makeSamples(ctx.utils, N, 1014);
-            const flags = flag(samples);
-            const offsets = destination(flags);
-            const out = compact(samples, flags, offsets);
+            const flags = await flag(samples);
+            const offsets = await destination(flags);
+            const out = await compact(samples, flags, offsets);
             const want = survivorsOf(samples);
             ctx.assert(samples[N - 1] >= THRESHOLD, 'test fixture: the last sample should survive');
             ctx.assertClose(offsets[N - 1] + flags[N - 1], want.length, 0.5, 'the survivor count');

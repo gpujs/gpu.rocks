@@ -511,7 +511,7 @@ const sweep = gpu.createKernel(function (u) {
   return u[y][x];
 }, { output: [32, 32], constants: { size: 32 } });
 
-const next = sweep(guess);
+const next = await sweep(guess);
 console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
 `,
       solutionCode: `// One Jacobi sweep: every interior cell becomes the average of its four
@@ -520,7 +520,7 @@ const gpu = new GPU({ mode });
 
 ${JACOBI_KERNEL}
 
-const next = sweep(guess);
+const next = await sweep(guess);
 console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
 `,
       inputs: utils => ({ guess: makeGuess(utils, SIZE, 4711) }),
@@ -529,7 +529,7 @@ console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
           name: 'the sweep produces a 32×32 grid',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(makeGuess(ctx.utils, SIZE, 4711));
+            const out = await ctx.kernel(makeGuess(ctx.utils, SIZE, 4711));
             ctx.assert(out && out.length === SIZE, `expected 32 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === SIZE, 'each row should hold 32 values');
           },
@@ -538,7 +538,7 @@ console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
           name: 'interior cells hold <code>(left + right + up + down) / 4</code>',
           run: async ctx => {
             const u = makeGuess(ctx.utils, SIZE, 4711);
-            const out = ctx.kernel(u);
+            const out = await ctx.kernel(u);
             const ref = jacobiRef(u);
             const hint = diagnoseGrid(out, ref, 1e-4, jacobiAlternatives(u));
             for (let y = 1; y < SIZE - 1; y++) {
@@ -552,7 +552,7 @@ console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
           name: 'the boundary is held fixed — the heater and the cold edges never move',
           run: async ctx => {
             const u = makeGuess(ctx.utils, SIZE, 4711);
-            const out = ctx.kernel(u);
+            const out = await ctx.kernel(u);
             for (let i = 0; i < SIZE; i++) {
               const edges = [[0, i], [SIZE - 1, i], [i, 0], [i, SIZE - 1]];
               for (const [y, x] of edges) {
@@ -571,7 +571,7 @@ console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
             // equation asks for, so a constant grid must be a fixed point. This
             // is the cheapest way to catch a divisor of 5 or a centre term.
             const flat = makeFlat(SIZE, 0.7);
-            const out = ctx.kernel(flat);
+            const out = await ctx.kernel(flat);
             const hint = diagnoseGrid(out, flat, 1e-5, jacobiAlternatives(flat));
             for (let y = 0; y < SIZE; y += 3) {
               for (let x = 0; x < SIZE; x += 3) {
@@ -587,7 +587,7 @@ console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
           run: async ctx => {
             // A different rough guess, compared cell for cell including edges.
             const u = makeGuess(ctx.utils, SIZE, 90210);
-            const out = ctx.kernel(u);
+            const out = await ctx.kernel(u);
             const ref = jacobiRef(u);
             const hint = diagnoseGrid(out, ref, 1e-4, jacobiAlternatives(u));
             for (let y = 0; y < SIZE; y++) {
@@ -608,8 +608,8 @@ console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
             // input (a Float32Array-backed grid) and keep agreeing with the
             // reference — the feedback shape every later task depends on.
             const u = makeGuess(ctx.utils, SIZE, 31337);
-            const once = ctx.kernel(u);
-            const twice = ctx.kernel(once);
+            const once = await ctx.kernel(u);
+            const twice = await ctx.kernel(once);
             const ref = jacobiRef(jacobiRef(u));
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) {
@@ -694,8 +694,8 @@ function rmsOf(grid) {
 
 let u = plate;
 for (let k = 0; k <= SWEEPS; k++) {
-  if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(residual(u)));
-  u = sweep(u);
+  if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(await residual(u)));
+  u = await sweep(u);
 }
 `,
       solutionCode: `// How wrong is the current guess? Plug it back into the equation.
@@ -710,8 +710,8 @@ ${RMS_HELPER}
 
 let u = plate;
 for (let k = 0; k <= SWEEPS; k++) {
-  if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(residual(u)));
-  u = sweep(u);
+  if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(await residual(u)));
+  u = await sweep(u);
 }
 `,
       inputs: () => ({ plate: makePlate(SIZE) }),
@@ -722,7 +722,7 @@ for (let k = 0; k <= SWEEPS; k++) {
             ctx.assert(ctx.kernels.length >= 2,
               `expected 2 kernels (the prewired sweep, then residual), found ${ctx.kernels.length}`);
             const flat = makeFlat(SIZE, 0.4);
-            const out = ctx.kernels[1](flat);
+            const out = await ctx.kernels[1](flat);
             ctx.assert(out && out.length === SIZE && out[0].length === SIZE,
               'expected a 32×32 residual grid');
             // A flat field makes several candidates collapse onto the right
@@ -745,7 +745,7 @@ for (let k = 0; k <= SWEEPS; k++) {
           name: 'interior cells hold <code>left + right + up + down − 4·centre</code>',
           run: async ctx => {
             const u = makeGuess(ctx.utils, SIZE, 6180);
-            const out = ctx.kernels[1](u);
+            const out = await ctx.kernels[1](u);
             const ref = residualRef(u);
             const hint = diagnoseGrid(out, ref, 1e-4, residualAlternatives(u));
             for (let y = 1; y < SIZE - 1; y++) {
@@ -762,7 +762,7 @@ for (let k = 0; k <= SWEEPS; k++) {
             // would read outside the grid, so this catches both the missing
             // return and a boundary residual that is merely non-zero.
             const u = makeGuess(ctx.utils, SIZE, 6180);
-            const out = ctx.kernels[1](u);
+            const out = await ctx.kernels[1](u);
             for (let i = 0; i < SIZE; i++) {
               const edges = [[0, i], [SIZE - 1, i], [i, 0], [i, SIZE - 1]];
               for (const [y, x] of edges) {
@@ -806,7 +806,7 @@ for (let k = 0; k <= SWEEPS; k++) {
           run: async ctx => {
             // A fresh guess, full-grid comparison, edges included.
             const u = makeGuess(ctx.utils, SIZE, 27182);
-            const out = ctx.kernels[1](u);
+            const out = await ctx.kernels[1](u);
             const ref = residualRef(u);
             const hint = diagnoseGrid(out, ref, 1e-4, residualAlternatives(u));
             for (let y = 0; y < SIZE; y++) {
@@ -822,9 +822,9 @@ for (let k = 0; k <= SWEEPS; k++) {
             // The residual has to fall when the solver runs: 20 sweeps driven by
             // the test, measured with the learner's own kernel.
             let u = makePlate(SIZE);
-            const before = rmsOf(copyGrid(ctx.kernels[1](u)));
-            for (let i = 0; i < 20; i++) u = ctx.kernels[0](u);
-            const after = rmsOf(copyGrid(ctx.kernels[1](u)));
+            const before = rmsOf(copyGrid(await ctx.kernels[1](u)));
+            for (let i = 0; i < 20; i++) u = await ctx.kernels[0](u);
+            const after = rmsOf(copyGrid(await ctx.kernels[1](u)));
             ctx.assertClose(before, rmsOf(residualRef(makePlate(SIZE))), 1e-4,
               'the residual of the starting plate');
             ctx.assert(after < before / 5,
@@ -915,7 +915,7 @@ const red = gpu.createKernel(function (u) {
   return u[y][x];
 }, { output: [32, 32], constants: { size: 32 } });
 
-const afterRed = red(guess);
+const afterRed = await red(guess);
 console.log('a red cell [16][16]:', guess[16][16], '→', afterRed[16][16]);
 console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
 `,
@@ -925,7 +925,7 @@ const gpu = new GPU({ mode });
 
 ${RED_KERNEL}
 
-const afterRed = red(guess);
+const afterRed = await red(guess);
 console.log('a red cell [16][16]:', guess[16][16], '→', afterRed[16][16]);
 console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
 `,
@@ -936,7 +936,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
           run: async ctx => {
             assertRunOk(ctx);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(makeGuess(ctx.utils, SIZE, 4711));
+            const out = await ctx.kernel(makeGuess(ctx.utils, SIZE, 4711));
             ctx.assert(out && out.length === SIZE && out[0].length === SIZE,
               'expected a 32×32 result');
           },
@@ -945,7 +945,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
           name: 'red cells take the average; black cells and the boundary do not move',
           run: async ctx => {
             const u = makeGuess(ctx.utils, SIZE, 4711);
-            const out = ctx.kernel(u);
+            const out = await ctx.kernel(u);
             const ref = halfSweepRef(u, 0);
             const hint = diagnoseGrid(out, ref, 1e-4, halfSweepAlternatives(u));
             for (let y = 0; y < SIZE; y++) {
@@ -965,7 +965,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
             // learner who coloured the board wrong that the SHAPE is wrong, even
             // where a stray cell happens to land on the right number.
             const u = makeGuess(ctx.utils, SIZE, 4711);
-            const out = ctx.kernel(u);
+            const out = await ctx.kernel(u);
             let movedRed = 0;
             let movedBlack = 0;
             for (let y = 1; y < SIZE - 1; y++) {
@@ -987,7 +987,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
           name: 'private test #1',
           run: async ctx => {
             const u = makeGuess(ctx.utils, SIZE, 8675309);
-            const out = ctx.kernel(u);
+            const out = await ctx.kernel(u);
             const ref = halfSweepRef(u, 0);
             const hint = diagnoseGrid(out, ref, 1e-4, halfSweepAlternatives(u));
             for (let y = 0; y < SIZE; y++) {
@@ -1005,8 +1005,8 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
             // kernel that quietly reads its own colour fails this and nothing
             // else.
             const u = makeGuess(ctx.utils, SIZE, 12345);
-            const once = ctx.kernel(u);
-            const twice = ctx.kernel(once);
+            const once = await ctx.kernel(u);
+            const twice = await ctx.kernel(once);
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) {
                 ctx.assertClose(twice[y][x], once[y][x], 1e-4,
@@ -1036,7 +1036,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
       requirements: [
         'The black kernel is the red kernel with its parity test flipped: cells with <code>(x + y) % 2 === 1</code> update, everything else passes through',
         'Create the red kernel first and the black kernel second',
-        'One full sweep is <code>black(red(u))</code> — the black half reads what the red half wrote',
+        'One full sweep is <code>await black(await red(u))</code> — the black half reads what the red half wrote',
         'The boundary is untouched by both halves',
       ],
       hints: [
@@ -1050,9 +1050,11 @@ if (parity !== 1) return u[y][x];</code></pre>
         },
         {
           title: 'Hint 2 — the chain is the lesson',
-          body: `<pre><code>const afterRed = red(guess);
-const afterBoth = black(afterRed);   // NOT black(guess)</code></pre>
-<p>Or, in one line: <code>black(red(guess))</code>.</p>`,
+          body: `<pre><code>const afterRed = await red(guess);
+const afterBoth = await black(afterRed);   // NOT black(guess)</code></pre>
+<p>Or, in one line: <code>await black(await red(guess))</code> — the inner
+            <code>await</code> is not optional, because an un-awaited kernel call hands the next
+            kernel a Promise instead of a grid.</p>`,
         },
       ],
       transfer: `Two dispatches with a dependency between them is the ordinary shape of GPU work:
@@ -1077,7 +1079,7 @@ const black = gpu.createKernel(function (u) {
   return u[y][x];
 }, { output: [32, 32], constants: { size: 32 } });
 
-const afterRed = red(guess);
+const afterRed = await red(guess);
 // TODO 2: finish the sweep. The black half must read afterRed, not guess.
 const afterSweep = afterRed;
 
@@ -1091,8 +1093,8 @@ ${RED_KERNEL}
 
 ${BLACK_KERNEL}
 
-const afterRed = red(guess);
-const afterSweep = black(afterRed);
+const afterRed = await red(guess);
+const afterSweep = await black(afterRed);
 
 console.log('a black cell [16][17]:', guess[16][17], '→', afterSweep[16][17]);
 `,
@@ -1137,7 +1139,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterSweep[16][17]);
           name: 'the first kernel is still the red half',
           run: async ctx => {
             const u = makeGuess(ctx.utils, SIZE, 4711);
-            const red = ctx.kernels[0](u);
+            const red = await ctx.kernels[0](u);
             const refRed = halfSweepRef(u, 0);
             const hint = diagnoseGrid(red, refRed, 1e-4, halfSweepAlternatives(u));
             for (let y = 1; y < SIZE - 1; y += 3) {
@@ -1156,7 +1158,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterSweep[16][17]);
             // cells to the values they already hold, so black(red(u)) comes out
             // right and only the wasted half of the work gives it away.
             const u = makeGuess(ctx.utils, SIZE, 4711);
-            const out = ctx.kernels[1](u);
+            const out = await ctx.kernels[1](u);
             const ref = halfSweepRef(u, 1);
             const hint = diagnoseGrid(out, ref, 1e-4, [
               [jacobiRef(u),
@@ -1177,7 +1179,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterSweep[16][17]);
           name: 'chained, the two halves are one Gauss-Seidel sweep',
           run: async ctx => {
             const u = makeGuess(ctx.utils, SIZE, 4711);
-            const out = ctx.kernels[1](ctx.kernels[0](u));
+            const out = await ctx.kernels[1](await ctx.kernels[0](u));
             const ref = redBlackRef(u);
             const hint = diagnoseGrid(out, ref, 1e-4, fullSweepAlternatives(u));
             for (let y = 0; y < SIZE; y++) {
@@ -1195,7 +1197,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterSweep[16][17]);
           name: 'private test #1',
           run: async ctx => {
             const u = makeGuess(ctx.utils, SIZE, 5551212);
-            const out = ctx.kernels[1](ctx.kernels[0](u));
+            const out = await ctx.kernels[1](await ctx.kernels[0](u));
             const ref = redBlackRef(u);
             const hint = diagnoseGrid(out, ref, 1e-4, fullSweepAlternatives(u));
             for (let y = 0; y < SIZE; y++) {
@@ -1213,7 +1215,7 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterSweep[16][17]);
             let u = makePlate(SIZE);
             let j = makePlate(SIZE);
             for (let i = 0; i < 5; i++) {
-              u = ctx.kernels[1](ctx.kernels[0](u));
+              u = await ctx.kernels[1](await ctx.kernels[0](u));
               j = jacobiRef(j);
             }
             const ref = (() => {
@@ -1259,13 +1261,19 @@ console.log('a black cell [16][17]:', guess[16][17], '→', afterSweep[16][17]);
         {
           title: 'Hint 1 — the helper already does the counting',
           body: `<p><code>sweepsToTolerance</code> takes one argument: a function that turns a grid
-            into the next grid. Jacobi's is <code>u =&gt; sweep(u)</code>. Red-black's is one
-            sweep — both halves — expressed the same way.</p>`,
+            into the next grid. Because a kernel call is awaited, that function is
+            <code>async</code> — Jacobi's is <code>async u =&gt; await sweep(u)</code>, and the
+            helper awaits whatever it returns. Red-black's is one sweep — both halves — expressed
+            the same way.</p>`,
         },
         {
           title: 'Hint 2 — the one-liner',
-          body: `<pre><code>const redBlackSweeps = sweepsToTolerance(u =&gt; black(red(u)));</code></pre>
-<p>Both halves inside one call, so the helper counts a full sweep each time it runs it.</p>`,
+          body: `<pre><code>const redBlackSweeps = await sweepsToTolerance(
+  async u =&gt; await black(await red(u))
+);</code></pre>
+<p>Both halves inside one call, so the helper counts a full sweep each time it runs it. Both
+            <code>await</code>s matter: the outer one hands the helper a grid, and the inner one is
+            what makes the black half read the red half's output instead of a Promise.</p>`,
         },
       ],
       transfer: `The shape of this measurement is the one that transfers, more than the numbers:
@@ -1294,25 +1302,26 @@ const MAX_SWEEPS = 400;
 
 // Sweeps until the RMS residual drops below TOL, checking every 5 sweeps.
 // \`step\` turns one grid into the next.
-function sweepsToTolerance(step) {
+async function sweepsToTolerance(step) {
   let u = plate;
   let sweeps = 0;
   while (sweeps < MAX_SWEEPS) {
-    if (rmsOf(residual(u)) < TOL) break;
+    if (rmsOf(await residual(u)) < TOL) break;
     for (let i = 0; i < CHECK_EVERY; i++) {
-      u = step(u);
+      u = await step(u);
       sweeps++;
     }
   }
   return sweeps;
 }
 
-const jacobiSweeps = sweepsToTolerance(u => sweep(u));
+const jacobiSweeps = await sweepsToTolerance(async u => await sweep(u));
 console.log('jacobi: converged in', jacobiSweeps, 'sweeps');
 
 // TODO: one red-black sweep is the red half followed by the black half,
 //       and the black half has to read what the red half just wrote.
-const redBlackSweeps = sweepsToTolerance(u => u);
+//       Await both halves — an un-awaited call hands black a Promise.
+const redBlackSweeps = await sweepsToTolerance(async u => u);
 console.log('red-black: converged in', redBlackSweeps, 'sweeps');
 `,
       solutionCode: `// Both solvers, one finish line. Jacobi's loop is done — write red-black's.
@@ -1334,23 +1343,23 @@ const MAX_SWEEPS = 400;
 
 // Sweeps until the RMS residual drops below TOL, checking every 5 sweeps.
 // \`step\` turns one grid into the next.
-function sweepsToTolerance(step) {
+async function sweepsToTolerance(step) {
   let u = plate;
   let sweeps = 0;
   while (sweeps < MAX_SWEEPS) {
-    if (rmsOf(residual(u)) < TOL) break;
+    if (rmsOf(await residual(u)) < TOL) break;
     for (let i = 0; i < CHECK_EVERY; i++) {
-      u = step(u);
+      u = await step(u);
       sweeps++;
     }
   }
   return sweeps;
 }
 
-const jacobiSweeps = sweepsToTolerance(u => sweep(u));
+const jacobiSweeps = await sweepsToTolerance(async u => await sweep(u));
 console.log('jacobi: converged in', jacobiSweeps, 'sweeps');
 
-const redBlackSweeps = sweepsToTolerance(u => black(red(u)));
+const redBlackSweeps = await sweepsToTolerance(async u => await black(await red(u)));
 console.log('red-black: converged in', redBlackSweeps, 'sweeps');
 
 console.log('red-black needed', Math.round(100 - (100 * redBlackSweeps) / jacobiSweeps),
@@ -1365,7 +1374,7 @@ console.log('red-black needed', Math.round(100 - (100 * redBlackSweeps) / jacobi
             ctx.assert(ctx.kernels.length >= 4,
               `expected 4 kernels (sweep, red, black, residual), found ${ctx.kernels.length}`);
             const u = makeGuess(ctx.utils, SIZE, 4711);
-            const oneSweep = ctx.kernels[1](u);
+            const oneSweep = await ctx.kernels[1](u);
             const refRed = halfSweepRef(u, 0);
             for (let y = 1; y < SIZE - 1; y += 5) {
               for (let x = 1; x < SIZE - 1; x += 5) {
@@ -1445,7 +1454,7 @@ console.log('red-black needed', Math.round(100 - (100 * redBlackSweeps) / jacobi
             let u = makePlate(SIZE);
             let ref = makePlate(SIZE);
             for (let i = 0; i < 20; i++) {
-              u = ctx.kernels[2](ctx.kernels[1](u));
+              u = await ctx.kernels[2](await ctx.kernels[1](u));
               ref = redBlackRef(ref);
             }
             for (let y = 0; y < SIZE; y++) {
@@ -1464,11 +1473,11 @@ console.log('red-black needed', Math.round(100 - (100 * redBlackSweeps) / jacobi
             let j = makePlate(SIZE);
             let rb = makePlate(SIZE);
             for (let i = 0; i < 40; i++) {
-              j = ctx.kernels[0](j);
-              rb = ctx.kernels[2](ctx.kernels[1](rb));
+              j = await ctx.kernels[0](j);
+              rb = await ctx.kernels[2](await ctx.kernels[1](rb));
             }
-            const jRes = rmsOf(copyGrid(ctx.kernels[3](j)));
-            const rbRes = rmsOf(copyGrid(ctx.kernels[3](rb)));
+            const jRes = rmsOf(copyGrid(await ctx.kernels[3](j)));
+            const rbRes = rmsOf(copyGrid(await ctx.kernels[3](rb)));
             ctx.assert(
               rbRes < jRes * 0.9,
               `after 40 sweeps each, red-black's residual (${rbRes.toFixed(6)}) should be at least 10% below Jacobi's (${jRes.toFixed(6)})`

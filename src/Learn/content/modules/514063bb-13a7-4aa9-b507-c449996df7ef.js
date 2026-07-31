@@ -352,13 +352,22 @@ function diagnoseGrid(out, expected, eps, probes) {
 // exactly α. One multiply, no accumulation, so it is exact on both backends.
 // NOTE FOR CALLERS: invoking a kernel overwrites its .lastArgs — read those
 // FIRST if the test also needs the field the learner's own loop finished on.
-function alphaOfKernel(k, size) {
+async function alphaOfKernel(k, size) {
   try {
-    const out = k(spikeGrid(size, 2, 2, 1));
+    const out = await k(spikeGrid(size, 2, 2, 1));
     return out && out[2] && typeof out[2][3] === 'number' ? out[2][3] : NaN;
   } catch (e) {
     return NaN;
   }
+}
+
+// The same probe across every kernel of a run. A sequential loop rather than
+// ctx.kernels.map(...) because the callback has to await, and an async callback
+// inside .map yields an array of Promises, not of numbers.
+async function alphasOfKernels(ctx, size) {
+  const out = [];
+  for (const k of ctx.kernels) out.push(await alphaOfKernel(k, size));
+  return out;
 }
 
 // ---- task 1 probes --------------------------------------------------------
@@ -572,7 +581,7 @@ const step = gpu.createKernel(function (u) {
   constants: { size: 48, alpha: ALPHA },
 });
 
-const next = step(field);
+const next = await step(field);
 console.log('alpha:', ALPHA, ' centre weight 1 - 4*alpha:', 1 - 4 * ALPHA);
 console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
 `,
@@ -601,7 +610,7 @@ const step = gpu.createKernel(function (u) {
   constants: { size: 48, alpha: ALPHA },
 });
 
-const next = step(field);
+const next = await step(field);
 console.log('alpha:', ALPHA, ' centre weight 1 - 4*alpha:', 1 - 4 * ALPHA);
 console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
 `,
@@ -612,7 +621,7 @@ console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const flat = makeGrid(48, 0.7);
-            const out = ctx.kernel(flat);
+            const out = await ctx.kernel(flat);
             ctx.assert(
               out && out.length === 48 && out[0] && out[0].length === 48,
               `expected a 48×48 result, got ${out && out.length} rows`
@@ -630,7 +639,7 @@ console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
             // A single hot cell: whatever else the body does, each of its four
             // neighbours gains exactly α and the cell itself keeps 1 − 4α.
             const spike = spikeGrid(48, 10, 10, 1);
-            const out = ctx.kernel(spike);
+            const out = await ctx.kernel(spike);
             const hint = diagnose(out[10][11], T1_ALPHA, 2e-4, [
               [T1_DT, `that is dt, not α — the diffusion number is D·dt/dx² = ${T1_ALPHA}`],
               [D * T1_DT, 'dx² never made it into the denominator — α = D·dt/dx²'],
@@ -646,7 +655,7 @@ console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
           name: 'one step of <code>field</code> matches <code>u + α·∇²u</code> everywhere',
           run: async ctx => {
             const field = hotSquare(48, 8, 1);
-            const out = ctx.kernel(field);
+            const out = await ctx.kernel(field);
             const expected = explicitStepRef(field, T1_ALPHA);
             const hint = diagnoseGrid(out, expected, 2e-4, stepProbes(field, T1_ALPHA));
             for (let y = 0; y < 48; y++) {
@@ -664,7 +673,7 @@ console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
             // A different block size, plus the torus conservation law: diffusion
             // moves heat around, it never creates or destroys any.
             const field = hotSquare(48, 14, 0.5);
-            const out = ctx.kernel(field);
+            const out = await ctx.kernel(field);
             const expected = explicitStepRef(field, T1_ALPHA);
             const hint = diagnoseGrid(out, expected, 2e-4, stepProbes(field, T1_ALPHA));
             for (let y = 0; y < 48; y++) {
@@ -719,8 +728,8 @@ console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
         {
           title: 'Hint 2 — the two runs',
           body: `<pre><code>const dtMax = dx * dx / (2 * D * DIMS);
-run('SAFE', 0.4 * dtMax);
-run('PAST THE LINE', 1.6 * dtMax);</code></pre>`,
+await run('SAFE', 0.4 * dtMax);
+await run('PAST THE LINE', 1.6 * dtMax);</code></pre>`,
         },
       ],
       transfer: `Every production explicit solver computes this number and refuses to exceed it:
@@ -753,7 +762,7 @@ function hottest(u) {
   return m;
 }
 
-function run(label, dt) {
+async function run(label, dt) {
   const alpha = D * dt / (dx * dx);
   const step = gpu.createKernel(function (u) {
     const x = this.thread.x;
@@ -770,7 +779,7 @@ function run(label, dt) {
   console.log(label, '— dt =', dt, ' alpha =', alpha, ' centre weight =', 1 - 4 * alpha);
   let u = seed;
   for (let i = 1; i <= STEPS; i++) {
-    u = step(u);
+    u = await step(u);
     if (i % 20 === 0) console.log('   step', i, '→ hottest |u| =', hottest(u));
   }
   return u;
@@ -778,7 +787,8 @@ function run(label, dt) {
 
 console.log('stability limit: dt <=', dtMax);
 
-// TODO: run twice — at 0.4 * dtMax, then at 1.6 * dtMax
+// TODO: run twice — at 0.4 * dtMax, then at 1.6 * dtMax.
+//       run() is async now (it awaits the kernel), so await each call.
 `,
       solutionCode: `// Two runs of the same simulation. Only the step size differs.
 const gpu = new GPU({ mode });
@@ -803,7 +813,7 @@ function hottest(u) {
   return m;
 }
 
-function run(label, dt) {
+async function run(label, dt) {
   const alpha = D * dt / (dx * dx);
   const step = gpu.createKernel(function (u) {
     const x = this.thread.x;
@@ -820,7 +830,7 @@ function run(label, dt) {
   console.log(label, '— dt =', dt, ' alpha =', alpha, ' centre weight =', 1 - 4 * alpha);
   let u = seed;
   for (let i = 1; i <= STEPS; i++) {
-    u = step(u);
+    u = await step(u);
     if (i % 20 === 0) console.log('   step', i, '→ hottest |u| =', hottest(u));
   }
   return u;
@@ -828,8 +838,8 @@ function run(label, dt) {
 
 console.log('stability limit: dt <=', dtMax);
 
-run('SAFE', 0.4 * dtMax);
-run('PAST THE LINE', 1.6 * dtMax);
+await run('SAFE', 0.4 * dtMax);
+await run('PAST THE LINE', 1.6 * dtMax);
 `,
       inputs: () => ({ seed: hotSquare(48, 8, 1) }),
       publicTests: [
@@ -855,7 +865,7 @@ run('PAST THE LINE', 1.6 * dtMax);
               `expected two runs (two kernels, one per step size), found ${ctx.kernels.length}` +
                 (ctx.kernels.length === 0 ? ' — run() is never called' : '')
             );
-            const alphas = ctx.kernels.map(k => alphaOfKernel(k, 48)).filter(a => !Number.isNaN(a));
+            const alphas = (await alphasOfKernels(ctx, 48)).filter(a => !Number.isNaN(a));
             ctx.assert(alphas.length >= 2, 'could not read a diffusion number back out of two kernels');
             const lo = Math.min(...alphas);
             const hi = Math.max(...alphas);
@@ -873,7 +883,7 @@ run('PAST THE LINE', 1.6 * dtMax);
             // tests share the run's kernels, so by the time this one executes an
             // earlier test has already re-invoked them and .lastArgs is its
             // probe, not the learner's last step.
-            const alphas = ctx.kernels.map(k => alphaOfKernel(k, 48));
+            const alphas = await alphasOfKernels(ctx, 48);
             const safeK = ctx.kernels.find((k, i) => alphas[i] < 0.25);
             const wildK = ctx.kernels.find((k, i) => alphas[i] > 0.25);
             ctx.assert(safeK, 'no run inside the limit — one of the two step sizes must be below dtMax');
@@ -881,7 +891,7 @@ run('PAST THE LINE', 1.6 * dtMax);
             const seed = hotSquare(48, 8, 1);
 
             let safe = seed;
-            for (let i = 0; i < T2_STEPS; i++) safe = safeK(safe);
+            for (let i = 0; i < T2_STEPS; i++) safe = await safeK(safe);
             ctx.assert(
               boundedBy(safe, 1.001),
               `the stable run left the range of its own initial data (hottest |u| = ${maxAbsGrid(safe)}) — ` +
@@ -889,7 +899,7 @@ run('PAST THE LINE', 1.6 * dtMax);
             );
 
             let wild = seed;
-            for (let i = 0; i < T2_STEPS; i++) wild = wildK(wild);
+            for (let i = 0; i < T2_STEPS; i++) wild = await wildK(wild);
             ctx.assert(
               !boundedBy(wild, 1e6),
               `the run past the limit should have blown up, but its hottest |u| is only ` +
@@ -904,14 +914,14 @@ run('PAST THE LINE', 1.6 * dtMax);
           run: async ctx => {
             // Drive both kernels from a fresh seed, and check the growth is the
             // geometric explosion the theory predicts rather than a one-off spike.
-            const alphas = ctx.kernels.map(k => alphaOfKernel(k, 48));
+            const alphas = await alphasOfKernels(ctx, 48);
             const safeK = ctx.kernels.find((k, i) => alphas[i] < 0.25);
             const wildK = ctx.kernels.find((k, i) => alphas[i] > 0.25);
             ctx.assert(safeK && wildK, 'expected one kernel inside the limit and one past it');
             const seed = hotSquare(48, 12, 1);
 
             let u = seed;
-            for (let i = 0; i < 40; i++) u = safeK(u);
+            for (let i = 0; i < 40; i++) u = await safeK(u);
             const ref = explicitRunRef(seed, alphaFor(T2_SAFE_DT), 40);
             for (let y = 0; y < 48; y += 3) {
               for (let x = 0; x < 48; x += 3) {
@@ -924,7 +934,7 @@ run('PAST THE LINE', 1.6 * dtMax);
             let v = seed;
             const trace = [];
             for (let i = 1; i <= 60; i++) {
-              v = wildK(v);
+              v = await wildK(v);
               if (i % 20 === 0) trace.push(maxAbsGrid(v));
             }
             ctx.assert(!boundedBy(v, 1e6), 'the run past the limit did not blow up');
@@ -1020,7 +1030,7 @@ const step = gpu.createKernel(function (u, dts) {
 });
 
 let u = seed;
-for (let i = 0; i < STEPS; i++) u = step(u, dts);
+for (let i = 0; i < STEPS; i++) u = await step(u, dts);
 
 // TODO: for each row print the largest |u| left, and keep the largest dt
 // whose row stayed below 1.
@@ -1051,7 +1061,7 @@ const step = gpu.createKernel(function (u, dts) {
 });
 
 let u = seed;
-for (let i = 0; i < STEPS; i++) u = step(u, dts);
+for (let i = 0; i < STEPS; i++) u = await step(u, dts);
 
 let measured = 0;
 for (let r = 0; r < ROWS; r++) {
@@ -1080,7 +1090,7 @@ console.log('predicted:      dt <=', dx * dx / (2 * D * 1));
             const rows = makeRows().map((row, r) =>
               row.map((v, x) => (x === (T3_CELLS >> 1) + r ? 1 : 0))
             );
-            const out = ctx.kernel(rows, dts);
+            const out = await ctx.kernel(rows, dts);
             ctx.assert(
               out && out.length === T3_ROWS && out[0] && out[0].length === T3_CELLS,
               `expected a ${T3_CELLS}×${T3_ROWS} result, got ${out && out.length} rows`
@@ -1099,7 +1109,7 @@ console.log('predicted:      dt <=', dx * dx / (2 * D * 1));
           run: async ctx => {
             const dts = makeDts();
             let u = makeRows();
-            for (let i = 0; i < T3_STEPS; i++) u = ctx.kernel(u, dts);
+            for (let i = 0; i < T3_STEPS; i++) u = await ctx.kernel(u, dts);
             for (let r = 0; r < T3_ROWS; r++) {
               const m = maxAbsRow(u[r]);
               if (dts[r] < DT_LIMIT_1D) {
@@ -1169,7 +1179,7 @@ console.log('predicted:      dt <=', dx * dx / (2 * D * 1));
               return copy;
             });
             let u = rows;
-            for (let i = 0; i < 30; i++) u = ctx.kernel(u, dts);
+            for (let i = 0; i < 30; i++) u = await ctx.kernel(u, dts);
             const ref = scanRunRef(rows, dts, 30);
             for (let r = 0; r < T3_ROWS; r++) {
               for (let x = 0; x < T3_CELLS; x++) {
@@ -1238,7 +1248,7 @@ return (uOld[y][x] + this.constants.alpha * neighbours)
           body: `<p><code>sweep(guess, guess)</code> replaces the right-hand side with the current
             iterate every sweep, which throws away the one piece of information that makes this a
             <em>time step</em>. It still converges — to <code>∇²u = 0</code>, a flat field. The
-            fix is one word: <code>guess = sweep(seed, guess);</code></p>`,
+            fix is one word: <code>guess = await sweep(seed, guess);</code></p>`,
         },
       ],
       transfer: `"The implicit step is a linear solve" is the fork in the road for every
@@ -1294,7 +1304,7 @@ for (let k = 0; k < SWEEPS; k++) {
   // TODO: the right-hand side is the OLD field and never changes during a
   // solve. This passes the current iterate instead, which throws the time
   // step away and converges to a flat field.
-  guess = sweep(guess, guess);
+  guess = await sweep(guess, guess);
 }
 
 console.log('hottest after one implicit step:', hottest(guess));
@@ -1345,7 +1355,7 @@ function total(u) {
 let guess = seed;
 for (let k = 0; k < SWEEPS; k++) {
   // seed is the old time level: fixed for the whole solve. Only guess moves.
-  guess = sweep(seed, guess);
+  guess = await sweep(seed, guess);
 }
 
 console.log('hottest after one implicit step:', hottest(guess));
@@ -1379,7 +1389,7 @@ console.log('total heat (unchanged at 36):', total(guess));
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const flat = makeGrid(32, 0.7);
-            const out = ctx.kernel(flat, flat);
+            const out = await ctx.kernel(flat, flat);
             ctx.assert(
               out && out.length === 32 && out[0] && out[0].length === 32,
               `expected a 32×32 result, got ${out && out.length} rows`
@@ -1399,7 +1409,7 @@ console.log('total heat (unchanged at 36):', total(guess));
             // very first sweep of a solve) half of these mistakes are invisible.
             const uOld = hotSquare(32, 6, 1);
             const guess = hotSquare(32, 10, 0.4);
-            const out = ctx.kernel(uOld, guess);
+            const out = await ctx.kernel(uOld, guess);
             const expected = jacobiSweepRef(uOld, guess, T4_ALPHA);
             const hint = diagnoseGrid(out, expected, 2e-4, sweepProbes(uOld, guess, T4_ALPHA));
             for (let y = 0; y < 32; y++) {
@@ -1414,7 +1424,7 @@ console.log('total heat (unchanged at 36):', total(guess));
           run: async ctx => {
             const seed = hotSquare(32, 6, 1);
             let guess = seed;
-            for (let k = 0; k < SWEEPS; k++) guess = ctx.kernel(seed, guess);
+            for (let k = 0; k < SWEEPS; k++) guess = await ctx.kernel(seed, guess);
             const expected = implicitStepRef(seed, T4_ALPHA, SWEEPS);
             for (let y = 0; y < 32; y++) {
               for (let x = 0; x < 32; x++) {
@@ -1468,7 +1478,7 @@ console.log('total heat (unchanged at 36):', total(guess));
             // unbounded: at α = 1 an explicit run would have been dead by step 3.
             const seed = hotSquare(32, 10, 0.75);
             let guess = seed;
-            for (let k = 0; k < SWEEPS; k++) guess = ctx.kernel(seed, guess);
+            for (let k = 0; k < SWEEPS; k++) guess = await ctx.kernel(seed, guess);
             const expected = implicitStepRef(seed, T4_ALPHA, SWEEPS);
             const hint = diagnoseGrid(guess, expected, 2e-4, [
               [implicitStepRef(seed, T4_ALPHA, 1),
@@ -1483,7 +1493,7 @@ console.log('total heat (unchanged at 36):', total(guess));
             let u = seed;
             for (let i = 0; i < 12; i++) {
               let g = u;
-              for (let k = 0; k < SWEEPS; k++) g = ctx.kernel(u, g);
+              for (let k = 0; k < SWEEPS; k++) g = await ctx.kernel(u, g);
               u = g;
             }
             const ref = implicitRunRef(seed, T4_ALPHA, SWEEPS, 12);
@@ -1601,19 +1611,19 @@ function gap(a, b) {
   return m;
 }
 
-function runExplicit(dt, steps) {
+async function runExplicit(dt, steps) {
   const alpha = D * dt / (dx * dx);
   let u = seed;
-  for (let i = 0; i < steps; i++) u = explicitStep(u, alpha);
+  for (let i = 0; i < steps; i++) u = await explicitStep(u, alpha);
   return u;
 }
 
-function runImplicit(dt, steps) {
+async function runImplicit(dt, steps) {
   const alpha = D * dt / (dx * dx);
   let u = seed;
   for (let i = 0; i < steps; i++) {
     let guess = u;
-    for (let k = 0; k < SWEEPS; k++) guess = sweep(u, guess, alpha);
+    for (let k = 0; k < SWEEPS; k++) guess = await sweep(u, guess, alpha);
     u = guess;
   }
   return u;
@@ -1623,9 +1633,9 @@ function runImplicit(dt, steps) {
 const smallSteps = 0;
 const bigSteps = 0;
 
-const fine = runExplicit(DT_SMALL, smallSteps);
-const coarse = runImplicit(DT_BIG, bigSteps);
-const doomed = runExplicit(DT_BIG, bigSteps);
+const fine = await runExplicit(DT_SMALL, smallSteps);
+const coarse = await runImplicit(DT_BIG, bigSteps);
+const doomed = await runExplicit(DT_BIG, bigSteps);
 
 console.log('explicit, dt =', DT_SMALL, 'x', smallSteps, 'steps → hottest', hottest(fine));
 console.log('implicit, dt =', DT_BIG, 'x', bigSteps, 'steps → hottest', hottest(coarse));
@@ -1686,19 +1696,19 @@ function gap(a, b) {
   return m;
 }
 
-function runExplicit(dt, steps) {
+async function runExplicit(dt, steps) {
   const alpha = D * dt / (dx * dx);
   let u = seed;
-  for (let i = 0; i < steps; i++) u = explicitStep(u, alpha);
+  for (let i = 0; i < steps; i++) u = await explicitStep(u, alpha);
   return u;
 }
 
-function runImplicit(dt, steps) {
+async function runImplicit(dt, steps) {
   const alpha = D * dt / (dx * dx);
   let u = seed;
   for (let i = 0; i < steps; i++) {
     let guess = u;
-    for (let k = 0; k < SWEEPS; k++) guess = sweep(u, guess, alpha);
+    for (let k = 0; k < SWEEPS; k++) guess = await sweep(u, guess, alpha);
     u = guess;
   }
   return u;
@@ -1707,9 +1717,9 @@ function runImplicit(dt, steps) {
 const smallSteps = T / DT_SMALL;   // 80
 const bigSteps = T / DT_BIG;       // 8
 
-const fine = runExplicit(DT_SMALL, smallSteps);
-const coarse = runImplicit(DT_BIG, bigSteps);
-const doomed = runExplicit(DT_BIG, bigSteps);
+const fine = await runExplicit(DT_SMALL, smallSteps);
+const coarse = await runImplicit(DT_BIG, bigSteps);
+const doomed = await runExplicit(DT_BIG, bigSteps);
 
 console.log('explicit, dt =', DT_SMALL, 'x', smallSteps, 'steps → hottest', hottest(fine));
 console.log('implicit, dt =', DT_BIG, 'x', bigSteps, 'steps → hottest', hottest(coarse));
@@ -1729,11 +1739,11 @@ console.log('largest gap between the two survivors:', gap(fine, coarse));
             const sweepK = findByArity(ctx, 3);
             ctx.assert(stepK, 'no explicit-step kernel found — one kernel should take (u, alpha)');
             ctx.assert(sweepK, 'no Jacobi sweep found — one kernel should take (uOld, guess, alpha)');
-            const spike = stepK(spikeGrid(32, 5, 5, 1), 0.1);
+            const spike = await stepK(spikeGrid(32, 5, 5, 1), 0.1);
             ctx.assertClose(spike[5][6], 0.1, 2e-4,
               'the explicit kernel should give a hot cell’s neighbour exactly α — here α arrives as an argument, not as this.constants.alpha');
             const flat = makeGrid(32, 0.7);
-            const still = sweepK(flat, flat, T4_ALPHA);
+            const still = await sweepK(flat, flat, T4_ALPHA);
             ctx.assertClose(still[5][5], 0.7, 2e-4,
               'a flat field is a fixed point of the implicit solve at any α — (u + α·4u) / (1 + 4α) = u');
           },
@@ -1745,7 +1755,7 @@ console.log('largest gap between the two survivors:', gap(fine, coarse));
             const guess = hotSquare(32, 10, 0.4);
             const sweepK = findByArity(ctx, 3);
             ctx.assert(sweepK, 'no three-argument Jacobi sweep found — it takes (uOld, guess, alpha)');
-            const out = sweepK(uOld, guess, T4_ALPHA);
+            const out = await sweepK(uOld, guess, T4_ALPHA);
             const expected = jacobiSweepRef(uOld, guess, T4_ALPHA);
             const hint = diagnoseGrid(out, expected, 2e-4, sweepProbes(uOld, guess, T4_ALPHA));
             for (let y = 0; y < 32; y++) {
@@ -1822,18 +1832,18 @@ console.log('largest gap between the two survivors:', gap(fine, coarse));
             const alphaSmall = alphaFor(T5_SMALL_DT);
             const alphaBig = alphaFor(T5_BIG_DT);
             let fine = seed;
-            for (let i = 0; i < 40; i++) fine = stepK(fine, alphaSmall);
+            for (let i = 0; i < 40; i++) fine = await stepK(fine, alphaSmall);
             let coarse = seed;
             for (let i = 0; i < 4; i++) {
               let g = coarse;
-              for (let k = 0; k < SWEEPS; k++) g = sweepK(coarse, g, alphaBig);
+              for (let k = 0; k < SWEEPS; k++) g = await sweepK(coarse, g, alphaBig);
               coarse = g;
             }
             let doomed = seed;
             // Eight steps at α = 1 — the same count the task runs. Measured
             // hottest |u| from this seed: 8.0e4, five orders of magnitude past
             // the 1e3 threshold below, on both backends.
-            for (let i = 0; i < 8; i++) doomed = stepK(doomed, alphaBig);
+            for (let i = 0; i < 8; i++) doomed = await stepK(doomed, alphaBig);
 
             const refFine = explicitRunRef(seed, alphaSmall, 40);
             const refCoarse = implicitRunRef(seed, alphaBig, SWEEPS, 4);

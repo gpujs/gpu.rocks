@@ -323,7 +323,7 @@ const smooth = gpu.createKernel(function (signal) {
   return signal[x];
 }, { output: [128] });
 
-const result = smooth(signal);
+const result = await smooth(signal);
 console.log('before:', signal[63], ' after:', result[63]);
 `,
       solutionCode: `// Convolution: each output sample is a weighted average of its neighborhood.
@@ -338,7 +338,7 @@ const smooth = gpu.createKernel(function (signal) {
   return 0.25 * signal[left] + 0.5 * signal[x] + 0.25 * signal[right];
 }, { output: [128] });
 
-const result = smooth(signal);
+const result = await smooth(signal);
 console.log('before:', signal[63], ' after:', result[63]);
 `,
       inputs: utils => ({ signal: makeSignal(utils) }),
@@ -348,7 +348,7 @@ console.log('before:', signal[63], ' after:', result[63]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const signal = makeSignal(ctx.utils);
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             ctx.assert(out && out.length === 128, `expected 128 output samples, got ${out && out.length}`);
             const ref = convolve1dRef(signal, [0.25, 0.5, 0.25], 1);
             for (const i of [1, 17, 42, 63, 100, 126]) {
@@ -362,7 +362,7 @@ console.log('before:', signal[63], ' after:', result[63]);
           run: async ctx => {
             const s = new Array(128);
             for (let i = 0; i < 128; i++) s[i] = ((i * 37) % 23) - 11;
-            const out = ctx.kernel(s);
+            const out = await ctx.kernel(s);
             const ref = convolve1dRef(s, [0.25, 0.5, 0.25], 1);
             const edgeHint = i => unclampedHint(out[i]) ||
               diagnose(out[i], ref[i], 1e-3, smoothProbes(s, i));
@@ -379,7 +379,7 @@ console.log('before:', signal[63], ' after:', result[63]);
           name: 'private test #1',
           run: async ctx => {
             const signal = makeSignal(ctx.utils, 909);
-            const out = ctx.kernel(signal);
+            const out = await ctx.kernel(signal);
             const ref = convolve1dRef(signal, [0.25, 0.5, 0.25], 1);
             ctx.assert(out.length === 128, 'expected 128 output samples');
             for (let i = 0; i < 128; i++) {
@@ -448,7 +448,7 @@ const convolve = gpu.createKernel(function (signal, filter) {
 });
 
 const gauss = [0.06, 0.24, 0.4, 0.24, 0.06];
-const result = convolve(signal, gauss);
+const result = await convolve(signal, gauss);
 console.log('smoothed sample 64:', result[64]);
 `,
       solutionCode: `// One kernel, any 5-tap filter: weights come in as data, size as constants.
@@ -470,7 +470,7 @@ const convolve = gpu.createKernel(function (signal, filter) {
 });
 
 const gauss = [0.06, 0.24, 0.4, 0.24, 0.06];
-const result = convolve(signal, gauss);
+const result = await convolve(signal, gauss);
 console.log('smoothed sample 64:', result[64]);
 `,
       inputs: utils => ({ signal: makeSignal(utils) }),
@@ -481,7 +481,7 @@ console.log('smoothed sample 64:', result[64]);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const signal = makeSignal(ctx.utils);
             const identity = [0, 0, 1, 0, 0];
-            const out = ctx.kernel(signal, identity);
+            const out = await ctx.kernel(signal, identity);
             ctx.assert(out && out.length === 128, `expected 128 output samples, got ${out && out.length}`);
             const shifted = [
               convolve1dRef(signal, identity, 0),
@@ -499,7 +499,7 @@ console.log('smoothed sample 64:', result[64]);
             const s = new Array(128);
             for (let i = 0; i < 128; i++) s[i] = ((i * 29) % 17) - 8;
             const box = [0.2, 0.2, 0.2, 0.2, 0.2];
-            const out = ctx.kernel(s, box);
+            const out = await ctx.kernel(s, box);
             const ref = convolve1dRef(s, box, 2);
             const shifted = [convolve1dRef(s, box, 0), convolve1dRef(s, box, -2)];
             for (let i = 0; i < 128; i++) {
@@ -517,7 +517,7 @@ console.log('smoothed sample 64:', result[64]);
             const rand = ctx.utils.seededRandom(31);
             const filter = new Array(5);
             for (let i = 0; i < 5; i++) filter[i] = Math.round((rand() * 0.6 - 0.1) * 100) / 100;
-            const out = ctx.kernel(signal, filter);
+            const out = await ctx.kernel(signal, filter);
             const ref = convolve1dRef(signal, filter, 2);
             const shifted = [convolve1dRef(signal, filter, 0), convolve1dRef(signal, filter, -2)];
             for (let i = 0; i < 128; i++) {
@@ -590,7 +590,7 @@ const blur = gpu.createKernel(function (image) {
   constants: { last: 127 },
 });
 
-blur(inputImage);
+await blur(inputImage);
 render(blur.canvas);
 `,
       solutionCode: `// Nine reads per pixel, averaged per channel. 131,072 threads at once.
@@ -621,7 +621,7 @@ const blur = gpu.createKernel(function (image) {
   constants: { last: 127 },
 });
 
-blur(inputImage);
+await blur(inputImage);
 render(blur.canvas);
 `,
       inputs: utils => ({ inputImage: utils.makeTestImage(128) }),
@@ -644,7 +644,7 @@ render(blur.canvas);
           run: async ctx => {
             const image = constantImage(128, [0.3, 0.5, 0.7, 1]);
             const flat = image.at(0, 0);
-            ctx.kernel(image);
+            await ctx.kernel(image);
             const pixels = ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 331 * 4) {
               ctx.assertClose(pixels[i], flat[0] * 255, 2, `red at byte ${i}`);
@@ -657,7 +657,7 @@ render(blur.canvas);
           name: 'each pixel is the average of its 3×3 neighborhood',
           run: async ctx => {
             const img = ctx.utils.makeTestImage(128);
-            ctx.kernel(img);
+            await ctx.kernel(img);
             const pixels = ctx.getPixels();
             const ref = boxBlurRef(img);
             // getPixels row order can be top-down or bottom-up depending on
@@ -693,7 +693,7 @@ render(blur.canvas);
           run: async ctx => {
             // Dark-left / light-right split: blurred columns have exact,
             // row-independent values — orientation cannot hide a mistake.
-            ctx.kernel(verticalSplitImage(128, 0.2, 0.8));
+            await ctx.kernel(verticalSplitImage(128, 0.2, 0.8));
             const pixels = ctx.getPixels();
             const expectedAt = col => {
               if (col <= 62) return 0.2;
@@ -777,7 +777,7 @@ const sharpen = gpu.createKernel(function (gray) {
   constants: { last: 95 },
 });
 
-const result = sharpen(gray);
+const result = await sharpen(gray);
 console.log('center before:', gray[48][48], ' after:', result[48][48]);
 `,
       solutionCode: `// Sharpen = identity + edge boost: 5×center − the 4 direct neighbors.
@@ -800,7 +800,7 @@ const sharpen = gpu.createKernel(function (gray) {
   constants: { last: 95 },
 });
 
-const result = sharpen(gray);
+const result = await sharpen(gray);
 console.log('center before:', gray[48][48], ' after:', result[48][48]);
 `,
       inputs: utils => ({ gray: grayOf(utils.makeTestImage(96)) }),
@@ -810,7 +810,7 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const flat = new Array(96).fill(new Array(96).fill(0.5));
-            const out = ctx.kernel(flat);
+            const out = await ctx.kernel(flat);
             ctx.assert(out && out.length === 96, `expected 96 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 96, 'each row should hold 96 values');
             for (let y = 0; y < 96; y += 7) {
@@ -825,7 +825,7 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
           name: 'cell [y][x] equals <code>5·center − left − right − up − down</code>',
           run: async ctx => {
             const gray = grayOf(ctx.utils.makeTestImage(96));
-            const out = ctx.kernel(gray);
+            const out = await ctx.kernel(gray);
             const ref = sharpenRef(gray);
             const cases = [[0, 0], [0, 48], [11, 60], [48, 48], [77, 3], [95, 95]];
             for (const [y, x] of cases) {
@@ -843,7 +843,7 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
           name: 'private test #1',
           run: async ctx => {
             const gray = randomGray(ctx.utils, 96, 4242);
-            const out = ctx.kernel(gray);
+            const out = await ctx.kernel(gray);
             const ref = sharpenRef(gray);
             for (let y = 0; y < 96; y++) {
               for (let x = 0; x < 96; x++) {
@@ -937,8 +937,8 @@ const sobel = gpu.createKernel(function (gray) {
   constants: { last: 127 },
 });
 
-const grayMap = luminance(inputImage);
-sobel(grayMap);
+const grayMap = await luminance(inputImage);
+await sobel(grayMap);
 render(sobel.canvas);
 `,
       solutionCode: `// Two directional convolutions, one kernel, magnitude out.
@@ -976,8 +976,8 @@ const sobel = gpu.createKernel(function (gray) {
   constants: { last: 127 },
 });
 
-const grayMap = luminance(inputImage);
-sobel(grayMap);
+const grayMap = await luminance(inputImage);
+await sobel(grayMap);
 render(sobel.canvas);
 `,
       inputs: utils => ({ inputImage: utils.makeTestImage(128) }),
@@ -1003,7 +1003,7 @@ render(sobel.canvas);
             const numeric = ctx.kernels.find(k => k.kernel && !k.kernel.graphical);
             const graphical = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
-            graphical(numeric(constantImage(128, [0.4, 0.6, 0.2, 1])));
+            await graphical(await numeric(constantImage(128, [0.4, 0.6, 0.2, 1])));
             const pixels = graphical.getPixels();
             for (let i = 0; i < pixels.length; i += 251 * 4) {
               ctx.assert(
@@ -1020,7 +1020,7 @@ render(sobel.canvas);
             const numeric = ctx.kernels.find(k => k.kernel && !k.kernel.graphical);
             const graphical = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
-            graphical(numeric(verticalSplitImage(128, 0.1, 0.9)));
+            await graphical(await numeric(verticalSplitImage(128, 0.1, 0.9)));
             const pixels = graphical.getPixels();
             const red = (r, c) => pixels[(r * 128 + c) * 4];
             // Transposed, the picture answers to the row where it should answer
@@ -1060,7 +1060,7 @@ render(sobel.canvas);
             const numeric = ctx.kernels.find(k => k.kernel && !k.kernel.graphical);
             const graphical = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
-            graphical(numeric(horizontalSplitImage(128, 0.15, 0.85)));
+            await graphical(await numeric(horizontalSplitImage(128, 0.15, 0.85)));
             const pixels = graphical.getPixels();
             const red = (r, c) => pixels[(r * 128 + c) * 4];
             // A transposed paint answers to the column instead of the row: what

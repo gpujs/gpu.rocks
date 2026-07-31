@@ -203,18 +203,20 @@ function upsweptRef(values, n) {
 // gpu.js locks an argument's type on a kernel's first invocation, so every
 // array a test feeds back in is a Float32Array — the type every pass returns.
 
-function runLadder(step, values, n) {
+// Each pass is awaited before the next one launches: pass d reads what pass
+// d − 1 returned, so the ladder is a sequential chain, never a Promise.all.
+async function runLadder(step, values, n) {
   let v = Float32Array.from(values);
-  for (let stride = 1; stride < n; stride *= 2) v = step(v, stride);
+  for (let stride = 1; stride < n; stride *= 2) v = await step(v, stride);
   return v;
 }
 
-function runSweeps(up, down, values, n) {
+async function runSweeps(up, down, values, n) {
   let v = Float32Array.from(values);
-  for (let stride = 1; stride < n; stride *= 2) v = up(v, stride);
+  for (let stride = 1; stride < n; stride *= 2) v = await up(v, stride);
   v = Float32Array.from(v);
   v[n - 1] = 0;
-  for (let stride = n / 2; stride >= 1; stride /= 2) v = down(v, stride);
+  for (let stride = n / 2; stride >= 1; stride /= 2) v = await down(v, stride);
   return v;
 }
 
@@ -246,7 +248,7 @@ function sweepProbe(n) {
   return probe;
 }
 
-function findSweepKernels(ctx, n) {
+async function findSweepKernels(ctx, n) {
   const probe = sweepProbe(n);
   const upRef = upsweepPass(probe, 1);
   const downRef = downsweepPass(probe, 1);
@@ -255,7 +257,7 @@ function findSweepKernels(ctx, n) {
   for (const k of kernelsWithArity(ctx, 2)) {
     let out;
     try {
-      out = k(Float32Array.from(probe), 1);
+      out = await k(Float32Array.from(probe), 1);
     } catch (e) {
       continue;
     }
@@ -267,12 +269,12 @@ function findSweepKernels(ctx, n) {
 
 // Task 6's kernel is the one that answers 128 slots — identified by what it
 // produces, so an extra kernel left lying around cannot be mistaken for it.
-function findOwnerKernel(ctx, offsets, counts) {
+async function findOwnerKernel(ctx, offsets, counts) {
   for (let i = ctx.kernels.length - 1; i >= 0; i--) {
     const k = ctx.kernels[i];
     let out;
     try {
-      out = k(Float32Array.from(offsets), counts);
+      out = await k(Float32Array.from(offsets), counts);
     } catch (e) {
       continue;
     }
@@ -702,7 +704,7 @@ const prefix = gpu.createKernel(function (data) {
   constants: { n: 1024 },
 });
 
-const scan = prefix(values);
+const scan = await prefix(values);
 console.log('scan[0]:', scan[0], ' scan[1]:', scan[1], ' scan[2]:', scan[2]);
 // TODO: the last cell is already the grand total — log it.
 console.log('grand total:', 0);
@@ -723,7 +725,7 @@ const prefix = gpu.createKernel(function (data) {
   constants: { n: 1024 },
 });
 
-const scan = prefix(values);
+const scan = await prefix(values);
 console.log('scan[0]:', scan[0], ' scan[1]:', scan[1], ' scan[2]:', scan[2]);
 console.log('grand total:', scan[1023]);
 `,
@@ -733,7 +735,7 @@ console.log('grand total:', scan[1023]);
           name: 'one output cell per input value',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(makeValues(ctx.utils, N, 3517));
+            const out = await ctx.kernel(makeValues(ctx.utils, N, 3517));
             ctx.assert(out && out.length === N, `expected ${N} output values, got ${out && out.length}`);
           },
         },
@@ -742,7 +744,7 @@ console.log('grand total:', scan[1023]);
           run: async ctx => {
             const data = new Array(N);
             for (let i = 0; i < N; i++) data[i] = ((i % 7) + 1) / 4;
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             const expected = inclusiveScan(data);
             const hint = nonFiniteHint(out, N, 'a read landed outside the array — every index in this kernel is 0 … n - 1') ||
               diagnoseAll(N, out, expected, 1e-3, naiveProbes(data));
@@ -773,7 +775,7 @@ console.log('grand total:', scan[1023]);
           name: 'private test #1',
           run: async ctx => {
             const data = makeValues(ctx.utils, N, 8642);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out && out.length === N, `expected ${N} output values`);
             const expected = inclusiveScan(data);
             const hint = nonFiniteHint(out, N, 'a read landed outside the array') ||
@@ -834,7 +836,7 @@ return data[this.thread.x];</code></pre>`,
             <code>1, 2, 3</code>. The reassignment is what makes pass <code>d</code> read what
             pass <code>d − 1</code> returned:</p>
 <pre><code>for (let stride = 1; stride &lt; N; stride *= 2) {
-  v = scanStep(v, stride);
+  v = await scanStep(v, stride);
 }</code></pre>`,
         },
         {
@@ -867,7 +869,7 @@ let v = Float32Array.from(values);
 
 // TODO: ten passes, stride 1, 2, 4, ... 512. Each pass must read the
 // array the PREVIOUS pass returned.
-v = scanStep(v, 1);
+v = await scanStep(v, 1);
 
 console.log('scan[511]:', v[511]);
 console.log('grand total:', v[N - 1]);
@@ -888,7 +890,7 @@ const scanStep = gpu.createKernel(function (data, stride) {
 let v = Float32Array.from(values);
 
 for (let stride = 1; stride < N; stride *= 2) {
-  v = scanStep(v, stride);
+  v = await scanStep(v, stride);
 }
 
 console.log('scan[511]:', v[511]);
@@ -920,11 +922,11 @@ console.log('grand total:', v[N - 1]);
             const fed = last[0];
             ctx.assert(fed && fed.length === N, 'the first argument of each pass should be the whole array');
             const probe = sweepProbe(N);
-            const kernelChangesSomething = !matches(step(Float32Array.from(probe), 1), probe, 1e-6);
+            const kernelChangesSomething = !matches(await step(Float32Array.from(probe), 1), probe, 1e-6);
             if (kernelChangesSomething) {
               ctx.assert(
                 !matches(fed, data, 1e-6),
-                'the last pass was handed the ORIGINAL array again — pass d has to read what pass d-1 returned, which is exactly what v = scanStep(v, stride) does'
+                'the last pass was handed the ORIGINAL array again — pass d has to read what pass d-1 returned, which is exactly what v = await scanStep(v, stride) does'
               );
             }
           },
@@ -935,7 +937,7 @@ console.log('grand total:', v[N - 1]);
             const step = ctx.kernels.find(k => arityOf(k) === 2);
             ctx.assert(step, 'no kernel taking (data, stride) was found — the stride is an argument, so one kernel can serve every pass');
             const data = makeValues(ctx.utils, N, 7311);
-            const out = step(Float32Array.from(data), 4);
+            const out = await step(Float32Array.from(data), 4);
             ctx.assert(out && out.length === N, `expected ${N} values back from one pass, got ${out && out.length}`);
             const expected = scanPass(data, 4);
             const hint = nonFiniteHint(out, N, STRIDE_GUARD) ||
@@ -954,7 +956,7 @@ console.log('grand total:', v[N - 1]);
             for (let i = 0; i < N; i++) data[i] = ((i % 5) + 1) / 8;
             // The TEST drives the ladder here, so this checks the kernel on its
             // own — a wrong driver is caught by the logged values instead.
-            const out = runLadder(step, data, N);
+            const out = await runLadder(step, data, N);
             const expected = inclusiveScan(data);
             const hint = nonFiniteHint(out, N, STRIDE_GUARD) ||
               diagnoseAll(N, out, expected, 1e-3, ladderKernelProbes(data, doublingStrides(N)));
@@ -986,7 +988,7 @@ console.log('grand total:', v[N - 1]);
             const step = ctx.kernels.find(k => arityOf(k) === 2);
             ctx.assert(step, 'expected a kernel taking (data, stride)');
             const data = makeValues(ctx.utils, N, 2244);
-            const out = runLadder(step, data, N);
+            const out = await runLadder(step, data, N);
             const expected = inclusiveScan(data);
             const hint = nonFiniteHint(out, N, STRIDE_GUARD) ||
               diagnoseAll(N, out, expected, 1e-3, ladderKernelProbes(data, doublingStrides(N)));
@@ -995,7 +997,7 @@ console.log('grand total:', v[N - 1]);
             }
             // One pass at a big stride, on its own: the guard has to hold for
             // the whole untouched left half, not just for cell 0.
-            const one = step(Float32Array.from(data), 256);
+            const one = await step(Float32Array.from(data), 256);
             const guard = nonFiniteHint(one, N, STRIDE_GUARD);
             for (let i = 0; i < 256; i++) {
               ctx.assertClose(one[i], data[i], 1e-3,
@@ -1074,7 +1076,7 @@ const scanStep = gpu.createKernel(function (data, stride) {
 
 let v = Float32Array.from(counts);
 for (let stride = 1; stride < N; stride *= 2) {
-  v = scanStep(v, stride);
+  v = await scanStep(v, stride);
 }
 const inclusive = v;
 
@@ -1084,7 +1086,7 @@ const toExclusive = gpu.createKernel(function (inclusive) {
   return inclusive[this.thread.x];
 }, { output: [N] });
 
-const offsets = toExclusive(inclusive);
+const offsets = await toExclusive(inclusive);
 
 console.log('counts [0..3]:', counts[0], counts[1], counts[2], counts[3]);
 console.log('offsets[0..3]:', offsets[0], offsets[1], offsets[2], offsets[3]);
@@ -1105,7 +1107,7 @@ const scanStep = gpu.createKernel(function (data, stride) {
 
 let v = Float32Array.from(counts);
 for (let stride = 1; stride < N; stride *= 2) {
-  v = scanStep(v, stride);
+  v = await scanStep(v, stride);
 }
 const inclusive = v;
 
@@ -1116,7 +1118,7 @@ const toExclusive = gpu.createKernel(function (inclusive) {
   return inclusive[this.thread.x - 1];
 }, { output: [N] });
 
-const offsets = toExclusive(inclusive);
+const offsets = await toExclusive(inclusive);
 
 console.log('counts [0..3]:', counts[0], counts[1], counts[2], counts[3]);
 console.log('offsets[0..3]:', offsets[0], offsets[1], offsets[2], offsets[3]);
@@ -1131,7 +1133,7 @@ console.log('total seats:', offsets[N - 1] + counts[N - 1]);
             ctx.assert(shift, 'no kernel taking the inclusive scan as its one argument was found — the conversion is a shift, so it needs nothing else');
             const counts = COUNTS.slice();
             const inclusive = inclusiveScan(counts);
-            const out = shift(Float32Array.from(inclusive));
+            const out = await shift(Float32Array.from(inclusive));
             ctx.assert(out && out.length === ITEMS, `expected ${ITEMS} offsets, got ${out && out.length}`);
             const expected = exclusiveScan(counts);
             const hint = nonFiniteHint(out, ITEMS, SHIFT_GUARD) ||
@@ -1148,7 +1150,7 @@ console.log('total seats:', offsets[N - 1] + counts[N - 1]);
             const shift = ctx.kernels.find(k => arityOf(k) === 1);
             ctx.assert(shift, 'expected a one-argument shift kernel');
             const counts = COUNTS.slice();
-            const out = shift(Float32Array.from(inclusiveScan(counts)));
+            const out = await shift(Float32Array.from(inclusiveScan(counts)));
             for (let i = 1; i < ITEMS; i++) {
               if (counts[i - 1] !== 0) continue;
               // A zero-length run starts exactly where the previous one did.
@@ -1188,7 +1190,7 @@ console.log('total seats:', offsets[N - 1] + counts[N - 1]);
             for (let i = 0; i < ITEMS; i++) counts[i] = (i * 5) % 7 === 0 ? 0 : (i % 6) + 1;
             const inclusive = inclusiveScan(counts);
             const expected = exclusiveScan(counts);
-            const out = shift(Float32Array.from(inclusive));
+            const out = await shift(Float32Array.from(inclusive));
             const hint = nonFiniteHint(out, ITEMS, SHIFT_GUARD) ||
               diagnoseAll(ITEMS, out, expected, 1e-3, exclusiveProbes(inclusive));
             for (let i = 0; i < ITEMS; i++) {
@@ -1311,14 +1313,14 @@ const clearLast = gpu.createKernel(function (data) {
 let v = Float32Array.from(values);
 
 for (let stride = 1; stride < N; stride *= 2) {
-  v = upsweep(v, stride);
+  v = await upsweep(v, stride);
 }
 
 const total = v[N - 1]; // the upsweep already reduced the whole array
-v = clearLast(v);
+v = await clearLast(v);
 
 for (let stride = N / 2; stride >= 1; stride /= 2) {
-  v = downsweep(v, stride);
+  v = await downsweep(v, stride);
 }
 
 console.log('exclusive[512]:', v[512]);
@@ -1361,14 +1363,14 @@ const clearLast = gpu.createKernel(function (data) {
 let v = Float32Array.from(values);
 
 for (let stride = 1; stride < N; stride *= 2) {
-  v = upsweep(v, stride);
+  v = await upsweep(v, stride);
 }
 
 const total = v[N - 1]; // the upsweep already reduced the whole array
-v = clearLast(v);
+v = await clearLast(v);
 
 for (let stride = N / 2; stride >= 1; stride /= 2) {
-  v = downsweep(v, stride);
+  v = await downsweep(v, stride);
 }
 
 console.log('exclusive[512]:', v[512]);
@@ -1384,16 +1386,20 @@ console.log('grand total:', total);
               candidates.length >= 2,
               `expected an upsweep and a downsweep kernel taking (data, stride), found ${candidates.length}`
             );
-            const { up, down } = findSweepKernels(ctx, N);
+            const { up, down } = await findSweepKernels(ctx, N);
             const probe = sweepProbe(N);
             if (!up) {
-              const seen = candidates.map(k => {
+              // A for loop, not candidates.map(): the probe call is awaited,
+              // and `await` is illegal inside a non-async arrow.
+              const seen = [];
+              for (const k of candidates) {
                 try {
-                  return k(Float32Array.from(probe), 1);
+                  const out = await k(Float32Array.from(probe), 1);
+                  if (out) seen.push(out);
                 } catch (e) {
-                  return null;
+                  // not a (data, stride) kernel — nothing to learn from it
                 }
-              }).filter(Boolean);
+              }
               const upRef = upsweepPass(probe, 1);
               const hint = seen
                 .map(out => diagnoseAll(N, out, upRef, 1e-3, upsweepProbes(probe)))
@@ -1402,13 +1408,16 @@ console.log('grand total:', total);
                 'no upsweep pass found — at stride s only the cells where (i + 1) is a multiple of 2s should change, each to data[i] + data[i - s]');
             }
             if (!down) {
-              const seen = candidates.filter(k => k !== up).map(k => {
+              const seen = [];
+              for (const k of candidates) {
+                if (k === up) continue;
                 try {
-                  return k(Float32Array.from(probe), 1);
+                  const out = await k(Float32Array.from(probe), 1);
+                  if (out) seen.push(out);
                 } catch (e) {
-                  return null;
+                  // not a (data, stride) kernel — nothing to learn from it
                 }
-              }).filter(Boolean);
+              }
               const downRef = downsweepPass(probe, 1);
               const hint = seen
                 .map(out => diagnoseAll(N, out, downRef, 1e-3, downsweepProbes(probe)))
@@ -1421,10 +1430,10 @@ console.log('grand total:', total);
         {
           name: 'one pass of each sweep, at stride 4',
           run: async ctx => {
-            const { up, down } = findSweepKernels(ctx, N);
+            const { up, down } = await findSweepKernels(ctx, N);
             ctx.assert(up && down, 'expected an upsweep and a downsweep kernel');
             const probe = sweepProbe(N);
-            const upOut = up(Float32Array.from(probe), 4);
+            const upOut = await up(Float32Array.from(probe), 4);
             const upRef = upsweepPass(probe, 4);
             const upHint =
               nonFiniteHint(upOut, N, 'a block-top read landed before the start of the array — at stride s the block tops sit at 2s − 1, 4s − 1, …, so the test is (i + 1) % (2 * stride) === 0') ||
@@ -1435,7 +1444,7 @@ console.log('grand total:', total);
             for (let i = 0; i < N; i++) {
               ctx.assertClose(upOut[i], upRef[i], 1e-3, upHint || `upsweep cell ${i} at stride 4`);
             }
-            const downOut = down(Float32Array.from(probe), 4);
+            const downOut = await down(Float32Array.from(probe), 4);
             const downRef = downsweepPass(probe, 4);
             const downHint =
               nonFiniteHint(downOut, N, 'a read landed outside the array — a block top reads data[i - stride] and its left partner reads data[i + stride], and both indexes exist for every active cell') ||
@@ -1451,11 +1460,11 @@ console.log('grand total:', total);
         {
           name: 'up, clear, down — the exclusive scan of a fresh array',
           run: async ctx => {
-            const { up, down } = findSweepKernels(ctx, N);
+            const { up, down } = await findSweepKernels(ctx, N);
             ctx.assert(up && down, 'expected an upsweep and a downsweep kernel');
             const data = new Array(N);
             for (let i = 0; i < N; i++) data[i] = ((i % 9) + 1) / 8;
-            const out = runSweeps(up, down, data, N);
+            const out = await runSweeps(up, down, data, N);
             const expected = exclusiveScan(data);
             const cleared = clearedLast(upsweptRef(data, N));
             const hint = nonFiniteHint(out, N, STRIDE_GUARD) ||
@@ -1499,10 +1508,10 @@ console.log('grand total:', total);
         {
           name: 'private test #1',
           run: async ctx => {
-            const { up, down } = findSweepKernels(ctx, N);
+            const { up, down } = await findSweepKernels(ctx, N);
             ctx.assert(up && down, 'expected an upsweep and a downsweep kernel');
             const data = makeValues(ctx.utils, N, 6060);
-            const out = runSweeps(up, down, data, N);
+            const out = await runSweeps(up, down, data, N);
             const expected = exclusiveScan(data);
             const hint = nonFiniteHint(out, N, STRIDE_GUARD);
             for (let i = 0; i < N; i++) {
@@ -1511,7 +1520,7 @@ console.log('grand total:', total);
             // The upsweep on its own must leave a reduction tree: the root
             // holding the whole sum, every block top its own block's subtotal.
             let swept = Float32Array.from(data);
-            for (let stride = 1; stride < N; stride *= 2) swept = up(swept, stride);
+            for (let stride = 1; stride < N; stride *= 2) swept = await up(swept, stride);
             ctx.assertClose(swept[N - 1], sumOf(data), 1e-3,
               'after the upsweep the last cell should hold the grand total');
             ctx.assertClose(swept[255], sumOf(data.slice(0, 256)), 1e-3,
@@ -1602,9 +1611,9 @@ const toExclusive = gpu.createKernel(function (inclusive) {
 
 let v = Float32Array.from(counts);
 for (let stride = 1; stride < ITEMS; stride *= 2) {
-  v = scanStep(v, stride);
+  v = await scanStep(v, stride);
 }
-const offsets = toExclusive(v);
+const offsets = await toExclusive(v);
 
 // Your kernel: one thread per SLOT.
 const ownerOf = gpu.createKernel(function (offsets, counts) {
@@ -1613,7 +1622,7 @@ const ownerOf = gpu.createKernel(function (offsets, counts) {
   return 0;
 }, { output: [SLOTS], constants: { items: ITEMS } });
 
-const owners = ownerOf(offsets, counts);
+const owners = await ownerOf(offsets, counts);
 console.log('slots 0-9 belong to sessions:',
   owners[0], owners[1], owners[2], owners[3], owners[4],
   owners[5], owners[6], owners[7], owners[8], owners[9]);
@@ -1641,9 +1650,9 @@ const toExclusive = gpu.createKernel(function (inclusive) {
 
 let v = Float32Array.from(counts);
 for (let stride = 1; stride < ITEMS; stride *= 2) {
-  v = scanStep(v, stride);
+  v = await scanStep(v, stride);
 }
-const offsets = toExclusive(v);
+const offsets = await toExclusive(v);
 
 // Your kernel: one thread per SLOT.
 const ownerOf = gpu.createKernel(function (offsets, counts) {
@@ -1657,7 +1666,7 @@ const ownerOf = gpu.createKernel(function (offsets, counts) {
   return found;
 }, { output: [SLOTS], constants: { items: ITEMS } });
 
-const owners = ownerOf(offsets, counts);
+const owners = await ownerOf(offsets, counts);
 console.log('slots 0-9 belong to sessions:',
   owners[0], owners[1], owners[2], owners[3], owners[4],
   owners[5], owners[6], owners[7], owners[8], owners[9]);
@@ -1671,9 +1680,9 @@ console.log('the last slot belongs to session:', owners[SLOTS - 1]);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const counts = COUNTS.slice();
             const offsets = exclusiveScan(counts);
-            const owner = findOwnerKernel(ctx, offsets, counts);
+            const owner = await findOwnerKernel(ctx, offsets, counts);
             ctx.assert(owner, `no kernel producing ${SLOTS} slots was found — there is one thread per output slot, so output: [${SLOTS}]`);
-            const out = owner(Float32Array.from(offsets), counts);
+            const out = await owner(Float32Array.from(offsets), counts);
             const expected = expandCounts(counts);
             const hint = diagnoseAll(SLOTS, out, expected, 1e-6, ownerProbes(counts, offsets, SLOTS));
             for (let slot = 0; slot < SLOTS; slot++) {
@@ -1686,9 +1695,9 @@ console.log('the last slot belongs to session:', owners[SLOTS - 1]);
           run: async ctx => {
             const counts = COUNTS.slice();
             const offsets = exclusiveScan(counts);
-            const owner = findOwnerKernel(ctx, offsets, counts);
+            const owner = await findOwnerKernel(ctx, offsets, counts);
             ctx.assert(owner, `no kernel producing ${SLOTS} slots was found`);
-            const out = owner(Float32Array.from(offsets), counts);
+            const out = await owner(Float32Array.from(offsets), counts);
             const tally = new Array(counts.length).fill(0);
             for (let slot = 0; slot < SLOTS; slot++) {
               const named = out[slot];
@@ -1728,9 +1737,9 @@ console.log('the last slot belongs to session:', owners[SLOTS - 1]);
             counts[9] = 32;
             counts[20] = 42;
             const offsets = exclusiveScan(counts);
-            const owner = findOwnerKernel(ctx, offsets, counts);
+            const owner = await findOwnerKernel(ctx, offsets, counts);
             ctx.assert(owner, `no kernel producing ${SLOTS} slots was found`);
-            const out = owner(Float32Array.from(offsets), counts);
+            const out = await owner(Float32Array.from(offsets), counts);
             const expected = expandCounts(counts);
             ctx.assert(expected.length === SLOTS, 'the private sheet should still fill exactly 128 slots');
             const hint = diagnoseAll(SLOTS, out, expected, 1e-6, ownerProbes(counts, offsets, SLOTS));

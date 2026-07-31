@@ -284,8 +284,8 @@ function refLiveCounts(frames, alpha, threshold) {
 // ---- reading results -------------------------------------------------------
 
 // Mode-safe read of a pipeline result: a Texture on GL, a plain array on CPU.
-function toArr(value) {
-  return value && typeof value.toArray === 'function' ? value.toArray() : value;
+async function toArr(value) {
+  return value && typeof value.toArray === 'function' ? await value.toArray() : value;
 }
 
 function sumGrid(map) {
@@ -514,7 +514,7 @@ export default {
             there: a non-pipeline kernel's <em>return value</em> is the readback. Add
             <code>pipeline: true</code> to the first two stages and the chain collapses to one
             expression:</p>
-<pre><code>out.push(tone(denoise(luminance(frames[i]))));</code></pre>`,
+<pre><code>out.push(await tone(await denoise(await luminance(frames[i]))));</code></pre>`,
         },
         {
           title: 'Hint 3 — the budget arithmetic',
@@ -568,9 +568,9 @@ for (let i = 0; i < frames.length; i++) {
   // TODO: each of these three stages ends in a download and the next one
   // re-uploads. Only the LAST stage should come back to JavaScript — make
   // the first two pipeline kernels.
-  const lum = luminance(frames[i]);
-  const clean = denoise(lum);
-  out.push(tone(clean));
+  const lum = await luminance(frames[i]);
+  const clean = await denoise(lum);
+  out.push(await tone(clean));
 }
 
 const totalMs = performance.now() - t0;
@@ -616,7 +616,7 @@ const tone = gpu.createKernel(function (map) {
 const t0 = performance.now();
 const out = [];
 for (let i = 0; i < frames.length; i++) {
-  out.push(tone(denoise(luminance(frames[i]))));
+  out.push(await tone(await denoise(await luminance(frames[i]))));
 }
 const totalMs = performance.now() - t0;
 
@@ -658,7 +658,7 @@ console.log(perFrame <= 16.7 ? 'fits the 16.7 ms frame budget' : 'over the 16.7 
               tone.kernel && !tone.kernel.pipeline,
               'the tone stage should stay a plain kernel — its return IS the one readback you want'
             );
-            if (ctx.resolvedMode === 'gpu') {
+            if (ctx.resolvedMode !== 'cpu') {
               ctx.assert(
                 denoise.lastArgs && denoise.lastArgs[0] && typeof denoise.lastArgs[0].toArray === 'function',
                 'the denoise stage should be fed the luminance texture directly — no readback in between'
@@ -672,7 +672,7 @@ console.log(perFrame <= 16.7 ? 'fits the 16.7 ms frame budget' : 'over the 16.7 
             const [lum, denoise, tone] = ctx.kernels;
             const seq = makeFrames(ctx.utils);
             for (const i of [0, 3, 7]) {
-              const out = tone(denoise(lum(seq[i])));
+              const out = await tone(await denoise(await lum(seq[i])));
               const ref = refPipeline(seq[i]);
               const miss = firstMismatch(out, ref, 3e-3);
               ctx.assert(
@@ -705,7 +705,7 @@ console.log(perFrame <= 16.7 ? 'fits the 16.7 ms frame budget' : 'over the 16.7 
             const [lum, denoise, tone] = ctx.kernels;
             const seq = makeFrames(ctx.utils, 31337);
             for (let i = 0; i < seq.length; i++) {
-              const out = tone(denoise(lum(seq[i])));
+              const out = await tone(await denoise(await lum(seq[i])));
               const ref = refPipeline(seq[i]);
               const miss = firstMismatch(out, ref, 3e-3);
               ctx.assert(
@@ -800,12 +800,12 @@ const blend = gpu.createKernel(function (frame, previous) {
   // the error message tell you the missing setting.
 });
 
-let state = seed(frames[0]);
+let state = await seed(frames[0]);
 for (let i = 1; i < frames.length; i++) {
-  state = blend(frames[i], state); // last frame's output, straight back in
+  state = await blend(frames[i], state); // last frame's output, straight back in
 }
 
-const smoothed = state.toArray ? state.toArray() : state;
+const smoothed = state.toArray ? await state.toArray() : state;
 console.log('smoothed center:', smoothed[32][32].toFixed(4));
 `,
       solutionCode: `// Denoising along the time axis: average each pixel with itself.
@@ -830,12 +830,12 @@ const blend = gpu.createKernel(function (frame, previous) {
   constants: { alpha: 0.25 },
 });
 
-let state = seed(frames[0]);
+let state = await seed(frames[0]);
 for (let i = 1; i < frames.length; i++) {
-  state = blend(frames[i], state); // last frame's output, straight back in
+  state = await blend(frames[i], state); // last frame's output, straight back in
 }
 
-const smoothed = state.toArray ? state.toArray() : state;
+const smoothed = state.toArray ? await state.toArray() : state;
 console.log('smoothed center:', smoothed[32][32].toFixed(4));
 `,
       inputs: utils => ({ frames: makeFrames(utils) }),
@@ -863,9 +863,9 @@ console.log('smoothed center:', smoothed[32][32].toFixed(4));
             const seed = ctx.kernels.find(k => k.kernel && k.kernel.pipeline && !k.kernel.immutable);
             ctx.assert(seed && blend, 'expected a seed kernel and an immutable blend kernel');
             const seq = makeFrames(ctx.utils);
-            let state = seed(seq[0]);
-            for (let i = 1; i < seq.length; i++) state = blend(seq[i], state);
-            const got = toArr(state);
+            let state = await seed(seq[0]);
+            for (let i = 1; i < seq.length; i++) state = await blend(seq[i], state);
+            const got = await toArr(state);
             const ref = refTemporal(seq, ALPHA_SMOOTH);
             const hint = diagnoseGrid(got, ref, 3e-3, temporalProbes(seq, ALPHA_SMOOTH));
             const miss = firstMismatch(got, ref, 3e-3);
@@ -885,9 +885,9 @@ console.log('smoothed center:', smoothed[32][32].toFixed(4));
             const seed = ctx.kernels.find(k => k.kernel && k.kernel.pipeline && !k.kernel.immutable);
             ctx.assert(seed && blend, 'expected a seed kernel and an immutable blend kernel');
             const seq = makeFrames(ctx.utils);
-            let state = seed(seq[0]);
-            for (let i = 1; i < seq.length; i++) state = blend(seq[i], state);
-            const got = toArr(state);
+            let state = await seed(seq[0]);
+            for (let i = 1; i < seq.length; i++) state = await blend(seq[i], state);
+            const got = await toArr(state);
             const ref = refTemporal(seq, ALPHA_SMOOTH);
             // Compare only the region the object never reaches, where the true
             // luminance is constant in time: the desk band along the bottom.
@@ -925,9 +925,9 @@ console.log('smoothed center:', smoothed[32][32].toFixed(4));
             const seed = ctx.kernels.find(k => k.kernel && k.kernel.pipeline && !k.kernel.immutable);
             ctx.assert(seed && blend, 'expected a seed kernel and an immutable blend kernel');
             const seq = makeFrames(ctx.utils, 606060);
-            let state = seed(seq[0]);
-            for (let i = 1; i < seq.length; i++) state = blend(seq[i], state);
-            const got = toArr(state);
+            let state = await seed(seq[0]);
+            for (let i = 1; i < seq.length; i++) state = await blend(seq[i], state);
+            const got = await toArr(state);
             const ref = refTemporal(seq, ALPHA_SMOOTH);
             const hint = diagnoseGrid(got, ref, 3e-3, temporalProbes(seq, ALPHA_SMOOTH));
             const miss = firstMismatch(got, ref, 3e-3);
@@ -947,7 +947,7 @@ console.log('smoothed center:', smoothed[32][32].toFixed(4));
             const seed = ctx.kernels.find(k => k.kernel && k.kernel.pipeline && !k.kernel.immutable);
             ctx.assert(seed && blend, 'expected a seed kernel and an immutable blend kernel');
             const seq = makeFrames(ctx.utils, 4242);
-            const got = toArr(blend(seq[1], seed(seq[0])));
+            const got = await toArr(await blend(seq[1], await seed(seq[0])));
             const a = lumMap(seq[0]);
             const b = lumMap(seq[1]);
             const ref = grid((y, x) => (1 - ALPHA_SMOOTH) * a[y][x] + ALPHA_SMOOTH * b[y][x]);
@@ -1073,7 +1073,7 @@ const masks = [];
 // and which frame belongs in \`previous\`?
 for (let i = 0; i < frames.length; i++) {
   const previous = frames[i];
-  masks.push(cleanup(motion(frames[i], previous)));
+  masks.push(await cleanup(await motion(frames[i], previous)));
 }
 
 console.log('motion masks:', masks.length);
@@ -1130,7 +1130,7 @@ const cleanup = gpu.createKernel(function (mask) {
 const masks = [];
 // Eight frames, seven differences: frame 0 has nothing to be compared with.
 for (let i = 1; i < frames.length; i++) {
-  masks.push(cleanup(motion(frames[i], frames[i - 1])));
+  masks.push(await cleanup(await motion(frames[i], frames[i - 1])));
 }
 
 console.log('motion masks:', masks.length);
@@ -1165,7 +1165,7 @@ console.log('moving pixels in the last mask:', moving);
             const motion = ctx.kernels.find(k => k.kernel && k.kernel.pipeline);
             ctx.assert(motion, 'no pipeline kernel found — keep pipeline: true on the motion kernel');
             const seq = makeFrames(ctx.utils);
-            const got = toArr(motion(seq[4], seq[3]));
+            const got = await toArr(await motion(seq[4], seq[3]));
             const delta = refDelta(seq[3], seq[4]);
             const ref = refThreshold(delta, THRESHOLD);
             const skip = fenceOf(delta, THRESHOLD);
@@ -1186,7 +1186,7 @@ console.log('moving pixels in the last mask:', moving);
             const cleanup = ctx.kernels.find(k => k.kernel && !k.kernel.pipeline);
             ctx.assert(motion && cleanup, 'expected a pipeline motion kernel and a plain cleanup kernel');
             const seq = makeFrames(ctx.utils);
-            const got = cleanup(motion(seq[7], seq[6]));
+            const got = await cleanup(await motion(seq[7], seq[6]));
             const delta = refDelta(seq[6], seq[7]);
             const raw = refThreshold(delta, THRESHOLD);
             const ref = refMajority(raw);
@@ -1238,14 +1238,14 @@ console.log('moving pixels in the last mask:', moving);
               const delta = refDelta(seq[i - 1], seq[i]);
               const raw = refThreshold(delta, THRESHOLD);
               const skip = fenceOf(delta, THRESHOLD);
-              const got = toArr(motion(seq[i], seq[i - 1]));
+              const got = await toArr(await motion(seq[i], seq[i - 1]));
               const hint = diagnoseGrid(got, raw, 0.25, motionProbes(seq[i - 1], seq[i], THRESHOLD), skip);
               const miss = firstMismatch(got, raw, 0.25, skip);
               ctx.assert(
                 !miss,
                 hint || (miss && `pair ${i - 1}→${i}, cell [${miss.y}][${miss.x}] should be ${miss.want}, got ${miss.got}`)
               );
-              const cleaned = cleanup(motion(seq[i], seq[i - 1]));
+              const cleaned = await cleanup(await motion(seq[i], seq[i - 1]));
               const cleanMiss = firstMismatch(cleaned, refMajority(raw), 0.25, dilateFence(skip));
               ctx.assert(
                 !cleanMiss,
@@ -1261,13 +1261,13 @@ console.log('moving pixels in the last mask:', moving);
             // where the object has moved must not be.
             const motion = ctx.kernels.find(k => k.kernel && k.kernel.pipeline);
             const seq = makeFrames(ctx.utils, 13579);
-            const still = sumGrid(toArr(motion(seq[5], seq[5])));
+            const still = sumGrid(await toArr(await motion(seq[5], seq[5])));
             ctx.assert(
               still < 40,
               `${still} pixels registered as moving between a frame and itself — a difference of ` +
                 `something with itself is zero, so only the threshold comparison can be producing these`
             );
-            const moved = sumGrid(toArr(motion(seq[5], seq[4])));
+            const moved = sumGrid(await toArr(await motion(seq[5], seq[4])));
             ctx.assert(
               moved > 200,
               `only ${moved} pixels registered between two consecutive frames — the object crosses ` +
@@ -1374,11 +1374,11 @@ const foreground = gpu.createKernel(function (frame, model) {
   constants: { threshold: 0.12 },
 });
 
-let model = seedModel(frames[0]);
+let model = await seedModel(frames[0]);
 let mask = null;
 for (let i = 1; i < frames.length; i++) {
-  mask = foreground(frames[i], model); // detect against the model as it stands
-  model = learn(frames[i], model);     // then let it learn this frame
+  mask = await foreground(frames[i], model); // detect against the model as it stands
+  model = await learn(frames[i], model);     // then let it learn this frame
 }
 
 let count = 0;
@@ -1423,11 +1423,11 @@ const foreground = gpu.createKernel(function (frame, model) {
   constants: { threshold: 0.12 },
 });
 
-let model = seedModel(frames[0]);
+let model = await seedModel(frames[0]);
 let mask = null;
 for (let i = 1; i < frames.length; i++) {
-  mask = foreground(frames[i], model); // detect against the model as it stands
-  model = learn(frames[i], model);     // then let it learn this frame
+  mask = await foreground(frames[i], model); // detect against the model as it stands
+  model = await learn(frames[i], model);     // then let it learn this frame
 }
 
 let count = 0;
@@ -1459,9 +1459,9 @@ console.log('foreground pixels in the last frame:', count);
             const learn = ctx.kernels.find(k => k.kernel && k.kernel.immutable);
             const seed = ctx.kernels.find(k => k.kernel && k.kernel.pipeline && !k.kernel.immutable);
             const seq = makeFrames(ctx.utils);
-            let model = seed(seq[0]);
-            for (let i = 1; i < seq.length; i++) model = learn(seq[i], model);
-            const got = toArr(model);
+            let model = await seed(seq[0]);
+            for (let i = 1; i < seq.length; i++) model = await learn(seq[i], model);
+            const got = await toArr(model);
             const ref = refModel(seq, ALPHA_MODEL, seq.length - 1);
             const hint = diagnoseGrid(got, ref, 3e-3, modelProbes(seq, ALPHA_MODEL, seq.length - 1));
             const miss = firstMismatch(got, ref, 3e-3);
@@ -1480,11 +1480,11 @@ console.log('foreground pixels in the last frame:', count);
             const detect = ctx.kernels.find(k => k.kernel && !k.kernel.pipeline);
             const seq = makeFrames(ctx.utils);
             const run = refSegmentRun(seq, ALPHA_MODEL, THRESHOLD);
-            let model = seed(seq[0]);
+            let model = await seed(seq[0]);
             let got = null;
             for (let i = 1; i < seq.length; i++) {
-              got = detect(seq[i], model);
-              model = learn(seq[i], model);
+              got = await detect(seq[i], model);
+              model = await learn(seq[i], model);
             }
             const last = seq.length - 1;
             const now = lumMap(seq[last]);
@@ -1522,21 +1522,21 @@ console.log('foreground pixels in the last frame:', count);
             ctx.assert(seed && learn && detect, 'expected a seed, an immutable update and a plain detector');
             const seq = makeFrames(ctx.utils, 8675309);
             const run = refSegmentRun(seq, ALPHA_MODEL, THRESHOLD);
-            let model = seed(seq[0]);
+            let model = await seed(seq[0]);
             for (let i = 1; i < seq.length; i++) {
               const now = lumMap(seq[i]);
               const reference = run.models[i - 1];
               const delta = grid((y, x) => Math.abs(now[y][x] - reference[y][x]));
               const skip = fenceOf(delta, THRESHOLD);
-              const got = detect(seq[i], model);
+              const got = await detect(seq[i], model);
               const miss = firstMismatch(got, run.masks[i - 1], 0.25, skip);
               ctx.assert(
                 !miss,
                 miss && `frame ${i}, mask cell [${miss.y}][${miss.x}] should be ${miss.want}, got ${miss.got} — ` +
                   `check that the frame is detected BEFORE it is folded into the model`
               );
-              model = learn(seq[i], model);
-              const modelMiss = firstMismatch(toArr(model), refModel(seq, ALPHA_MODEL, i), 3e-3);
+              model = await learn(seq[i], model);
+              const modelMiss = firstMismatch(await toArr(model), refModel(seq, ALPHA_MODEL, i), 3e-3);
               ctx.assert(
                 !modelMiss,
                 modelMiss && `after frame ${i}, model cell [${modelMiss.y}][${modelMiss.x}] — ` +
@@ -1555,11 +1555,11 @@ console.log('foreground pixels in the last frame:', count);
             const seed = ctx.kernels.find(k => k.kernel && k.kernel.pipeline && !k.kernel.immutable);
             const detect = ctx.kernels.find(k => k.kernel && !k.kernel.pipeline);
             const seq = makeFrames(ctx.utils, 112358);
-            let model = seed(seq[0]);
+            let model = await seed(seq[0]);
             let mask = null;
             for (let i = 1; i < seq.length; i++) {
-              mask = detect(seq[i], model);
-              model = learn(seq[i], model);
+              mask = await detect(seq[i], model);
+              model = await learn(seq[i], model);
             }
             const solid = sumGrid(mask);
             const disc = Math.PI * RADIUS * RADIUS;
@@ -1720,13 +1720,13 @@ const compose = gpu.createKernel(function (frame, mask) {
 }, { output: [64, 64], graphical: true, constants: { last: 63 } });
 
 // Build the model from every frame but the last, then filter the last one.
-let model = seedModel(frames[0]);
+let model = await seedModel(frames[0]);
 for (let i = 1; i < frames.length - 1; i++) {
-  model = learn(frames[i], model);
+  model = await learn(frames[i], model);
 }
 
 const live = frames[frames.length - 1];
-compose(live, feather(softMask(live, model)));
+await compose(live, await feather(await softMask(live, model)));
 render(compose.canvas);
 `,
       solutionCode: `const gpu = new GPU({ mode });
@@ -1808,13 +1808,13 @@ const compose = gpu.createKernel(function (frame, mask) {
 }, { output: [64, 64], graphical: true, constants: { last: 63 } });
 
 // Build the model from every frame but the last, then filter the last one.
-let model = seedModel(frames[0]);
+let model = await seedModel(frames[0]);
 for (let i = 1; i < frames.length - 1; i++) {
-  model = learn(frames[i], model);
+  model = await learn(frames[i], model);
 }
 
 const live = frames[frames.length - 1];
-compose(live, feather(softMask(live, model)));
+await compose(live, await feather(await softMask(live, model)));
 render(compose.canvas);
 `,
       inputs: utils => ({ frames: makeFrames(utils) }),
@@ -1837,7 +1837,7 @@ render(compose.canvas);
               ctx.canvas.width === 64 && ctx.canvas.height === 64,
               `expected a 64×64 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            if (ctx.resolvedMode === 'gpu') {
+            if (ctx.resolvedMode !== 'cpu') {
               ctx.assert(
                 compose.lastArgs && compose.lastArgs[1] && typeof compose.lastArgs[1].toArray === 'function',
                 'the composite should be fed the feathered mask TEXTURE — nothing in this chain is downloaded'
@@ -1850,9 +1850,9 @@ render(compose.canvas);
           run: async ctx => {
             const [seed, learn, mask] = ctx.kernels;
             const seq = makeFrames(ctx.utils);
-            let model = seed(seq[0]);
-            for (let i = 1; i < seq.length - 1; i++) model = learn(seq[i], model);
-            const got = toArr(mask(seq[seq.length - 1], model));
+            let model = await seed(seq[0]);
+            for (let i = 1; i < seq.length - 1; i++) model = await learn(seq[i], model);
+            const got = await toArr(await mask(seq[seq.length - 1], model));
             let lo = Infinity;
             let hi = -Infinity;
             for (let y = 0; y < 64; y++) {
@@ -1884,10 +1884,10 @@ render(compose.canvas);
           run: async ctx => {
             const [seed, learn, mask, feather, compose] = ctx.kernels;
             const seq = makeFrames(ctx.utils);
-            let model = seed(seq[0]);
-            for (let i = 1; i < seq.length - 1; i++) model = learn(seq[i], model);
+            let model = await seed(seq[0]);
+            for (let i = 1; i < seq.length - 1; i++) model = await learn(seq[i], model);
             const live = seq[seq.length - 1];
-            compose(live, feather(mask(live, model)));
+            await compose(live, await feather(await mask(live, model)));
             const pixels = compose.getPixels();
             ctx.assert(pixels.length === 64 * 64 * 4, 'pixel buffer should hold 64×64 RGBA values');
 
@@ -1916,10 +1916,10 @@ render(compose.canvas);
           run: async ctx => {
             const [seed, learn, mask, feather, compose] = ctx.kernels;
             const seq = makeFrames(ctx.utils, 271828);
-            let model = seed(seq[0]);
-            for (let i = 1; i < seq.length - 1; i++) model = learn(seq[i], model);
+            let model = await seed(seq[0]);
+            for (let i = 1; i < seq.length - 1; i++) model = await learn(seq[i], model);
             const live = seq[seq.length - 1];
-            compose(live, feather(mask(live, model)));
+            await compose(live, await feather(await mask(live, model)));
             const pixels = compose.getPixels();
             const soft = refBox3(refSoftMask(live, refModel(seq, ALPHA_MODEL, seq.length - 2), RAMP_LO, RAMP_HI));
             const ref = refCompose(live, soft, overBlurred);
@@ -1937,10 +1937,10 @@ render(compose.canvas);
             // come back blurred. Anything sharp means the mask is leaking.
             const [seed, learn, mask, feather, compose] = ctx.kernels;
             const seq = makeFrames(ctx.utils, 999983);
-            let model = seed(seq[0]);
-            for (let i = 1; i < seq.length - 1; i++) model = learn(seq[i], model);
+            let model = await seed(seq[0]);
+            for (let i = 1; i < seq.length - 1; i++) model = await learn(seq[i], model);
             const still = seq[0]; // the clean plate — the object is off-frame
-            const got = toArr(mask(still, model));
+            const got = await toArr(await mask(still, model));
             let lit = 0;
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
@@ -1952,7 +1952,7 @@ render(compose.canvas);
               `${lit} pixels of an empty frame came back as foreground — against a model built from ` +
                 `that same scene the mask should be 0 nearly everywhere`
             );
-            compose(still, feather(mask(still, model)));
+            await compose(still, await feather(await mask(still, model)));
             const pixels = compose.getPixels();
             const soft = refBox3(refSoftMask(still, refModel(seq, ALPHA_MODEL, seq.length - 2), RAMP_LO, RAMP_HI));
             ctx.assert(
@@ -1988,8 +1988,8 @@ const filter = gpu.createKernel(function (feed) {
 
 document.body.appendChild(filter.canvas);
 
-function tick() {
-  filter(video);                // the current video frame, uploaded for you
+async function tick() {
+  await filter(video);          // the current video frame, uploaded for you
   requestAnimationFrame(tick);  // ~16.7 ms later, again
 }
 requestAnimationFrame(tick);</code></pre>
@@ -2021,7 +2021,7 @@ requestAnimationFrame(tick);</code></pre>
             answer. So "is this the first frame?" has to be a property of the filter, not of a loop
             counter:</p>
 <pre><code>if (model === null) {
-  model = seedModel(image);
+  model = await seedModel(image);
 }</code></pre>
 <p>Which is why <code>model</code> starts as <code>null</code> rather than as a texture.</p>`,
         },
@@ -2033,9 +2033,9 @@ requestAnimationFrame(tick);</code></pre>
         },
         {
           title: 'Hint 3 — the three lines',
-          body: `<pre><code>if (model === null) model = seedModel(image);
-const mask = detect(image, model);
-model = learn(image, model);
+          body: `<pre><code>if (model === null) model = await seedModel(image);
+const mask = await detect(image, model);
+model = await learn(image, model);
 return mask;</code></pre>
 <p>Detect, then learn. Reversing them lets each frame teach the model about itself before you
             ask the model what is new.</p>`,
@@ -2076,18 +2076,18 @@ let model = null;
 
 // One frame in, one mask out. On a page this is what requestAnimationFrame
 // calls, with the <video> element in place of \`image\`.
-function onFrame(image) {
+async function onFrame(image) {
   // TODO: seed the model from the FIRST frame only — this line runs on
   // every frame, so the model is reborn each time and nothing is ever new.
-  model = seedModel(image);
-  const mask = detect(image, model);
+  model = await seedModel(image);
+  const mask = await detect(image, model);
   // TODO: let the model learn this frame, after detecting against it.
   return mask;
 }
 
 // requestAnimationFrame's stand-in: the sequence, one frame at a time.
 for (let i = 0; i < frames.length; i++) {
-  const mask = onFrame(frames[i]);
+  const mask = await onFrame(frames[i]);
   let moving = 0;
   for (let y = 0; y < 64; y++) {
     for (let x = 0; x < 64; x++) moving += mask[y][x];
@@ -2124,18 +2124,18 @@ let model = null;
 
 // One frame in, one mask out. On a page this is what requestAnimationFrame
 // calls, with the <video> element in place of \`image\`.
-function onFrame(image) {
+async function onFrame(image) {
   if (model === null) {
-    model = seedModel(image); // the first frame is its own history
+    model = await seedModel(image); // the first frame is its own history
   }
-  const mask = detect(image, model);
-  model = learn(image, model); // detect first, learn second
+  const mask = await detect(image, model);
+  model = await learn(image, model); // detect first, learn second
   return mask;
 }
 
 // requestAnimationFrame's stand-in: the sequence, one frame at a time.
 for (let i = 0; i < frames.length; i++) {
-  const mask = onFrame(frames[i]);
+  const mask = await onFrame(frames[i]);
   let moving = 0;
   for (let y = 0; y < 64; y++) {
     for (let x = 0; x < 64; x++) moving += mask[y][x];
@@ -2229,24 +2229,24 @@ for (let i = 0; i < frames.length; i++) {
             ctx.assert(seed && learn && detect, 'expected a seed kernel, an immutable update and a plain detector');
             const seq = makeFrames(ctx.utils, 161803);
             const run = refSegmentRun(seq, ALPHA_MODEL, THRESHOLD);
-            let model = seed(seq[0]);
-            const first = detect(seq[0], model);
+            let model = await seed(seq[0]);
+            const first = await detect(seq[0], model);
             ctx.assert(
               sumGrid(first) === 0,
               `a frame compared against a model seeded from itself should produce an empty mask, got ${sumGrid(first)} lit pixels`
             );
-            model = learn(seq[0], model);
+            model = await learn(seq[0], model);
             for (let i = 1; i < seq.length; i++) {
               const now = lumMap(seq[i]);
               const reference = run.models[i - 1];
               const delta = grid((y, x) => Math.abs(now[y][x] - reference[y][x]));
-              const got = detect(seq[i], model);
+              const got = await detect(seq[i], model);
               const miss = firstMismatch(got, run.masks[i - 1], 0.25, fenceOf(delta, THRESHOLD));
               ctx.assert(
                 !miss,
                 miss && `frame ${i}, mask cell [${miss.y}][${miss.x}] should be ${miss.want}, got ${miss.got}`
               );
-              model = learn(seq[i], model);
+              model = await learn(seq[i], model);
             }
           },
         },
@@ -2260,9 +2260,9 @@ for (let i = 0; i < frames.length; i++) {
             const detect = ctx.kernels.find(k => k.kernel && !k.kernel.pipeline);
             const seq = makeFrames(ctx.utils, 314159);
             const still = seq[4];
-            let model = seed(still);
-            for (let i = 0; i < 6; i++) model = learn(still, model);
-            const lit = sumGrid(detect(still, model));
+            let model = await seed(still);
+            for (let i = 0; i < 6; i++) model = await learn(still, model);
+            const lit = sumGrid(await detect(still, model));
             ctx.assert(
               lit === 0,
               `${lit} pixels still read as foreground after the model has seen the same frame seven ` +

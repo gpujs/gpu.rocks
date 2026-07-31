@@ -248,7 +248,7 @@ const census = gpu.createKernel(function (grid) {
   return count;
 }, { output: [16, 16] });
 
-const counts = census(grid);
+const counts = await census(grid);
 console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
 `,
       solutionCode: `// Every cell asks the same question, all at once:
@@ -268,7 +268,7 @@ const census = gpu.createKernel(function (grid) {
   return count - grid[this.thread.y][this.thread.x];
 }, { output: [16, 16] });
 
-const counts = census(grid);
+const counts = await census(grid);
 console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
 `,
       inputs: utils => ({ grid: randomGrid(utils, 1101) }),
@@ -278,7 +278,7 @@ console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const lone = withCells([[5, 5]]);
-            const counts = ctx.kernel(lone);
+            const counts = await ctx.kernel(lone);
             ctx.assertClose(counts[5][5], 0, 1e-3,
               diagnose(counts[5][5], 0, 1e-3, censusProbes(lone, 5, 5)) ||
                 'the live cell itself (it is not its own neighbor)');
@@ -293,7 +293,7 @@ console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
         {
           name: 'the world wraps: a corner cell is seen across all four edges',
           run: async ctx => {
-            const counts = ctx.kernel(withCells([[0, 0]]));
+            const counts = await ctx.kernel(withCells([[0, 0]]));
             ctx.assertClose(counts[15][15], 1, 1e-3,
               wrapHint(counts[15][15]) || 'diagonal wrap — cell [15][15]');
             ctx.assertClose(counts[0][15], 1, 1e-3,
@@ -310,7 +310,7 @@ console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
           name: 'private test #1',
           run: async ctx => {
             const grid = randomGrid(ctx.utils, 2202);
-            const counts = ctx.kernel(grid);
+            const counts = await ctx.kernel(grid);
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) {
                 const expected = neighborsOf(grid, y, x);
@@ -379,7 +379,7 @@ const step = gpu.createKernel(function (world) {
   return self;
 }, { output: [16, 16] });
 
-const next = step(world);
+const next = await step(world);
 console.log('before:', world[7].join(''));
 console.log('after :', Array.from(next[7]).join(''));
 `,
@@ -403,7 +403,7 @@ const step = gpu.createKernel(function (world) {
   return next;
 }, { output: [16, 16] });
 
-const next = step(world);
+const next = await step(world);
 console.log('before:', world[7].join(''));
 console.log('after :', Array.from(next[7]).join(''));
 `,
@@ -414,7 +414,7 @@ console.log('after :', Array.from(next[7]).join(''));
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const start = withCells(BLINKER);
-            const next = ctx.kernel(start);
+            const next = await ctx.kernel(start);
             expectGrid(ctx, next, withCells([[6, 7], [7, 7], [8, 7]]), 'blinker after one tick',
               ruleHint(next, start));
           },
@@ -423,14 +423,14 @@ console.log('after :', Array.from(next[7]).join(''));
           name: 'the block: a 2×2 square is a still life — nothing moves',
           run: async ctx => {
             const start = withCells(BLOCK);
-            const next = ctx.kernel(start);
+            const next = await ctx.kernel(start);
             expectGrid(ctx, next, withCells(BLOCK), 'block after one tick', ruleHint(next, start));
           },
         },
         {
           name: 'an empty world stays empty — no spontaneous generation',
           run: async ctx => {
-            const next = ctx.kernel(emptyGrid());
+            const next = await ctx.kernel(emptyGrid());
             expectGrid(ctx, next, emptyGrid(), 'empty world after one tick');
           },
         },
@@ -440,7 +440,7 @@ console.log('after :', Array.from(next[7]).join(''));
           name: 'private test #1',
           run: async ctx => {
             const grid = randomGrid(ctx.utils, 4404);
-            const next = ctx.kernel(grid);
+            const next = await ctx.kernel(grid);
             expectGrid(ctx, next, refStep(grid), 'random world, one tick', ruleHint(next, grid));
           },
         },
@@ -448,7 +448,7 @@ console.log('after :', Array.from(next[7]).join(''));
           name: 'private test #2',
           run: async ctx => {
             const grid = randomGrid(ctx.utils, 5505, SIZE, 0.6);
-            const next = ctx.kernel(grid);
+            const next = await ctx.kernel(grid);
             expectGrid(ctx, next, refStep(grid), 'crowded world, one tick', ruleHint(next, grid));
           },
         },
@@ -462,7 +462,7 @@ console.log('after :', Array.from(next[7]).join(''));
       intro: `<p>One tick is a snapshot; a world is a movie. A kernel has no memory of the previous
         frame — <strong>time lives in JavaScript</strong>. The result of a 2D kernel is an array of
         rows, which is exactly the shape the kernel accepts as input, so
-        <code>current = step(current)</code> is the whole time machine: output becomes input,
+        <code>current = await step(current)</code> is the whole time machine: output becomes input,
         forever.</p>
         <p>Your test subject is the <strong>R-pentomino</strong> — five innocent-looking cells that
         erupt into chaos (on an infinite grid they don't settle down for 1,103 generations; Conway's
@@ -473,7 +473,7 @@ console.log('after :', Array.from(next[7]).join(''));
         <code>'gen ' + g + ': ' + alive + ' alive'</code> after every step.`,
       requirements: [
         'Complete the kernel: the same B3/S23 rule you wrote last task',
-        'Loop 6 times in plain JavaScript, reassigning: <code>current = step(current)</code>',
+        'Loop 6 times in plain JavaScript, reassigning: <code>current = await step(current)</code>',
         'After each step, total the live cells in plain JS (kernel output rows are ordinary arrays)',
         `Log each generation exactly as <code>'gen ' + g + ': ' + alive + ' alive'</code>, g from 1 to 6`,
       ],
@@ -482,7 +482,7 @@ console.log('after :', Array.from(next[7]).join(''));
           title: 'Hint 1 — the feed-back loop',
           body: `<p><code>let current = world;</code> then</p>
 <pre><code>for (let g = 1; g &lt;= 6; g++) {
-  current = step(current);
+  current = await step(current);
   // …
 }</code></pre>
 <p>No copying, no bookkeeping — the kernel's output is already a valid input.</p>`,
@@ -518,7 +518,7 @@ const step = gpu.createKernel(function (world) {
 }, { output: [16, 16] });
 
 // world starts as the R-pentomino: five cells, endless trouble.
-// TODO: run 6 generations. Each time around: current = step(current),
+// TODO: run 6 generations. Each time around: current = await step(current),
 // count the live cells in plain JS, then log exactly:
 //   console.log('gen ' + g + ': ' + alive + ' alive');
 let current = world;
@@ -546,7 +546,7 @@ const step = gpu.createKernel(function (world) {
 
 let current = world;
 for (let g = 1; g <= 6; g++) {
-  current = step(current);
+  current = await step(current);
   let alive = 0;
   for (let y = 0; y < 16; y++) {
     for (let x = 0; x < 16; x++) alive += current[y][x];
@@ -577,7 +577,7 @@ for (let g = 1; g <= 6; g++) {
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const start = withCells(BLINKER);
-            const next = ctx.kernel(start);
+            const next = await ctx.kernel(start);
             expectGrid(ctx, next, withCells([[6, 7], [7, 7], [8, 7]]), 'blinker after one tick',
               ruleHint(next, start));
           },
@@ -591,7 +591,7 @@ for (let g = 1; g <= 6; g++) {
             // different world — the loop pattern must actually work.
             const start = randomGrid(ctx.utils, 6606);
             let grid = start;
-            for (let i = 0; i < 3; i++) grid = ctx.kernel(grid);
+            for (let i = 0; i < 3; i++) grid = await ctx.kernel(grid);
             expectGrid(ctx, grid, refSteps(start, 3), 'random world after three ticks');
           },
         },
@@ -602,6 +602,14 @@ for (let g = 1; g <= 6; g++) {
     {
       slug: 'glider-on-screen',
       title: 'Watch the Glider Fly',
+      // Under mode "auto" this task legitimately runs on two backends: `step`
+      // upgrades to WebGPU, `paint` declines it (gpu.js's WebGPU backend
+      // refuses graphical mode outright — "does not yet support graphical
+      // mode; use the webgl backend"), so the console reports "webgpu
+      // (1 kernel) + webgl (1 kernel)". That is fine and deliberately NOT
+      // pinned: nothing here is pipelined, so `step` hands `paint` an ordinary
+      // JS array, not a texture — no backend bridge, no hidden readback, and
+      // the pixels are byte-identical to a pure-WebGL run.
       intro: `<p>The <strong>glider</strong> is five cells that <em>travel</em>. No individual cell
         moves — each one just dies or is born in place, like every other cell — yet after four
         ticks an identical copy of the pattern stands one cell down and one cell right. Motion as
@@ -666,9 +674,9 @@ const paint = gpu.createKernel(function (cells) {
 // world starts as a glider in the top-left. Fly, little guy.
 let current = world;
 for (let g = 0; g < 8; g++) {
-  current = step(current);
+  current = await step(current);
 }
-paint(current);
+await paint(current);
 render(paint.canvas);
 `,
       solutionCode: `// Two kernels, two jobs: step computes the world, paint shows it.
@@ -703,9 +711,9 @@ const paint = gpu.createKernel(function (cells) {
 // world starts as a glider in the top-left. Fly, little guy.
 let current = world;
 for (let g = 0; g < 8; g++) {
-  current = step(current);
+  current = await step(current);
 }
-paint(current);
+await paint(current);
 render(paint.canvas);
 `,
       inputs: () => ({ world: withCells(GLIDER) }),
@@ -716,7 +724,7 @@ render(paint.canvas);
             const numeric = ctx.kernels.find(k => k.kernel && !k.kernel.graphical);
             ctx.assert(numeric, 'no numeric (non-graphical) step kernel found');
             let grid = withCells(GLIDER);
-            for (let i = 0; i < 4; i++) grid = numeric(grid);
+            for (let i = 0; i < 4; i++) grid = await numeric(grid);
             expectGrid(ctx, grid, withCells(shiftCells(GLIDER, 1, 1)), 'glider after four ticks');
           },
         },
@@ -731,7 +739,7 @@ render(paint.canvas);
             const graphical = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(graphical, 'no graphical paint kernel found');
             // Repaint the 8-ticks-later world so the readback is fresh.
-            graphical(refSteps(withCells(GLIDER), 8));
+            await graphical(refSteps(withCells(GLIDER), 8));
             const pixels = graphical.getPixels();
             let lit = 0;
             for (let i = 0; i < pixels.length; i += 4) {
@@ -763,11 +771,11 @@ render(paint.canvas);
               }
               return lit;
             };
-            graphical(numeric(withCells(BLINKER)));
+            await graphical(await numeric(withCells(BLINKER)));
             const blinkerLit = litCount(graphical.getPixels());
             ctx.assert(blinkerLit === 3, litHint(blinkerLit, 3, 16 * 16) ||
               'stepped blinker should light 3 pixels');
-            graphical(withCells(BLOCK));
+            await graphical(withCells(BLOCK));
             const blockLit = litCount(graphical.getPixels());
             ctx.assert(blockLit === 4, litHint(blockLit, 4, 16 * 16) ||
               'block should light 4 pixels');
@@ -838,8 +846,8 @@ const evolve = gpu.createKernel(function (world, born, stay) {
 }, { output: [16, 16] });
 
 // The same world, two different laws of physics:
-const life = evolve(world, lifeBorn, lifeStay);
-const high = evolve(world, highlifeBorn, lifeStay);
+const life = await evolve(world, lifeBorn, lifeStay);
+const high = await evolve(world, highlifeBorn, lifeStay);
 
 let differ = 0;
 for (let y = 0; y < 16; y++) {
@@ -870,8 +878,8 @@ const evolve = gpu.createKernel(function (world, born, stay) {
 }, { output: [16, 16] });
 
 // The same world, two different laws of physics:
-const life = evolve(world, lifeBorn, lifeStay);
-const high = evolve(world, highlifeBorn, lifeStay);
+const life = await evolve(world, lifeBorn, lifeStay);
+const high = await evolve(world, highlifeBorn, lifeStay);
 
 let differ = 0;
 for (let y = 0; y < 16; y++) {
@@ -893,7 +901,7 @@ console.log('Life and HighLife disagree on ' + differ + ' cells after one tick')
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const start = withCells(BLINKER);
-            const next = ctx.kernel(start, B3, S23);
+            const next = await ctx.kernel(start, B3, S23);
             expectGrid(ctx, next, withCells([[6, 7], [7, 7], [8, 7]]), 'blinker under B3/S23',
               ruleHint(next, start, B3, S23));
           },
@@ -903,8 +911,8 @@ console.log('Life and HighLife disagree on ' + differ + ' cells after one tick')
           run: async ctx => {
             // A dead cell at (5,5) ringed by exactly 6 live neighbors.
             const ring = withCells([[4, 4], [4, 5], [4, 6], [5, 4], [5, 6], [6, 4]]);
-            const life = ctx.kernel(ring, B3, S23);
-            const high = ctx.kernel(ring, B36, S23);
+            const life = await ctx.kernel(ring, B3, S23);
+            const high = await ctx.kernel(ring, B36, S23);
             ctx.assertClose(life[5][5], 0, 1e-3, ruleHint(life, ring, B3, S23) ||
               'under Life (B3), 6 neighbors do not give birth');
             ctx.assertClose(high[5][5], 1, 1e-3, ruleHint(high, ring, B36, S23) ||
@@ -919,7 +927,7 @@ console.log('Life and HighLife disagree on ' + differ + ' cells after one tick')
             // Day & Night (B3678/S34678) on a random world — the kernel must
             // honor tables it has never seen before.
             const grid = randomGrid(ctx.utils, 8808, SIZE, 0.5);
-            const next = ctx.kernel(grid, B3678, S34678);
+            const next = await ctx.kernel(grid, B3678, S34678);
             expectGrid(ctx, next, refStep(grid, B3678, S34678), 'Day & Night, one tick',
               ruleHint(next, grid, B3678, S34678));
           },
@@ -928,7 +936,7 @@ console.log('Life and HighLife disagree on ' + differ + ' cells after one tick')
           name: 'private test #2',
           run: async ctx => {
             const grid = randomGrid(ctx.utils, 9909);
-            const next = ctx.kernel(grid, B36, S23);
+            const next = await ctx.kernel(grid, B36, S23);
             expectGrid(ctx, next, refStep(grid, B36, S23), 'HighLife, one tick',
               ruleHint(next, grid, B36, S23));
           },

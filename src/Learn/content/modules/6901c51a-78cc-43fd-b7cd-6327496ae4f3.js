@@ -588,7 +588,7 @@ const blurY = gpu.createKernel(function (map) {
   constants: { last: 63 },
 });
 
-const smooth = blurY(blurX(gray));
+const smooth = await blurY(await blurX(gray));
 console.log('noisy background pixel:', gray[4][40], ' smoothed:', smooth[4][40]);
 `,
       solutionCode: `// Stage 1 of Canny: smooth, so the derivative that follows is a
@@ -631,7 +631,7 @@ const blurY = gpu.createKernel(function (map) {
   constants: { last: 63 },
 });
 
-const smooth = blurY(blurX(gray));
+const smooth = await blurY(await blurX(gray));
 console.log('noisy background pixel:', gray[4][40], ' smoothed:', smooth[4][40]);
 `,
       inputs: utils => ({ gray: noisyField(utils, 64) }),
@@ -642,7 +642,7 @@ console.log('noisy background pixel:', gray[4][40], ' smoothed:', smooth[4][40])
             ctx.assert(ctx.kernels.length >= 2, `expected 2 kernels, found ${ctx.kernels.length}`);
             const [blurX, blurY] = ctx.kernels;
             const flat = new Array(64).fill(new Array(64).fill(0.4));
-            const out = blurY(blurX(flat));
+            const out = await blurY(await blurX(flat));
             ctx.assert(out && out.length === 64, `expected 64 rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === 64, 'each row should hold 64 values');
             for (let y = 0; y < 64; y += 9) {
@@ -661,7 +661,7 @@ console.log('noisy background pixel:', gray[4][40], ' smoothed:', smooth[4][40])
           run: async ctx => {
             const [blurX, blurY] = ctx.kernels;
             const gray = noisyField(ctx.utils, 64);
-            const out = blurY(blurX(gray));
+            const out = await blurY(await blurX(gray));
             const ref = blurRef(gray);
             const hint = diagnoseGrid(out, ref, 2e-4, blurProbes(gray));
             const cases = [[0, 0], [1, 30], [12, 5], [32, 32], [40, 12], [63, 63], [63, 20], [20, 63]];
@@ -685,7 +685,7 @@ console.log('noisy background pixel:', gray[4][40], ' smoothed:', smooth[4][40])
             const spike = new Array(64);
             for (let y = 0; y < 64; y++) spike[y] = new Array(64).fill(0);
             spike[32][32] = 1;
-            const out = blurY(blurX(spike));
+            const out = await blurY(await blurX(spike));
             const w = [1, 4, 6, 4, 1];
             const at = (dy, dx) => (w[dy + 2] * w[dx + 2]) / 256;
             const cases = [[0, 0], [0, 1], [0, 2], [1, 0], [2, 0], [1, 1], [2, 2], [-1, 2], [2, -1]];
@@ -706,7 +706,7 @@ console.log('noisy background pixel:', gray[4][40], ' smoothed:', smooth[4][40])
           run: async ctx => {
             const [blurX, blurY] = ctx.kernels;
             const gray = noisyField(ctx.utils, 64, 31337);
-            const out = blurY(blurX(gray));
+            const out = await blurY(await blurX(gray));
             const ref = blurRef(gray);
             const hint = diagnoseGrid(out, ref, 2e-4, blurProbes(gray));
             for (let y = 0; y < 64; y++) {
@@ -726,7 +726,7 @@ console.log('noisy background pixel:', gray[4][40], ' smoothed:', smooth[4][40])
             // largest gradient magnitude inside flat background must fall.
             const [blurX, blurY] = ctx.kernels;
             const gray = noisyField(ctx.utils, 64);
-            const out = blurY(blurX(gray));
+            const out = await blurY(await blurX(gray));
             const peak = map => {
               let best = 0;
               for (let y = 3; y <= 9; y++) {
@@ -856,8 +856,8 @@ const direction = gpu.createKernel(function (gray) {
   constants: { last: 63 },
 });
 
-const mag = magnitude(gray);
-const dir = direction(gray);
+const mag = await magnitude(gray);
+const dir = await direction(gray);
 console.log('on a vertical edge — magnitude:', mag[20][8], ' angle:', dir[20][8]);
 console.log('on a horizontal edge — magnitude:', mag[8][20], ' angle:', dir[8][20]);
 `,
@@ -914,8 +914,8 @@ const direction = gpu.createKernel(function (gray) {
   constants: { last: 63 },
 });
 
-const mag = magnitude(gray);
-const dir = direction(gray);
+const mag = await magnitude(gray);
+const dir = await direction(gray);
 console.log('on a vertical edge — magnitude:', mag[20][8], ' angle:', dir[20][8]);
 console.log('on a horizontal edge — magnitude:', mag[8][20], ' angle:', dir[8][20]);
 `,
@@ -927,8 +927,8 @@ console.log('on a horizontal edge — magnitude:', mag[8][20], ' angle:', dir[8]
             ctx.assert(ctx.kernels.length >= 2, `expected 2 kernels, found ${ctx.kernels.length}`);
             const [magnitude, direction] = ctx.kernels;
             const flat = new Array(64).fill(new Array(64).fill(0.6));
-            const m = magnitude(flat);
-            const d = direction(flat);
+            const m = await magnitude(flat);
+            const d = await direction(flat);
             ctx.assert(m && m.length === 64 && m[0].length === 64, 'magnitude should return a 64×64 grid');
             ctx.assert(d && d.length === 64 && d[0].length === 64, 'direction should return a 64×64 grid');
             for (let y = 0; y < 64; y += 7) {
@@ -943,7 +943,7 @@ console.log('on a horizontal edge — magnitude:', mag[8][20], ' angle:', dir[8]
           run: async ctx => {
             const [magnitude] = ctx.kernels;
             const gray = blurRef(noisyField(ctx.utils, 64));
-            const out = magnitude(gray);
+            const out = await magnitude(gray);
             const ref = sobelRef(gray).mag;
             const squared = sobelRef(gray, { squared: true }).mag;
             const manhattan = sobelRef(gray, { manhattan: true }).mag;
@@ -964,7 +964,7 @@ console.log('on a horizontal edge — magnitude:', mag[8][20], ' angle:', dir[8]
           run: async ctx => {
             const [, direction] = ctx.kernels;
             const gray = blurRef(noisyField(ctx.utils, 64));
-            const out = direction(gray);
+            const out = await direction(gray);
             const ref = sobelRef(gray).dir;
             const swapped = sobelRef(gray, { swappedArgs: true }).dir;
             const flipped = sobelRef(gray, { flippedY: true }).dir;
@@ -998,9 +998,9 @@ console.log('on a horizontal edge — magnitude:', mag[8][20], ' angle:', dir[8]
                 horizontal[y][x] = y < 32 ? 0.2 : 0.8;
               }
             }
-            const dv = direction(vertical);
-            const dh = direction(horizontal);
-            const mv = magnitude(vertical);
+            const dv = await direction(vertical);
+            const dh = await direction(horizontal);
+            const mv = await magnitude(vertical);
             ctx.assert(mv[20][31] > 2, `the step at column 31 should have a large magnitude, got ${mv[20][31]}`);
             ctx.assertClose(dv[20][31], 0, 1e-3,
               'a step that gets brighter to the RIGHT has its gradient pointing along +x, so the angle is 0');
@@ -1018,8 +1018,8 @@ console.log('on a horizontal edge — magnitude:', mag[8][20], ' angle:', dir[8]
           run: async ctx => {
             const [magnitude, direction] = ctx.kernels;
             const gray = blurRef(noisyField(ctx.utils, 64, 31337));
-            const m = magnitude(gray);
-            const d = direction(gray);
+            const m = await magnitude(gray);
+            const d = await direction(gray);
             const ref = sobelRef(gray);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
@@ -1132,7 +1132,7 @@ const suppress = gpu.createKernel(function (mag, dir) {
   constants: { last: 63 },
 });
 
-const thin = suppress(mag, dir);
+const thin = await suppress(mag, dir);
 
 let before = 0;
 let after = 0;
@@ -1185,7 +1185,7 @@ const suppress = gpu.createKernel(function (mag, dir) {
   constants: { last: 63 },
 });
 
-const thin = suppress(mag, dir);
+const thin = await suppress(mag, dir);
 
 let before = 0;
 let after = 0;
@@ -1215,7 +1215,7 @@ console.log('pixels with a gradient:', before, ' still standing after suppressio
                 mag[y][x] = Math.max(0, 1 - Math.abs(x - 32) * 0.25);
               }
             }
-            const out = ctx.kernel(mag, dir);
+            const out = await ctx.kernel(mag, dir);
             ctx.assert(out && out.length === 64 && out[0].length === 64, 'expected a 64×64 grid');
             for (const y of [1, 20, 40, 62]) {
               ctx.assertClose(out[y][32], 1, 1e-4, `the crest at column 32 should survive (row ${y})`);
@@ -1241,7 +1241,7 @@ console.log('pixels with a gradient:', before, ' still standing after suppressio
               mag[y] = new Array(64).fill(Math.max(0, 1 - Math.abs(y - 32) * 0.25));
               dir[y] = new Array(64).fill(Math.PI / 2);
             }
-            const out = ctx.kernel(mag, dir);
+            const out = await ctx.kernel(mag, dir);
             const ref = nmsRef(mag, dir);
             const hint = diagnoseGrid(out, ref, 1e-4, [
               [nmsRef(mag, dir, { perpendicular: true }),
@@ -1288,7 +1288,7 @@ console.log('pixels with a gradient:', before, ' still standing after suppressio
                 mag[32 + ay][32 + ax] = v;
                 mag[32 - ay][32 - ax] = v;
               }
-              const out = ctx.kernel(mag, dir);
+              const out = await ctx.kernel(mag, dir);
               const wrapped = deg < 0 ? deg + 180 : deg;
               ctx.assertClose(
                 out[32][32], 0, 1e-4,
@@ -1304,7 +1304,7 @@ console.log('pixels with a gradient:', before, ' still standing after suppressio
           name: 'matches the reference on the real gradient maps',
           run: async ctx => {
             const { mag, dir } = gradientInputs(blurRef(noisyField(ctx.utils, 64)));
-            const out = ctx.kernel(mag, dir);
+            const out = await ctx.kernel(mag, dir);
             const ref = nmsRef(mag, dir);
             const hint = diagnoseGrid(out, ref, 1e-4, [
               [nmsRef(mag, dir, { perpendicular: true }),
@@ -1327,7 +1327,7 @@ console.log('pixels with a gradient:', before, ' still standing after suppressio
           name: 'private test #1',
           run: async ctx => {
             const { mag, dir } = gradientInputs(blurRef(noisyField(ctx.utils, 64, 31337)));
-            const out = ctx.kernel(mag, dir);
+            const out = await ctx.kernel(mag, dir);
             const ref = nmsRef(mag, dir);
             const hint = diagnoseGrid(out, ref, 1e-4, [
               [nmsRef(mag, dir, { perpendicular: true }),
@@ -1365,7 +1365,7 @@ console.log('pixels with a gradient:', before, ' still standing after suppressio
             };
             for (const sign of [1, -1]) {
               const { mag, dir } = build(sign);
-              const out = ctx.kernel(mag, dir);
+              const out = await ctx.kernel(mag, dir);
               const ref = nmsRef(mag, dir);
               const hint = diagnoseGrid(out, ref, 1e-4, [
                 [nmsRef(mag, dir, { perpendicular: true }),
@@ -1450,7 +1450,7 @@ const classify = gpu.createKernel(function (thin) {
   constants: { low: 0.3, high: 0.7 },
 });
 
-const labels = classify(thin);
+const labels = await classify(thin);
 
 let strong = 0;
 let weak = 0;
@@ -1479,7 +1479,7 @@ const classify = gpu.createKernel(function (thin) {
   constants: { low: 0.3, high: 0.7 },
 });
 
-const labels = classify(thin);
+const labels = await classify(thin);
 
 let strong = 0;
 let weak = 0;
@@ -1508,7 +1508,7 @@ console.log('strong:', strong, ' weak:', weak, ' gone:', 64 * 64 - strong - weak
               ramp[y] = new Array(64);
               for (let x = 0; x < 64; x++) ramp[y][x] = (x / 63) * 1.2;
             }
-            const out = ctx.kernel(ramp);
+            const out = await ctx.kernel(ramp);
             ctx.assert(out && out.length === 64 && out[0].length === 64, 'expected a 64×64 grid');
             const hint = diagnoseGrid(out, classifyRef(ramp), 1e-4, classifyProbes(ramp));
             for (const [x, expected] of [[0, 0], [10, 0], [15, 0], [16, 0.5], [30, 0.5], [36, 0.5], [37, 1], [50, 1], [63, 1]]) {
@@ -1524,7 +1524,7 @@ console.log('strong:', strong, ' weak:', weak, ' gone:', 64 * 64 - strong - weak
           run: async ctx => {
             const { mag, dir } = gradientInputs(blurRef(noisyField(ctx.utils, 64)));
             const thin = nmsRef(mag, dir);
-            const out = ctx.kernel(thin);
+            const out = await ctx.kernel(thin);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
                 const v = out[y][x];
@@ -1542,7 +1542,7 @@ console.log('strong:', strong, ' weak:', weak, ' gone:', 64 * 64 - strong - weak
           run: async ctx => {
             const { mag, dir } = gradientInputs(blurRef(noisyField(ctx.utils, 64)));
             const thin = nmsRef(mag, dir);
-            const out = ctx.kernel(thin);
+            const out = await ctx.kernel(thin);
             const ref = classifyRef(thin);
             const hint = diagnoseGrid(out, ref, 1e-4, classifyProbes(thin));
             const census = grid => {
@@ -1576,7 +1576,7 @@ console.log('strong:', strong, ' weak:', weak, ' gone:', 64 * 64 - strong - weak
           run: async ctx => {
             const { mag, dir } = gradientInputs(blurRef(noisyField(ctx.utils, 64, 31337)));
             const thin = nmsRef(mag, dir);
-            const out = ctx.kernel(thin);
+            const out = await ctx.kernel(thin);
             const ref = classifyRef(thin);
             const hint = diagnoseGrid(out, ref, 1e-4, classifyProbes(thin));
             for (let y = 0; y < 64; y++) {
@@ -1640,7 +1640,7 @@ for (let dy = -1; dy &lt;= 1; dy++) {
           body: `<pre><code>let state = classified;
 let passes = 0;
 for (let i = 0; i &lt; 40; i++) {
-  const next = grow(state);
+  const next = await grow(state);
   passes++;
   state = next;
   if (unchanged(next, state)) break;
@@ -1707,12 +1707,12 @@ function unchanged(a, b) {
 
 // TODO: one pass is not hysteresis. A weak pixel three steps from a strong one
 // needs three passes to hear about it — keep going until a pass changes nothing.
-let state = grow(classified);
+let state = await grow(classified);
 const passes = 1;
 
 console.log('settled after', passes, 'passes');
 
-const edges = finish(state);
+const edges = await finish(state);
 let count = 0;
 for (let y = 0; y < 64; y++) {
   for (let x = 0; x < 64; x++) count += edges[y][x];
@@ -1778,7 +1778,7 @@ function unchanged(a, b) {
 let state = classified;
 let passes = 0;
 for (let i = 0; i < 40; i++) {
-  const next = grow(state);
+  const next = await grow(state);
   passes++;
   const done = unchanged(next, state);
   state = next;
@@ -1787,7 +1787,7 @@ for (let i = 0; i < 40; i++) {
 
 console.log('settled after', passes, 'passes');
 
-const edges = finish(state);
+const edges = await finish(state);
 let count = 0;
 for (let y = 0; y < 64; y++) {
   for (let x = 0; x < 64; x++) count += edges[y][x];
@@ -1814,7 +1814,7 @@ console.log('edge pixels:', count);
             state[33][33] = 0.5; // diagonal neighbour of the seed
             state[10][10] = 0.5;
             state[10][11] = 0.5;
-            const out = grow(state);
+            const out = await grow(state);
             ctx.assert(out && out.length === 64 && out[0].length === 64, 'expected a 64×64 grid');
             ctx.assertClose(out[32][32], 1, 1e-4, 'a strong pixel stays strong');
             ctx.assertClose(out[32][33], 1, 1e-4, 'the weak pixel touching the seed should be promoted');
@@ -1836,7 +1836,7 @@ console.log('edge pixels:', count);
             const classified = classifyRef(nmsRef(mag, dir));
             const ref = settleRef(classified, 60);
             let state = classified;
-            for (let i = 0; i < ref.passes; i++) state = grow(state);
+            for (let i = 0; i < ref.passes; i++) state = await grow(state);
             const hint = diagnoseGrid(state, ref.state, 1e-4, [
               [settleRef(classified, 60, { four: true }).state,
                 'only the 4 direct neighbours are being scanned — an edge that steps diagonally then ' +
@@ -1850,7 +1850,7 @@ console.log('edge pixels:', count);
                 ctx.assertClose(state[y][x], ref.state[y][x], 1e-4, hint || `cell [${y}][${x}]`);
               }
             }
-            const edges = finish(state);
+            const edges = await finish(state);
             const refEdges = finishRef(ref.state);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
@@ -1896,7 +1896,7 @@ console.log('edge pixels:', count);
             const classified = classifyRef(nmsRef(mag, dir));
             const ref = settleRef(classified, 60);
             let state = classified;
-            for (let i = 0; i < ref.passes + 2; i++) state = grow(state);
+            for (let i = 0; i < ref.passes + 2; i++) state = await grow(state);
             const hint = diagnoseGrid(state, ref.state, 1e-4, [
               [settleRef(classified, 60, { four: true }).state,
                 'only the 4 direct neighbours are being scanned — the neighbourhood is all 8'],
@@ -1906,7 +1906,7 @@ console.log('edge pixels:', count);
                 ctx.assertClose(state[y][x], ref.state[y][x], 1e-4, hint || `cell [${y}][${x}]`);
               }
             }
-            const edges = finish(state);
+            const edges = await finish(state);
             let leftover = 0;
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
@@ -1928,7 +1928,7 @@ console.log('edge pixels:', count);
             for (let i = 1; i <= 30; i++) state[5 + i][5 + i] = 0.5; // diagonal chain
             let cur = state;
             for (let pass = 1; pass <= 30; pass++) {
-              cur = grow(cur);
+              cur = await grow(cur);
               ctx.assertClose(
                 cur[5 + pass][5 + pass], 1, 1e-4,
                 `after ${pass} pass${pass === 1 ? '' : 'es'} the front should have reached step ${pass} of the chain`
@@ -1965,6 +1965,19 @@ console.log('edge pixels:', count);
       // this is deliberately the smallest number that makes the task reliable
       // rather than the largest the validator would take.
       budgetMs: 25000,
+      // WHY THIS TASK PINS THE BACKEND. The solution itself does NOT mix: all
+      // nine kernels stay on WebGL, because `luminance` takes an ImageData and
+      // everything downstream consumes its texture. The EXPERIMENT this task
+      // asks the learner to run is what mixes. Delete the eight
+      // `pipeline: true` flags and every stage hands back a plain array instead
+      // of a texture — which WebGPU accepts — so 8 of the 9 kernels quietly
+      // upgrade and only `luminance` stays behind. Measured: the flags-deleted
+      // chain is 47 ms under async against 99 ms on WebGL. Without this pin the
+      // comparison changes BACKEND as well as plumbing, the 75 ms of bus
+      // traffic the prose promises reads as ~37 ms, and a learner who follows
+      // the instructions concludes the module overstates its case — when in
+      // fact they changed two variables at once.
+      backend: 'webgl',
       intro: `<p>Everything you have written, in one chain, on a real ${BIG}×${BIG} photo:
         <strong>luminance → blur<sub>x</sub> → blur<sub>y</sub> → magnitude + direction →
         suppression → threshold → hysteresis → edges</strong>. Nine kernel objects, and with the
@@ -1986,9 +1999,14 @@ console.log('edge pixels:', count);
         again, and run it once more: about <strong>120 ms</strong>. Same kernels, same arithmetic,
         same ${PASSES + 8} launches — the extra 75 ms is bus traffic and nothing else. (Both
         figures carry roughly 35 ms of one-time shader compilation. Time the chain on its own,
-        without that, and it is <strong>10 ms pipelined against 70 ms round-tripping</strong> — a
-        clean seven times.) Eight deletions and two clicks: run that experiment rather than take
-        this paragraph's word for it.</p>
+        without that, and on the WebGL backend it is <strong>10 ms pipelined against 70–100 ms
+        round-tripping</strong> depending on the machine — seven to ten times either way.) Eight
+        deletions and two clicks: run that experiment rather than take this paragraph's word for
+        it. One note on the console while you do: on this task <em>auto</em> reports
+        <em>WebGL</em> rather than its usual mix, because the comparison only means anything if
+        both runs use the same backend — strip the pipelining and the stages start handing back
+        plain arrays, which WebGPU would happily take over, and you would be measuring two changes
+        at once instead of one.</p>
         <p><strong>Benchmark</strong> agrees from the other direction, reporting the GPU
         <strong>7–8× faster</strong> than the CPU backend here — roughly 2 ms against 15 ms. Know
         what that button does before you quote it, though: it replays each of the nine kernels
@@ -2023,14 +2041,14 @@ console.log('edge pixels:', count);
       hints: [
         {
           title: 'Hint 1 — the chain, stage by stage',
-          body: `<pre><code>const gray = luminance(photo);
-const smooth = blurY(blurX(gray));
-const thin = suppress(magnitude(smooth), direction(smooth));
-let state = classify(thin);
+          body: `<pre><code>const gray = await luminance(photo);
+const smooth = await blurY(await blurX(gray));
+const thin = await suppress(await magnitude(smooth), await direction(smooth));
+let state = await classify(thin);
 for (let i = 0; i &lt; PASSES; i++) {
-  state = grow(state);
+  state = await grow(state);
 }
-const edges = finish(state);</code></pre>
+const edges = await finish(state);</code></pre>
 <p>Both gradient kernels read <em>smooth</em>. Handing them <code>gray</code> instead is
             the starter's first deliberate mistake, and it puts the noise straight back in.</p>`,
         },
@@ -2203,12 +2221,12 @@ const finish = gpu.createKernel(function (state) {
 
 // TODO: the chain. Two mistakes are already in it — the gradient stages are
 // reading the UNSMOOTHED luminance, and the hysteresis runs exactly once.
-const gray = luminance(photo);
-const smooth = blurY(blurX(gray));
-const thin = suppress(magnitude(gray), direction(gray));
-let state = classify(thin);
-state = grow(state);
-const edges = finish(state);
+const gray = await luminance(photo);
+const smooth = await blurY(await blurX(gray));
+const thin = await suppress(await magnitude(gray), await direction(gray));
+let state = await classify(thin);
+state = await grow(state);
+const edges = await finish(state);
 
 let count = 0;
 for (let y = 0; y < ${BIG}; y++) {
@@ -2363,14 +2381,14 @@ const finish = gpu.createKernel(function (state) {
 }, { output: [${BIG}, ${BIG}] });
 
 // The chain. One upload at the top, one download at the bottom.
-const gray = luminance(photo);
-const smooth = blurY(blurX(gray));
-const thin = suppress(magnitude(smooth), direction(smooth));
-let state = classify(thin);
+const gray = await luminance(photo);
+const smooth = await blurY(await blurX(gray));
+const thin = await suppress(await magnitude(smooth), await direction(smooth));
+let state = await classify(thin);
 for (let i = 0; i < PASSES; i++) {
-  state = grow(state);
+  state = await grow(state);
 }
-const edges = finish(state);
+const edges = await finish(state);
 
 let count = 0;
 for (let y = 0; y < ${BIG}; y++) {
@@ -2404,7 +2422,7 @@ console.log('edge pixels:', count);
               finish.kernel && !finish.kernel.pipeline,
               'finish should stay a plain kernel — its return value IS the one readback you want'
             );
-            if (ctx.resolvedMode === 'gpu') {
+            if (ctx.resolvedMode !== 'cpu') {
               ctx.assert(
                 finish.lastArgs && finish.lastArgs[0] && typeof finish.lastArgs[0].toArray === 'function',
                 'finish should be handed the hysteresis texture directly — no .toArray() anywhere in the chain'
@@ -2418,10 +2436,10 @@ console.log('edge pixels:', count);
             const [luminance, blurX, blurY, magnitude, direction, suppress, classify, grow, finish] = ctx.kernels;
             const row = new Array(BIG).fill(quantizePixel([0.45, 0.4, 0.35, 1]));
             const flat = plainToImageData(new Array(BIG).fill(row));
-            const smooth = blurY(blurX(luminance(flat)));
-            let state = classify(suppress(magnitude(smooth), direction(smooth)));
-            for (let i = 0; i < PASSES; i++) state = grow(state);
-            const edges = finish(state);
+            const smooth = await blurY(await blurX(await luminance(flat)));
+            let state = await classify(await suppress(await magnitude(smooth), await direction(smooth)));
+            for (let i = 0; i < PASSES; i++) state = await grow(state);
+            const edges = await finish(state);
             for (let y = 0; y < BIG; y++) {
               for (let x = 0; x < BIG; x++) {
                 ctx.assertClose(edges[y][x], 0, 1e-4, `a flat photo should produce no edge at [${y}][${x}]`);
@@ -2434,10 +2452,10 @@ console.log('edge pixels:', count);
           run: async ctx => {
             const [luminance, blurX, blurY, magnitude, direction, suppress, classify, grow, finish] = ctx.kernels;
             const photo = scenePhoto(ctx.utils, BIG);
-            const smooth = blurY(blurX(luminance(photo)));
-            let state = classify(suppress(magnitude(smooth), direction(smooth)));
-            for (let i = 0; i < PASSES; i++) state = grow(state);
-            const edges = finish(state);
+            const smooth = await blurY(await blurX(await luminance(photo)));
+            let state = await classify(await suppress(await magnitude(smooth), await direction(smooth)));
+            for (let i = 0; i < PASSES; i++) state = await grow(state);
+            const edges = await finish(state);
             const ref = cannyRef(photo);
             ctx.assert(edges && edges.length === BIG && edges[0].length === BIG, `expected a ${BIG}×${BIG} grid`);
             for (let y = 0; y < BIG; y++) {
@@ -2498,10 +2516,10 @@ console.log('edge pixels:', count);
             // float64, and a coin-flip is not a fair thing to grade.
             const [luminance, blurX, blurY, magnitude, direction, suppress, classify, grow, finish] = ctx.kernels;
             const photo = scenePhoto(ctx.utils, BIG, 31337);
-            const smooth = blurY(blurX(luminance(photo)));
-            let state = classify(suppress(magnitude(smooth), direction(smooth)));
-            for (let i = 0; i < PASSES; i++) state = grow(state);
-            const edges = finish(state);
+            const smooth = await blurY(await blurX(await luminance(photo)));
+            let state = await classify(await suppress(await magnitude(smooth), await direction(smooth)));
+            for (let i = 0; i < PASSES; i++) state = await grow(state);
+            const edges = await finish(state);
             const ref = cannyRef(photo);
             const last = BIG - 1;
             let checked = 0;
@@ -2531,18 +2549,18 @@ console.log('edge pixels:', count);
             // an immutable kernel that recycles a texture would show up here as
             // the second answer contaminating the first.
             const [luminance, blurX, blurY, magnitude, direction, suppress, classify, grow, finish] = ctx.kernels;
-            const run = photo => {
-              const smooth = blurY(blurX(luminance(photo)));
-              let state = classify(suppress(magnitude(smooth), direction(smooth)));
-              for (let i = 0; i < PASSES; i++) state = grow(state);
-              const edges = finish(state);
+            const run = async photo => {
+              const smooth = await blurY(await blurX(await luminance(photo)));
+              let state = await classify(await suppress(await magnitude(smooth), await direction(smooth)));
+              for (let i = 0; i < PASSES; i++) state = await grow(state);
+              const edges = await finish(state);
               // finish is the last plain kernel, so its result is a live view
               // that the NEXT call overwrites — copy it before running again.
               return edges.map(row => Array.from(row));
             };
-            const a = run(scenePhoto(ctx.utils, BIG));
-            const b = run(scenePhoto(ctx.utils, BIG, 31337));
-            const again = run(scenePhoto(ctx.utils, BIG));
+            const a = await run(scenePhoto(ctx.utils, BIG));
+            const b = await run(scenePhoto(ctx.utils, BIG, 31337));
+            const again = await run(scenePhoto(ctx.utils, BIG));
             ctx.assertClose(countOnes(a), countOnes(cannyRef(scenePhoto(ctx.utils, BIG)).edges), 3, 'first run');
             ctx.assert(countOnes(a) !== countOnes(b) || true, 'two photos ran');
             for (let y = 0; y < BIG; y++) {

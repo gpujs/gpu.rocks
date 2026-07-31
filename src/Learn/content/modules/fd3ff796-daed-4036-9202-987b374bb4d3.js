@@ -220,14 +220,17 @@ function ascending(values) {
 // hand it first. On the WebGL backend the mismatch is fatal (argumentMismatch),
 // so try both shapes rather than reporting a type error as a wrong answer. The
 // retry is harmless: the kernel recovers, on both backends.
-function call(kernel, args) {
+// Async because a kernel invocation is a Promise under the async contract:
+// the await has to happen INSIDE the try, or a rejected retry would escape
+// the handler that exists to catch it.
+async function call(kernel, args) {
   try {
-    return kernel(...args);
+    return await kernel(...args);
   } catch (e) {
     try {
-      return kernel(...args.map(a => (Array.isArray(a) ? Float32Array.from(a) : a)));
+      return await kernel(...args.map(a => (Array.isArray(a) ? Float32Array.from(a) : a)));
     } catch (e2) {
-      return kernel(...args.map(a => (ArrayBuffer.isView(a) ? Array.from(a) : a)));
+      return await kernel(...args.map(a => (ArrayBuffer.isView(a) ? Array.from(a) : a)));
     }
   }
 }
@@ -511,7 +514,7 @@ const destination = gpu.createKernel(function (digits) {
   constants: { n: 16 },
 });
 
-const dest = destination(digits);
+const dest = await destination(digits);
 console.log('digits:      ', digits.join(' '));
 console.log('destinations:', Array.from(dest).join(' '));
 `,
@@ -536,7 +539,7 @@ const destination = gpu.createKernel(function (digits) {
   constants: { n: 16 },
 });
 
-const dest = destination(digits);
+const dest = await destination(digits);
 console.log('digits:      ', digits.join(' '));
 console.log('destinations:', Array.from(dest).join(' '));
 `,
@@ -547,7 +550,7 @@ console.log('destinations:', Array.from(dest).join(' '));
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const digits = makeDigits(ctx.utils, 16);
-            const out = plain(call(ctx.kernel, [digits]));
+            const out = plain(await call(ctx.kernel, [digits]));
             ctx.assert(out.length === 16, `expected 16 destinations, got ${out.length}`);
             const taken = new Array(16).fill(0);
             for (let i = 0; i < 16; i++) {
@@ -573,7 +576,7 @@ console.log('destinations:', Array.from(dest).join(' '));
             // Every digit equal: the only thing left to order by is the
             // original position, so a stable pass must be the identity.
             const flat = new Array(16).fill(5);
-            const out = plain(call(ctx.kernel, [flat]));
+            const out = plain(await call(ctx.kernel, [flat]));
             const expected = stableRank(flat);
             const hint = diagnoseArray(out, expected, rankProbes(flat));
             for (let i = 0; i < 16; i++) {
@@ -585,7 +588,7 @@ console.log('destinations:', Array.from(dest).join(' '));
           name: 'each destination counts the smaller digits plus the earlier equal ones',
           run: async ctx => {
             const digits = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3];
-            const out = plain(call(ctx.kernel, [digits]));
+            const out = plain(await call(ctx.kernel, [digits]));
             const expected = stableRank(digits);
             const hint = diagnoseArray(out, expected, rankProbes(digits));
             for (let i = 0; i < 16; i++) {
@@ -600,7 +603,7 @@ console.log('destinations:', Array.from(dest).join(' '));
           run: async ctx => {
             for (const seed of [4242, 777, 90210]) {
               const digits = makeDigits(ctx.utils, 16, seed);
-              const out = plain(call(ctx.kernel, [digits]));
+              const out = plain(await call(ctx.kernel, [digits]));
               const expected = stableRank(digits);
               const hint = diagnoseArray(out, expected, rankProbes(digits));
               for (let i = 0; i < 16; i++) {
@@ -615,7 +618,7 @@ console.log('destinations:', Array.from(dest).join(' '));
             // Two long runs of equal digits, deliberately out of order: a pass
             // that reverses ties cannot hide here.
             const digits = [7, 7, 7, 7, 2, 2, 2, 2, 7, 2, 7, 2, 2, 7, 2, 7];
-            const out = plain(call(ctx.kernel, [digits]));
+            const out = plain(await call(ctx.kernel, [digits]));
             const expected = stableRank(digits);
             const hint = diagnoseArray(out, expected, rankProbes(digits));
             for (let i = 0; i < 16; i++) {
@@ -692,7 +695,7 @@ const destination = gpu.createKernel(function (bits, zeros) {
   constants: { n: 32 },
 });
 
-const bits = lowBit(keys);
+const bits = await lowBit(keys);
 
 let zeros = 0;
 for (let i = 0; i < bits.length; i++) {
@@ -700,7 +703,7 @@ for (let i = 0; i < bits.length; i++) {
 }
 console.log('zeros:', zeros);
 
-const dest = destination(bits, zeros);
+const dest = await destination(bits, zeros);
 
 // A scatter — fine in JavaScript, impossible inside a kernel. Task 4 fixes it.
 const out = new Array(32);
@@ -731,7 +734,7 @@ const destination = gpu.createKernel(function (bits, zeros) {
   constants: { n: 32 },
 });
 
-const bits = lowBit(keys);
+const bits = await lowBit(keys);
 
 let zeros = 0;
 for (let i = 0; i < bits.length; i++) {
@@ -739,7 +742,7 @@ for (let i = 0; i < bits.length; i++) {
 }
 console.log('zeros:', zeros);
 
-const dest = destination(bits, zeros);
+const dest = await destination(bits, zeros);
 
 // A scatter — fine in JavaScript, impossible inside a kernel. Task 4 fixes it.
 const out = new Array(32);
@@ -755,7 +758,7 @@ console.log('after the pass:', out.join(' '));
             const flags = findKernel(ctx, 1, 32);
             ctx.assert(flags, 'no one-argument kernel with output [32] found — that is the flag kernel');
             const keys = makeKeys(ctx.utils, 32, 256, 2718);
-            const out = plain(call(flags, [keys]));
+            const out = plain(await call(flags, [keys]));
             const expected = lowBits(keys);
             const hint = diagnoseArray(out, expected, [
               [keys.slice(), 'the key came back whole — the flag is keys[this.thread.x] % 2, one bit'],
@@ -774,7 +777,7 @@ console.log('after the pass:', out.join(' '));
             const keys = makeKeys(ctx.utils, 32, 256, 2718);
             const bits = lowBits(keys);
             const zeros = zeroCount(bits);
-            const out = plain(call(dest, [bits, zeros]));
+            const out = plain(await call(dest, [bits, zeros]));
             const expected = binaryDestinations(bits);
             const hint = diagnoseArray(out, expected, [
               [noOffsetDestinations(bits),
@@ -815,7 +818,7 @@ console.log('after the pass:', out.join(' '));
             for (const seed of [909, 31337]) {
               const keys = makeKeys(ctx.utils, 32, 256, seed);
               const bits = lowBits(keys);
-              const out = plain(call(dest, [bits, zeroCount(bits)]));
+              const out = plain(await call(dest, [bits, zeroCount(bits)]));
               const expected = binaryDestinations(bits);
               const hint = diagnoseArray(out, expected, [
                 [noOffsetDestinations(bits),
@@ -840,7 +843,7 @@ console.log('after the pass:', out.join(' '));
             // and the destinations must still be the identity.
             const dest = findKernel(ctx, 2, 32);
             const bits = new Array(32).fill(1);
-            const out = plain(call(dest, [bits, 0]));
+            const out = plain(await call(dest, [bits, 0]));
             for (let i = 0; i < 32; i++) {
               ctx.assertClose(out[i], i, 0.5, `element ${i} of an all-odd input should stay put`);
             }
@@ -933,13 +936,13 @@ const offsets = gpu.createKernel(function (counts) {
   constants: { radix: 16 },
 });
 
-const onesCounts = histogram(keys, 1);
+const onesCounts = await histogram(keys, 1);
 console.log('ones-digit counts: ', Array.from(onesCounts).join(' '));
-console.log('ones-digit offsets:', Array.from(offsets(onesCounts)).join(' '));
+console.log('ones-digit offsets:', Array.from(await offsets(onesCounts)).join(' '));
 
-const sixteensCounts = histogram(keys, 16);
+const sixteensCounts = await histogram(keys, 16);
 console.log('16s-digit counts:  ', Array.from(sixteensCounts).join(' '));
-console.log('16s-digit offsets: ', Array.from(offsets(sixteensCounts)).join(' '));
+console.log('16s-digit offsets: ', Array.from(await offsets(sixteensCounts)).join(' '));
 `,
       solutionCode: `// 16 buckets now, so the bucket table needs counting and scanning.
 const gpu = new GPU({ mode });
@@ -971,13 +974,13 @@ const offsets = gpu.createKernel(function (counts) {
   constants: { radix: 16 },
 });
 
-const onesCounts = histogram(keys, 1);
+const onesCounts = await histogram(keys, 1);
 console.log('ones-digit counts: ', Array.from(onesCounts).join(' '));
-console.log('ones-digit offsets:', Array.from(offsets(onesCounts)).join(' '));
+console.log('ones-digit offsets:', Array.from(await offsets(onesCounts)).join(' '));
 
-const sixteensCounts = histogram(keys, 16);
+const sixteensCounts = await histogram(keys, 16);
 console.log('16s-digit counts:  ', Array.from(sixteensCounts).join(' '));
-console.log('16s-digit offsets: ', Array.from(offsets(sixteensCounts)).join(' '));
+console.log('16s-digit offsets: ', Array.from(await offsets(sixteensCounts)).join(' '));
 `,
       inputs: utils => ({ keys: makeKeys(utils, 64, 256, 6001) }),
       publicTests: [
@@ -988,7 +991,7 @@ console.log('16s-digit offsets: ', Array.from(offsets(sixteensCounts)).join(' ')
             const hist = findKernel(ctx, 2, 16);
             ctx.assert(hist, 'no two-argument kernel with output [16] found — that is the histogram');
             const keys = makeKeys(ctx.utils, 64, 256, 6001);
-            const out = plain(call(hist, [keys, 1]));
+            const out = plain(await call(hist, [keys, 1]));
             ctx.assert(out.length === 16, `expected 16 buckets, got ${out.length}`);
             const total = out.reduce((a, b) => a + b, 0);
             ctx.assertClose(
@@ -1009,7 +1012,7 @@ console.log('16s-digit offsets: ', Array.from(offsets(sixteensCounts)).join(' ')
             const hist = findKernel(ctx, 2, 16);
             const keys = makeKeys(ctx.utils, 64, 256, 6001);
             for (const place of [1, 16]) {
-              const out = plain(call(hist, [keys, place]));
+              const out = plain(await call(hist, [keys, place]));
               const expected = countsOf(keys, place);
               const hint = diagnoseArray(out, expected, [
                 [countsOf(keys, place === 1 ? 16 : 1),
@@ -1031,7 +1034,7 @@ console.log('16s-digit offsets: ', Array.from(offsets(sixteensCounts)).join(' ')
             const scan = findKernel(ctx, 1, 16);
             ctx.assert(scan, 'no one-argument kernel with output [16] found — that is the offsets scan');
             const counts = [3, 0, 7, 2, 1, 9, 0, 4, 6, 1, 0, 8, 2, 5, 1, 15];
-            const out = plain(call(scan, [counts]));
+            const out = plain(await call(scan, [counts]));
             const expected = startsOf(counts);
             const hint = diagnoseArray(out, expected, [
               [inclusiveOf(counts),
@@ -1058,7 +1061,7 @@ console.log('16s-digit offsets: ', Array.from(offsets(sixteensCounts)).join(' ')
             for (const seed of [4096, 55555]) {
               const keys = makeKeys(ctx.utils, 64, 256, seed);
               for (const place of [1, 16]) {
-                const counts = plain(call(hist, [keys, place]));
+                const counts = plain(await call(hist, [keys, place]));
                 const expectedCounts = countsOf(keys, place);
                 const countHint = diagnoseArray(counts, expectedCounts, [
                   [countsOf(keys, place === 1 ? 16 : 1),
@@ -1070,7 +1073,7 @@ console.log('16s-digit offsets: ', Array.from(offsets(sixteensCounts)).join(' ')
                   ctx.assertClose(counts[b], expectedCounts[b], 0.5,
                     countHint || `bucket ${b} at place ${place} (seed ${seed})`);
                 }
-                const starts = plain(call(scan, [expectedCounts]));
+                const starts = plain(await call(scan, [expectedCounts]));
                 const expectedStarts = startsOf(expectedCounts);
                 const scanHint = diagnoseArray(starts, expectedStarts, [
                   [inclusiveOf(expectedCounts),
@@ -1094,7 +1097,7 @@ console.log('16s-digit offsets: ', Array.from(offsets(sixteensCounts)).join(' ')
             const counts = new Array(16).fill(0);
             counts[0] = 40;
             counts[9] = 24;
-            const out = plain(call(scan, [counts]));
+            const out = plain(await call(scan, [counts]));
             const expected = startsOf(counts);
             const hint = diagnoseArray(out, expected, [
               [inclusiveOf(counts), 'that is an inclusive scan — the sum has to stop at b − 1'],
@@ -1166,7 +1169,7 @@ const gather = gpu.createKernel(function (keys, destinations) {
   constants: { n: 64 },
 });
 
-const sorted = gather(keys, destinations);
+const sorted = await gather(keys, destinations);
 console.log('before:', keys.slice(0, 8).join(' '), '…');
 console.log('after: ', Array.from(sorted).slice(0, 8).join(' '), '…');
 `,
@@ -1186,7 +1189,7 @@ const gather = gpu.createKernel(function (keys, destinations) {
   constants: { n: 64 },
 });
 
-const sorted = gather(keys, destinations);
+const sorted = await gather(keys, destinations);
 console.log('before:', keys.slice(0, 8).join(' '), '…');
 console.log('after: ', Array.from(sorted).slice(0, 8).join(' '), '…');
 `,
@@ -1204,7 +1207,7 @@ console.log('after: ', Array.from(sorted).slice(0, 8).join(' '), '…');
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const keys = makeKeys(ctx.utils, 64, 256, 1729);
             const destinations = destinationsOf(keys, 1, startsOf(countsOf(keys, 1)));
-            const out = plain(call(ctx.kernel, [keys, destinations]));
+            const out = plain(await call(ctx.kernel, [keys, destinations]));
             ctx.assert(out.length === 64, `expected 64 values, got ${out.length}`);
             const expected = gatherBy(keys, destinations);
             const hint = diagnoseArray(out, expected, gatherProbes(keys, destinations));
@@ -1222,7 +1225,7 @@ console.log('after: ', Array.from(sorted).slice(0, 8).join(' '), '…');
             const keys = new Array(64);
             for (let i = 0; i < 64; i++) keys[i] = i * 3 + 7;
             const destinations = keys.map((v, i) => 63 - i);
-            const out = plain(call(ctx.kernel, [keys, destinations]));
+            const out = plain(await call(ctx.kernel, [keys, destinations]));
             for (let i = 0; i < 64; i++) {
               ctx.assertClose(out[i], keys[63 - i], 0.5, `slot ${i} of a reversal`);
             }
@@ -1237,7 +1240,7 @@ console.log('after: ', Array.from(sorted).slice(0, 8).join(' '), '…');
               const keys = makeKeys(ctx.utils, 64, 256, seed);
               for (const place of [1, 16]) {
                 const destinations = destinationsOf(keys, place, startsOf(countsOf(keys, place)));
-                const out = plain(call(ctx.kernel, [keys, destinations]));
+                const out = plain(await call(ctx.kernel, [keys, destinations]));
                 const expected = gatherBy(keys, destinations);
                 const hint = diagnoseArray(out, expected, gatherProbes(keys, destinations));
                 for (let i = 0; i < 64; i++) {
@@ -1255,7 +1258,7 @@ console.log('after: ', Array.from(sorted).slice(0, 8).join(' '), '…');
             // with equal digits still in their original order.
             const keys = makeKeys(ctx.utils, 64, 256, 1729);
             const destinations = destinationsOf(keys, 1, startsOf(countsOf(keys, 1)));
-            const out = plain(call(ctx.kernel, [keys, destinations]));
+            const out = plain(await call(ctx.kernel, [keys, destinations]));
             for (let i = 1; i < 64; i++) {
               ctx.assert(
                 digitOf(out[i - 1], 1) <= digitOf(out[i], 1),
@@ -1304,10 +1307,10 @@ console.log('after: ', Array.from(sorted).slice(0, 8).join(' '), '…');
         {
           title: 'Hint 2 — the driver',
           body: `<pre><code>for (let place = 1; place &lt;= 256; place *= 16) {
-  const counts = histogram(values, place);
-  const starts = offsets(counts);
-  const dest = destinations(values, place, starts);
-  values = gather(values, dest);
+  const counts = await histogram(values, place);
+  const starts = await offsets(counts);
+  const dest = await destinations(values, place, starts);
+  values = await gather(values, dest);
 }</code></pre>
 <p>Three iterations, and every line of it inside the loop.</p>`,
         },
@@ -1427,10 +1430,10 @@ const gather = gpu.createKernel(function (keys, dest) {
 let values = Float32Array.from(keys);
 
 for (let place = 1; place <= 256; place *= 16) {
-  const counts = histogram(values, place);
-  const starts = offsets(counts);
-  const dest = destinations(values, place, starts);
-  values = gather(values, dest);
+  const counts = await histogram(values, place);
+  const starts = await offsets(counts);
+  const dest = await destinations(values, place, starts);
+  values = await gather(values, dest);
 }
 
 console.log('smallest:', values[0], '| middle:', values[512], '| largest:', values[1023]);
@@ -1466,7 +1469,7 @@ console.log('smallest:', values[0], '| middle:', values[512], '| largest:', valu
             const keys = makeKeys(ctx.utils, 1024, 4096, 7717);
             for (const place of [1, 256]) {
               const starts = startsOf(countsOf(keys, place));
-              const out = plain(call(dest, [Float32Array.from(keys), place, Float32Array.from(starts)]));
+              const out = plain(await call(dest, [Float32Array.from(keys), place, Float32Array.from(starts)]));
               const expected = destinationsOf(keys, place, starts);
               const hint = diagnoseArray(out, expected, destinationProbes(keys, place, starts));
               for (let i = 0; i < 1024; i++) {
@@ -1486,7 +1489,10 @@ console.log('smallest:', values[0], '| middle:', values[512], '| largest:', valu
             const keys = makeKeys(ctx.utils, 1024, 4096, 31337);
             let values = Float32Array.from(keys);
             for (let place = 1; place <= 256; place *= 16) {
-              values = call(move, [values, call(dest, [values, place, call(scan, [call(hist, [values, place])])])]);
+              const counts = await call(hist, [values, place]);
+              const starts = await call(scan, [counts]);
+              const where = await call(dest, [values, place, starts]);
+              values = await call(move, [values, where]);
             }
             const got = plain(values);
             const expected = ascending(keys);
@@ -1528,7 +1534,10 @@ console.log('smallest:', values[0], '| middle:', values[512], '| largest:', valu
             const keys = makeKeys(ctx.utils, 1024, 4096, 606);
             let values = Float32Array.from(keys);
             for (let place = 1; place <= 256; place *= 16) {
-              values = call(move, [values, call(dest, [values, place, call(scan, [call(hist, [values, place])])])]);
+              const counts = await call(hist, [values, place]);
+              const starts = await call(scan, [counts]);
+              const where = await call(dest, [values, place, starts]);
+              values = await call(move, [values, where]);
             }
             const got = plain(values);
             const expected = ascending(keys);
@@ -1548,7 +1557,7 @@ console.log('smallest:', values[0], '| middle:', values[512], '| largest:', valu
             for (let i = 0; i < 1024; i++) keys[i] = ((i * 37) % 32) * 129;
             for (const place of [1, 16, 256]) {
               const starts = startsOf(countsOf(keys, place));
-              const out = plain(call(dest, [Float32Array.from(keys), place, Float32Array.from(starts)]));
+              const out = plain(await call(dest, [Float32Array.from(keys), place, Float32Array.from(starts)]));
               const expected = destinationsOf(keys, place, starts);
               const hint = diagnoseArray(out, expected, destinationProbes(keys, place, starts));
               for (let i = 0; i < 1024; i++) {
@@ -1605,7 +1614,7 @@ console.log('smallest:', values[0], '| middle:', values[512], '| largest:', valu
         },
         {
           title: 'Hint 2 — the wiring',
-          body: `<pre><code>const sorted = decode(radixSort(encode(readings)));</code></pre>
+          body: `<pre><code>const sorted = await decode(await radixSort(await encode(readings)));</code></pre>
 <p>Encode on the way in, decode on the way out. Miss the decode and every value
             comes back 2,048 too high; miss the encode and the negative keys index off the front
             of the bucket table.</p>`,
@@ -1672,19 +1681,23 @@ const gather = gpu.createKernel(function (keys, dest) {
   return value;
 }, { output: [256], constants: { n: 256 } });
 
-function radixSort(values) {
+async function radixSort(values) {
   // gpu.js locks an argument's type on a kernel's first call, and every pass
   // feeds one kernel's output into the next — so the chain starts as a
-  // Float32Array whatever it was handed.
+  // Float32Array whatever it was handed. Each stage is awaited before the
+  // next reads it: the passes are a chain, not a set.
   let v = Float32Array.from(values);
   for (let place = 1; place <= 256; place *= 16) {
-    v = gather(v, destinations(v, place, offsets(histogram(v, place))));
+    const counts = await histogram(v, place);
+    const starts = await offsets(counts);
+    const dest = await destinations(v, place, starts);
+    v = await gather(v, dest);
   }
   return v;
 }
 
 // TODO: bias the readings on the way in, and take the bias off on the way out.
-const sorted = radixSort(readings);
+const sorted = await radixSort(readings);
 console.log('smallest:', sorted[0], '| largest:', sorted[255]);
 `,
       solutionCode: `// The sort below is finished. It only accepts non-negative integer keys.
@@ -1741,18 +1754,22 @@ const gather = gpu.createKernel(function (keys, dest) {
   return value;
 }, { output: [256], constants: { n: 256 } });
 
-function radixSort(values) {
+async function radixSort(values) {
   // gpu.js locks an argument's type on a kernel's first call, and every pass
   // feeds one kernel's output into the next — so the chain starts as a
-  // Float32Array whatever it was handed.
+  // Float32Array whatever it was handed. Each stage is awaited before the
+  // next reads it: the passes are a chain, not a set.
   let v = Float32Array.from(values);
   for (let place = 1; place <= 256; place *= 16) {
-    v = gather(v, destinations(v, place, offsets(histogram(v, place))));
+    const counts = await histogram(v, place);
+    const starts = await offsets(counts);
+    const dest = await destinations(v, place, starts);
+    v = await gather(v, dest);
   }
   return v;
 }
 
-const sorted = decode(radixSort(encode(readings)));
+const sorted = await decode(await radixSort(await encode(readings)));
 console.log('smallest:', sorted[0], '| largest:', sorted[255]);
 `,
       inputs: utils => ({ readings: makeReadings(utils, 256, 8088) }),
@@ -1770,7 +1787,12 @@ console.log('smallest:', sorted[0], '| largest:', sorted[255]);
               `expected an encode kernel and a decode kernel (one argument, output [256]) — found ${maps.length}`
             );
             const probe = [0, 100, -100, 7];
-            const results = maps.map(k => plain(call(k, [new Array(256).fill(0).map((_, i) => probe[i % 4])])));
+            // A for loop, not maps.map(): each probe call is awaited, and
+            // `await` is illegal inside a non-async arrow.
+            const results = [];
+            for (const k of maps) {
+              results.push(plain(await call(k, [new Array(256).fill(0).map((unused, i) => probe[i % 4])])));
+            }
             const up = results.find(r => Math.abs(r[0] - 2048) <= 0.5);
             const down = results.find(r => Math.abs(r[0] + 2048) <= 0.5);
             ctx.assert(
@@ -1804,16 +1826,19 @@ console.log('smallest:', sorted[0], '| largest:', sorted[255]);
             let encoded = null;
             let decoder = null;
             for (const k of maps) {
-              const probe = plain(call(k, [new Array(256).fill(0)]));
+              const probe = plain(await call(k, [new Array(256).fill(0)]));
               if (Math.abs(probe[0] - 2048) <= 0.5) encoded = k;
               if (Math.abs(probe[0] + 2048) <= 0.5) decoder = k;
             }
             ctx.assert(encoded && decoder, 'expected an encode kernel and a decode kernel');
-            let values = call(encoded, [readings]);
+            let values = await call(encoded, [readings]);
             for (let place = 1; place <= 256; place *= 16) {
-              values = call(move, [values, call(dest, [values, place, call(scan, [call(hist, [values, place])])])]);
+              const counts = await call(hist, [values, place]);
+              const starts = await call(scan, [counts]);
+              const where = await call(dest, [values, place, starts]);
+              values = await call(move, [values, where]);
             }
-            const got = plain(call(decoder, [values]));
+            const got = plain(await call(decoder, [values]));
             const expected = ascending(readings);
             for (let i = 0; i < 256; i++) {
               ctx.assertClose(got[i], expected[i], 0.5, `slot ${i} of the sorted readings`);
@@ -1867,7 +1892,7 @@ console.log('smallest:', sorted[0], '| largest:', sorted[255]);
             let encoded = null;
             let decoder = null;
             for (const k of maps) {
-              const probe = plain(call(k, [new Array(256).fill(0)]));
+              const probe = plain(await call(k, [new Array(256).fill(0)]));
               if (Math.abs(probe[0] - 2048) <= 0.5) encoded = k;
               if (Math.abs(probe[0] + 2048) <= 0.5) decoder = k;
             }
@@ -1875,11 +1900,14 @@ console.log('smallest:', sorted[0], '| largest:', sorted[255]);
               'expected the four sorting kernels plus encode and decode');
             for (const seed of [1234, 99991]) {
               const readings = makeReadings(ctx.utils, 256, seed);
-              let values = call(encoded, [readings]);
+              let values = await call(encoded, [readings]);
               for (let place = 1; place <= 256; place *= 16) {
-                values = call(move, [values, call(dest, [values, place, call(scan, [call(hist, [values, place])])])]);
+                const counts = await call(hist, [values, place]);
+                const starts = await call(scan, [counts]);
+                const where = await call(dest, [values, place, starts]);
+                values = await call(move, [values, where]);
               }
-              const got = plain(call(decoder, [values]));
+              const got = plain(await call(decoder, [values]));
               const expected = ascending(readings);
               for (let i = 0; i < 256; i++) {
                 ctx.assertClose(got[i], expected[i], 0.5, `slot ${i} (seed ${seed})`);

@@ -4,13 +4,16 @@
 //
 // Module 1.5 — Measuring Speed Honestly.
 //
-// Four tasks: the compile-time trap in first-call timings → transfer cost
-// scaling with bytes, not math → float32 vs float64 and tolerant comparison
-// → a tiny workload where the plain-JS loop legitimately wins.
+// Four tasks: the compile-time trap in first-call timings → a per-call cost
+// that is mostly fixed toll, with the growing part tracking bytes rather than
+// arithmetic → float32 vs float64 and tolerant comparison → a tiny workload
+// where the plain-JS loop legitimately wins.
 //
 // Timing numbers are for the learner's eyes only — tests assert computed
 // values and setup (kernel outputs, logged labels/verdicts), never wall-clock
-// durations, so verification stays deterministic in cpu and gpu modes.
+// durations, so verification stays deterministic in every mode. The numbers the
+// prose quotes were measured through this page in auto mode (WebGPU) and in
+// webgl mode; re-measure before changing them.
 
 // Seeded array of n values, 0–10 with 2 decimal places.
 function makeValues(utils, n, seed) {
@@ -114,17 +117,22 @@ export default {
       title: 'The First Call Is a Lie',
       intro: `<p>The first time you invoke a kernel, gpu.js does far more than run it: it
         <strong>transpiles</strong> your JavaScript function to shader code, hands it to the GPU
-        driver to <strong>compile and link</strong>, allocates textures — and <em>then</em> runs it.
-        The second call skips straight to the run.</p>
-        <p>So timing the first call measures the compiler, not your kernel. It can be 100× slower
-        than the steady state, and it happens exactly once. Every honest benchmark
-        <strong>warms up first</strong> and throws that first measurement away.</p>`,
+        driver to <strong>compile and link</strong>, allocates buffers — and <em>then</em> runs it.
+        In <code>auto</code> mode there is more still: that first call is also where gpu.js asks the
+        browser for a WebGPU adapter and rebuilds your kernel for it, so the backend swap happens
+        inside the first <code>await</code> too. Every call after it skips straight to the run.</p>
+        <p>So timing the first call measures the compiler, not your kernel. How wide the gap looks
+        depends on the backend and on what the driver has already cached: on this page the first
+        call typically costs a few times a warm one on WebGPU and ten times or more on WebGL, and on
+        a big kernel with a cold shader cache it is wider still. What never changes is that it
+        happens exactly once — which is why every honest benchmark <strong>warms up first</strong>
+        and throws that first measurement away.</p>`,
       goal: `<strong>Goal:</strong> finish the kernel, then use <code>Date.now()</code> to time the
         <em>first</em> call and the <em>warmed-up</em> average separately — and log both.`,
       requirements: [
         'Finish the kernel: return <code>Math.sin(x / 100) * 100</code> where <code>x</code> is this thread\'s index',
         'Time the first call with <code>Date.now()</code> and log it: <code>first call: N ms</code>',
-        'Call the kernel 10 more times in one timed block and log the average: <code>warm call: N ms</code>',
+        'Await 10 more calls in one timed block and log the average: <code>warm call: N ms</code>',
       ],
       hints: [
         {
@@ -138,7 +146,7 @@ console.log('first call:', Date.now() - t0, 'ms');</code></pre>`,
           title: 'Hint 2 — averaging the warm calls',
           body: `<p>One stopwatch around a loop of 10 calls, then divide:</p>
 <pre><code>t0 = Date.now();
-for (let i = 0; i &lt; 10; i++) wave();
+for (let i = 0; i &lt; 10; i++) await wave();
 console.log('warm call:', (Date.now() - t0) / 10, 'ms');</code></pre>`,
         },
       ],
@@ -155,11 +163,11 @@ const wave = gpu.createKernel(function () {
 }, { output: [2048] });
 
 // TODO: time the FIRST call with Date.now():
-//   const t0 = Date.now();  ...call wave()...
+//   const t0 = Date.now();  ...await wave()...
 //   console.log('first call:', Date.now() - t0, 'ms');
-const result = wave();
+const result = await wave();
 
-// TODO: call wave() 10 more times inside one timed block, then log the
+// TODO: await wave() 10 more times inside one timed block, then log the
 // average as:  console.log('warm call:', totalMs / 10, 'ms');
 
 console.log('sample value:', result[100]);
@@ -173,12 +181,12 @@ const wave = gpu.createKernel(function () {
 
 // First call: transpile + compile + allocate + run.
 let t0 = Date.now();
-const result = wave();
+const result = await wave();
 console.log('first call:', Date.now() - t0, 'ms');
 
 // Steady state: the compiled program just runs.
 t0 = Date.now();
-for (let i = 0; i < 10; i++) wave();
+for (let i = 0; i < 10; i++) await wave();
 console.log('warm call:', (Date.now() - t0) / 10, 'ms');
 
 console.log('sample value:', result[100]);
@@ -188,7 +196,7 @@ console.log('sample value:', result[100]);
           name: 'kernel computes <code>sin(x / 100) · 100</code> for all 2048 threads',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out && out.length === 2048, `expected 2048 output values, got ${out && out.length}`);
             for (const x of [0, 1, 100, 777, 1023, 2047]) {
               const expected = Math.sin(x / 100) * 100;
@@ -215,7 +223,7 @@ console.log('sample value:', result[100]);
         {
           name: 'private test #1',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out.length === 2048, 'expected 2048 output values');
             for (let x = 0; x < 2048; x++) {
               const expected = Math.sin(x / 100) * 100;
@@ -236,16 +244,19 @@ console.log('sample value:', result[100]);
         like <code>value + 1</code>, the arithmetic is nearly free — <strong>the ride is the whole
         bill</strong>.</p>
         <p>Below, the same trivial kernel runs on 1,024 values and on 65,536 values — 64× the data,
-        identical math per thread. If compute were the cost, both would time about the same. Warm
-        up first (task 1!), then measure: the per-call cost tracks <strong>bytes moved</strong>,
-        not operations performed.</p>`,
+        one instruction per thread either way. Warm up first (task 1!), then measure, and read the
+        two numbers together: 64× the payload does <em>not</em> cost 64× the time — on this page the
+        big kernel usually lands under twice the small one — because most of a call is a
+        <strong>fixed toll</strong> paid before any of your data moves. The part that does grow
+        grows with <strong>bytes moved</strong>, not with arithmetic performed; the arithmetic here
+        was free all along.</p>`,
       goal: `<strong>Goal:</strong> finish the <code>+ 1</code> kernel and the
         <code>timeKernel</code> helper — warm up, then average 20 timed calls — and log the
         per-call cost for both payload sizes.`,
       requirements: [
         'Kernel returns <code>data[this.thread.x] + 1</code> — one instruction, on purpose',
-        'In <code>timeKernel</code>: call the kernel once <em>untimed</em> to warm it up',
-        'Then time 20 calls with <code>Date.now()</code> and return the average ms per call',
+        'In <code>timeKernel</code> (already <code>async</code> for you): <code>await</code> one <em>untimed</em> call to warm it up',
+        'Then time 20 awaited calls with <code>Date.now()</code> and return the average ms per call',
         'Log both costs (the <code>small:</code>/<code>big:</code> lines are already wired up)',
       ],
       hints: [
@@ -257,9 +268,9 @@ console.log('sample value:', result[100]);
         },
         {
           title: 'Hint 2 — the helper body',
-          body: `<pre><code>kernel(arg);
+          body: `<pre><code>await kernel(arg);
 const t0 = Date.now();
-for (let i = 0; i &lt; 20; i++) kernel(arg);
+for (let i = 0; i &lt; 20; i++) await kernel(arg);
 return (Date.now() - t0) / 20;</code></pre>`,
         },
       ],
@@ -280,14 +291,14 @@ function makePlusOne(n) {
 const smallKernel = makePlusOne(1024);   // small = 1,024 values
 const bigKernel = makePlusOne(65536);    // big = 65,536 values
 
-function timeKernel(kernel, arg) {
+async function timeKernel(kernel, arg) {
   // TODO: warm up with one untimed call (task 1!),
   // then time 20 calls and return the average ms per call
   return 0;
 }
 
-console.log('small:', timeKernel(smallKernel, small), 'ms/call');
-console.log('big:', timeKernel(bigKernel, big), 'ms/call');
+console.log('small:', await timeKernel(smallKernel, small), 'ms/call');
+console.log('big:', await timeKernel(bigKernel, big), 'ms/call');
 `,
       solutionCode: `// One-instruction kernel, two payload sizes. Cost tracks bytes, not math.
 const gpu = new GPU({ mode });
@@ -301,15 +312,15 @@ function makePlusOne(n) {
 const smallKernel = makePlusOne(1024);   // small = 1,024 values
 const bigKernel = makePlusOne(65536);    // big = 65,536 values
 
-function timeKernel(kernel, arg) {
-  kernel(arg); // warm up — never time the compile (task 1)
+async function timeKernel(kernel, arg) {
+  await kernel(arg); // warm up — never time the compile (task 1)
   const t0 = Date.now();
-  for (let i = 0; i < 20; i++) kernel(arg);
+  for (let i = 0; i < 20; i++) await kernel(arg);
   return (Date.now() - t0) / 20;
 }
 
-console.log('small:', timeKernel(smallKernel, small), 'ms/call');
-console.log('big:', timeKernel(bigKernel, big), 'ms/call');
+console.log('small:', await timeKernel(smallKernel, small), 'ms/call');
+console.log('big:', await timeKernel(bigKernel, big), 'ms/call');
 `,
       inputs: utils => ({
         small: makeValues(utils, 1024, 1101),
@@ -333,7 +344,7 @@ console.log('big:', timeKernel(bigKernel, big), 'ms/call');
             const big = ctx.kernels.find(k => k.kernel && k.kernel.output && k.kernel.output[0] === 65536);
             ctx.assert(small && big, 'expected kernels with outputs [1024] and [65536]');
             const smallIn = makeValues(ctx.utils, 1024, 2201);
-            const smallOut = small(smallIn);
+            const smallOut = await small(smallIn);
             for (let i = 0; i < 1024; i++) {
               const hint = diagnose(smallOut[i], smallIn[i] + 1, 1e-3, [
                 unchangedProbe(smallIn, i, '+ 1'),
@@ -341,7 +352,7 @@ console.log('big:', timeKernel(bigKernel, big), 'ms/call');
               ctx.assertClose(smallOut[i], smallIn[i] + 1, 1e-3, hint || `small element ${i}`);
             }
             const bigIn = makeValues(ctx.utils, 65536, 2202);
-            const bigOut = big(bigIn);
+            const bigOut = await big(bigIn);
             for (let i = 0; i < 65536; i += 271) {
               const hint = diagnose(bigOut[i], bigIn[i] + 1, 1e-3, [
                 unchangedProbe(bigIn, i, '+ 1'),
@@ -367,7 +378,7 @@ console.log('big:', timeKernel(bigKernel, big), 'ms/call');
             const big = ctx.kernels.find(k => k.kernel && k.kernel.output && k.kernel.output[0] === 65536);
             ctx.assert(small && big, 'expected kernels with outputs [1024] and [65536]');
             const smallIn = makeValues(ctx.utils, 1024, 3301);
-            const smallOut = small(smallIn);
+            const smallOut = await small(smallIn);
             ctx.assert(smallOut.length === 1024, 'small kernel should produce 1024 values');
             for (let i = 0; i < 1024; i++) {
               const hint = diagnose(smallOut[i], smallIn[i] + 1, 1e-3, [
@@ -376,7 +387,7 @@ console.log('big:', timeKernel(bigKernel, big), 'ms/call');
               ctx.assertClose(smallOut[i], smallIn[i] + 1, 1e-3, hint || `small element ${i}`);
             }
             const bigIn = makeValues(ctx.utils, 65536, 3302);
-            const bigOut = big(bigIn);
+            const bigOut = await big(bigIn);
             ctx.assert(bigOut.length === 65536, 'big kernel should produce 65536 values');
             for (let i = 0; i < 65536; i += 97) {
               const hint = diagnose(bigOut[i], bigIn[i] + 1, 1e-3, [
@@ -438,7 +449,7 @@ const partialSums = gpu.createKernel(function () {
   return sum;
 }, { output: [64] });
 
-const result = partialSums();
+const result = await partialSums();
 
 // The same sum for thread 0, computed in float64 JavaScript:
 let ref = 0;
@@ -461,7 +472,7 @@ const partialSums = gpu.createKernel(function () {
   return sum;
 }, { output: [64] });
 
-const result = partialSums();
+const result = await partialSums();
 
 // The same sum for thread 0, computed in float64 JavaScript:
 let ref = 0;
@@ -478,7 +489,7 @@ console.log('close enough:', Math.abs(result[0] - ref) < 1e-3);
           name: 'all 64 partial sums match the float64 reference within <code>1e-3</code>',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             ctx.assert(out && out.length === 64, `expected 64 output values, got ${out && out.length}`);
             for (let x = 0; x < 64; x++) {
               const hint = diagnose(out[x], partialSumRef(x), 1e-3, partialSumProbes(x));
@@ -501,7 +512,7 @@ console.log('close enough:', Math.abs(result[0] - ref) < 1e-3);
         {
           name: 'private test #1',
           run: async ctx => {
-            const out = ctx.kernel();
+            const out = await ctx.kernel();
             // Values must track the reference AND carry its shape: each partial
             // sum starts one term later, so the sequence strictly decreases.
             for (let x = 0; x < 64; x++) {
@@ -567,7 +578,7 @@ const doubleTiny = gpu.createKernel(function (data) {
   return data[this.thread.x];
 }, { output: [16] });
 
-const fromKernel = doubleTiny(tiny); // also serves as the warm-up call
+const fromKernel = await doubleTiny(tiny); // also serves as the warm-up call
 
 // The same job, plain JavaScript:
 const fromLoop = new Array(16);
@@ -588,7 +599,7 @@ const doubleTiny = gpu.createKernel(function (data) {
   return data[this.thread.x] * 2;
 }, { output: [16] });
 
-const fromKernel = doubleTiny(tiny); // also serves as the warm-up call
+const fromKernel = await doubleTiny(tiny); // also serves as the warm-up call
 
 // The same job, plain JavaScript:
 const fromLoop = new Array(16);
@@ -604,7 +615,7 @@ console.log('match:', allMatch);
 // A fair fight: both warmed up, both averaged over many rounds.
 const ROUNDS = 200;
 let t0 = Date.now();
-for (let r = 0; r < ROUNDS; r++) doubleTiny(tiny);
+for (let r = 0; r < ROUNDS; r++) await doubleTiny(tiny);
 const kernelMs = (Date.now() - t0) / ROUNDS;
 
 t0 = Date.now();
@@ -625,7 +636,7 @@ console.log('winner:', kernelMs < loopMs ? 'gpu kernel' : 'plain js');
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const arr = new Array(16);
             for (let i = 0; i < 16; i++) arr[i] = i * 1.25 - 3;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             ctx.assert(out && out.length === 16, `expected 16 output values, got ${out && out.length}`);
             const series = doubleIndexHint(out, arr);
             for (let i = 0; i < 16; i++) {
@@ -659,7 +670,7 @@ console.log('winner:', kernelMs < loopMs ? 'gpu kernel' : 'plain js');
           name: 'private test #1',
           run: async ctx => {
             const data = makeValues(ctx.utils, 16, 5505);
-            const out = ctx.kernel(data);
+            const out = await ctx.kernel(data);
             ctx.assert(out.length === 16, 'expected exactly 16 output values');
             const series = doubleIndexHint(out, data);
             for (let i = 0; i < 16; i++) {

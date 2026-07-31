@@ -357,14 +357,17 @@ const LONG_STEPS = 1024;
 
 // Classify the two energy kernels by what they do, not by the order they were
 // created in: one curve ends below its start, the other never dips below it.
-function findEnergyKernels(ctx) {
+// Async because it invokes each candidate kernel, and a kernel call is a
+// Promise — awaited inside the try so a kernel that rejects is skipped exactly
+// as one that threw synchronously used to be. Every caller awaits this.
+async function findEnergyKernels(ctx) {
   const rk4End = energyRatio(runRk4, DT_LONG, LONG_STEPS);
   const verletEnd = energyRatio(runVerlet, DT_LONG, LONG_STEPS);
   const found = { rk4: null, verlet: null, strays: [], rk4Count: 0 };
   for (const k of ctx.kernels) {
     let out;
     try {
-      out = k(DT_LONG);
+      out = await k(DT_LONG);
     } catch (e) {
       continue;
     }
@@ -511,7 +514,7 @@ const trajectory = gpu.createKernel(function (startX, startV, dt) {
   constants: { steps: STEPS },
 });
 
-const finalX = trajectory(startX, startV, DT);
+const finalX = await trajectory(startX, startV, DT);
 
 console.log('trajectory 0 ended at', finalX[0]);
 console.log('the exact answer is  ', startX[0] * Math.cos(T_END) + startV[0] * Math.sin(T_END));
@@ -536,7 +539,7 @@ const trajectory = gpu.createKernel(function (startX, startV, dt) {
   constants: { steps: STEPS },
 });
 
-const finalX = trajectory(startX, startV, DT);
+const finalX = await trajectory(startX, startV, DT);
 
 console.log('trajectory 0 ended at', finalX[0]);
 console.log('the exact answer is  ', startX[0] * Math.cos(T_END) + startV[0] * Math.sin(T_END));
@@ -548,7 +551,7 @@ console.log('the exact answer is  ', startX[0] * Math.cos(T_END) + startV[0] * M
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const starts = startStates(ctx.utils, 1024, 5107);
-            const out = ctx.kernel(starts.startX, starts.startV, 0.025);
+            const out = await ctx.kernel(starts.startX, starts.startV, 0.025);
             ctx.assert(out && out.length === 1024, `expected 1,024 values, got ${out && out.length}`);
             let moved = 0;
             for (let i = 0; i < 1024; i++) {
@@ -562,7 +565,7 @@ console.log('the exact answer is  ', startX[0] * Math.cos(T_END) + startV[0] * M
           name: 'each trajectory matches an explicit-Euler reference',
           run: async ctx => {
             const starts = startStates(ctx.utils, 1024, 5107);
-            const out = ctx.kernel(starts.startX, starts.startV, 0.025);
+            const out = await ctx.kernel(starts.startX, starts.startV, 0.025);
             // These four are chosen where explicit Euler, semi-implicit Euler
             // and "never moved" are all far apart, so a probe can speak.
             for (const i of [0, 1, 200, 700, 1023]) {
@@ -590,7 +593,7 @@ console.log('the exact answer is  ', startX[0] * Math.cos(T_END) + startV[0] * M
           name: 'Euler spirals outward — the ensemble ends ≈0.0405 from the truth',
           run: async ctx => {
             const starts = startStates(ctx.utils, 1024, 5107);
-            const out = ctx.kernel(starts.startX, starts.startV, 0.025);
+            const out = await ctx.kernel(starts.startX, starts.startV, 0.025);
             let total = 0;
             for (let i = 0; i < 1024; i++) {
               total += Math.abs(out[i] - exactX(starts.startX[i], starts.startV[i], 5));
@@ -610,7 +613,7 @@ console.log('the exact answer is  ', startX[0] * Math.cos(T_END) + startV[0] * M
             // A different step size: 200 steps of 0.01 reaches t = 2, so a
             // hardcoded dt or a hardcoded end time fails here.
             const starts = startStates(ctx.utils, 1024, 5107);
-            const out = ctx.kernel(starts.startX, starts.startV, 0.01);
+            const out = await ctx.kernel(starts.startX, starts.startV, 0.01);
             for (let i = 0; i < 1024; i++) {
               const expected = runEuler(starts.startX[i], starts.startV[i], 0.01, 200)[0];
               const hint = diagnose(out[i], expected, looseEps(1e-3, expected), [
@@ -717,7 +720,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 400,          // the largest level; a bigger one would be truncated
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 console.log('levels:', errors.length, '× trajectories:', errors[0].length);
 
 // TODO: average each row into means[], log each one, then log the ratios
@@ -748,7 +751,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 400,          // the largest level; a bigger one would be truncated
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 console.log('levels:', errors.length, '× trajectories:', errors[0].length);
 ${STUDY_DRIVER}`,
       inputs: utils => ({
@@ -761,7 +764,7 @@ ${STUDY_DRIVER}`,
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const grid = ctx.kernel(starts.startX, starts.startV, EULER_LEVELS.slice());
+            const grid = await ctx.kernel(starts.startX, starts.startV, EULER_LEVELS.slice());
             ctx.assert(grid && grid.length === 4, `expected 4 rows, one per level, got ${grid && grid.length}`);
             ctx.assert(grid[0] && grid[0].length === TRAJECTORIES,
               `each row should hold ${TRAJECTORIES} trajectory errors`);
@@ -781,7 +784,7 @@ ${STUDY_DRIVER}`,
           name: 'row means match an explicit-Euler reference',
           run: async ctx => {
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const grid = ctx.kernel(starts.startX, starts.startV, EULER_LEVELS.slice());
+            const grid = await ctx.kernel(starts.startX, starts.startV, EULER_LEVELS.slice());
             const got = gridMeans(grid);
             const expected = referenceMeans(runEuler, starts, EULER_LEVELS);
             // measured curves for the two integrators a learner may have written
@@ -804,7 +807,7 @@ ${STUDY_DRIVER}`,
           name: 'first order: each halving divides the error by ≈2',
           run: async ctx => {
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const grid = ctx.kernel(starts.startX, starts.startV, EULER_LEVELS.slice());
+            const grid = await ctx.kernel(starts.startX, starts.startV, EULER_LEVELS.slice());
             const ratios = ratiosOf(gridMeans(grid));
             ratios.forEach((ratio, i) => {
               ctx.assert(
@@ -844,7 +847,7 @@ ${STUDY_DRIVER}`,
             // or a level count baked into the kernel, dies here.
             const alt = [40, 80, 160, 320];
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, alt));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, alt));
             const expected = referenceMeans(runEuler, starts, alt);
             const hint = flatCurveHint(got) || diagnoseCurve(got, expected, 0.05, [
               [referenceMeans(runEuler, starts, EULER_LEVELS),
@@ -945,7 +948,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 200,
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 ${STUDY_DRIVER}`,
       solutionCode: `// The same instrument, a better step. 256 oscillators × 4 step sizes.
 const gpu = new GPU({ mode });
@@ -974,7 +977,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 200,
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 ${STUDY_DRIVER}`,
       inputs: utils => ({
         ...startStates(utils, TRAJECTORIES, 8231),
@@ -986,7 +989,7 @@ ${STUDY_DRIVER}`,
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const grid = ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice());
+            const grid = await ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice());
             ctx.assert(grid && grid.length === 4, `expected 4 rows, got ${grid && grid.length}`);
             const ratios = ratiosOf(gridMeans(grid));
             ratios.forEach((ratio, i) => {
@@ -1004,7 +1007,7 @@ ${STUDY_DRIVER}`,
           name: 'row means match a midpoint reference',
           run: async ctx => {
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice()));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice()));
             const expected = referenceMeans(runMidpoint, starts, SECOND_LEVELS);
             // measured at 25 steps: midpoint 2.07e-2, start-slope-for-v 1.90e-1,
             // start-slope-for-x 1.77e-1, full trial step 2.55e-1, Euler 4.05e-1
@@ -1033,7 +1036,7 @@ ${STUDY_DRIVER}`,
           name: 'a real gain: 25 midpoint steps beat 400 Euler steps',
           run: async ctx => {
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice()));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice()));
             // measured: midpoint at 25 steps 2.07e-2 vs Euler at 400 steps 2.01e-2 —
             // 50 force evaluations against 400, for the same accuracy
             const euler400 = referenceMeans(runEuler, starts, [400])[0];
@@ -1052,7 +1055,7 @@ ${STUDY_DRIVER}`,
           run: async ctx => {
             const alt = [20, 40, 80, 160];
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, alt));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, alt));
             const expected = referenceMeans(runMidpoint, starts, alt);
             const hint = flatCurveHint(got) || diagnoseCurve(got, expected, 0.05, [
               [referenceMeans(runMidpoint, starts, SECOND_LEVELS),
@@ -1157,7 +1160,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 20,
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 ${STUDY_DRIVER}`,
       solutionCode: `// Only THREE levels here, and they are brutally coarse: 5, 10, 20 steps
 // to cross t = 0…5. Fourth order needs big steps to stay visible above float32.
@@ -1192,7 +1195,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 20,
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 ${STUDY_DRIVER}`,
       inputs: utils => ({
         ...startStates(utils, TRAJECTORIES, 8231),
@@ -1204,7 +1207,7 @@ ${STUDY_DRIVER}`,
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const grid = ctx.kernel(starts.startX, starts.startV, RK4_LEVELS.slice());
+            const grid = await ctx.kernel(starts.startX, starts.startV, RK4_LEVELS.slice());
             ctx.assert(grid && grid.length === 3, `expected 3 rows, got ${grid && grid.length}`);
             const ratios = ratiosOf(gridMeans(grid));
             ratios.forEach((ratio, i) => {
@@ -1221,7 +1224,7 @@ ${STUDY_DRIVER}`,
           name: 'row means match an RK4 reference',
           run: async ctx => {
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, RK4_LEVELS.slice()));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, RK4_LEVELS.slice()));
             const expected = referenceMeans(runRk4, starts, RK4_LEVELS);
             // measured at 5 steps: rk4 2.55e-2, equal weights 1.10e-1,
             // full steps 5.83e-1, midpoint 6.36e-1, verlet 1.37e-1
@@ -1248,7 +1251,7 @@ ${STUDY_DRIVER}`,
           name: 'five RK4 steps beat four hundred Euler steps',
           run: async ctx => {
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, RK4_LEVELS.slice()));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, RK4_LEVELS.slice()));
             // measured: RK4 at 5 steps 2.55e-2 (20 force evaluations) against
             // Euler at 400 steps 2.01e-2 (400 evaluations) — the same accuracy
             // for a twentieth of the work, and RK4 pulls away from there
@@ -1268,7 +1271,7 @@ ${STUDY_DRIVER}`,
           run: async ctx => {
             const alt = [4, 8, 16];
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, alt));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, alt));
             const expected = referenceMeans(runRk4, starts, alt);
             const hint = flatCurveHint(got) || diagnoseCurve(got, expected, 0.06, [
               [referenceMeans(runRk4, starts, RK4_LEVELS),
@@ -1367,7 +1370,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 200,
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 ${STUDY_DRIVER}`,
       solutionCode: `// Same instrument again. Same order as midpoint — and something else.
 const gpu = new GPU({ mode });
@@ -1394,7 +1397,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 200,
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 ${STUDY_DRIVER}`,
       inputs: utils => ({
         ...startStates(utils, TRAJECTORIES, 8231),
@@ -1406,7 +1409,7 @@ ${STUDY_DRIVER}`,
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const grid = ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice());
+            const grid = await ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice());
             ctx.assert(grid && grid.length === 4, `expected 4 rows, got ${grid && grid.length}`);
             ratiosOf(gridMeans(grid)).forEach((ratio, i) => {
               ctx.assert(
@@ -1421,7 +1424,7 @@ ${STUDY_DRIVER}`,
           name: 'row means match a velocity-Verlet reference',
           run: async ctx => {
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice()));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice()));
             const expected = referenceMeans(runVerlet, starts, SECOND_LEVELS);
             // measured at 25 steps: verlet 5.21e-3, midpoint 2.07e-2,
             // no ½·a·dt² term 1.77e-1, old acceleration only 1.90e-1,
@@ -1451,7 +1454,7 @@ ${STUDY_DRIVER}`,
           name: 'and it is about four times sharper than midpoint at the same step size',
           run: async ctx => {
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice()));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, SECOND_LEVELS.slice()));
             const midpoint = referenceMeans(runMidpoint, starts, SECOND_LEVELS);
             // measured ratio midpoint/verlet ≈ 3.97 at every level
             for (let level = 0; level < 4; level++) {
@@ -1471,7 +1474,7 @@ ${STUDY_DRIVER}`,
           run: async ctx => {
             const alt = [20, 40, 80, 160];
             const starts = startStates(ctx.utils, TRAJECTORIES, 8231);
-            const got = gridMeans(ctx.kernel(starts.startX, starts.startV, alt));
+            const got = gridMeans(await ctx.kernel(starts.startX, starts.startV, alt));
             const expected = referenceMeans(runVerlet, starts, alt);
             const hint = flatCurveHint(got) || diagnoseCurve(got, expected, 0.05, [
               [referenceMeans(runVerlet, starts, SECOND_LEVELS),
@@ -1581,8 +1584,8 @@ const verletEnergy = gpu.createKernel(function (dt) {
   return 1;
 }, { output: [1024], loopMaxIterations: 1024 });
 
-const rk4Curve = rk4Energy(DT);
-const verletCurve = verletEnergy(DT);
+const rk4Curve = await rk4Energy(DT);
+const verletCurve = await verletEnergy(DT);
 
 // TODO: log both final energies, and the smallest value the Verlet curve reaches.
 `,
@@ -1624,8 +1627,8 @@ const verletEnergy = gpu.createKernel(function (dt) {
   return x * x + v * v;
 }, { output: [1024], loopMaxIterations: 1024 });
 
-const rk4Curve = rk4Energy(DT);
-const verletCurve = verletEnergy(DT);
+const rk4Curve = await rk4Energy(DT);
+const verletCurve = await verletEnergy(DT);
 
 let verletLow = Infinity;
 for (let i = 0; i < verletCurve.length; i++) {
@@ -1642,10 +1645,10 @@ console.log('Verlet never fell below:', verletLow.toFixed(4));
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 2,
               `expected 2 kernels (rk4Energy, verletEnergy), found ${ctx.kernels.length}`);
-            const found = findEnergyKernels(ctx);
+            const found = await findEnergyKernels(ctx);
             ctx.assert(found.rk4, 'no kernel produced the RK4 energy curve');
             ctx.assert(found.verlet, missingVerletHint(found));
-            const curve = found.verlet(DT_LONG);
+            const curve = await found.verlet(DT_LONG);
             for (let i = 0; i < LONG_STEPS; i += 97) {
               ctx.assert(Number.isFinite(curve[i]), `Verlet sample ${i} came back ${curve[i]}`);
             }
@@ -1654,9 +1657,9 @@ console.log('Verlet never fell below:', verletLow.toFixed(4));
         {
           name: 'RK4 slides downhill: the energy only ever falls',
           run: async ctx => {
-            const { rk4 } = findEnergyKernels(ctx);
+            const { rk4 } = await findEnergyKernels(ctx);
             ctx.assert(rk4, 'no kernel produced the RK4 energy curve');
-            const curve = rk4(DT_LONG);
+            const curve = await rk4(DT_LONG);
             const samples = [0, 255, 511, 767, 1023];
             for (const i of samples) {
               const expected = energyRatio(runRk4, DT_LONG, i + 1);
@@ -1677,9 +1680,9 @@ console.log('Verlet never fell below:', verletLow.toFixed(4));
         {
           name: 'Verlet never dips below the energy it started with',
           run: async ctx => {
-            const found = findEnergyKernels(ctx);
+            const found = await findEnergyKernels(ctx);
             ctx.assert(found.verlet, missingVerletHint(found));
-            const curve = found.verlet(DT_LONG);
+            const curve = await found.verlet(DT_LONG);
             for (const i of [0, 255, 511, 767, 1023]) {
               const expected = energyRatio(runVerlet, DT_LONG, i + 1);
               ctx.assertClose(curve[i], expected, 0.01 * expected, `Verlet energy after ${i + 1} steps`);
@@ -1722,11 +1725,11 @@ console.log('Verlet never fell below:', verletLow.toFixed(4));
             // A different step size: at dt = 0.4 RK4 leaks 5.5% instead of 19%,
             // and Verlet's ripple narrows to 4.2% — both still on their own side
             // of 1, and a hardcoded 0.5 fails here.
-            const found = findEnergyKernels(ctx);
+            const found = await findEnergyKernels(ctx);
             ctx.assert(found.rk4, 'no kernel produced the RK4 energy curve');
             ctx.assert(found.verlet, missingVerletHint(found));
-            const rk4Curve = found.rk4(0.4);
-            const verletCurve = found.verlet(0.4);
+            const rk4Curve = await found.rk4(0.4);
+            const verletCurve = await found.verlet(0.4);
             for (const i of [63, 511, 1023]) {
               const rkRef = energyRatio(runRk4, 0.4, i + 1);
               const vlRef = energyRatio(runVerlet, 0.4, i + 1);

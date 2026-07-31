@@ -150,11 +150,13 @@ function partnerRef(i, stride) {
 // driven at 256. Float32Array from the first call: gpu.js locks an argument's
 // type on the kernel's first invocation, and every pass returns float32 — the
 // same wrinkle the reduction ladder has.
-function runNetwork(pass, values, size) {
+// Each pass is awaited before the next launches — the network is a strict
+// sequence, pass k + 1 reading pass k's output, so nothing here is gathered.
+async function runNetwork(pass, values, size) {
   let v = Float32Array.from(values);
   for (let stage = 2; stage <= size; stage *= 2) {
     for (let stride = stage / 2; stride >= 1; stride /= 2) {
-      v = pass(v, stage, stride);
+      v = await pass(v, stage, stride);
     }
   }
   return Array.from(v);
@@ -356,7 +358,7 @@ const exchange = gpu.createKernel(function (data) {
   return data[i];
 }, { output: [16] });
 
-const result = exchange(data);
+const result = await exchange(data);
 console.log(result);
 `,
       solutionCode: `// Eight pairs, sixteen threads. Each thread returns ITS OWN value.
@@ -375,7 +377,7 @@ const exchange = gpu.createKernel(function (data) {
   return Math.max(me, other);
 }, { output: [16] });
 
-const result = exchange(data);
+const result = await exchange(data);
 console.log(result);
 `,
       inputs: utils => ({ data: makeValues(utils, 16, 1601) }),
@@ -384,7 +386,7 @@ console.log(result);
           name: 'kernel returns 16 values — one per thread',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(makeValues(ctx.utils, 16, 1601));
+            const out = await ctx.kernel(makeValues(ctx.utils, 16, 1601));
             ctx.assert(out && out.length === 16, `expected 16 output values, got ${out && out.length}`);
           },
         },
@@ -392,7 +394,7 @@ console.log(result);
           name: 'each pair ends up sorted: <code>min</code> at the even index, <code>max</code> at the odd',
           run: async ctx => {
             const arr = [8, 3, 1, 9, 6, 2, 7, 4, 15, 11, 13, 10, 5, 12, 0, 14];
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             const expected = i =>
               i % 2 === 0 ? Math.min(arr[i], arr[i + 1]) : Math.max(arr[i - 1], arr[i]);
             const hint = diagnoseAll(16, i => out[i], expected, 1e-3, pairProbes(arr));
@@ -405,7 +407,7 @@ console.log(result);
           name: 'nothing is lost — the 16 values are the same 16, rearranged',
           run: async ctx => {
             const arr = makeValues(ctx.utils, 16, 4242);
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             const before = sortedCopy(arr);
             const after = sortedCopy(out);
             for (let i = 0; i < 16; i++) {
@@ -423,7 +425,7 @@ console.log(result);
           name: 'private test #1',
           run: async ctx => {
             const arr = makeValues(ctx.utils, 16, 77771);
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             ctx.assert(out && out.length === 16, 'expected 16 output values');
             const expected = i =>
               i % 2 === 0 ? Math.min(arr[i], arr[i + 1]) : Math.max(arr[i - 1], arr[i]);
@@ -441,7 +443,7 @@ console.log(result);
             // near it looks like a comparison mistake.
             const arr = new Array(16);
             for (let i = 0; i < 16; i++) arr[i] = i * 1.5;
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             for (let i = 0; i < 16; i++) {
               ctx.assertClose(
                 out[i], arr[i], 1e-3,
@@ -517,8 +519,8 @@ const partner = gpu.createKernel(function (stride) {
   return i;
 }, { output: [16] });
 
-console.log('stride 1:', partner(1));
-console.log('stride 4:', partner(4));
+console.log('stride 1:', await partner(1));
+console.log('stride 4:', await partner(4));
 `,
       solutionCode: `// Pure index arithmetic: no data, no comparison. Just "who do I pair with?"
 const gpu = new GPU({ mode });
@@ -530,15 +532,15 @@ const partner = gpu.createKernel(function (stride) {
   return i - stride;
 }, { output: [16] });
 
-console.log('stride 1:', partner(1));
-console.log('stride 4:', partner(4));
+console.log('stride 1:', await partner(1));
+console.log('stride 4:', await partner(4));
 `,
       publicTests: [
         {
           name: 'stride 1 pairs neighbours: <code>1, 0, 3, 2, 5, 4, …</code>',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(1);
+            const out = await ctx.kernel(1);
             ctx.assert(out && out.length === 16, `expected 16 output values, got ${out && out.length}`);
             const hint = diagnoseAll(16, i => out[i], i => partnerRef(i, 1), 1e-3, partnerProbes(1));
             for (let i = 0; i < 16; i++) {
@@ -550,7 +552,7 @@ console.log('stride 4:', partner(4));
           name: 'strides 2, 4 and 8 flip the right bit',
           run: async ctx => {
             for (const stride of [2, 4, 8]) {
-              const out = ctx.kernel(stride);
+              const out = await ctx.kernel(stride);
               const hint = diagnoseAll(
                 16, i => out[i], i => partnerRef(i, stride), 1e-3, partnerProbes(stride)
               );
@@ -564,7 +566,7 @@ console.log('stride 4:', partner(4));
           name: 'the pairing is mutual and stays inside the array',
           run: async ctx => {
             for (const stride of [1, 2, 4, 8]) {
-              const out = ctx.kernel(stride);
+              const out = await ctx.kernel(stride);
               for (let i = 0; i < 16; i++) {
                 const p = Math.round(out[i]);
                 ctx.assert(
@@ -596,7 +598,7 @@ console.log('stride 4:', partner(4));
             // arithmetic is still well defined, and a thread that has quietly
             // hard-coded a smaller stride is caught here.
             for (const stride of [1, 2, 4, 8, 16]) {
-              const out = ctx.kernel(stride);
+              const out = await ctx.kernel(stride);
               const hint = diagnoseAll(
                 16, i => out[i], i => partnerRef(i, stride), 1e-3, partnerProbes(stride)
               );
@@ -687,7 +689,7 @@ const pass = gpu.createKernel(function (data, stage, stride) {
 }, { output: [8] });
 
 // stage 2, stride 1: pairs (0,1) and (4,5) sort up, (2,3) and (6,7) sort down.
-console.log(pass(data, 2, 1));
+console.log(await pass(data, 2, 1));
 `,
       solutionCode: `// One pass of the network: (data, stage, stride) in, one value per thread out.
 const gpu = new GPU({ mode });
@@ -707,7 +709,7 @@ const pass = gpu.createKernel(function (data, stage, stride) {
 }, { output: [8] });
 
 // stage 2, stride 1: pairs (0,1) and (4,5) sort up, (2,3) and (6,7) sort down.
-console.log(pass(data, 2, 1));
+console.log(await pass(data, 2, 1));
 `,
       inputs: utils => ({ data: makeValues(utils, 8, 3103) }),
       publicTests: [
@@ -716,7 +718,7 @@ console.log(pass(data, 2, 1));
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const arr = [5, 2, 9, 1, 7, 3, 8, 4];
-            const out = ctx.kernel(arr, 2, 1);
+            const out = await ctx.kernel(arr, 2, 1);
             ctx.assert(out && out.length === 8, `expected 8 output values, got ${out && out.length}`);
             const expected = passRef(arr, 8, 2, 1);
             const hint = diagnoseAll(
@@ -732,7 +734,7 @@ console.log(pass(data, 2, 1));
           run: async ctx => {
             const arr = [12, 5, 3, 14, 9, 1, 7, 11];
             for (const [stage, stride] of [[4, 2], [4, 1], [8, 4], [8, 2], [8, 1]]) {
-              const out = ctx.kernel(arr, stage, stride);
+              const out = await ctx.kernel(arr, stage, stride);
               const expected = passRef(arr, 8, stage, stride);
               const hint = diagnoseAll(
                 8, i => out[i], i => expected[i], 1e-3, passProbes(arr, 8, stage, stride)
@@ -747,7 +749,7 @@ console.log(pass(data, 2, 1));
           name: 'a pass rearranges values — it never invents or drops one',
           run: async ctx => {
             const arr = makeValues(ctx.utils, 8, 5051);
-            const out = ctx.kernel(arr, 4, 2);
+            const out = await ctx.kernel(arr, 4, 2);
             const before = sortedCopy(arr);
             const after = sortedCopy(out);
             for (let i = 0; i < 8; i++) {
@@ -766,7 +768,7 @@ console.log(pass(data, 2, 1));
           run: async ctx => {
             const arr = makeValues(ctx.utils, 8, 8642);
             for (const [stage, stride] of [[2, 1], [4, 2], [4, 1], [8, 4], [8, 2], [8, 1]]) {
-              const out = ctx.kernel(arr, stage, stride);
+              const out = await ctx.kernel(arr, stage, stride);
               const expected = passRef(arr, 8, stage, stride);
               const hint = diagnoseAll(
                 8, i => out[i], i => expected[i], 1e-3, passProbes(arr, 8, stage, stride)
@@ -792,7 +794,7 @@ console.log(pass(data, 2, 1));
             let v = arr.slice();
             for (let stage = 2; stage <= 8; stage *= 2) {
               for (let stride = stage / 2; stride >= 1; stride /= 2) {
-                v = Array.from(ctx.kernel(v, stage, stride));
+                v = Array.from(await ctx.kernel(v, stage, stride));
               }
             }
             const got = v;
@@ -896,7 +898,7 @@ console.log('schedule:', JSON.stringify(schedule));
 // call, and every pass hands back a Float32Array.
 let values = Float32Array.from(data);
 for (let i = 0; i < schedule.length; i++) {
-  values = pass(values, schedule[i][0], schedule[i][1]);
+  values = await pass(values, schedule[i][0], schedule[i][1]);
 }
 
 console.log('smallest:', values[0]);
@@ -934,7 +936,7 @@ console.log('schedule:', JSON.stringify(schedule));
 // call, and every pass hands back a Float32Array.
 let values = Float32Array.from(data);
 for (let i = 0; i < schedule.length; i++) {
-  values = pass(values, schedule[i][0], schedule[i][1]);
+  values = await pass(values, schedule[i][0], schedule[i][1]);
 }
 
 console.log('smallest:', values[0]);
@@ -951,7 +953,7 @@ console.log('largest:', values[n - 1]);
               `the kernel's output should be [256], got ${JSON.stringify(outputWidth(ctx.kernel))}`
             );
             const arr = makeValues(ctx.utils, 256, 191);
-            const got = runNetwork(ctx.kernel, arr, 256);
+            const got = await runNetwork(ctx.kernel, arr, 256);
             const expected = sortedCopy(Float32Array.from(arr));
             for (let i = 0; i < 256; i++) {
               ctx.assertClose(got[i], expected[i], 1e-3, `sorted position ${i}`);
@@ -1034,7 +1036,7 @@ console.log('largest:', values[n - 1]);
             // comparison written as a subtraction would.
             const arr = new Array(256);
             for (let i = 0; i < 256; i++) arr[i] = ((i * 37) % 17) - 8;
-            const got = runNetwork(ctx.kernel, arr, 256);
+            const got = await runNetwork(ctx.kernel, arr, 256);
             const expected = sortedCopy(Float32Array.from(arr));
             for (let i = 0; i < 256; i++) {
               ctx.assertClose(got[i], expected[i], 1e-3, `sorted position ${i}`);
@@ -1050,7 +1052,7 @@ console.log('largest:', values[n - 1]);
             for (let i = 0; i < 256; i++) up[i] = i * 0.25;
             const down = up.slice().reverse();
             for (const arr of [up, down]) {
-              const got = runNetwork(ctx.kernel, arr, 256);
+              const got = await runNetwork(ctx.kernel, arr, 256);
               for (let i = 0; i < 256; i++) {
                 ctx.assertClose(
                   got[i], up[i], 1e-3,
@@ -1144,7 +1146,7 @@ const padded = values.slice();
 let result = Float32Array.from(padded);
 for (let stage = 2; stage <= size; stage *= 2) {
   for (let stride = stage / 2; stride >= 1; stride /= 2) {
-    result = pass(result, stage, stride);
+    result = await pass(result, stage, stride);
   }
 }
 
@@ -1186,7 +1188,7 @@ while (padded.length < size) padded.push(PAD);
 let result = Float32Array.from(padded);
 for (let stage = 2; stage <= size; stage *= 2) {
   for (let stride = stage / 2; stride >= 1; stride /= 2) {
-    result = pass(result, stage, stride);
+    result = await pass(result, stage, stride);
   }
 }
 
@@ -1228,7 +1230,7 @@ console.log('matches Array.prototype.sort:',
             const arr = makeValues(ctx.utils, 100, 606);
             const padded = arr.slice();
             while (padded.length < size) padded.push(PAD);
-            const got = runNetwork(ctx.kernel, padded, size);
+            const got = await runNetwork(ctx.kernel, padded, size);
             const expected = sortedCopy(Float32Array.from(arr));
             for (let i = 0; i < 100; i++) {
               ctx.assertClose(got[i], expected[i], 1e-3, `sorted position ${i}`);
@@ -1276,7 +1278,7 @@ console.log('matches Array.prototype.sort:',
             const arr = makeValues(ctx.utils, 70, 4004);
             const padded = arr.slice();
             while (padded.length < size) padded.push(PAD);
-            const got = runNetwork(ctx.kernel, padded, size);
+            const got = await runNetwork(ctx.kernel, padded, size);
             const expected = sortedCopy(Float32Array.from(arr));
             for (let i = 0; i < 70; i++) {
               ctx.assertClose(got[i], expected[i], 1e-3, `sorted position ${i}`);
@@ -1292,7 +1294,7 @@ console.log('matches Array.prototype.sort:',
             for (let i = 0; i < 100; i++) arr[i] = ((i * 31) % 5) * 2.5;
             const padded = arr.slice();
             while (padded.length < size) padded.push(PAD);
-            const got = runNetwork(ctx.kernel, padded, size);
+            const got = await runNetwork(ctx.kernel, padded, size);
             const expected = sortedCopy(Float32Array.from(arr));
             for (let i = 0; i < 100; i++) {
               ctx.assertClose(

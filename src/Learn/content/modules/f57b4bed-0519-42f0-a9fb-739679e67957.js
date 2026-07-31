@@ -542,7 +542,7 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-const map = ssd(scene, patch);
+const map = await ssd(scene, patch);
 const hit = bestMatch(map);
 console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
 `,
@@ -583,7 +583,7 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-const map = ssd(scene, patch);
+const map = await ssd(scene, patch);
 const hit = bestMatch(map);
 console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
 `,
@@ -593,7 +593,7 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
           name: 'the score map is <code>89×89</code> — one cell per candidate position',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const out = ctx.kernel(makeScene(ctx.utils), makePatch());
+            const out = await ctx.kernel(makeScene(ctx.utils), makePatch());
             ctx.assert(
               out && out.length === POSITIONS,
               mapShapeHint(out && out.length) ||
@@ -611,7 +611,7 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
           run: async ctx => {
             const scene = makeScene(ctx.utils);
             const patch = makePatch();
-            const out = ctx.kernel(scene, patch);
+            const out = await ctx.kernel(scene, patch);
             const ref = ssdMap(scene, patch);
             const unsquared = diagnoseCells(
               SSD_CELLS, (x, y) => out[y][x], (x, y) => ref[y][x], 1.5e-3, ssdProbes(scene, patch)
@@ -630,7 +630,7 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
           run: async ctx => {
             const scene = makeScene(ctx.utils);
             const patch = makePatch();
-            const out = ctx.kernel(scene, patch);
+            const out = await ctx.kernel(scene, patch);
             ctx.assertClose(
               out[PLANT.y][PLANT.x],
               0,
@@ -659,7 +659,7 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
             const plant = { x: 31, y: 66 };
             const scene = makeScene(ctx.utils, 8814, plant, { x: 70, y: 9 });
             const patch = makePatch();
-            const out = ctx.kernel(scene, patch);
+            const out = await ctx.kernel(scene, patch);
             ctx.assert(out && out.length === POSITIONS, mapShapeHint(out && out.length) ||
               `expected ${POSITIONS} rows of scores`);
             const ref = ssdMap(scene, patch);
@@ -775,8 +775,8 @@ function bestMatch(map) {
 const TRUE_X = 58;
 const TRUE_Y = 21;
 
-const plainMap = ssd(scene, patch);
-const brightMap = ssd(brightScene, patch);
+const plainMap = await ssd(scene, patch);
+const brightMap = await ssd(brightScene, patch);
 
 // TODO: log the best position on each map.
 // TODO: log brightMap's score at the true position, and the score its winner
@@ -821,8 +821,8 @@ function bestMatch(map) {
 const TRUE_X = 58;
 const TRUE_Y = 21;
 
-const plainMap = ssd(scene, patch);
-const brightMap = ssd(brightScene, patch);
+const plainMap = await ssd(scene, patch);
+const brightMap = await ssd(brightScene, patch);
 
 const plainBest = bestMatch(plainMap);
 const brightBest = bestMatch(brightMap);
@@ -843,7 +843,7 @@ console.log('bright score the winner got:      ', brightBest.score);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const scene = makeScene(ctx.utils);
             const patch = makePatch();
-            const out = ctx.kernel(scene, patch);
+            const out = await ctx.kernel(scene, patch);
             ctx.assert(
               out && out.length === POSITIONS,
               mapShapeHint(out && out.length) || `expected a ${POSITIONS}×${POSITIONS} score map`
@@ -865,7 +865,7 @@ console.log('bright score the winner got:      ', brightBest.score);
           run: async ctx => {
             const bright = brighten(makeScene(ctx.utils));
             const patch = makePatch();
-            const out = ctx.kernel(bright, patch);
+            const out = await ctx.kernel(bright, patch);
             const best = bestMin(out);
             ctx.assert(
               best.x === DECOY.x && best.y === DECOY.y,
@@ -910,8 +910,8 @@ console.log('bright score the winner got:      ', brightBest.score);
             const scene = makeScene(ctx.utils, 51217, plant, decoy);
             const bright = brighten(scene);
             const patch = makePatch();
-            const plainOut = ctx.kernel(scene, patch);
-            const brightOut = ctx.kernel(bright, patch);
+            const plainOut = await ctx.kernel(scene, patch);
+            const brightOut = await ctx.kernel(bright, patch);
             const plainRef = ssdMap(scene, patch);
             const brightRef = ssdMap(bright, patch);
             const unsquared = diagnoseCells(
@@ -1062,7 +1062,7 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-const map = ncc(brightScene, patch);
+const map = await ncc(brightScene, patch);
 const hit = bestMatch(map);
 console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
 `,
@@ -1114,7 +1114,7 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-const map = ncc(brightScene, patch);
+const map = await ncc(brightScene, patch);
 const hit = bestMatch(map);
 console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
 `,
@@ -1128,7 +1128,7 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const bright = brighten(makeScene(ctx.utils));
-            const out = ctx.kernel(bright, makePatch());
+            const out = await ctx.kernel(bright, makePatch());
             ctx.assert(
               out && out.length === POSITIONS && out[0] && out[0].length === POSITIONS,
               mapShapeHint(out && out.length) || `expected a ${POSITIONS}×${POSITIONS} score map`
@@ -1144,8 +1144,8 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
             const bright = brighten(scene);
             const patch = makePatch();
             const stats = patchStats(patch);
-            const plainOut = ctx.kernel(scene, patch);
-            const brightOut = ctx.kernel(bright, patch);
+            const plainOut = await ctx.kernel(scene, patch);
+            const brightOut = await ctx.kernel(bright, patch);
             const cases = [[0, 1], [17, 40], [70, 5], [3, 55], [61, 24], [88, 0], [24, 61],
               [PLANT.x, PLANT.y], [DECOY.x, DECOY.y]];
             for (const [x, y] of cases) {
@@ -1166,7 +1166,7 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
           run: async ctx => {
             const bright = brighten(makeScene(ctx.utils));
             const patch = makePatch();
-            const out = ctx.kernel(bright, patch);
+            const out = await ctx.kernel(bright, patch);
             ctx.assertClose(out[PLANT.y][PLANT.x], 1, 3e-3,
               'the window at the planted position IS the template, so its normalized correlation ' +
                 'with the template has to be exactly 1');
@@ -1196,7 +1196,7 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
             const scene = makeScene(ctx.utils, 20604, plant, decoy);
             const patch = makePatch();
             const stats = patchStats(patch);
-            const out = ctx.kernel(brighten(scene), patch);
+            const out = await ctx.kernel(brighten(scene), patch);
             const problem = rangeProblem(out);
             ctx.assert(!problem, problem || '');
             const ref = nccMap(scene, patch);
@@ -1340,7 +1340,7 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-const hit = bestMatch(ncc(brightScene, patchCentered, patchNorm));
+const hit = bestMatch(await ncc(brightScene, patchCentered, patchNorm));
 console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
 `,
       solutionCode: `// The template's statistics are the same at all 7,921 positions.
@@ -1403,7 +1403,7 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-const hit = bestMatch(ncc(brightScene, patchCentered, patchNorm));
+const hit = bestMatch(await ncc(brightScene, patchCentered, patchNorm));
 console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
 `,
       inputs: utils => {
@@ -1431,7 +1431,7 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
             const bright = brighten(scene);
             const patch = makePatch();
             const stats = patchStats(patch);
-            const out = ctx.kernel(bright, stats.centered, stats.norm);
+            const out = await ctx.kernel(bright, stats.centered, stats.norm);
             ctx.assert(
               out && out.length === POSITIONS && out[0] && out[0].length === POSITIONS,
               mapShapeHint(out && out.length) || `expected a ${POSITIONS}×${POSITIONS} score map`
@@ -1477,7 +1477,7 @@ console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
             const bright = brighten(scene);
             const patch = makePatch();
             const stats = patchStats(patch);
-            const out = ctx.kernel(bright, stats.centered, stats.norm);
+            const out = await ctx.kernel(bright, stats.centered, stats.norm);
             const ref = nccMap(bright, patch);
             for (let y = 0; y < POSITIONS; y++) {
               for (let x = 0; x < POSITIONS; x++) {
@@ -1557,7 +1557,7 @@ for (let y = 0; y &lt; map.length; y++) {
           title: 'Hint 2 — the verdict',
           body: `<p><code>prepare()</code> hands the kernel what task 4 built, so each report is
             three lines:</p>
-<pre><code>const map = ncc(brightScene, t.centered, t.norm);
+<pre><code>const map = await ncc(brightScene, t.centered, t.norm);
 const hit = bestMatch(map);
 console.log(label, hit.x, hit.y, hit.score,
   hit.score &gt;= THRESHOLD);</code></pre>`,
@@ -1622,15 +1622,15 @@ function bestMatch(map) {
   return { x: 0, y: 0, score: map[0][0] };
 }
 
-function report(label, template) {
+async function report(label, template) {
   const t = prepare(template);
-  const hit = bestMatch(ncc(brightScene, t.centered, t.norm));
+  const hit = bestMatch(await ncc(brightScene, t.centered, t.norm));
   // TODO: log the label, the position, the score, and whether the score
   // clears THRESHOLD.
 }
 
-report('patch:        ', patch);
-report('rotatedPatch: ', rotatedPatch);
+await report('patch:        ', patch);
+await report('rotatedPatch: ', rotatedPatch);
 `,
       solutionCode: `// The finished matcher. Two templates: one is in the scene, one is not.
 const gpu = new GPU({ mode });
@@ -1695,17 +1695,17 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-function report(label, template) {
+async function report(label, template) {
   const t = prepare(template);
-  const hit = bestMatch(ncc(brightScene, t.centered, t.norm));
+  const hit = bestMatch(await ncc(brightScene, t.centered, t.norm));
   console.log(
     label, 'corner at x =', hit.x, ' y =', hit.y,
     ' score =', hit.score, ' present?', hit.score >= THRESHOLD
   );
 }
 
-report('patch:        ', patch);
-report('rotatedPatch: ', rotatedPatch);
+await report('patch:        ', patch);
+await report('rotatedPatch: ', rotatedPatch);
 `,
       inputs: utils => {
         const scene = makeScene(utils);
@@ -1722,7 +1722,7 @@ report('rotatedPatch: ', rotatedPatch);
             const rotated = rotatePatch(patch);
             const here = patchStats(patch);
             const notHere = patchStats(rotated);
-            const found = ctx.kernel(bright, here.centered, here.norm);
+            const found = await ctx.kernel(bright, here.centered, here.norm);
             ctx.assert(
               found && found.length === POSITIONS && found[0] && found[0].length === POSITIONS,
               mapShapeHint(found && found.length) || `expected a ${POSITIONS}×${POSITIONS} score map`
@@ -1735,7 +1735,7 @@ report('rotatedPatch: ', rotatedPatch);
               `patch should peak at (${PLANT.x}, ${PLANT.y}), got (${best.x}, ${best.y})`
             );
             ctx.assertClose(best.score, 1, 3e-3, 'the peak score for a template that IS present');
-            const missing = bestMax(ctx.kernel(bright, notHere.centered, notHere.norm));
+            const missing = bestMax(await ctx.kernel(bright, notHere.centered, notHere.norm));
             ctx.assert(
               missing.score < THRESHOLD,
               `the rotated template is not in this scene, so its best score should stay below ` +
@@ -1796,7 +1796,7 @@ report('rotatedPatch: ', rotatedPatch);
             const rotated = rotatePatch(patch);
             const here = patchStats(patch);
             const notHere = patchStats(rotated);
-            const found = ctx.kernel(bright, here.centered, here.norm);
+            const found = await ctx.kernel(bright, here.centered, here.norm);
             const ref = nccMap(bright, patch);
             for (let y = 0; y < POSITIONS; y++) {
               for (let x = 0; x < POSITIONS; x++) {
@@ -1810,7 +1810,7 @@ report('rotatedPatch: ', rotatedPatch);
               `on a fresh scene patch should peak at (${plant.x}, ${plant.y}), got (${best.x}, ${best.y})`
             );
             ctx.assertClose(best.score, 1, 3e-3, 'the peak score on a fresh scene');
-            const missing = bestMax(ctx.kernel(bright, notHere.centered, notHere.norm));
+            const missing = bestMax(await ctx.kernel(bright, notHere.centered, notHere.norm));
             ctx.assert(
               missing.score < THRESHOLD,
               `on a fresh scene the rotated template should still stay under ${THRESHOLD}, got ${missing.score.toFixed(3)}`

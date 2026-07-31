@@ -12,6 +12,10 @@
 // Determinism rule: kernels never call Math.random. Every random sample is
 // precomputed in JavaScript with utils.seededRandom and handed to the kernel
 // as an array argument, so every run — and every test — sees identical data.
+// That rule also keeps every kernel here WebGPU-eligible: Math.random is one
+// of the three things gpu.js will not compile for WebGPU, so a kernel that
+// rolled its own dice would decline the upgrade and stay on WebGL. None here
+// do — measured in the browser, all four tasks run on WebGPU in auto mode.
 // Kernel-authoring rules per the contract: no closures, arguments + literals
 // + this.thread.* only, statically bounded loops. Every task passes on CPU.
 
@@ -246,7 +250,7 @@ const inside = gpu.createKernel(function (xs, ys) {
   return 0;
 }, { output: [4096] });
 
-const hits = inside(xs, ys);
+const hits = await inside(xs, ys);
 
 let count = 0;
 for (let i = 0; i < hits.length; i++) count += hits[i];
@@ -264,7 +268,7 @@ const inside = gpu.createKernel(function (xs, ys) {
   return 0;
 }, { output: [4096] });
 
-const hits = inside(xs, ys);
+const hits = await inside(xs, ys);
 
 let count = 0;
 for (let i = 0; i < hits.length; i++) count += hits[i];
@@ -284,7 +288,7 @@ console.log(count, 'of 4096 darts hit — π ≈', (4 * count) / 4096);
             xs[2] = 0.0; ys[2] = 0.0;   // bullseye
             xs[3] = 0.99; ys[3] = 0.3;  // outside
             xs[4] = 0.6; ys[4] = 0.6;   // inside (0.72 ≤ 1)
-            const out = ctx.kernel(xs, ys);
+            const out = await ctx.kernel(xs, ys);
             ctx.assert(out && out.length === 4096, `expected 4096 verdicts, got ${out && out.length}`);
             const expected = [1, 0, 1, 0, 1];
             const hint = verdictHint(out, xs, ys, expected);
@@ -298,7 +302,7 @@ console.log(count, 'of 4096 darts hit — π ≈', (4 * count) / 4096);
           name: 'hit fraction over the seeded darts approaches <code>π/4</code>',
           run: async ctx => {
             const { xs, ys } = makePairs(ctx.utils, 4096, 9001);
-            const out = ctx.kernel(xs, ys);
+            const out = await ctx.kernel(xs, ys);
             let count = 0;
             for (let i = 0; i < out.length; i++) {
               ctx.assert(out[i] === 0 || out[i] === 1, `verdict ${i} is ${out[i]} — return exactly 1 or 0`);
@@ -314,7 +318,7 @@ console.log(count, 'of 4096 darts hit — π ≈', (4 * count) / 4096);
           name: 'private test #1',
           run: async ctx => {
             const { xs, ys } = makePairs(ctx.utils, 4096, 4242);
-            const out = ctx.kernel(xs, ys);
+            const out = await ctx.kernel(xs, ys);
             let count = 0;
             for (let i = 0; i < out.length; i++) count += out[i];
             ctx.assertClose(count, countInside(xs, ys), 2, 'hit count on unseen darts');
@@ -382,8 +386,8 @@ const partialSums = gpu.createKernel(function (hits) {
   return hits[this.thread.x];
 }, { output: [256] });
 
-const hits = inside(xs, ys);
-const partials = partialSums(hits);
+const hits = await inside(xs, ys);
+const partials = await partialSums(hits);
 
 let total = 0;
 for (let i = 0; i < partials.length; i++) total += partials[i];
@@ -410,8 +414,8 @@ const partialSums = gpu.createKernel(function (hits) {
   return sum;
 }, { output: [256] });
 
-const hits = inside(xs, ys);
-const partials = partialSums(hits);
+const hits = await inside(xs, ys);
+const partials = await partialSums(hits);
 
 let total = 0;
 for (let i = 0; i < partials.length; i++) total += partials[i];
@@ -429,7 +433,7 @@ console.log('π ≈', (4 * total) / 65536);
             // hits[i] = i % 3 → slice sums are computable exactly
             const fake = new Array(65536);
             for (let i = 0; i < 65536; i++) fake[i] = i % 3;
-            const partials = reduce(new Float32Array(fake));
+            const partials = await reduce(new Float32Array(fake));
             ctx.assert(partials && partials.length === 256, `expected 256 partials, got ${partials && partials.length}`);
             for (const t of [0, 1, 17, 128, 255]) {
               let expected = 0;
@@ -450,8 +454,8 @@ console.log('π ≈', (4 * total) / 65536);
             );
             ctx.assert(inside && reduce, 'expected the inside kernel [65536] and the partialSums kernel [256]');
             const { xs, ys } = makePairs(ctx.utils, 65536, 1337);
-            const hits = inside(xs, ys);
-            const partials = reduce(new Float32Array(hits));
+            const hits = await inside(xs, ys);
+            const partials = await reduce(new Float32Array(hits));
             let total = 0;
             for (let i = 0; i < partials.length; i++) total += partials[i];
             ctx.assertClose(total, countInside(xs, ys), 4, 'total hit count after reduction');
@@ -471,8 +475,8 @@ console.log('π ≈', (4 * total) / 65536);
             );
             ctx.assert(inside && reduce, 'expected the inside kernel [65536] and the partialSums kernel [256]');
             const { xs, ys } = makePairs(ctx.utils, 65536, 2718);
-            const hits = inside(xs, ys);
-            const partials = reduce(new Float32Array(hits));
+            const hits = await inside(xs, ys);
+            const partials = await reduce(new Float32Array(hits));
             let total = 0;
             for (let i = 0; i < partials.length; i++) total += partials[i];
             ctx.assertClose(total, countInside(xs, ys), 4, 'hit count on unseen darts');
@@ -533,7 +537,7 @@ const partials = gpu.createKernel(function (xs) {
   return sum;
 }, { output: [256] });
 
-const sums = partials(samples);
+const sums = await partials(samples);
 
 let total = 0;
 for (let i = 0; i < sums.length; i++) total += sums[i];
@@ -553,7 +557,7 @@ const partials = gpu.createKernel(function (xs) {
   return sum;
 }, { output: [256] });
 
-const sums = partials(samples);
+const sums = await partials(samples);
 
 let total = 0;
 for (let i = 0; i < sums.length; i++) total += sums[i];
@@ -568,7 +572,7 @@ console.log('∫₀¹ e^(−x²) dx ≈', total / 16384, '(truth ≈ 0.746824)')
             // evenly spaced samples → every partial is independently checkable
             const grid = new Array(16384);
             for (let i = 0; i < 16384; i++) grid[i] = i / 16384;
-            const out = ctx.kernel(grid);
+            const out = await ctx.kernel(grid);
             ctx.assert(out && out.length === 256, `expected 256 partial sums, got ${out && out.length}`);
             for (const t of [0, 3, 100, 255]) {
               const slice = grid.slice(t * 64, t * 64 + 64);
@@ -581,7 +585,7 @@ console.log('∫₀¹ e^(−x²) dx ≈', total / 16384, '(truth ≈ 0.746824)')
           name: 'estimate lands within <code>±0.01</code> of the true value <code>0.746824</code>',
           run: async ctx => {
             const samples = makeUniforms(ctx.utils, 16384, 6077);
-            const out = ctx.kernel(samples);
+            const out = await ctx.kernel(samples);
             let total = 0;
             for (let i = 0; i < out.length; i++) total += out[i];
             const hint = diagnose(total / 16384, 0.7468241328124271, 0.01,
@@ -596,7 +600,7 @@ console.log('∫₀¹ e^(−x²) dx ≈', total / 16384, '(truth ≈ 0.746824)')
           name: 'private test #1',
           run: async ctx => {
             const samples = makeUniforms(ctx.utils, 16384, 1912);
-            const out = ctx.kernel(samples);
+            const out = await ctx.kernel(samples);
             let total = 0;
             for (let i = 0; i < out.length; i++) total += out[i];
             const hint = diagnose(total / 16384, gaussSum(samples) / 16384, 2e-3,
@@ -658,7 +662,7 @@ const payoff = gpu.createKernel(function (normals, s0, strike, drift, volT) {
   return st - strike;
 }, { output: [16384] });
 
-const payoffs = payoff(normals, S0, STRIKE, (RATE - SIGMA * SIGMA / 2) * T, SIGMA * Math.sqrt(T));
+const payoffs = await payoff(normals, S0, STRIKE, (RATE - SIGMA * SIGMA / 2) * T, SIGMA * Math.sqrt(T));
 
 let sum = 0;
 for (let i = 0; i < payoffs.length; i++) sum += payoffs[i];
@@ -677,7 +681,7 @@ const payoff = gpu.createKernel(function (normals, s0, strike, drift, volT) {
   return Math.max(st - strike, 0);
 }, { output: [16384] });
 
-const payoffs = payoff(normals, S0, STRIKE, (RATE - SIGMA * SIGMA / 2) * T, SIGMA * Math.sqrt(T));
+const payoffs = await payoff(normals, S0, STRIKE, (RATE - SIGMA * SIGMA / 2) * T, SIGMA * Math.sqrt(T));
 
 let sum = 0;
 for (let i = 0; i < payoffs.length; i++) sum += payoffs[i];
@@ -695,7 +699,7 @@ console.log('Monte Carlo price:', price, '— Black–Scholes says ≈ 7.13');
             shocks[1] = 2;    // rally  → deep in the money
             shocks[2] = 0.5;  // mildly up
             shocks[3] = -0.5; // mildly down → out of the money
-            const out = ctx.kernel(shocks, OPT.s0, OPT.strike, OPT_DRIFT, OPT_VOLT);
+            const out = await ctx.kernel(shocks, OPT.s0, OPT.strike, OPT_DRIFT, OPT_VOLT);
             ctx.assert(out && out.length === 16384, `expected 16384 payoffs, got ${out && out.length}`);
             for (const i of [0, 1, 2, 3]) {
               const st = OPT.s0 * Math.exp(OPT_DRIFT + OPT_VOLT * shocks[i]);
@@ -710,7 +714,7 @@ console.log('Monte Carlo price:', price, '— Black–Scholes says ≈ 7.13');
           name: 'simulated price agrees with Black–Scholes (<code>≈ 7.13</code>) within <code>±0.4</code>',
           run: async ctx => {
             const normals = makeNormals(ctx.utils, 16384, 8128);
-            const out = ctx.kernel(normals, OPT.s0, OPT.strike, OPT_DRIFT, OPT_VOLT);
+            const out = await ctx.kernel(normals, OPT.s0, OPT.strike, OPT_DRIFT, OPT_VOLT);
             let sum = 0;
             for (let i = 0; i < out.length; i++) sum += out[i];
             const price = Math.exp(-OPT.rate * OPT.t) * (sum / out.length);
@@ -729,7 +733,7 @@ console.log('Monte Carlo price:', price, '— Black–Scholes says ≈ 7.13');
           name: 'private test #1',
           run: async ctx => {
             const normals = makeNormals(ctx.utils, 16384, 6174);
-            const out = ctx.kernel(normals, OPT.s0, OPT.strike, OPT_DRIFT, OPT_VOLT);
+            const out = await ctx.kernel(normals, OPT.s0, OPT.strike, OPT_DRIFT, OPT_VOLT);
             let sum = 0;
             for (let i = 0; i < out.length; i++) sum += out[i];
             const price = Math.exp(-OPT.rate * OPT.t) * (sum / out.length);

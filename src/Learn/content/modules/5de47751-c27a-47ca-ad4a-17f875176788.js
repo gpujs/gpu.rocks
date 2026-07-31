@@ -115,10 +115,13 @@ function unzip(pairs) {
 }
 
 // Drive one full tick through live kernels (accel → stepVel → stepPos).
-function kernelTick(accelK, velK, posK, state, mass, dt, soft) {
-  const [ax, ay] = unzip(accelK(state.posX, state.posY, mass, soft));
-  const [vx, vy] = unzip(velK(state.velX, state.velY, ax, ay, dt));
-  const [px, py] = unzip(posK(state.posX, state.posY, vx, vy, dt));
+// Async because a kernel call returns a Promise under the async contract, and
+// each stage reads the previous one's output — so they are awaited in order,
+// never fired together. Callers must await this in turn.
+async function kernelTick(accelK, velK, posK, state, mass, dt, soft) {
+  const [ax, ay] = unzip(await accelK(state.posX, state.posY, mass, soft));
+  const [vx, vy] = unzip(await velK(state.velX, state.velY, ax, ay, dt));
+  const [px, py] = unzip(await posK(state.posX, state.posY, vx, vy, dt));
   return { posX: px, posY: py, velX: vx, velY: vy };
 }
 
@@ -262,7 +265,7 @@ const pull = gpu.createKernel(function (posX, posY, starX, starY, starMass) {
   return 0;
 }, { output: [64] });
 
-const strength = pull(posX, posY, 0, 0, 100);
+const strength = await pull(posX, posY, 0, 0, 100);
 console.log('pull on body 0:', strength[0]);
 `,
       solutionCode: `// 64 bodies, one star. Each thread owns one body and asks:
@@ -275,7 +278,7 @@ const pull = gpu.createKernel(function (posX, posY, starX, starY, starMass) {
   return starMass / (dx * dx + dy * dy);
 }, { output: [64] });
 
-const strength = pull(posX, posY, 0, 0, 100);
+const strength = await pull(posX, posY, 0, 0, 100);
 console.log('pull on body 0:', strength[0]);
 `,
       inputs: utils => {
@@ -288,7 +291,7 @@ console.log('pull on body 0:', strength[0]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const b = ringBodies(ctx.utils, 64, 901);
-            const out = ctx.kernel(b.posX, b.posY, 0, 0, 100);
+            const out = await ctx.kernel(b.posX, b.posY, 0, 0, 100);
             ctx.assert(out && out.length === 64, `expected 64 values, got ${out && out.length}`);
             for (let i = 0; i < 64; i++) {
               ctx.assert(
@@ -308,7 +311,7 @@ console.log('pull on body 0:', strength[0]);
               posX[i] = i + 1;
               posY[i] = 0;
             }
-            const out = ctx.kernel(posX, posY, 0, 0, 100);
+            const out = await ctx.kernel(posX, posY, 0, 0, 100);
             const pullHint = (i, expected) =>
               diagnose(out[i], expected, 1e-2, pullProbes(100, (i + 1) * (i + 1)));
             ctx.assertClose(out[0], 100, 1e-2, 'body at distance 1');
@@ -323,7 +326,7 @@ console.log('pull on body 0:', strength[0]);
           name: 'private test #1',
           run: async ctx => {
             const b = ringBodies(ctx.utils, 64, 4242);
-            const out = ctx.kernel(b.posX, b.posY, -1.5, 2.5, 77);
+            const out = await ctx.kernel(b.posX, b.posY, -1.5, 2.5, 77);
             for (let i = 0; i < 64; i++) {
               const dx = -1.5 - b.posX[i];
               const dy = 2.5 - b.posY[i];
@@ -395,7 +398,7 @@ const accelX = gpu.createKernel(function (posX, posY, mass) {
   return ax;
 }, { output: [64], constants: { n: 64 } });
 
-const ax = accelX(posX, posY, mass);
+const ax = await accelX(posX, posY, mass);
 console.log('net x-pull on body 0:', ax[0]);
 `,
       solutionCode: `// Newton, vectorised: this thread's body feels EVERY other body.
@@ -417,7 +420,7 @@ const accelX = gpu.createKernel(function (posX, posY, mass) {
   return ax;
 }, { output: [64], constants: { n: 64 } });
 
-const ax = accelX(posX, posY, mass);
+const ax = await accelX(posX, posY, mass);
 console.log('net x-pull on body 0:', ax[0]);
 `,
       inputs: utils => ringBodies(utils, 64, 1702),
@@ -427,7 +430,7 @@ console.log('net x-pull on body 0:', ax[0]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const b = ringBodies(ctx.utils, 64, 1702);
-            const out = ctx.kernel(b.posX, b.posY, b.mass);
+            const out = await ctx.kernel(b.posX, b.posY, b.mass);
             ctx.assert(out && out.length === 64, `expected 64 values, got ${out && out.length}`);
             let any = false;
             let momentum = 0;
@@ -444,7 +447,7 @@ console.log('net x-pull on body 0:', ax[0]);
           name: 'body-by-body against a reference O(n²) loop',
           run: async ctx => {
             const b = ringBodies(ctx.utils, 64, 1702);
-            const out = ctx.kernel(b.posX, b.posY, b.mass);
+            const out = await ctx.kernel(b.posX, b.posY, b.mass);
             for (const i of [0, 17, 40, 63]) {
               const ref = accelOn(i, b.posX, b.posY, b.mass, 0);
               const hint = diagnose(out[i], ref[0], looseEps(2e-3, ref[0]), accelProbes(i, b, ref[0], 0));
@@ -458,7 +461,7 @@ console.log('net x-pull on body 0:', ax[0]);
           name: 'private test #1',
           run: async ctx => {
             const b = ringBodies(ctx.utils, 64, 555);
-            const out = ctx.kernel(b.posX, b.posY, b.mass);
+            const out = await ctx.kernel(b.posX, b.posY, b.mass);
             for (let i = 0; i < 64; i++) {
               const ref = accelOn(i, b.posX, b.posY, b.mass, 0);
               const hint = diagnose(out[i], ref[0], looseEps(2e-3, ref[0]), accelProbes(i, b, ref[0], 0));
@@ -530,7 +533,7 @@ const accel = gpu.createKernel(function (posX, posY, mass, soft) {
   return [ax, ay];
 }, { output: [64], constants: { n: 64 } });
 
-const acc = accel(posX, posY, mass, 0.1);
+const acc = await accel(posX, posY, mass, 0.1);
 console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
 `,
       solutionCode: `// Plummer softening: r² → r² + ε². Close encounters flatten out
@@ -553,7 +556,7 @@ const accel = gpu.createKernel(function (posX, posY, mass, soft) {
   return [ax, ay];
 }, { output: [64], constants: { n: 64 } });
 
-const acc = accel(posX, posY, mass, 0.1);
+const acc = await accel(posX, posY, mass, 0.1);
 console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
 `,
       inputs: utils => {
@@ -566,7 +569,7 @@ console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const b = scatterBodies(ctx.utils, 64, 33);
-            const out = ctx.kernel(b.posX, b.posY, b.mass, 0.1);
+            const out = await ctx.kernel(b.posX, b.posY, b.mass, 0.1);
             ctx.assert(out && out.length === 64, `expected 64 [ax, ay] pairs, got ${out && out.length}`);
             let any = false;
             for (let i = 0; i < 64; i++) {
@@ -585,7 +588,7 @@ console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
           name: 'matches the softened reference — <code>mass · d / (r² + ε²)^{3/2}</code>',
           run: async ctx => {
             const b = scatterBodies(ctx.utils, 64, 33);
-            const out = ctx.kernel(b.posX, b.posY, b.mass, 0.1);
+            const out = await ctx.kernel(b.posX, b.posY, b.mass, 0.1);
             for (const i of [0, 1, 7, 63]) {
               const ref = accelOn(i, b.posX, b.posY, b.mass, 0.1);
               const hintX = diagnose(out[i][0], ref[0], looseEps(2e-3, ref[0]), softProbes(i, b, 0.1, 0));
@@ -602,7 +605,7 @@ console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
           run: async ctx => {
             // different cloud AND different ε — a hardcoded 0.1 fails here
             const b = scatterBodies(ctx.utils, 64, 909);
-            const out = ctx.kernel(b.posX, b.posY, b.mass, 0.25);
+            const out = await ctx.kernel(b.posX, b.posY, b.mass, 0.25);
             for (let i = 0; i < 64; i++) {
               const ref = accelOn(i, b.posX, b.posY, b.mass, 0.25);
               const hintX = diagnose(out[i][0], ref[0], looseEps(2e-3, ref[0]), softProbes(i, b, 0.25, 0));
@@ -670,7 +673,7 @@ const stepPos = gpu.createKernel(function (posX, posY, velX, velY, dt) {
 }, { output: [64] });
 
 const DT = 0.01;
-const newVel = stepVel(velX, velY, accX, accY, DT);
+const newVel = await stepVel(velX, velY, accX, accY, DT);
 
 // unpack the [vx, vy] pairs so the position kernel gets plain arrays
 const newVelX = [];
@@ -680,7 +683,7 @@ for (let i = 0; i < 64; i++) {
   newVelY.push(newVel[i][1]);
 }
 
-const newPos = stepPos(posX, posY, newVelX, newVelY, DT);
+const newPos = await stepPos(posX, posY, newVelX, newVelY, DT);
 console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
 `,
       solutionCode: `// Numbers → motion. Semi-implicit Euler: update velocity FIRST,
@@ -698,7 +701,7 @@ const stepPos = gpu.createKernel(function (posX, posY, velX, velY, dt) {
 }, { output: [64] });
 
 const DT = 0.01;
-const newVel = stepVel(velX, velY, accX, accY, DT);
+const newVel = await stepVel(velX, velY, accX, accY, DT);
 
 // unpack the [vx, vy] pairs so the position kernel gets plain arrays
 const newVelX = [];
@@ -708,7 +711,7 @@ for (let i = 0; i < 64; i++) {
   newVelY.push(newVel[i][1]);
 }
 
-const newPos = stepPos(posX, posY, newVelX, newVelY, DT);
+const newPos = await stepPos(posX, posY, newVelX, newVelY, DT);
 console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
 `,
       inputs: utils => {
@@ -754,7 +757,7 @@ console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
               ax[i] = Math.sin(i) * 4;
               ay[i] = Math.cos(i) * 4;
             }
-            const out = velK(vx, vy, ax, ay, 0.5);
+            const out = await velK(vx, vy, ax, ay, 0.5);
             for (let i = 0; i < 64; i++) {
               closeish(ctx, out[i][0], vx[i] + ax[i] * 0.5, 1e-3,
                 stepHint(out[i][0], vx[i], ax[i], 0.5, 1e-3) || `vx of body ${i}`);
@@ -777,7 +780,7 @@ console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
               vx[i] = 1 + i * 0.02;
               vy[i] = -2 + i * 0.03;
             }
-            const out = posK(px, py, vx, vy, 0.2);
+            const out = await posK(px, py, vx, vy, 0.2);
             for (let i = 0; i < 64; i++) {
               closeish(ctx, out[i][0], px[i] + vx[i] * 0.2, 1e-3,
                 stepHint(out[i][0], px[i], vx[i], 0.2, 1e-3) || `x of body ${i}`);
@@ -799,8 +802,8 @@ console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
               arrays.push(a);
             }
             const [vx, vy, ax, ay, px, py] = arrays;
-            const vel = ctx.kernels[0](vx, vy, ax, ay, 0.025);
-            const pos = ctx.kernels[1](px, py, vx, vy, 0.025);
+            const vel = await ctx.kernels[0](vx, vy, ax, ay, 0.025);
+            const pos = await ctx.kernels[1](px, py, vx, vy, 0.025);
             for (let i = 0; i < 64; i++) {
               closeish(ctx, vel[i][0], vx[i] + ax[i] * 0.025, 1e-3,
                 stepHint(vel[i][0], vx[i], ax[i], 0.025, 1e-3) || `vx of body ${i}`);
@@ -832,17 +835,18 @@ console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
       goal: `<strong>Goal:</strong> write the simulation loop — ten ticks of
         <code>accel → stepVel → stepPos</code>, carrying the new arrays forward each time.`,
       requirements: [
-        'Each tick: accelerations first — <code>accel(px, py, mass, SOFT)</code>',
-        'Unpack the pairs, then <code>stepVel(vx, vy, ax, ay, DT)</code>, then <code>stepPos</code> with the <em>new</em> velocities',
+        'Each tick: accelerations first — <code>await accel(px, py, mass, SOFT)</code>',
+        'Unpack the pairs, then <code>await stepVel(vx, vy, ax, ay, DT)</code>, then <code>await stepPos</code> with the <em>new</em> velocities — awaited one after another, because each reads the one before it',
         'Reassign <code>px, py, vx, vy</code> so the next tick starts from the new state',
         'Run exactly <code>STEPS</code> ticks, then log body 0\'s final position',
       ],
       hints: [
         {
           title: 'Hint 1 — the shape of one tick',
-          body: `<p>Inside the loop: call <code>accel</code>, unpack its pairs into
-            <code>ax, ay</code> arrays (the <code>unpack</code> helper is right there), call
-            <code>stepVel</code>, unpack, call <code>stepPos</code>, unpack.</p>`,
+          body: `<p>Inside the loop: <code>await accel</code>, unpack its pairs into
+            <code>ax, ay</code> arrays (the <code>unpack</code> helper is right there),
+            <code>await stepVel</code>, unpack, <code>await stepPos</code>, unpack. One at a
+            time — the next call needs the previous one's numbers.</p>`,
         },
         {
           title: 'Hint 2 — carrying the state',
@@ -857,9 +861,9 @@ py = newPy;</code></pre>
         {
           title: 'Hint 3 — the whole loop',
           body: `<pre><code>for (let step = 0; step &lt; STEPS; step++) {
-  const [ax, ay] = unpack(accel(px, py, mass, SOFT));
-  const [nvx, nvy] = unpack(stepVel(vx, vy, ax, ay, DT));
-  const [npx, npy] = unpack(stepPos(px, py, nvx, nvy, DT));
+  const [ax, ay] = unpack(await accel(px, py, mass, SOFT));
+  const [nvx, nvy] = unpack(await stepVel(vx, vy, ax, ay, DT));
+  const [npx, npy] = unpack(await stepPos(px, py, nvx, nvy, DT));
   px = npx; py = npy; vx = nvx; vy = nvy;
 }</code></pre>`,
         },
@@ -919,10 +923,11 @@ let vx = velX;
 let vy = velY;
 
 for (let step = 0; step < STEPS; step++) {
-  // TODO — one full tick:
-  //   1. pairs = accel(px, py, mass, SOFT), unpack into ax, ay
-  //   2. stepVel with DT → unpack into the NEW vx, vy
-  //   3. stepPos with the NEW velocities → unpack into the new px, py
+  // TODO — one full tick. Every kernel call is awaited, and in this
+  // order: each stage reads the stage before it.
+  //   1. pairs = await accel(px, py, mass, SOFT), unpack into ax, ay
+  //   2. await stepVel with DT → unpack into the NEW vx, vy
+  //   3. await stepPos with the NEW velocities → unpack into the new px, py
   //   4. reassign px, py, vx, vy for the next tick
 }
 
@@ -978,9 +983,9 @@ let vx = velX;
 let vy = velY;
 
 for (let step = 0; step < STEPS; step++) {
-  const [ax, ay] = unpack(accel(px, py, mass, SOFT));
-  const [nvx, nvy] = unpack(stepVel(vx, vy, ax, ay, DT));
-  const [npx, npy] = unpack(stepPos(px, py, nvx, nvy, DT));
+  const [ax, ay] = unpack(await accel(px, py, mass, SOFT));
+  const [nvx, nvy] = unpack(await stepVel(vx, vy, ax, ay, DT));
+  const [npx, npy] = unpack(await stepPos(px, py, nvx, nvy, DT));
   px = npx;
   py = npy;
   vx = nvx;
@@ -1015,7 +1020,7 @@ console.log('after', STEPS, 'ticks, body 0 is at', px[0], py[0]);
             const velK = ctx.kernels[1];
             ctx.assert(Array.isArray(velK.lastArgs), 'stepVel was never called — is the loop wired up?');
             // re-running the last velocity tick reproduces the final velocities
-            const finalVel = velK(...velK.lastArgs);
+            const finalVel = await velK(...velK.lastArgs);
             const bodies = scatterBodies(ctx.utils, 128, 55);
             let px0 = 0, py0 = 0, px1 = 0, py1 = 0;
             for (let i = 0; i < 128; i++) {
@@ -1032,7 +1037,7 @@ console.log('after', STEPS, 'ticks, body 0 is at', px[0], py[0]);
           name: 'one tick, rebuilt from scratch, matches the physics',
           run: async ctx => {
             const bodies = scatterBodies(ctx.utils, 128, 55);
-            const state = kernelTick(
+            const state = await kernelTick(
               ctx.kernels[0], ctx.kernels[1], ctx.kernels[2],
               bodies, bodies.mass, 0.01, 0.1
             );
@@ -1053,7 +1058,7 @@ console.log('after', STEPS, 'ticks, body 0 is at', px[0], py[0]);
             const bodies = scatterBodies(ctx.utils, 128, 991);
             let state = bodies;
             for (let s = 0; s < 5; s++) {
-              state = kernelTick(
+              state = await kernelTick(
                 ctx.kernels[0], ctx.kernels[1], ctx.kernels[2],
                 state, bodies.mass, 0.01, 0.1
               );

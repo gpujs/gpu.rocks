@@ -39,7 +39,15 @@
 //     once: 8.2 ms → 1.5 ms. Two butterfly kernels take turns, because a
 //     pipelined kernel writes into its own texture and cannot also be the one
 //     reading it. gpu.js's CPU backend accepts `pipeline` and simply hands back
-//     the array, which is why fft() ends `buffer.toArray ? … : buffer`.
+//     the array, which is why fft() ends
+//     `buffer.toArray ? await buffer.toArray() : buffer`.
+//
+//     Every stage of that ladder is AWAITED IN ORDER. Under gpu.js's async mode
+//     a kernel call is a promise on every backend, and each pass reads the
+//     texture the previous one wrote — gathering the thirteen launches into a
+//     Promise.all would feed a pass a half-written input and silently corrupt
+//     the transform. `await` on a non-promise is a no-op, so the one awaited
+//     shape is also what the synchronous backends run.
 //
 //  2. n GOES UP UNTIL THE ARITHMETIC OUTWEIGHS THE LAUNCHES. At 4,096 the
 //     margin is 2.0× typical but 1.25× worst-case — inside the noise. 8,192 is
@@ -770,12 +778,14 @@ function naiveCandidates(ctx, width) {
 }
 
 // Every bin of the transform of a unit impulse at t = 0 is exactly 1.
-function transformsAnImpulseFlat(k, width) {
+// Async because it invokes a kernel: under gpu.js's async mode every call comes
+// back as a Promise, so the probe has to be awaited before it can be read.
+async function transformsAnImpulseFlat(k, width) {
   const impulse = new Array(NAIVE_N).fill(0);
   impulse[0] = 1;
   let out;
   try {
-    out = k(impulse);
+    out = await k(impulse);
   } catch (e) {
     return false; // an argument type it was not built for
   }
@@ -792,12 +802,12 @@ function transformsAnImpulseFlat(k, width) {
 // below. So fall back to the one-argument kernel that is plainly NOT the
 // permutation (its output on a ramp is not a rearrangement of that ramp) and
 // let the spectrum probes say what actually went wrong with it.
-function rearrangesARamp(k, width) {
+async function rearrangesARamp(k, width) {
   const ramp = new Array(NAIVE_N);
   for (let i = 0; i < NAIVE_N; i++) ramp[i] = i;
   let out;
   try {
-    out = k(ramp);
+    out = await k(ramp);
   } catch (e) {
     return true; // cannot be read, so it is not the candidate we want
   }
@@ -811,17 +821,32 @@ function rearrangesARamp(k, width) {
   return true;
 }
 
-function findNaiveDft(ctx) {
+// Async, and the .find() calls are now sequential for loops: an async predicate
+// handed to Array.prototype.find returns a Promise, which is truthy, so find()
+// would settle on the first candidate whatever it did. One candidate is probed
+// at a time — these probes are ~0.27 s each on the CPU backend and firing them
+// concurrently would only queue them anyway.
+async function findNaiveDft(ctx) {
   if (naiveCache.has(ctx.kernels)) return naiveCache.get(ctx.kernels);
   const widths = [NAIVE_N, NAIVE_CPU_BINS];
   let found = null;
   for (const width of widths) {
-    found = naiveCandidates(ctx, width).find(k => transformsAnImpulseFlat(k, width)) || null;
+    for (const k of naiveCandidates(ctx, width)) {
+      if (await transformsAnImpulseFlat(k, width)) {
+        found = k;
+        break;
+      }
+    }
     if (found) break;
   }
   if (!found) {
     for (const width of widths) {
-      found = naiveCandidates(ctx, width).find(k => !rearrangesARamp(k, width)) || null;
+      for (const k of naiveCandidates(ctx, width)) {
+        if (!(await rearrangesARamp(k, width))) {
+          found = k;
+          break;
+        }
+      }
       if (found) break;
     }
   }
@@ -843,14 +868,14 @@ function binsOf(k) {
 // fails at almost every cell), and the butterfly is then simply the other one.
 // `planes` must be the same container shape the learner's own run used, or
 // gpu.js rejects the call against the argument types it locked.
-function findInverseKernels(ctx, n, planes) {
+async function findInverseKernels(ctx, n, planes) {
   const twoArg = twoPlaneKernels(ctx, n).filter(k => argCount(k) === 2);
   let conjugate = null;
   const behaviour = new Map();
   for (const k of twoArg) {
     let out;
     try {
-      out = k(planes, 1);
+      out = await k(planes, 1);
     } catch (e) {
       continue;
     }
@@ -1001,9 +1026,9 @@ const halfDft = gpu.createKernel(function (x, offset) {
   return im;
 }, { output: [4, 2], constants: { m: 4 } });
 
-const X = dft8(signal);
-const E = halfDft(signal, 0);
-const O = halfDft(signal, 1);
+const X = await dft8(signal);
+const E = await halfDft(signal, 0);
+const O = await halfDft(signal, 1);
 console.log('E real:', E[0]);
 console.log('O real:', O[0]);
 
@@ -1056,9 +1081,9 @@ const halfDft = gpu.createKernel(function (x, offset) {
   return im;
 }, { output: [4, 2], constants: { m: 4 } });
 
-const X = dft8(signal);
-const E = halfDft(signal, 0);
-const O = halfDft(signal, 1);
+const X = await dft8(signal);
+const E = await halfDft(signal, 0);
+const O = await halfDft(signal, 1);
 console.log('E real:', E[0]);
 console.log('O real:', O[0]);
 
@@ -1087,7 +1112,7 @@ console.log('identity holds:', worst < 1e-3);
             ctx.assert(ctx.kernels.length >= 2, 'expected two kernels — dft8 and halfDft');
             const half = kernelWithWidth(ctx, 4);
             ctx.assert(half, 'no kernel with output [4, 2] found — the half transform has 4 bins and 2 planes');
-            const out = half(PI_DIGITS.slice(), 0);
+            const out = await half(PI_DIGITS.slice(), 0);
             ctx.assert(
               out && out.length === 2 && out[0].length === 4,
               'expected a [4, 2] result — 2 planes of 4 bins'
@@ -1108,7 +1133,7 @@ console.log('identity holds:', worst < 1e-3);
           run: async ctx => {
             const half = kernelWithWidth(ctx, 4);
             ctx.assert(half, 'no kernel with output [4, 2] found');
-            const out = half(PI_DIGITS.slice(), 1);
+            const out = await half(PI_DIGITS.slice(), 1);
             const [wantRe, wantIm] = halfDftRef(PI_DIGITS, 1, 4);
             const hint = diagnoseSpectrum(
               4, (p, i) => out[p][i], (p, i) => (p === 0 ? wantRe[i] : wantIm[i]),
@@ -1146,7 +1171,7 @@ console.log('identity holds:', worst < 1e-3);
             ctx.assert(half, 'no kernel with output [4, 2] found');
             const x = makeSamples(ctx.utils, 8, 4375);
             for (const offset of [0, 1]) {
-              const out = half(x, offset);
+              const out = await half(x, offset);
               const [wantRe, wantIm] = halfDftRef(x, offset, 4);
               const hint = diagnoseSpectrum(
                 4, (p, i) => out[p][i], (p, i) => (p === 0 ? wantRe[i] : wantIm[i]),
@@ -1168,8 +1193,8 @@ console.log('identity holds:', worst < 1e-3);
             const full = kernelWithWidth(ctx, 8);
             ctx.assert(half && full, 'expected an 8-bin kernel and a 4-bin kernel');
             const x = makeSamples(ctx.utils, 8, 90210);
-            const E = half(x, 0);
-            const O = half(x, 1);
+            const E = await half(x, 0);
+            const O = await half(x, 1);
             const [XR, XI] = dftRef(x, new Array(8).fill(0), -1);
             for (let k = 0; k < 4; k++) {
               const angle = (-TAU * k) / 8;
@@ -1285,10 +1310,10 @@ const butterfly = gpu.createKernel(function (spectrum, half) {
   return ai;
 }, { output: [8, 2] });
 
-const once = butterfly(spectrum, 1);
+const once = await butterfly(spectrum, 1);
 console.log('after half = 1, real:', once[0]);
 console.log('after half = 1, imag:', once[1]);
-console.log('after half = 2, real:', butterfly(spectrum, 2)[0]);
+console.log('after half = 2, real:', (await butterfly(spectrum, 2))[0]);
 `,
       solutionCode: `// One pass. Eight complex numbers in, eight complex numbers out.
 const gpu = new GPU({ mode });
@@ -1320,10 +1345,10 @@ const butterfly = gpu.createKernel(function (spectrum, half) {
   return ai - ti;
 }, { output: [8, 2] });
 
-const once = butterfly(spectrum, 1);
+const once = await butterfly(spectrum, 1);
 console.log('after half = 1, real:', once[0]);
 console.log('after half = 1, imag:', once[1]);
-console.log('after half = 2, real:', butterfly(spectrum, 2)[0]);
+console.log('after half = 2, real:', (await butterfly(spectrum, 2))[0]);
 `,
       inputs: () => ({ spectrum: EIGHT_COMPLEX.map(plane => plane.slice()) }),
       inputNotes: {
@@ -1338,7 +1363,7 @@ console.log('after half = 2, real:', butterfly(spectrum, 2)[0]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const [re, im] = EIGHT_COMPLEX;
-            const out = ctx.kernel([re, im], 1);
+            const out = await ctx.kernel([re, im], 1);
             ctx.assert(
               out && out.length === 2 && out[0].length === 8,
               'expected a [8, 2] result — 2 planes of 8 elements'
@@ -1359,7 +1384,7 @@ console.log('after half = 2, real:', butterfly(spectrum, 2)[0]);
           run: async ctx => {
             const [re, im] = EIGHT_COMPLEX;
             for (const half of [2, 4]) {
-              const out = ctx.kernel([re, im], half);
+              const out = await ctx.kernel([re, im], half);
               const [wantRe, wantIm] = passRef(re, im, half);
               const hint = butterflyHint(
                 8, (p, i) => out[p][i], (p, i) => (p === 0 ? wantRe[i] : wantIm[i]),
@@ -1383,7 +1408,7 @@ console.log('after half = 2, real:', butterfly(spectrum, 2)[0]);
             let before = 0;
             for (let i = 0; i < 8; i++) before += re[i] * re[i] + im[i] * im[i];
             for (const half of [1, 2, 4]) {
-              const out = ctx.kernel([re, im], half);
+              const out = await ctx.kernel([re, im], half);
               let after = 0;
               for (let i = 0; i < 8; i++) after += out[0][i] * out[0][i] + out[1][i] * out[1][i];
               ctx.assertClose(
@@ -1405,7 +1430,7 @@ console.log('after half = 2, real:', butterfly(spectrum, 2)[0]);
             const re = makeSamples(ctx.utils, 8, 1717);
             const im = makeSamples(ctx.utils, 8, 2828);
             for (const half of [1, 2, 4]) {
-              const out = ctx.kernel([re, im], half);
+              const out = await ctx.kernel([re, im], half);
               const [wantRe, wantIm] = passRef(re, im, half);
               const hint = butterflyHint(
                 8, (p, i) => out[p][i], (p, i) => (p === 0 ? wantRe[i] : wantIm[i]),
@@ -1429,7 +1454,7 @@ console.log('after half = 2, real:', butterfly(spectrum, 2)[0]);
             let re = scrambled;
             let im = new Array(8).fill(0);
             for (const half of [1, 2, 4]) {
-              const out = ctx.kernel([re, im], half);
+              const out = await ctx.kernel([re, im], half);
               re = Array.from(out[0]);
               im = Array.from(out[1]);
             }
@@ -1533,7 +1558,7 @@ const scramble = gpu.createKernel(function (x) {
   return 0;
 }, { output: [16, 2], constants: { bits: 4 } });
 
-const ordered = scramble(signal);
+const ordered = await scramble(signal);
 console.log('original: ', signal);
 console.log('scrambled:', ordered[0]);
 console.log('imaginary:', ordered[1]);
@@ -1553,7 +1578,7 @@ const scramble = gpu.createKernel(function (x) {
   return 0;
 }, { output: [16, 2], constants: { bits: 4 } });
 
-const ordered = scramble(signal);
+const ordered = await scramble(signal);
 console.log('original: ', signal);
 console.log('scrambled:', ordered[0]);
 console.log('imaginary:', ordered[1]);
@@ -1565,7 +1590,7 @@ console.log('imaginary:', ordered[1]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const x = makeSamples(ctx.utils, 16, 43751);
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             ctx.assert(
               out && out.length === 2 && out[0].length === 16,
               'expected a [16, 2] result — 2 planes of 16 elements'
@@ -1580,7 +1605,7 @@ console.log('imaginary:', ordered[1]);
         {
           name: 'the imaginary plane is all zeros — a real signal has no imaginary part',
           run: async ctx => {
-            const out = ctx.kernel(makeSamples(ctx.utils, 16, 43751));
+            const out = await ctx.kernel(makeSamples(ctx.utils, 16, 43751));
             for (let i = 0; i < 16; i++) {
               ctx.assertClose(
                 out[1][i], 0, 1e-6,
@@ -1594,7 +1619,7 @@ console.log('imaginary:', ordered[1]);
           name: 'nothing is lost — the 16 samples are the same 16, rearranged',
           run: async ctx => {
             const x = makeSamples(ctx.utils, 16, 1234);
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             const before = Array.from(x).sort((a, b) => a - b);
             const after = Array.from(out[0]).sort((a, b) => a - b);
             for (let i = 0; i < 16; i++) {
@@ -1616,8 +1641,8 @@ console.log('imaginary:', ordered[1]);
             // back the original order. A reversal over the wrong width does not
             // have that property.
             const x = makeSamples(ctx.utils, 16, 60613);
-            const once = ctx.kernel(x);
-            const twice = ctx.kernel(Array.from(once[0]));
+            const once = await ctx.kernel(x);
+            const twice = await ctx.kernel(Array.from(once[0]));
             for (let i = 0; i < 16; i++) {
               ctx.assertClose(
                 twice[0][i], x[i], 1e-3,
@@ -1635,7 +1660,7 @@ console.log('imaginary:', ordered[1]);
             // IS its index: cell i must literally contain bitReverse(i).
             const x = new Array(16);
             for (let i = 0; i < 16; i++) x[i] = i;
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             const hint = diagnoseAll(
               16, i => out[0][i], i => bitReverse(i, 4), 1e-3, scrambleProbes(x, 4)
             );
@@ -1689,9 +1714,9 @@ for (let half = 1; half &lt; n; half *= 2) schedule.push(half);</code></pre>
           title: 'Hint 2 — ping-pong',
           body: `<p>Each pass consumes the previous result and produces a new one, so a single
             variable is all the bookkeeping needed:</p>
-<pre><code>let buffer = scramble(signal);
+<pre><code>let buffer = await scramble(signal);
 for (let s = 0; s &lt; schedule.length; s++) {
-  buffer = butterfly(buffer, schedule[s]);
+  buffer = await butterfly(buffer, schedule[s]);
 }</code></pre>
 <p>gpu.js locks an argument's type on a kernel's first call, and every pass hands
             back the same shape it took, so the chain is type-stable from the start.</p>`,
@@ -1758,7 +1783,7 @@ console.log('passes:', schedule.length);
 console.log('schedule:', JSON.stringify(schedule));
 
 // TODO: scramble once, then run one butterfly pass per schedule entry.
-let buffer = scramble(signal);
+let buffer = await scramble(signal);
 
 console.log('bin 5 magnitude: ', Math.hypot(buffer[0][5], buffer[1][5]));
 console.log('bin 12 magnitude:', Math.hypot(buffer[0][12], buffer[1][12]));
@@ -1811,9 +1836,9 @@ for (let half = 1; half < n; half *= 2) {
 console.log('passes:', schedule.length);
 console.log('schedule:', JSON.stringify(schedule));
 
-let buffer = scramble(signal);
+let buffer = await scramble(signal);
 for (let s = 0; s < schedule.length; s++) {
-  buffer = butterfly(buffer, schedule[s]);
+  buffer = await butterfly(buffer, schedule[s]);
 }
 
 console.log('bin 5 magnitude: ', Math.hypot(buffer[0][5], buffer[1][5]));
@@ -1865,8 +1890,8 @@ console.log('bin 12 magnitude:', Math.hypot(buffer[0][12], buffer[1][12]));
             ctx.assert(butterfly, 'no two-argument kernel with output [256, 2] found — the butterfly pass');
             // Drive the learner's own two kernels through the whole schedule.
             const x = makeTones(256, [[9, 1, 'cos'], [40, 0.75, 'sin']]);
-            let buffer = scramble(x);
-            for (let half = 1; half < 256; half *= 2) buffer = butterfly(buffer, half);
+            let buffer = await scramble(x);
+            for (let half = 1; half < 256; half *= 2) buffer = await butterfly(buffer, half);
             const zeros = new Array(256).fill(0);
             const [wantRe, wantIm] = dftRef(x, zeros, -1);
             const hint = diagnoseSpectrum(
@@ -1916,8 +1941,8 @@ console.log('bin 12 magnitude:', Math.hypot(buffer[0][12], buffer[1][12]));
             ctx.assert(scramble && butterfly, 'expected a scramble kernel and a butterfly kernel');
             const impulse = new Array(256).fill(0);
             impulse[0] = 1;
-            let buffer = scramble(impulse);
-            for (let half = 1; half < 256; half *= 2) buffer = butterfly(buffer, half);
+            let buffer = await scramble(impulse);
+            for (let half = 1; half < 256; half *= 2) buffer = await butterfly(buffer, half);
             for (let i = 0; i < 256; i++) {
               ctx.assertClose(
                 buffer[0][i], 1, 5e-3,
@@ -1936,8 +1961,8 @@ console.log('bin 12 magnitude:', Math.hypot(buffer[0][12], buffer[1][12]));
             const { scramble, butterfly } = findFftKernels(ctx, 256);
             ctx.assert(scramble && butterfly, 'expected a scramble kernel and a butterfly kernel');
             const x = makeSamples(ctx.utils, 256, 31415);
-            let buffer = scramble(x);
-            for (let half = 1; half < 256; half *= 2) buffer = butterfly(buffer, half);
+            let buffer = await scramble(x);
+            for (let half = 1; half < 256; half *= 2) buffer = await butterfly(buffer, half);
             const [wantRe, wantIm] = dftRef(x, new Array(256).fill(0), -1);
             const hint = diagnoseSpectrum(
               256, (p, i) => buffer[p][i], (p, i) => (p === 0 ? wantRe[i] : wantIm[i]),
@@ -2008,8 +2033,11 @@ console.log('bin 12 magnitude:', Math.hypot(buffer[0][12], buffer[1][12]));
         array, so the spectrum crosses back to the CPU once instead of fourteen times. Measured,
         that single change takes the FFT from 8.2 ms to 1.5 ms.</p>
         <p>With both things settled — enough arithmetic that it outweighs the launches, and no
-        copies that buy nothing — the race is not close. On the machine this was written on, in
-        gpu mode: the FFT in <strong>1.5 ms</strong>, the definition in <strong>3.5 ms</strong>.
+        copies that buy nothing — the race is not close. On the machine these notes were written
+        on the FFT comes in somewhere between <strong>1 and 2 ms</strong>, and the definition takes
+        <strong>three to five times as long</strong> — nearer the top of that range on WebGPU,
+        which <strong>Auto</strong> picks, than on WebGL, because a thirteen-launch ladder gains
+        less from the newer backend than one big arithmetic sweep does.
         Run it and read your own two numbers off the console. Then switch <strong>Mode</strong>
         from Auto to CPU, where there is no launch overhead left and nothing but the operation
         count decides it, and watch the gap open past <strong>35×</strong> — against a naive
@@ -2073,10 +2101,11 @@ const gpu = new GPU({ mode });
 const n = 8192;                 // log2(8192) = 13 butterfly passes
 
 // The naive transform reads the WHOLE signal once for every bin it produces, so
-// a full spectrum is n * n work. A GPU eats that; one CPU thread needs about two
-// seconds of it. So on the CPU backend the definition is asked for a 1,024-bin
-// slice instead — an 8x head start, and it loses anyway.
-const bins = mode === 'gpu' ? n : 1024;
+// a full spectrum is n * n work. Every GPU backend eats that; one CPU thread
+// needs about two seconds of it. So the CPU backend — and only it — is asked for
+// a 1,024-bin slice instead: an 8x head start, and it loses anyway. The question
+// is "am I the slow single-threaded backend?", so the test is mode === 'cpu'.
+const bins = mode === 'cpu' ? 1024 : n;
 
 // ---- the fast one, complete (tasks 3 and 4), with ONE change
 // Every pass hands the next one a TEXTURE instead of a JavaScript array. Copying
@@ -2122,15 +2151,18 @@ const onePass = function (spectrum, half) {
 const evenPass = gpu.createKernel(onePass, stage);
 const oddPass = gpu.createKernel(onePass, stage);
 
-function fft(samples) {
-  let buffer = scramble(samples);
+// Every stage is awaited IN ORDER. Each pass reads the texture the previous one
+// wrote, so the ladder is strictly sequential — firing all thirteen and awaiting
+// them together would hand a pass a half-finished input.
+async function fft(samples) {
+  let buffer = await scramble(samples);
   let pass = 0;
   for (let half = 1; half < n; half *= 2) {
-    buffer = (pass++ % 2 === 0 ? evenPass : oddPass)(buffer, half);
+    buffer = await (pass++ % 2 === 0 ? evenPass : oddPass)(buffer, half);
   }
   // one read back, at the very end. The CPU backend has no textures and has
   // handed back a plain array already, so there is nothing to convert there.
-  return buffer.toArray ? buffer.toArray() : buffer;
+  return buffer.toArray ? await buffer.toArray() : buffer;
 }
 
 // ---- the slow one
@@ -2147,15 +2179,18 @@ const dft = gpu.createKernel(function (x) {
 
 // Warm both up before timing: the first call compiles a shader, and a GPU handed
 // its first work of the day is still spinning its clocks up.
-fft(signal);
-dft(signal);
-fft(signal);
-dft(signal);
+await fft(signal);
+await dft(signal);
+await fft(signal);
+await dft(signal);
 
+// Each timed call is AWAITED inside its own brackets. A kernel call returns a
+// promise, so timing an unawaited one would measure how long it took to queue
+// the work rather than how long the work took.
 const t0 = performance.now();
-const fast = fft(signal);
+const fast = await fft(signal);
 const t1 = performance.now();
-const slow = dft(signal);
+const slow = await dft(signal);
 const t2 = performance.now();
 
 let worst = 0;
@@ -2179,10 +2214,11 @@ const gpu = new GPU({ mode });
 const n = 8192;                 // log2(8192) = 13 butterfly passes
 
 // The naive transform reads the WHOLE signal once for every bin it produces, so
-// a full spectrum is n * n work. A GPU eats that; one CPU thread needs about two
-// seconds of it. So on the CPU backend the definition is asked for a 1,024-bin
-// slice instead — an 8x head start, and it loses anyway.
-const bins = mode === 'gpu' ? n : 1024;
+// a full spectrum is n * n work. Every GPU backend eats that; one CPU thread
+// needs about two seconds of it. So the CPU backend — and only it — is asked for
+// a 1,024-bin slice instead: an 8x head start, and it loses anyway. The question
+// is "am I the slow single-threaded backend?", so the test is mode === 'cpu'.
+const bins = mode === 'cpu' ? 1024 : n;
 
 // ---- the fast one, complete (tasks 3 and 4), with ONE change
 // Every pass hands the next one a TEXTURE instead of a JavaScript array. Copying
@@ -2228,15 +2264,18 @@ const onePass = function (spectrum, half) {
 const evenPass = gpu.createKernel(onePass, stage);
 const oddPass = gpu.createKernel(onePass, stage);
 
-function fft(samples) {
-  let buffer = scramble(samples);
+// Every stage is awaited IN ORDER. Each pass reads the texture the previous one
+// wrote, so the ladder is strictly sequential — firing all thirteen and awaiting
+// them together would hand a pass a half-finished input.
+async function fft(samples) {
+  let buffer = await scramble(samples);
   let pass = 0;
   for (let half = 1; half < n; half *= 2) {
-    buffer = (pass++ % 2 === 0 ? evenPass : oddPass)(buffer, half);
+    buffer = await (pass++ % 2 === 0 ? evenPass : oddPass)(buffer, half);
   }
   // one read back, at the very end. The CPU backend has no textures and has
   // handed back a plain array already, so there is nothing to convert there.
-  return buffer.toArray ? buffer.toArray() : buffer;
+  return buffer.toArray ? await buffer.toArray() : buffer;
 }
 
 // ---- the slow one
@@ -2255,15 +2294,18 @@ const dft = gpu.createKernel(function (x) {
 
 // Warm both up before timing: the first call compiles a shader, and a GPU handed
 // its first work of the day is still spinning its clocks up.
-fft(signal);
-dft(signal);
-fft(signal);
-dft(signal);
+await fft(signal);
+await dft(signal);
+await fft(signal);
+await dft(signal);
 
+// Each timed call is AWAITED inside its own brackets. A kernel call returns a
+// promise, so timing an unawaited one would measure how long it took to queue
+// the work rather than how long the work took.
 const t0 = performance.now();
-const fast = fft(signal);
+const fast = await fft(signal);
 const t1 = performance.now();
-const slow = dft(signal);
+const slow = await dft(signal);
 const t2 = performance.now();
 
 let worst = 0;
@@ -2291,7 +2333,7 @@ console.log('the definition took', ((t2 - t1) / (t1 - t0)).toFixed(1), 'times as
               ctx.kernels.length >= 4,
               'expected four kernels — the permutation, two butterfly passes and the naive DFT'
             );
-            const dft = findNaiveDft(ctx);
+            const dft = await findNaiveDft(ctx);
             ctx.assert(
               dft,
               'no kernel behaved like a transform of a real signal — handed a unit impulse at ' +
@@ -2299,7 +2341,7 @@ console.log('the definition took', ((t2 - t1) / (t1 - t0)).toFixed(1), 'times as
             );
             const bins = binsOf(dft);
             const x = makeTones(NAIVE_N, [[7, 1, 'sin'], [29, 0.5, 'cos']]);
-            const out = dft(x);
+            const out = await dft(x);
             const list = checkBins(bins);
             const [wantRe, wantIm] = dftRefAt(x, list);
             const eps = 0.03 * peakOf(wantRe, wantIm);
@@ -2328,7 +2370,7 @@ console.log('the definition took', ((t2 - t1) / (t1 - t0)).toFixed(1), 'times as
         {
           name: 'both operation counts and both timings are logged',
           run: async ctx => {
-            const dft = findNaiveDft(ctx);
+            const dft = await findNaiveDft(ctx);
             const bins = dft ? binsOf(dft) : NAIVE_N;
             ctx.assert(
               logged(ctx.logs, bins * NAIVE_N, 0.5),
@@ -2356,11 +2398,11 @@ console.log('the definition took', ((t2 - t1) / (t1 - t0)).toFixed(1), 'times as
           run: async ctx => {
             // A signal with no clean structure at all, so a spectrum that is
             // right only where symmetry helps does not survive.
-            const dft = findNaiveDft(ctx);
+            const dft = await findNaiveDft(ctx);
             ctx.assert(dft, 'no naive DFT kernel found');
             const bins = binsOf(dft);
             const x = makeSamples(ctx.utils, NAIVE_N, 26535);
-            const out = dft(x);
+            const out = await dft(x);
             const list = checkBins(bins);
             const [wantRe, wantIm] = dftRefAt(x, list);
             const eps = 0.03 * peakOf(wantRe, wantIm);
@@ -2383,7 +2425,7 @@ console.log('the definition took', ((t2 - t1) / (t1 - t0)).toFixed(1), 'times as
             // magnitude plot cannot see AND that survive being asked for only
             // the bottom of the spectrum — which is what the cpu backend gets,
             // so conjugate symmetry about bin n − k is not available here.
-            const dft = findNaiveDft(ctx);
+            const dft = await findNaiveDft(ctx);
             ctx.assert(dft, 'no naive DFT kernel found');
             const n = NAIVE_N;
             // 0.7 of DC on top of the tones, so bin 0 is 5,734.4 rather than 0 —
@@ -2391,7 +2433,7 @@ console.log('the definition took', ((t2 - t1) / (t1 - t0)).toFixed(1), 'times as
             // zero and fails this one by a factor of 8,192.
             const x = makeTones(n, [[3, 1, 'sin'], [11, 0.4, 'cos'], [60, 0.8, 'sin']])
               .map(v => v + 0.7);
-            const out = dft(x);
+            const out = await dft(x);
             // 1% of one tone's magnitude: 220× the worst float32 error this
             // kernel was measured at, and 140× smaller than the smallest gap any
             // assertion below has to see across.
@@ -2467,7 +2509,7 @@ return -spectrum[1][this.thread.x] * scale;</code></pre>
         },
         {
           title: 'Hint 2 — the whole inverse, one line',
-          body: `<pre><code>const recovered = conjugate(fft(conjugate(spectrum, 1)), 1 / n);</code></pre>
+          body: `<pre><code>const recovered = await conjugate(await fft(await conjugate(spectrum, 1)), 1 / n);</code></pre>
 <p>Inside out: conjugate, transform, conjugate again and scale. The
             <code>1</code> on the way in is not decoration — the same kernel has to take a scale
             both times or gpu.js sees two different call shapes.</p>`,
@@ -2523,9 +2565,10 @@ const butterfly = gpu.createKernel(function (spectrum, half) {
   return ai - ti;
 }, { output: [n, 2] });
 
-function fft(planes) {
-  let buffer = scramble(planes);
-  for (let half = 1; half < n; half *= 2) buffer = butterfly(buffer, half);
+async function fft(planes) {
+  let buffer = await scramble(planes);
+  // one pass at a time: each reads what the last one wrote
+  for (let half = 1; half < n; half *= 2) buffer = await butterfly(buffer, half);
   return buffer;
 }
 
@@ -2537,7 +2580,7 @@ const conjugate = gpu.createKernel(function (spectrum, scale) {
 
 // A real signal becomes two planes: the samples, and an empty imaginary plane.
 const planes = [Float32Array.from(signal), new Float32Array(n)];
-const spectrum = fft(planes);
+const spectrum = await fft(planes);
 console.log('bin 24 magnitude:', Math.hypot(spectrum[0][24], spectrum[1][24]));
 
 // TODO: conjugate, transform, conjugate and scale by 1 / n.
@@ -2591,9 +2634,10 @@ const butterfly = gpu.createKernel(function (spectrum, half) {
   return ai - ti;
 }, { output: [n, 2] });
 
-function fft(planes) {
-  let buffer = scramble(planes);
-  for (let half = 1; half < n; half *= 2) buffer = butterfly(buffer, half);
+async function fft(planes) {
+  let buffer = await scramble(planes);
+  // one pass at a time: each reads what the last one wrote
+  for (let half = 1; half < n; half *= 2) buffer = await butterfly(buffer, half);
   return buffer;
 }
 
@@ -2604,10 +2648,10 @@ const conjugate = gpu.createKernel(function (spectrum, scale) {
 
 // A real signal becomes two planes: the samples, and an empty imaginary plane.
 const planes = [Float32Array.from(signal), new Float32Array(n)];
-const spectrum = fft(planes);
+const spectrum = await fft(planes);
 console.log('bin 24 magnitude:', Math.hypot(spectrum[0][24], spectrum[1][24]));
 
-const recovered = conjugate(fft(conjugate(spectrum, 1)), 1 / n);
+const recovered = await conjugate(await fft(await conjugate(spectrum, 1)), 1 / n);
 
 let worst = 0;
 let leftover = 0;
@@ -2629,14 +2673,14 @@ console.log('round trip clean:', worst < 5e-3 && leftover < 5e-3);
             const re = makeSamples(ctx.utils, 256, 8080);
             const im = makeSamples(ctx.utils, 256, 9090);
             const planes = [Float32Array.from(re), Float32Array.from(im)];
-            const { conjugate: conj, behaviour } = findInverseKernels(ctx, 256, planes);
+            const { conjugate: conj, behaviour } = await findInverseKernels(ctx, 256, planes);
             ctx.assert(
               conj,
               conjugateHint(behaviour) ||
               'no kernel conjugated its input — with scale = 1 the real plane must come back ' +
               'unchanged and the imaginary plane negated'
             );
-            const scaled = conj(planes, 0.25);
+            const scaled = await conj(planes, 0.25);
             for (let i = 0; i < 256; i++) {
               ctx.assertClose(
                 scaled[0][i], re[i] * 0.25, 5e-3,
@@ -2693,18 +2737,18 @@ console.log('round trip clean:', worst < 5e-3 && leftover < 5e-3);
             // different signal: conjugate, fft, conjugate-and-scale.
             const signal = makeTones(256, [[3, 1, 'sin'], [17, 0.6, 'cos'], [44, 0.3, 'sin']]);
             const planes = [Float32Array.from(signal), new Float32Array(256)];
-            const { scramble, butterfly, conjugate } = findInverseKernels(ctx, 256, planes);
+            const { scramble, butterfly, conjugate } = await findInverseKernels(ctx, 256, planes);
             ctx.assert(
               scramble && butterfly && conjugate,
               'expected scramble, butterfly and conjugate kernels'
             );
-            const fft = p => {
-              let buffer = scramble(p);
-              for (let half = 1; half < 256; half *= 2) buffer = butterfly(buffer, half);
+            const fft = async p => {
+              let buffer = await scramble(p);
+              for (let half = 1; half < 256; half *= 2) buffer = await butterfly(buffer, half);
               return buffer;
             };
-            const spectrum = fft(planes);
-            const recovered = conjugate(fft(conjugate(spectrum, 1)), 1 / 256);
+            const spectrum = await fft(planes);
+            const recovered = await conjugate(await fft(await conjugate(spectrum, 1)), 1 / 256);
             const hint = diagnoseAll(
               256, i => recovered[0][i], i => signal[i], 5e-3, inverseProbes(signal, 256, 5e-3)
             );
@@ -2726,10 +2770,10 @@ console.log('round trip clean:', worst < 5e-3 && leftover < 5e-3);
             // flipped, so check the spectrum itself against the definition.
             const signal = makeTones(256, [[5, 1, 'sin']]);
             const planes = [Float32Array.from(signal), new Float32Array(256)];
-            const { scramble, butterfly } = findInverseKernels(ctx, 256, planes);
+            const { scramble, butterfly } = await findInverseKernels(ctx, 256, planes);
             ctx.assert(scramble && butterfly, 'expected a scramble kernel and a butterfly kernel');
-            let buffer = scramble(planes);
-            for (let half = 1; half < 256; half *= 2) buffer = butterfly(buffer, half);
+            let buffer = await scramble(planes);
+            for (let half = 1; half < 256; half *= 2) buffer = await butterfly(buffer, half);
             const [wantRe, wantIm] = dftRef(signal, new Array(256).fill(0), -1);
             for (const k of [5, 251]) {
               ctx.assertClose(buffer[0][k], wantRe[k], 5e-3, `forward transform, real part of bin ${k}`);

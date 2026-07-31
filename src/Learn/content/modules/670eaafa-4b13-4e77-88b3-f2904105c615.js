@@ -735,7 +735,7 @@ const threshold = gpu.createKernel(function (photo) {
   constants: { t: 0.49 },
 });
 
-const mask = threshold(photo);
+const mask = await threshold(photo);
 
 ${ASCII_DUMP}
 
@@ -764,7 +764,7 @@ const threshold = gpu.createKernel(function (photo) {
   constants: { t: 0.49 },
 });
 
-const mask = threshold(photo);
+const mask = await threshold(photo);
 
 ${ASCII_DUMP}
 
@@ -787,7 +787,7 @@ console.log('bottom-right 32x32 foreground:', dark, 'of 1024');
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const image = litImage(ctx.utils, false);
-            const out = ctx.kernel(image);
+            const out = await ctx.kernel(image);
             ctx.assert(out && out.length === SIZE, `expected ${SIZE} rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === SIZE, `each row should hold ${SIZE} values`);
             assertBinary(ctx, out, 'the mask', (v, y, x) => {
@@ -803,7 +803,7 @@ console.log('bottom-right 32x32 foreground:', dark, 'of 1024');
           name: 'foreground is exactly <code>luminance &gt; 0.49</code>',
           run: async ctx => {
             const image = litImage(ctx.utils, false);
-            const out = ctx.kernel(image);
+            const out = await ctx.kernel(image);
             const ref = globalMaskRef(image);
             assertMask(ctx, out, ref, globalProbes(image, ref), 'the mask');
           },
@@ -814,7 +814,7 @@ console.log('bottom-right 32x32 foreground:', dark, 'of 1024');
             // Not a check of your arithmetic — a check that you can see the
             // failure. The same ink is present in both corners.
             const image = litImage(ctx.utils, false);
-            const out = ctx.kernel(image);
+            const out = await ctx.kernel(image);
             let lit = 0;
             let dark = 0;
             for (let y = 0; y < 32; y++) {
@@ -843,7 +843,7 @@ console.log('bottom-right 32x32 foreground:', dark, 'of 1024');
             // A second scene, lit down the other diagonal: nothing about the
             // first one's geometry can be hard-coded.
             const image = litImage(ctx.utils, true);
-            const out = ctx.kernel(image);
+            const out = await ctx.kernel(image);
             const ref = globalMaskRef(image);
             assertMask(ctx, out, ref, globalProbes(image, ref), 'the mask');
           },
@@ -933,7 +933,7 @@ const between = gpu.createKernel(function (tones) {
   constants: { bins: 256 },
 });
 
-const scores = between(tones);
+const scores = await between(tones);
 
 // The argmax is one tiny reduction — plain JavaScript is the right tool here.
 let best = 0;
@@ -971,7 +971,7 @@ const between = gpu.createKernel(function (tones) {
   constants: { bins: 256 },
 });
 
-const scores = between(tones);
+const scores = await between(tones);
 
 // The argmax is one tiny reduction — plain JavaScript is the right tool here.
 let best = 0;
@@ -990,7 +990,7 @@ console.log('as a grey level:', (best / 255).toFixed(3));
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const bins = toneHistogram(evenLuminance(ctx.utils, 3301, 0.3, 0.72, 0.2));
-            const out = ctx.kernel(bins);
+            const out = await ctx.kernel(bins);
             ctx.assert(out && out.length === BINS, `expected ${BINS} scores, got ${out && out.length}`);
             for (let t = 0; t < BINS; t++) {
               ctx.assert(
@@ -1005,7 +1005,7 @@ console.log('as a grey level:', (best / 255).toFixed(3));
           name: 'score(t) is <code>p0 · p1 · (mu0 − mu1)²</code> for every cut',
           run: async ctx => {
             const bins = toneHistogram(evenLuminance(ctx.utils, 3301, 0.3, 0.72, 0.2));
-            const out = ctx.kernel(bins);
+            const out = await ctx.kernel(bins);
             const { score, gap } = otsuRef(bins);
             const total = bins.reduce((a, b) => a + b, 0);
             for (let t = 0; t < BINS; t++) {
@@ -1024,7 +1024,7 @@ console.log('as a grey level:', (best / 255).toFixed(3));
           name: 'the peak lands on a threshold that really does split the two tone humps',
           run: async ctx => {
             const bins = toneHistogram(evenLuminance(ctx.utils, 3301, 0.3, 0.72, 0.2));
-            const out = ctx.kernel(bins);
+            const out = await ctx.kernel(bins);
             const { score } = otsuRef(bins);
             const peak = Math.max(...score);
             let best = 0;
@@ -1060,7 +1060,7 @@ console.log('as a grey level:', (best / 255).toFixed(3));
           run: async ctx => {
             // A different scene: darker ground, dimmer marks, tighter noise.
             const bins = toneHistogram(evenLuminance(ctx.utils, 8821, 0.22, 0.6, 0.16));
-            const out = ctx.kernel(bins);
+            const out = await ctx.kernel(bins);
             const { score, gap } = otsuRef(bins);
             const total = bins.reduce((a, b) => a + b, 0);
             for (let t = 0; t < BINS; t++) {
@@ -1158,7 +1158,7 @@ const adaptive = gpu.createKernel(function (gray) {
   constants: { last: 127, win: 9, radius: 4, area: 81, c: 0.03 },
 });
 
-const mask = adaptive(gray);
+const mask = await adaptive(gray);
 
 ${ASCII_DUMP}
 
@@ -1197,7 +1197,7 @@ const adaptive = gpu.createKernel(function (gray) {
   constants: { last: 127, win: 9, radius: 4, area: 81, c: 0.03 },
 });
 
-const mask = adaptive(gray);
+const mask = await adaptive(gray);
 
 ${ASCII_DUMP}
 
@@ -1219,7 +1219,7 @@ console.log('bottom-right 32x32 foreground:', dark, 'of 1024');
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const gray = litLuminance(ctx.utils, false);
-            const out = ctx.kernel(gray);
+            const out = await ctx.kernel(gray);
             ctx.assert(out && out.length === SIZE, `expected ${SIZE} rows, got ${out && out.length}`);
             ctx.assert(out[0] && out[0].length === SIZE, `each row should hold ${SIZE} values`);
             assertBinary(ctx, out, 'the mask', (v, y, x) => {
@@ -1247,7 +1247,7 @@ console.log('bottom-right 32x32 foreground:', dark, 'of 1024');
           run: async ctx => {
             const gray = litLuminance(ctx.utils, false);
             const image = litImage(ctx.utils, false);
-            const out = ctx.kernel(gray);
+            const out = await ctx.kernel(gray);
             const ref = adaptiveMaskRef(gray);
             assertMask(ctx, out, ref, adaptiveProbes(gray, image, ref), 'the mask');
           },
@@ -1258,7 +1258,7 @@ console.log('bottom-right 32x32 foreground:', dark, 'of 1024');
             // Task 1 found 1024 of 1024 in the lit corner and 0 of 1024 in the
             // dark one. Every 32×32 corner here holds four 5×5 marks.
             const gray = litLuminance(ctx.utils, false);
-            const out = ctx.kernel(gray);
+            const out = await ctx.kernel(gray);
             let lit = 0;
             let dark = 0;
             for (let y = 0; y < 32; y++) {
@@ -1286,7 +1286,7 @@ console.log('bottom-right 32x32 foreground:', dark, 'of 1024');
           run: async ctx => {
             const gray = litLuminance(ctx.utils, true);
             const image = litImage(ctx.utils, true);
-            const out = ctx.kernel(gray);
+            const out = await ctx.kernel(gray);
             const ref = adaptiveMaskRef(gray);
             assertMask(ctx, out, ref, adaptiveProbes(gray, image, ref), 'the mask');
           },
@@ -1299,7 +1299,7 @@ console.log('bottom-right 32x32 foreground:', dark, 'of 1024');
             // compares against the mean without the bias fails here.
             const flat = new Array(SIZE);
             for (let y = 0; y < SIZE; y++) flat[y] = new Array(SIZE).fill(0.5);
-            const out = ctx.kernel(flat);
+            const out = await ctx.kernel(flat);
             let on = 0;
             for (let y = 0; y < SIZE; y++) {
               for (let x = 0; x < SIZE; x++) on += out[y][x] > 0.5 ? 1 : 0;
@@ -1407,8 +1407,8 @@ const dilate = gpu.createKernel(function (mask) {
 ${COUNT_HELPER}
 
 console.log('mask      :', count(mask));
-console.log('eroded    :', count(erode(mask)));
-console.log('dilated   :', count(dilate(mask)));
+console.log('eroded    :', count(await erode(mask)));
+console.log('dilated   :', count(await dilate(mask)));
 `,
       solutionCode: `// One sweep, two reduction operators.
 const gpu = new GPU({ mode });
@@ -1454,8 +1454,8 @@ const dilate = gpu.createKernel(function (mask) {
 ${COUNT_HELPER}
 
 console.log('mask      :', count(mask));
-console.log('eroded    :', count(erode(mask)));
-console.log('dilated   :', count(dilate(mask)));
+console.log('eroded    :', count(await erode(mask)));
+console.log('dilated   :', count(await dilate(mask)));
 `,
       inputs: utils => ({ mask: noisyMask(utils, 7301) }),
       publicTests: [
@@ -1468,7 +1468,7 @@ console.log('dilated   :', count(dilate(mask)));
             );
             const mask = noisyMask(ctx.utils, 7301);
             for (const [i, name] of [[0, 'eroder'], [1, 'dilator']]) {
-              const out = ctx.kernels[i](mask);
+              const out = await ctx.kernels[i](mask);
               ctx.assert(
                 out && out.length === SIZE && out[0] && out[0].length === SIZE,
                 `the ${name} should return a ${SIZE}×${SIZE} grid`
@@ -1481,7 +1481,7 @@ console.log('dilated   :', count(dilate(mask)));
           name: 'erosion is the clamped 3×3 <strong>minimum</strong>',
           run: async ctx => {
             const mask = noisyMask(ctx.utils, 7301);
-            const out = ctx.kernels[0](mask);
+            const out = await ctx.kernels[0](mask);
             const ref = erodeRef(mask);
             assertMask(ctx, out, ref, erodeProbes(mask), 'the eroded mask');
           },
@@ -1490,7 +1490,7 @@ console.log('dilated   :', count(dilate(mask)));
           name: 'dilation is the clamped 3×3 <strong>maximum</strong>',
           run: async ctx => {
             const mask = noisyMask(ctx.utils, 7301);
-            const out = ctx.kernels[1](mask);
+            const out = await ctx.kernels[1](mask);
             const ref = dilateRef(mask);
             assertMask(ctx, out, ref, dilateProbes(mask), 'the dilated mask');
           },
@@ -1499,8 +1499,8 @@ console.log('dilated   :', count(dilate(mask)));
           name: 'one shrinks and one grows: every speck dies, every pinhole closes',
           run: async ctx => {
             const mask = noisyMask(ctx.utils, 7301);
-            const eroded = ctx.kernels[0](mask);
-            const dilated = ctx.kernels[1](mask);
+            const eroded = await ctx.kernels[0](mask);
+            const dilated = await ctx.kernels[1](mask);
             const before = countOn(mask);
             const after = countOn(eroded);
             const grown = countOn(dilated);
@@ -1546,8 +1546,8 @@ console.log('dilated   :', count(dilate(mask)));
           name: 'private test #1',
           run: async ctx => {
             const mask = noisyMask(ctx.utils, 2255);
-            const eroded = ctx.kernels[0](mask);
-            const dilated = ctx.kernels[1](mask);
+            const eroded = await ctx.kernels[0](mask);
+            const dilated = await ctx.kernels[1](mask);
             assertMask(ctx, eroded, erodeRef(mask), erodeProbes(mask), 'the eroded mask');
             assertMask(ctx, dilated, dilateRef(mask), dilateProbes(mask), 'the dilated mask');
           },
@@ -1560,11 +1560,11 @@ console.log('dilated   :', count(dilate(mask)));
             // the whole frame.
             const solid = new Array(SIZE);
             for (let y = 0; y < SIZE; y++) solid[y] = new Array(SIZE).fill(1);
-            const eroded = ctx.kernels[0](solid);
+            const eroded = await ctx.kernels[0](solid);
             assertMask(ctx, eroded, solid, [
               [sweepRef(solid, 'min', 'zero'), 'a completely full mask came back with its frame eroded away — out-of-bounds samples were treated as background. This module clamps: an off-frame sample reuses the nearest in-bounds cell, so a full mask erodes to itself'],
             ], 'eroding a completely full mask');
-            const dilated = ctx.kernels[1](solid);
+            const dilated = await ctx.kernels[1](solid);
             assertMask(ctx, dilated, solid, [], 'dilating a completely full mask');
           },
         },
@@ -1594,7 +1594,7 @@ console.log('dilated   :', count(dilate(mask)));
       goal: `<strong>Goal:</strong> build an opening, a closing and a two-pass opening from the
         given kernels, and report what each one changed with the exact labels the starter uses.`,
       requirements: [
-        'Opening is <code>dilate(erode(mask))</code>; closing is <code>erode(dilate(mask))</code>',
+        'Opening is <code>await dilate(await erode(mask))</code>; closing is <code>await erode(await dilate(mask))</code>',
         'The two-pass opening runs both erosions before either dilation',
         'Write the <code>removed</code> kernel: <code>1</code> where <code>before</code> is foreground and <code>after</code> is not',
         'Log the three counts with the labels already in the starter',
@@ -1603,7 +1603,7 @@ console.log('dilated   :', count(dilate(mask)));
         {
           title: 'Hint 1 — chaining kernels',
           body: `<p>A kernel's result is an ordinary 2D array, so it goes straight back into
-            another kernel: <code>dilate(erode(mask))</code> is the whole opening. Every pass is
+            another kernel: <code>await dilate(await erode(mask))</code> is the whole opening. Every pass is
             a separate launch, which is exactly how a real pipeline does it (and Pipelines &amp;
             Textures shows how to keep the intermediate on the GPU).</p>`,
         },
@@ -1647,9 +1647,9 @@ const opened = mask;
 const closed = mask;
 const openedTwice = mask;
 
-console.log('opening removed:', count(removed(mask, opened)));
-console.log('closing added:', count(removed(closed, mask)));
-console.log('two passes removed:', count(removed(mask, openedTwice)));
+console.log('opening removed:', count(await removed(mask, opened)));
+console.log('closing added:', count(await removed(closed, mask)));
+console.log('two passes removed:', count(await removed(mask, openedTwice)));
 `,
       solutionCode: `// Two orders, two completely different repairs.
 const gpu = new GPU({ mode });
@@ -1663,13 +1663,13 @@ const removed = gpu.createKernel(function (before, after) {
 
 ${COUNT_HELPER}
 
-const opened = dilate(erode(mask));
-const closed = erode(dilate(mask));
-const openedTwice = dilate(dilate(erode(erode(mask))));
+const opened = await dilate(await erode(mask));
+const closed = await erode(await dilate(mask));
+const openedTwice = await dilate(await dilate(await erode(await erode(mask))));
 
-console.log('opening removed:', count(removed(mask, opened)));
-console.log('closing added:', count(removed(closed, mask)));
-console.log('two passes removed:', count(removed(mask, openedTwice)));
+console.log('opening removed:', count(await removed(mask, opened)));
+console.log('closing added:', count(await removed(closed, mask)));
+console.log('two passes removed:', count(await removed(mask, openedTwice)));
 `,
       inputs: utils => ({ mask: noisyMask(utils, 7301) }),
       publicTests: [
@@ -1679,7 +1679,7 @@ console.log('two passes removed:', count(removed(mask, openedTwice)));
             ctx.assert(ctx.kernels.length >= 3, `expected 3 kernels, found ${ctx.kernels.length}`);
             const mask = noisyMask(ctx.utils, 7301);
             const opened = openRef(mask);
-            const out = ctx.kernel(mask, opened);
+            const out = await ctx.kernel(mask, opened);
             ctx.assert(
               out && out.length === SIZE && out[0] && out[0].length === SIZE,
               `expected a ${SIZE}×${SIZE} grid`
@@ -1776,7 +1776,7 @@ console.log('two passes removed:', count(removed(mask, openedTwice)));
             paintRect(before, 10, 10, 20, 20, 1);
             paintRect(after, 12, 12, 16, 16, 1);
             paintRect(after, 60, 60, 4, 4, 1); // only in `after`: never "removed"
-            const out = ctx.kernel(before, after);
+            const out = await ctx.kernel(before, after);
             const ref = removedRef(before, after);
             assertMask(ctx, out, ref, [
               [removedRef(after, before), 'the two arguments are the wrong way round'],
@@ -1890,8 +1890,8 @@ ${COUNT_HELPER}
 // TODO: one opening — erode first, then dilate.
 const clean = noisy;
 
-console.log('blobs before cleaning:', count(corners(noisy)));
-console.log('blobs after cleaning:', count(corners(clean)));
+console.log('blobs before cleaning:', count(await corners(noisy)));
+console.log('blobs after cleaning:', count(await corners(clean)));
 `,
       solutionCode: `// Threshold, clean, count. The whole module in one run.
 const gpu = new GPU({ mode });
@@ -1916,10 +1916,10 @@ const corners = gpu.createKernel(function (mask) {
 
 ${COUNT_HELPER}
 
-const clean = dilate(erode(noisy));
+const clean = await dilate(await erode(noisy));
 
-console.log('blobs before cleaning:', count(corners(noisy)));
-console.log('blobs after cleaning:', count(corners(clean)));
+console.log('blobs before cleaning:', count(await corners(noisy)));
+console.log('blobs after cleaning:', count(await corners(clean)));
 `,
       inputs: utils => ({ noisy: sceneMask(utils, 4409) }),
       publicTests: [
@@ -1929,7 +1929,7 @@ console.log('blobs after cleaning:', count(corners(clean)));
             ctx.assert(ctx.kernels.length >= 3, `expected 3 kernels, found ${ctx.kernels.length}`);
             const noisy = sceneMask(ctx.utils, 4409);
             const clean = openRef(noisy);
-            const out = ctx.kernel(clean);
+            const out = await ctx.kernel(clean);
             ctx.assert(
               out && out.length === SIZE && out[0] && out[0].length === SIZE,
               `expected a ${SIZE}×${SIZE} grid`
@@ -1944,7 +1944,7 @@ console.log('blobs after cleaning:', count(corners(clean)));
           name: 'the same kernel counts the dirty mask honestly too',
           run: async ctx => {
             const noisy = sceneMask(ctx.utils, 4409);
-            const out = ctx.kernel(noisy);
+            const out = await ctx.kernel(noisy);
             const ref = cornerRef(noisy);
             assertMask(ctx, out, ref, cornerProbes(noisy), 'the corner grid');
             ctx.assertClose(
@@ -1996,7 +1996,7 @@ console.log('blobs after cleaning:', count(corners(clean)));
             paintRect(built, 40, 20, 8, 30, 1);
             paintRect(built, 70, 70, 25, 25, 1);
             paintRect(built, 100, 10, 6, 6, 1);
-            const out = ctx.kernel(built);
+            const out = await ctx.kernel(built);
             const ref = cornerRef(built);
             assertMask(ctx, out, ref, cornerProbes(built), 'the corner grid');
             ctx.assertClose(countOn(out), 4, 0.5, 'four rectangles, four corners');
@@ -2010,11 +2010,11 @@ console.log('blobs after cleaning:', count(corners(clean)));
             // cell whose clamped neighbours could ever be background, and under
             // clamping they are not, so a full mask has none at all.
             const empty = blankMask();
-            const outEmpty = ctx.kernel(empty);
+            const outEmpty = await ctx.kernel(empty);
             assertMask(ctx, outEmpty, cornerRef(empty), [], 'the corner grid of an empty mask');
             const solid = new Array(SIZE);
             for (let y = 0; y < SIZE; y++) solid[y] = new Array(SIZE).fill(1);
-            const outSolid = ctx.kernel(solid);
+            const outSolid = await ctx.kernel(solid);
             assertMask(ctx, outSolid, cornerRef(solid), [], 'the corner grid of a completely full mask');
           },
         },

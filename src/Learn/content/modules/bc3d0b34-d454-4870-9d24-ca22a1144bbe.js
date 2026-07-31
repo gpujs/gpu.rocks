@@ -264,7 +264,7 @@ const laplacian = gpu.createKernel(function (field) {
   return 0;
 }, { output: [32, 32], constants: { size: 32 } });
 
-const result = laplacian(field);
+const result = await laplacian(field);
 console.log('at a bump:', result[16][16]);
 `,
       solutionCode: `// The Laplacian: how far is each cell from its neighbors' average?
@@ -285,7 +285,7 @@ const laplacian = gpu.createKernel(function (field) {
   return field[y][xl] + field[y][xr] + field[yd][x] + field[yu][x] - 4 * field[y][x];
 }, { output: [32, 32], constants: { size: 32 } });
 
-const result = laplacian(field);
+const result = await laplacian(field);
 console.log('at a bump:', result[16][16]);
 `,
       inputs: utils => ({ field: randomGrid(utils, 32, 3401) }),
@@ -295,7 +295,7 @@ console.log('at a bump:', result[16][16]);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const flat = makeGrid(32, 0.7);
-            const out = ctx.kernel(flat);
+            const out = await ctx.kernel(flat);
             ctx.assert(out && out.length === 32 && out[0].length === 32, 'expected a 32×32 result');
             const ref = laplacianRef(flat);
             const clamped = laplacianClampedRef(flat);
@@ -311,7 +311,7 @@ console.log('at a bump:', result[16][16]);
           name: 'a single spike: <code>−4·s</code> at the peak, <code>+s</code> on each neighbor — even across the wrap',
           run: async ctx => {
             const spike = spikeGrid(32, 0, 0, 2);
-            const out = ctx.kernel(spike);
+            const out = await ctx.kernel(spike);
             const ref = laplacianRef(spike);
             const clamped = laplacianClampedRef(spike);
             const hint = (y, x) => laplacianHint(out[y][x], spike, ref, clamped, 1e-4, y, x);
@@ -331,7 +331,7 @@ console.log('at a bump:', result[16][16]);
             // Full comparison against a CPU reference on a fresh random field,
             // plus the torus conservation law: the Laplacian sums to zero.
             const field = randomGrid(ctx.utils, 32, 909);
-            const out = ctx.kernel(field);
+            const out = await ctx.kernel(field);
             const ref = laplacianRef(field);
             const clamped = laplacianClampedRef(field);
             let sum = 0;
@@ -422,8 +422,8 @@ const stepV = gpu.createKernel(function (u, v) {
   return vc;
 }, { output: [32, 32], constants: { size: 32, dv: 0.1, f: 0.035, k: 0.06, dt: 1 } });
 
-const newU = stepU(u0, v0);
-const newV = stepV(u0, v0);
+const newU = await stepU(u0, v0);
+const newV = await stepV(u0, v0);
 console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
 `,
       solutionCode: `// Two chemicals, two kernels. Both read the OLD u and v grids.
@@ -457,8 +457,8 @@ const stepV = gpu.createKernel(function (u, v) {
     - (this.constants.f + this.constants.k) * vc) * this.constants.dt;
 }, { output: [32, 32], constants: { size: 32, dv: 0.1, f: 0.035, k: 0.06, dt: 1 } });
 
-const newU = stepU(u0, v0);
-const newV = stepV(u0, v0);
+const newU = await stepU(u0, v0);
+const newV = await stepV(u0, v0);
 console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
 `,
       inputs: () => {
@@ -472,8 +472,8 @@ console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
             ctx.assert(ctx.kernels.length >= 2, `expected 2 kernels (stepU then stepV), found ${ctx.kernels.length}`);
             const u = makeGrid(32, 1);
             const v = makeGrid(32, 0);
-            const newU = ctx.kernels[0](u, v);
-            const newV = ctx.kernels[1](u, v);
+            const newU = await ctx.kernels[0](u, v);
+            const newV = await ctx.kernels[1](u, v);
             for (let y = 0; y < 32; y += 5) {
               for (let x = 0; x < 32; x += 5) {
                 ctx.assertClose(newU[y][x], 1, 1e-5, `U at [${y}][${x}] — nothing to react, nothing to feed`);
@@ -491,8 +491,8 @@ console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
             const uvv = 0.6 * 0.3 * 0.3;
             const expectedU = 0.6 + (-uvv + GS.f * (1 - 0.6)) * GS.dt;
             const expectedV = 0.3 + (uvv - (GS.f + GS.k) * 0.3) * GS.dt;
-            const newU = ctx.kernels[0](u, v);
-            const newV = ctx.kernels[1](u, v);
+            const newU = await ctx.kernels[0](u, v);
+            const newV = await ctx.kernels[1](u, v);
             const uProbes = stepUProbes(0.6, 0.3, 0);
             const vProbes = stepVProbes(0.6, 0.3, 0);
             for (let y = 0; y < 32; y += 7) {
@@ -516,8 +516,8 @@ console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
             const uvv = 0.8 * 0.1 * 0.1;
             const expectedU = 0.8 + (-uvv + GS.f * (1 - 0.8)) * GS.dt;
             const expectedV = 0.1 + (uvv - (GS.f + GS.k) * 0.1) * GS.dt;
-            const newU = ctx.kernels[0](u, v);
-            const newV = ctx.kernels[1](u, v);
+            const newU = await ctx.kernels[0](u, v);
+            const newV = await ctx.kernels[1](u, v);
             const uProbes = stepUProbes(0.8, 0.1, 0);
             const vProbes = stepVProbes(0.8, 0.1, 0);
             for (let y = 0; y < 32; y += 3) {
@@ -537,8 +537,8 @@ console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
             // checked cell-for-cell against the CPU reference.
             const seed = makeSeedPair(32, 10);
             const [refU, refV] = gsStepRef(seed.u, seed.v);
-            const newU = ctx.kernels[0](seed.u, seed.v);
-            const newV = ctx.kernels[1](seed.u, seed.v);
+            const newU = await ctx.kernels[0](seed.u, seed.v);
+            const newV = await ctx.kernels[1](seed.u, seed.v);
             const lapU = laplacianRef(seed.u);
             const lapV = laplacianRef(seed.v);
             for (let y = 0; y < 32; y++) {
@@ -575,23 +575,23 @@ console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
         both kernels always reading the same snapshot.`,
       requirements: [
         'Loop exactly <code>STEPS</code> (100) times in plain JavaScript',
-        'Call <code>stepU(u, v)</code> and <code>stepV(u, v)</code> with the <em>same</em> <code>u</code> and <code>v</code>',
+        'Call <code>await stepU(u, v)</code> and <code>await stepV(u, v)</code> with the <em>same</em> <code>u</code> and <code>v</code>',
         'Only after both calls, replace <code>u</code> and <code>v</code> with the new grids',
       ],
       hints: [
         {
           title: 'Hint 1 — why the starter is wrong',
           body: `<p>The starter does</p>
-<pre><code>u = stepU(u, v);
-v = stepV(u, v);</code></pre>
+<pre><code>u = await stepU(u, v);
+v = await stepV(u, v);</code></pre>
 <p>— by the
             second call, <code>u</code> is already next step's grid. Stash both results in
             temporaries before assigning either.</p>`,
         },
         {
           title: 'Hint 2 — the loop body',
-          body: `<pre><code>const nextU = stepU(u, v);
-const nextV = stepV(u, v);
+          body: `<pre><code>const nextU = await stepU(u, v);
+const nextV = await stepV(u, v);
 u = nextU;
 v = nextV;</code></pre>
 <p>Four lines, inside
@@ -639,8 +639,8 @@ let v = seedV;
 
 // TODO: run STEPS steps. This single "step" has TWO bugs: it only runs
 // once, and stepV reads the u we just overwrote — future food!
-u = stepU(u, v);
-v = stepV(u, v);
+u = await stepU(u, v);
+v = await stepV(u, v);
 
 console.log('center V after', STEPS, 'steps:', v[24][24]);
 `,
@@ -681,8 +681,8 @@ let v = seedV;
 
 for (let i = 0; i < STEPS; i++) {
   // Both kernels read the same snapshot; swap only after both are done.
-  const nextU = stepU(u, v);
-  const nextV = stepV(u, v);
+  const nextU = await stepU(u, v);
+  const nextV = await stepV(u, v);
   u = nextU;
   v = nextV;
 }
@@ -756,8 +756,8 @@ console.log('center V after', STEPS, 'steps:', v[24][24]);
             let u = seed.u;
             let v = seed.v;
             for (let i = 0; i < 40; i++) {
-              const nextU = ctx.kernels[0](u, v);
-              const nextV = ctx.kernels[1](u, v);
+              const nextU = await ctx.kernels[0](u, v);
+              const nextV = await ctx.kernels[1](u, v);
               u = nextU;
               v = nextV;
             }
@@ -777,6 +777,15 @@ console.log('center V after', STEPS, 'steps:', v[24][24]);
     {
       slug: 'paint-the-pattern',
       title: 'Paint the Pattern',
+      // Under mode "auto" this task legitimately runs on two backends: stepU
+      // and stepV upgrade to WebGPU, `paint` declines it (gpu.js's WebGPU
+      // backend refuses graphical mode outright — "does not yet support
+      // graphical mode; use the webgl backend"), so the console reports
+      // "webgpu (2 kernels) + webgl (1 kernel)". That is fine and deliberately
+      // NOT pinned: nothing here is pipelined, so every step already hands JS
+      // an ordinary array and `paint` receives one too — no texture crosses
+      // backends, no hidden readback, and the pixels are byte-identical to a
+      // pure-WebGL run.
       intro: `<p>Payoff time. The whole simulation is wired below — 64×64 grid, 200 steps —
         and it ends holding <code>v</code>, a grid of numbers with coral growing in it.
         Numbers deserve pixels: one graphical kernel, exactly like the painters in 3.1,
@@ -850,13 +859,13 @@ const paint = gpu.createKernel(function (v) {
 let u = seedU;
 let v = seedV;
 for (let i = 0; i < 200; i++) {
-  const nextU = stepU(u, v);
-  const nextV = stepV(u, v);
+  const nextU = await stepU(u, v);
+  const nextV = await stepV(u, v);
   u = nextU;
   v = nextV;
 }
 
-paint(v);
+await paint(v);
 render(paint.canvas);
 `,
       solutionCode: `// 200 steps of Gray–Scott, then paint the V field. The sim is done —
@@ -899,13 +908,13 @@ const paint = gpu.createKernel(function (v) {
 let u = seedU;
 let v = seedV;
 for (let i = 0; i < 200; i++) {
-  const nextU = stepU(u, v);
-  const nextV = stepV(u, v);
+  const nextU = await stepU(u, v);
+  const nextV = await stepV(u, v);
   u = nextU;
   v = nextV;
 }
 
-paint(v);
+await paint(v);
 render(paint.canvas);
 `,
       inputs: () => {
@@ -930,7 +939,7 @@ render(paint.canvas);
           run: async ctx => {
             const paint = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(paint, 'no graphical kernel found');
-            paint(makeGrid(64, 0));
+            await paint(makeGrid(64, 0));
             let pixels = paint.getPixels();
             for (let i = 0; i < pixels.length; i += 331 * 4) {
               ctx.assertClose(pixels[i], 0, 3,
@@ -940,7 +949,7 @@ render(paint.canvas);
               ctx.assertClose(pixels[i + 2], 0.25 * 255, 3,
                 diagnose(pixels[i + 2], 0.25 * 255, 3, paletteProbes(0, 2)) || `blue at byte ${i} for v = 0`);
             }
-            paint(makeGrid(64, 0.2)); // t = 0.5
+            await paint(makeGrid(64, 0.2)); // t = 0.5
             pixels = paint.getPixels();
             for (let i = 0; i < pixels.length; i += 331 * 4) {
               ctx.assertClose(pixels[i], 0.5 * 255, 3,
@@ -961,7 +970,7 @@ render(paint.canvas);
             ctx.assert(paint, 'no graphical kernel found');
             const seed = makeSeedPair(64, 8);
             const [, refV] = gsRunRef(seed.u, seed.v, 200);
-            paint(refV);
+            await paint(refV);
             const pixels = paint.getPixels();
             let bright = 0;
             let dark = 0;
@@ -988,14 +997,14 @@ render(paint.canvas);
             // including the clamp at t = 1.
             const paint = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(paint, 'no graphical kernel found');
-            paint(makeGrid(64, 0.6)); // t clamps to 1 → pure white
+            await paint(makeGrid(64, 0.6)); // t clamps to 1 → pure white
             let pixels = paint.getPixels();
             for (let i = 0; i < pixels.length; i += 449 * 4) {
               ctx.assertClose(pixels[i], 255, 3, `red at byte ${i} for v = 0.6`);
               ctx.assertClose(pixels[i + 1], 255, 3, `green at byte ${i} for v = 0.6`);
               ctx.assertClose(pixels[i + 2], 255, 3, `blue at byte ${i} for v = 0.6`);
             }
-            paint(makeGrid(64, 0.1)); // t = 0.25
+            await paint(makeGrid(64, 0.1)); // t = 0.25
             pixels = paint.getPixels();
             for (let i = 0; i < pixels.length; i += 449 * 4) {
               ctx.assertClose(pixels[i], 0.25 * 255, 3,

@@ -409,7 +409,7 @@ const countBin = gpu.createKernel(function (codes) {
   constants: { n: 4096, target: 5 },
 });
 
-console.log('codes equal to the target:', countBin(codes)[0]);
+console.log('codes equal to the target:', (await countBin(codes))[0]);
 `,
       solutionCode: `// One bin, one thread. Nothing is shared, so nothing can race.
 const gpu = new GPU({ mode });
@@ -425,7 +425,7 @@ const countBin = gpu.createKernel(function (codes) {
   constants: { n: 4096, target: 5 },
 });
 
-console.log('codes equal to the target:', countBin(codes)[0]);
+console.log('codes equal to the target:', (await countBin(codes))[0]);
 `,
       inputs: utils => ({ codes: makeCodes(utils, 4096, CODE_BINS, 5309) }),
       publicTests: [
@@ -435,7 +435,7 @@ console.log('codes equal to the target:', countBin(codes)[0]);
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const arr = new Array(4096);
             for (let i = 0; i < 4096; i++) arr[i] = i % CODE_BINS; // 256 of every code
-            const out = ctx.kernel(arr);
+            const out = await ctx.kernel(arr);
             ctx.assert(out && out.length === 1, `expected 1 output value, got ${out && out.length}`);
             const hint = diagnose(out[0], 256, 0.5, [
               [4096, 'every code was counted — only add 1 when codes[i] equals this.constants.target'],
@@ -450,7 +450,7 @@ console.log('codes equal to the target:', countBin(codes)[0]);
           name: `counts the codes equal to <code>${TARGET}</code> in a lopsided array`,
           run: async ctx => {
             const codes = makeCodes(ctx.utils, 4096, CODE_BINS, 5309);
-            const out = ctx.kernel(codes);
+            const out = await ctx.kernel(codes);
             const expected = countOf(codes, TARGET);
             const hint = diagnose(out[0], expected, 0.5, targetProbes(codes, TARGET));
             ctx.assertClose(out[0], expected, 0.5, hint || `the number of codes equal to ${TARGET}`);
@@ -462,7 +462,7 @@ console.log('codes equal to the target:', countBin(codes)[0]);
           name: 'private test #1',
           run: async ctx => {
             const codes = makeCodes(ctx.utils, 4096, CODE_BINS, 4093);
-            const out = ctx.kernel(codes);
+            const out = await ctx.kernel(codes);
             ctx.assert(out && out.length === 1, 'expected 1 output value');
             const expected = countOf(codes, TARGET);
             const hint = diagnose(out[0], expected, 0.5, targetProbes(codes, TARGET));
@@ -540,7 +540,7 @@ const histogram = gpu.createKernel(function (codes) {
   constants: { n: 4096 },
 });
 
-const counts = histogram(codes);
+const counts = await histogram(codes);
 console.log('counts:', counts);
 
 // TODO: total the 16 counts in plain JavaScript and log the total.
@@ -560,7 +560,7 @@ const histogram = gpu.createKernel(function (codes) {
   constants: { n: 4096 },
 });
 
-const counts = histogram(codes);
+const counts = await histogram(codes);
 console.log('counts:', counts);
 
 let total = 0;
@@ -574,7 +574,7 @@ console.log('total:', total);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const codes = makeCodes(ctx.utils, 4096, CODE_BINS, 7717);
-            const out = ctx.kernel(codes);
+            const out = await ctx.kernel(codes);
             ctx.assert(out && out.length === CODE_BINS,
               `expected ${CODE_BINS} counts, one per bin, got ${out && out.length}`);
             const expected = tally(codes, CODE_BINS, v => v);
@@ -587,7 +587,7 @@ console.log('total:', total);
           name: 'bin <em>x</em> holds the number of codes equal to <em>x</em>',
           run: async ctx => {
             const codes = makeCodes(ctx.utils, 4096, CODE_BINS, 7717);
-            const out = ctx.kernel(codes);
+            const out = await ctx.kernel(codes);
             const expected = tally(codes, CODE_BINS, v => v);
             const hint = diagnoseVector(out, expected, codeHistogramProbes(codes, CODE_BINS));
             for (let b = 0; b < CODE_BINS; b++) {
@@ -611,7 +611,7 @@ console.log('total:', total);
           name: 'private test #1',
           run: async ctx => {
             const codes = makeCodes(ctx.utils, 4096, CODE_BINS, 2029);
-            const out = ctx.kernel(codes);
+            const out = await ctx.kernel(codes);
             ctx.assert(out && out.length === CODE_BINS, `expected ${CODE_BINS} counts`);
             const expected = tally(codes, CODE_BINS, v => v);
             const probes = codeHistogramProbes(codes, CODE_BINS);
@@ -701,7 +701,7 @@ const histogram = gpu.createKernel(function (samples) {
   constants: { n: 4096, bins: 16, lo: -32, span: 64 },
 });
 
-const counts = histogram(samples);
+const counts = await histogram(samples);
 console.log('counts:', counts);
 
 let total = 0;
@@ -725,7 +725,7 @@ const histogram = gpu.createKernel(function (samples) {
   constants: { n: 4096, bins: 16, lo: -32, span: 64 },
 });
 
-const counts = histogram(samples);
+const counts = await histogram(samples);
 console.log('counts:', counts);
 
 let total = 0;
@@ -739,7 +739,7 @@ console.log('total:', total);   // 4096 — every sample landed somewhere
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const samples = makeSamples(ctx.utils, 4096, 1601);
-            const out = ctx.kernel(samples);
+            const out = await ctx.kernel(samples);
             ctx.assert(out && out.length === BINS,
               `expected ${BINS} counts, one per bin, got ${out && out.length}`);
             const expected = tally(samples, BINS, binOf);
@@ -752,7 +752,7 @@ console.log('total:', total);   // 4096 — every sample landed somewhere
           name: 'every bin holds the samples in <code>[lo + 4b, lo + 4b + 4)</code>',
           run: async ctx => {
             const samples = makeSamples(ctx.utils, 4096, 1601);
-            const out = ctx.kernel(samples);
+            const out = await ctx.kernel(samples);
             const expected = tally(samples, BINS, binOf);
             const hint = diagnoseVector(out, expected, binningProbes(samples));
             for (let b = 0; b < BINS; b++) {
@@ -777,7 +777,7 @@ console.log('total:', total);   // 4096 — every sample landed somewhere
           name: 'private test #1',
           run: async ctx => {
             const samples = makeSamples(ctx.utils, 4096, 3607);
-            const out = ctx.kernel(samples);
+            const out = await ctx.kernel(samples);
             ctx.assert(out && out.length === BINS, `expected ${BINS} counts`);
             const expected = tally(samples, BINS, binOf);
             const probes = binningProbes(samples);
@@ -797,7 +797,7 @@ console.log('total:', total);   // 4096 — every sample landed somewhere
             // clamping, in bin 15 — so bin 15 holds twice what the others do.
             const edges = new Array(4096);
             for (let i = 0; i < 4096; i++) edges[i] = LO + (i % (BINS + 1)) * (SPAN / BINS);
-            const out = ctx.kernel(edges);
+            const out = await ctx.kernel(edges);
             const expected = tally(edges, BINS, binOf);
             const hint = diagnoseVector(out, expected, binningProbes(edges)) ||
               totalHint(out, 4096, BINS);
@@ -893,8 +893,8 @@ const merge = gpu.createKernel(function (partial) {
   constants: { chunks: 32 },
 });
 
-const grid = partials(codes);
-const counts = merge(grid);
+const grid = await partials(codes);
+const counts = await merge(grid);
 console.log('counts:', counts);
 `,
       solutionCode: `// Pass 1: one thread per (bin, chunk). Pass 2: merge each bin's column.
@@ -923,8 +923,8 @@ const merge = gpu.createKernel(function (partial) {
   constants: { chunks: 32 },
 });
 
-const grid = partials(codes);
-const counts = merge(grid);
+const grid = await partials(codes);
+const counts = await merge(grid);
 console.log('counts:', counts);
 `,
       inputs: utils => ({ codes: makeCodes(utils, 16384, CODE_BINS, 8191) }),
@@ -936,7 +936,7 @@ console.log('counts:', counts);
             ctx.assert(grid, 'no 2D kernel found — the partials kernel needs output: [16, 32]');
             ctx.assert(line, 'no 1D kernel found — the merge kernel needs output: [16]');
             const codes = makeCodes(ctx.utils, 16384, CODE_BINS, 8191);
-            const out = grid(codes);
+            const out = await grid(codes);
             ctx.assert(out && out.length === 32,
               `expected 32 rows, one per chunk, got ${out && out.length} — output [bins, chunks] comes back row-first`);
             ctx.assert(out[0] && out[0].length === CODE_BINS,
@@ -949,7 +949,7 @@ console.log('counts:', counts);
             const { grid } = findByRank(ctx);
             ctx.assert(grid, 'no 2D partials kernel found');
             const codes = makeCodes(ctx.utils, 16384, CODE_BINS, 8191);
-            const out = grid(codes);
+            const out = await grid(codes);
             for (const c of [0, 1, 17, 31]) {
               const expected = chunkTally(codes, c, 512, CODE_BINS);
               const hint = diagnoseVector(out[c], expected, [
@@ -974,8 +974,8 @@ console.log('counts:', counts);
             const { grid, line } = findByRank(ctx);
             ctx.assert(grid && line, 'expected a 2D partials kernel and a 1D merge kernel');
             const codes = makeCodes(ctx.utils, 16384, CODE_BINS, 8191);
-            const partial = grid(codes);
-            const out = line(partial);
+            const partial = await grid(codes);
+            const out = await line(partial);
             ctx.assert(out && out.length === CODE_BINS,
               `expected ${CODE_BINS} merged counts, got ${out && out.length}`);
             const expected = tally(codes, CODE_BINS, v => v);
@@ -1000,8 +1000,8 @@ console.log('counts:', counts);
             const { grid, line } = findByRank(ctx);
             ctx.assert(grid && line, 'expected a 2D partials kernel and a 1D merge kernel');
             const codes = makeCodes(ctx.utils, 16384, CODE_BINS, 6203);
-            const partial = grid(codes);
-            const out = line(partial);
+            const partial = await grid(codes);
+            const out = await line(partial);
             const expected = tally(codes, CODE_BINS, v => v);
             const chunk0 = chunkTally(codes, 0, 512, CODE_BINS);
             const hint = diagnoseVector(out, expected, [
@@ -1108,8 +1108,8 @@ const histogram = gpu.createKernel(function (map) {
   constants: { size: 64, bins: 32 },
 });
 
-const map = luminance(photo);
-const counts = histogram(map);
+const map = await luminance(photo);
+const counts = await histogram(map);
 console.log('counts:', counts);
 
 // TODO: total the counts and log the total. 4096 pixels in, 4096 counted.
@@ -1139,8 +1139,8 @@ const histogram = gpu.createKernel(function (map) {
   constants: { size: 64, bins: 32 },
 });
 
-const map = luminance(photo);
-const counts = histogram(map);
+const map = await luminance(photo);
+const counts = await histogram(map);
 console.log('counts:', counts);
 
 let total = 0;
@@ -1160,10 +1160,10 @@ console.log('fullest bin:', fullest, 'of', counts.length);
             const { grid, line } = findByRank(ctx);
             ctx.assert(grid, 'no 2D kernel found — the luminance map needs output: [64, 64]');
             ctx.assert(line, 'no 1D kernel found — the histogram needs output: [32]');
-            const map = grid(ctx.utils.makeTestImage(IMG_SIZE));
+            const map = await grid(ctx.utils.makeTestImage(IMG_SIZE));
             ctx.assert(map && map.length === IMG_SIZE, `expected ${IMG_SIZE} rows, got ${map && map.length}`);
             ctx.assert(map[0] && map[0].length === IMG_SIZE, `each row should hold ${IMG_SIZE} values`);
-            const counts = line(map);
+            const counts = await line(map);
             ctx.assert(counts && counts.length === IMG_BINS,
               `expected ${IMG_BINS} counts, got ${counts && counts.length}`);
           },
@@ -1174,7 +1174,7 @@ console.log('fullest bin:', fullest, 'of', counts.length);
             const { grid } = findByRank(ctx);
             ctx.assert(grid, 'no 2D luminance kernel found');
             const image = ctx.utils.makeTestImage(IMG_SIZE);
-            const map = grid(image);
+            const map = await grid(image);
             const plain = image.plain;
             for (const [y, x] of [[0, 3], [7, 41], [33, 12], [62, 5]]) {
               const expected = luminanceOf(plain[y][x]);
@@ -1190,7 +1190,7 @@ console.log('fullest bin:', fullest, 'of', counts.length);
             const { grid, line } = findByRank(ctx);
             ctx.assert(grid && line, 'expected a luminance kernel and a histogram kernel');
             const image = ctx.utils.makeTestImage(IMG_SIZE);
-            const counts = line(grid(image));
+            const counts = await line(await grid(image));
             const expected = toneHistogram(image.plain, IMG_BINS);
             const hint = diagnoseVector(counts, expected, [
               [new Array(IMG_BINS).fill(IMG_SIZE * IMG_SIZE),
@@ -1226,7 +1226,7 @@ console.log('fullest bin:', fullest, 'of', counts.length);
             const { grid, line } = findByRank(ctx);
             ctx.assert(grid && line, 'expected a luminance kernel and a histogram kernel');
             const image = constantImage(IMG_SIZE, [0.2, 0.4, 0.6, 1]);
-            const counts = line(grid(image));
+            const counts = await line(await grid(image));
             const expected = toneHistogram(image.plain, IMG_BINS);
             const hint = totalHint(counts, IMG_SIZE * IMG_SIZE, IMG_BINS);
             for (let b = 0; b < IMG_BINS; b++) {
@@ -1242,7 +1242,7 @@ console.log('fullest bin:', fullest, 'of', counts.length);
             const { grid, line } = findByRank(ctx);
             ctx.assert(grid && line, 'expected a luminance kernel and a histogram kernel');
             const image = twoToneImage(IMG_SIZE, [0.1, 0.15, 0.2, 1], [0.7, 0.8, 0.6, 1]);
-            const counts = line(grid(image));
+            const counts = await line(await grid(image));
             const expected = toneHistogram(image.plain, IMG_BINS);
             const hint = totalHint(counts, IMG_SIZE * IMG_SIZE, IMG_BINS);
             for (let b = 0; b < IMG_BINS; b++) {

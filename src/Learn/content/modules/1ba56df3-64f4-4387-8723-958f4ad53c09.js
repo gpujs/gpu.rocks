@@ -407,7 +407,7 @@ const rankScores = gpu.createKernel(function (scores) {
   constants: { n: 4096 },
 });
 
-const ranks = rankScores(scores);
+const ranks = await rankScores(scores);
 console.log('rank of element 0:', ranks[0], '(its score is', scores[0] + ')');
 `,
       solutionCode: `// One thread per score. Each one asks: how many scores beat mine?
@@ -431,7 +431,7 @@ const rankScores = gpu.createKernel(function (scores) {
   constants: { n: 4096 },
 });
 
-const ranks = rankScores(scores);
+const ranks = await rankScores(scores);
 console.log('rank of element 0:', ranks[0], '(its score is', scores[0] + ')');
 `,
       inputs: utils => ({ scores: makeScores(utils, 4096) }),
@@ -441,7 +441,7 @@ console.log('rank of element 0:', ranks[0], '(its score is', scores[0] + ')');
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const values = makeScores(ctx.utils, 4096);
-            const out = ctx.kernel(values);
+            const out = await ctx.kernel(values);
             ctx.assert(out && out.length === 4096, `expected 4096 ranks, got ${out && out.length}`);
             const used = new Array(4096).fill(0);
             let strays = 0;
@@ -477,7 +477,7 @@ console.log('rank of element 0:', ranks[0], '(its score is', scores[0] + ')');
             // sixteen times, so the tie-break decides almost every rank.
             const values = new Array(4096);
             for (let i = 0; i < 4096; i++) values[i] = (i * 37) % 250;
-            const out = ctx.kernel(values);
+            const out = await ctx.kernel(values);
             const want = ranksOf(values);
             const bad = firstMismatch(out, want, 0.5);
             const hint = bad < 0 ? null : diagnoseArray(out, want, 0.5, rankAlternatives(values));
@@ -506,7 +506,7 @@ console.log('rank of element 0:', ranks[0], '(its score is', scores[0] + ')');
           name: 'private test #1',
           run: async ctx => {
             const values = makeScores(ctx.utils, 4096, 3141);
-            const out = ctx.kernel(values);
+            const out = await ctx.kernel(values);
             ctx.assert(out && out.length === 4096, 'expected 4096 ranks');
             const want = ranksOf(values);
             const bad = firstMismatch(out, want, 0.5);
@@ -595,8 +595,8 @@ const pickTop = gpu.createKernel(function (scores, ranks) {
   return best;
 }, { output: [10], constants: { n: 4096 } });
 
-const ranks = rankScores(scores);
-const top = pickTop(scores, ranks);
+const ranks = await rankScores(scores);
+const top = await pickTop(scores, ranks);
 console.log('top 10:', top);
 `,
       solutionCode: `// Ranks in, a packed top-10 out. Slot j goes looking for rank j.
@@ -627,8 +627,8 @@ const pickTop = gpu.createKernel(function (scores, ranks) {
   return best;
 }, { output: [10], constants: { n: 4096 } });
 
-const ranks = rankScores(scores);
-const top = pickTop(scores, ranks);
+const ranks = await rankScores(scores);
+const top = await pickTop(scores, ranks);
 console.log('top 10:', top);
 `,
       inputs: utils => ({ scores: makeScores(utils, 4096) }),
@@ -641,7 +641,7 @@ console.log('top 10:', top);
             ctx.assert(rank, 'no kernel with output [4096] found — the ranking pass should still be there');
             ctx.assert(pick, 'no kernel with output [10] found — the picker owns one slot per result');
             const values = makeScores(ctx.utils, 4096);
-            const out = pick(values, rank(values));
+            const out = await pick(values, await rank(values));
             ctx.assert(out && out.length === 10, `expected 10 values, got ${out && out.length}`);
             const want = topValues(values, 10);
             // "slot 0 came back 0" is ambiguous on its own — returning the RANK
@@ -668,8 +668,8 @@ console.log('top 10:', top);
             const pick = kernelWithOutput(ctx, [10]);
             ctx.assert(rank && pick, 'expected a ranking kernel and a 10-slot picker');
             const values = makeScores(ctx.utils, 4096);
-            const ranks = rank(values);
-            const out = pick(values, ranks);
+            const ranks = await rank(values);
+            const out = await pick(values, ranks);
             const want = topValues(values, 10);
             const bad = firstMismatch(out, want, 0.5);
             const hint = bad < 0 ? null : diagnoseArray(out, want, 0.5, [
@@ -697,7 +697,7 @@ console.log('top 10:', top);
             const pick = kernelWithOutput(ctx, [10]);
             ctx.assert(rank && pick, 'expected a ranking kernel and a 10-slot picker');
             const values = makeScores(ctx.utils, 4096, 8081);
-            const out = pick(values, rank(values));
+            const out = await pick(values, await rank(values));
             const want = topValues(values, 10);
             const bad = firstMismatch(out, want, 0.5);
             const hint = bad < 0 ? null : diagnoseArray(out, want, 0.5, [
@@ -804,8 +804,8 @@ const pickBrightest = gpu.createKernel(function (ranks) {
   return foundY * this.constants.size + foundX;
 }, { output: [8], constants: { size: 64 } });
 
-const ranks = rankCells(brightness);
-const spots = pickBrightest(ranks);
+const ranks = await rankCells(brightness);
+const spots = await pickBrightest(ranks);
 
 // Flat index back to a location — this part is plain JavaScript.
 const row = Math.floor(spots[0] / 64);
@@ -847,8 +847,8 @@ const pickBrightest = gpu.createKernel(function (ranks) {
   return foundY * this.constants.size + foundX;
 }, { output: [8], constants: { size: 64 } });
 
-const ranks = rankCells(brightness);
-const spots = pickBrightest(ranks);
+const ranks = await rankCells(brightness);
+const spots = await pickBrightest(ranks);
 
 // Flat index back to a location — this part is plain JavaScript.
 const row = Math.floor(spots[0] / 64);
@@ -864,7 +864,7 @@ console.log('all eight (flat indices):', spots);
             const rank = kernelWithOutput(ctx, [64, 64]);
             ctx.assert(rank, 'no kernel with output [64, 64] found — the ranking pass is 2D');
             const grid = makeBrightness(ctx.utils, 64);
-            const out = rank(grid);
+            const out = await rank(grid);
             ctx.assert(out && out.length === 64 && out[0] && out[0].length === 64,
               'expected a 64×64 grid of ranks');
             const flat = flatten2D(out);
@@ -905,7 +905,7 @@ console.log('all eight (flat indices):', spots);
             const pick = kernelWithOutput(ctx, [8]);
             ctx.assert(rank && pick, 'expected a [64, 64] ranking kernel and an [8] picker');
             const grid = makeBrightness(ctx.utils, 64);
-            const out = pick(rank(grid));
+            const out = await pick(await rank(grid));
             ctx.assert(out && out.length === 8, `expected 8 indices, got ${out && out.length}`);
             const want = topIndices(grid, 8);
             const bad = firstMismatch(out, want, 0.5);
@@ -959,7 +959,7 @@ console.log('all eight (flat indices):', spots);
             const pick = kernelWithOutput(ctx, [8]);
             ctx.assert(rank && pick, 'expected a [64, 64] ranking kernel and an [8] picker');
             const grid = makeBrightness(ctx.utils, 64, 4242);
-            const out = pick(rank(grid));
+            const out = await pick(await rank(grid));
             const want = topIndices(grid, 8);
             const bad = firstMismatch(out, want, 0.5);
             const hint = bad < 0 ? null : diagnoseArray(out, want, 0.5, [
@@ -1027,7 +1027,7 @@ console.log('all eight (flat indices):', spots);
           title: 'Hint 3 — the whole driver',
           body: `<pre><code>while (hi - lo &gt; 0.5) {
   const mid = (lo + hi) / 2;
-  if (total(countAbove(scores, mid)) &gt;= K) lo = mid;
+  if (total(await countAbove(scores, mid)) &gt;= K) lo = mid;
   else hi = mid;
 }
 const cutoff = Math.floor(lo);</code></pre>
@@ -1076,7 +1076,7 @@ lo = lo - 1;
 
 const cutoff = Math.floor(lo);
 console.log('cutoff:', cutoff);
-console.log('above it:', total(countAbove(scores, cutoff)));
+console.log('above it:', total(await countAbove(scores, cutoff)));
 `,
       solutionCode: `// A cutoff, not a ranking: 18 linear passes instead of 4 billion comparisons.
 const gpu = new GPU({ mode });
@@ -1112,13 +1112,13 @@ lo = lo - 1;
 // At least K scores are above lo; fewer than K are above hi. Halve.
 while (hi - lo > 0.5) {
   const mid = (lo + hi) / 2;
-  if (total(countAbove(scores, mid)) >= K) lo = mid;
+  if (total(await countAbove(scores, mid)) >= K) lo = mid;
   else hi = mid;
 }
 
 const cutoff = Math.floor(lo);
 console.log('cutoff:', cutoff);
-console.log('above it:', total(countAbove(scores, cutoff)));
+console.log('above it:', total(await countAbove(scores, cutoff)));
 `,
       inputs: utils => ({ scores: makeFineScores(utils, 65536, 4801) }),
       publicTests: [
@@ -1130,7 +1130,7 @@ console.log('above it:', total(countAbove(scores, cutoff)));
             // of x — and a contiguous walk would see 0…255 instead.
             const values = new Array(65536);
             for (let i = 0; i < 65536; i++) values[i] = i % 256;
-            const out = ctx.kernel(values, 100);
+            const out = await ctx.kernel(values, 100);
             ctx.assert(out && out.length === 256, `expected 256 partial counts, got ${out && out.length}`);
             const want = partialCounts(values, 100, 256, 256);
             let anything = 0;
@@ -1164,7 +1164,7 @@ console.log('above it:', total(countAbove(scores, cutoff)));
           run: async ctx => {
             const values = makeFineScores(ctx.utils, 65536, 4801);
             for (const t of [0, 5000, 40000, 68327]) {
-              const got = sumOf(ctx.kernel(values, t));
+              const got = sumOf(await ctx.kernel(values, t));
               const want = howManyAbove(values, t);
               const hint = diagnose(got, want, 0.5, [
                 [65536 - want,
@@ -1202,7 +1202,7 @@ console.log('above it:', total(countAbove(scores, cutoff)));
             const [low, high] = bracketOf(values);
             for (let step = 0; step <= 8; step++) {
               const t = low + ((high - low) * step) / 8;
-              const got = sumOf(ctx.kernel(values, t));
+              const got = sumOf(await ctx.kernel(values, t));
               const want = howManyAbove(values, t);
               const hint = diagnose(got, want, 0.5, [
                 [65536 - want, 'that is how many scores fall BELOW t — the comparison is the wrong way round'],
@@ -1401,9 +1401,10 @@ function bracket(values) {
   return [lo - 1, hi];
 }
 
-function bisect(counter, values, k) {
+async function bisect(counter, values, k) {
   // TODO: bracket the values, halve while hi - lo > 0.5 keeping the half
-  // that can still contain the cutoff, and return Math.floor(lo).
+  // that can still contain the cutoff, and return Math.floor(lo). Each
+  // counting pass has to be awaited before its answer can be read.
   return 0;
 }
 
@@ -1415,17 +1416,20 @@ function boundaryOf(ranks, values) {
 
 // A kernel's first launch compiles it, and a shader compiler inside the
 // timer is not a measurement. One untimed warm-up call each.
-rankSmall(scores);
-bisect(countSmall, scores, K);
-if (mode === 'gpu') rankBig(bigScores);
-bisect(countBig, bigScores, K);
+await rankSmall(scores);
+await bisect(countSmall, scores, K);
+// mode carries the gpu.js mode string — 'async' on the default Auto setting,
+// 'gpu' only when WebGL is picked by hand. The question here is "is this the
+// slow single-threaded backend?", so ask that.
+if (mode !== 'cpu') await rankBig(bigScores);
+await bisect(countBig, bigScores, K);
 
 let t0 = performance.now();
-const smallByRank = boundaryOf(rankSmall(scores), scores);
+const smallByRank = boundaryOf(await rankSmall(scores), scores);
 const rankSmallMs = performance.now() - t0;
 
 t0 = performance.now();
-const smallCut = bisect(countSmall, scores, K);
+const smallCut = await bisect(countSmall, scores, K);
 const bisectSmallMs = performance.now() - t0;
 
 console.log('rank 4096:', rankSmallMs.toFixed(1), 'ms - 10th largest score is', smallByRank);
@@ -1434,9 +1438,9 @@ console.log('bisect 4096:', bisectSmallMs.toFixed(1), 'ms - cutoff', smallCut);
 // 131,072 x 131,072 = 17.2 billion comparisons. The GPU eats them in tens
 // of milliseconds; the CPU backend, one thread, would need about a minute,
 // so there this measurement is reported rather than run.
-if (mode === 'gpu') {
+if (mode !== 'cpu') {
   t0 = performance.now();
-  const bigByRank = boundaryOf(utils.flatten(rankBig(bigScores)), bigScores);
+  const bigByRank = boundaryOf(utils.flatten(await rankBig(bigScores)), bigScores);
   const rankBigMs = performance.now() - t0;
   console.log('rank 131072:', rankBigMs.toFixed(1), 'ms - 10th largest score is', bigByRank);
 } else {
@@ -1444,7 +1448,7 @@ if (mode === 'gpu') {
 }
 
 t0 = performance.now();
-const bigCut = bisect(countBig, bigScores, K);
+const bigCut = await bisect(countBig, bigScores, K);
 const bisectBigMs = performance.now() - t0;
 
 console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
@@ -1522,11 +1526,11 @@ function bracket(values) {
 
 // Size-free: the counting kernel is an argument, the bracket comes from
 // the data. The same four lines serve 4,096 scores and 131,072.
-function bisect(counter, values, k) {
+async function bisect(counter, values, k) {
   let [lo, hi] = bracket(values);
   while (hi - lo > 0.5) {
     const mid = (lo + hi) / 2;
-    if (total(counter(values, mid)) >= k) lo = mid;
+    if (total(await counter(values, mid)) >= k) lo = mid;
     else hi = mid;
   }
   return Math.floor(lo);
@@ -1543,17 +1547,20 @@ function boundaryOf(ranks, values) {
 
 // A kernel's first launch compiles it, and a shader compiler inside the
 // timer is not a measurement. One untimed warm-up call each.
-rankSmall(scores);
-bisect(countSmall, scores, K);
-if (mode === 'gpu') rankBig(bigScores);
-bisect(countBig, bigScores, K);
+await rankSmall(scores);
+await bisect(countSmall, scores, K);
+// mode carries the gpu.js mode string — 'async' on the default Auto setting,
+// 'gpu' only when WebGL is picked by hand. The question here is "is this the
+// slow single-threaded backend?", so ask that.
+if (mode !== 'cpu') await rankBig(bigScores);
+await bisect(countBig, bigScores, K);
 
 let t0 = performance.now();
-const smallByRank = boundaryOf(rankSmall(scores), scores);
+const smallByRank = boundaryOf(await rankSmall(scores), scores);
 const rankSmallMs = performance.now() - t0;
 
 t0 = performance.now();
-const smallCut = bisect(countSmall, scores, K);
+const smallCut = await bisect(countSmall, scores, K);
 const bisectSmallMs = performance.now() - t0;
 
 console.log('rank 4096:', rankSmallMs.toFixed(1), 'ms - 10th largest score is', smallByRank);
@@ -1562,9 +1569,9 @@ console.log('bisect 4096:', bisectSmallMs.toFixed(1), 'ms - cutoff', smallCut);
 // 131,072 x 131,072 = 17.2 billion comparisons. The GPU eats them in tens
 // of milliseconds; the CPU backend, one thread, would need about a minute,
 // so there this measurement is reported rather than run.
-if (mode === 'gpu') {
+if (mode !== 'cpu') {
   t0 = performance.now();
-  const bigByRank = boundaryOf(utils.flatten(rankBig(bigScores)), bigScores);
+  const bigByRank = boundaryOf(utils.flatten(await rankBig(bigScores)), bigScores);
   const rankBigMs = performance.now() - t0;
   console.log('rank 131072:', rankBigMs.toFixed(1), 'ms - 10th largest score is', bigByRank);
 } else {
@@ -1572,7 +1579,7 @@ if (mode === 'gpu') {
 }
 
 t0 = performance.now();
-const bigCut = bisect(countBig, bigScores, K);
+const bigCut = await bisect(countBig, bigScores, K);
 const bisectBigMs = performance.now() - t0;
 
 console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
@@ -1594,12 +1601,12 @@ console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
             ctx.assert(small, 'no kernel with output [64] found — the 4,096-score counter');
             ctx.assert(big, 'no kernel with output [512] found — the 131,072-score counter');
             const values = makeFineScores(ctx.utils, 4096, 606);
-            const gotRanks = rankSmall(values);
+            const gotRanks = await rankSmall(values);
             const wantRanks = ranksOf(values);
             const badRank = firstMismatch(gotRanks, wantRanks, 0.5);
             ctx.assert(badRank < 0, `the 4,096-score ranking pass is wrong at element ${badRank}`);
             ctx.assertClose(
-              sumOf(small(values, 40000)),
+              sumOf(await small(values, 40000)),
               howManyAbove(values, 40000),
               0.5,
               'the 4,096-score counter'
@@ -1611,7 +1618,7 @@ console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
             // one linear pass, so it is exercised directly on both.
             const bigValues = makeFineScores(ctx.utils, 131072, 4801);
             ctx.assertClose(
-              sumOf(big(bigValues, 40000)),
+              sumOf(await big(bigValues, 40000)),
               howManyAbove(bigValues, 40000),
               0.5,
               'the 131,072-score counter'
@@ -1622,7 +1629,7 @@ console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
           name: 'every measurement this backend can afford reports a time',
           run: async ctx => {
             const timed = ['rank 4096', 'bisect 4096', 'bisect 131072'];
-            if (ctx.resolvedMode === 'gpu') timed.push('rank 131072');
+            if (ctx.resolvedMode !== 'cpu') timed.push('rank 131072');
             for (const label of timed) {
               const text = lineWith(ctx.logs, label);
               ctx.assert(text, `nothing was logged for "${label}" — that measurement has to run`);
@@ -1632,7 +1639,7 @@ console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
                 `"${text}" does not report a duration in ms`
               );
             }
-            if (ctx.resolvedMode !== 'gpu') {
+            if (ctx.resolvedMode === 'cpu') {
               // Skipped, but not silently: the line still has to say so.
               ctx.assert(
                 lineWith(ctx.logs, 'rank 131072'),
@@ -1676,7 +1683,7 @@ console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
 
             // The big ranking pass runs on the gpu backend only, so only there
             // is there a boundary of its own to agree with the big cutoff.
-            if (ctx.resolvedMode === 'gpu') {
+            if (ctx.resolvedMode !== 'cpu') {
               const bigRankLine = lineWith(ctx.logs, 'rank 131072');
               const bigByRank = numberAfter(bigRankLine, 'score is');
               ctx.assert(bigByRank !== null, `could not read a score out of "${bigRankLine}"`);
@@ -1684,7 +1691,7 @@ console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
               const gridHint = diagnose(bigByRank, bigTenth, 0.5, [
                 [topValues(bigValues, 11)[10], 'that is the ELEVENTH largest of the 131,072 — rank K − 1 is the K-th largest'],
                 [tenth, 'that is the 4,096-score answer — the big pass ranks bigScores, not scores'],
-                [0, 'no cell reported rank K − 1 — the grid of ranks has to be flattened before the scan, utils.flatten(rankBig(bigScores))'],
+                [0, 'no cell reported rank K − 1 — the grid of ranks has to be flattened before the scan, utils.flatten(await rankBig(bigScores))'],
               ]);
               ctx.assertClose(
                 bigByRank,
@@ -1716,7 +1723,7 @@ console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
             let [lo, hi] = bracketOf(values);
             while (hi - lo > 0.5) {
               const mid = (lo + hi) / 2;
-              const got = sumOf(big(values, mid));
+              const got = sumOf(await big(values, mid));
               ctx.assertClose(got, howManyAbove(values, mid), 0.5, `scores above ${mid.toFixed(1)}`);
               if (got >= 10) lo = mid;
               else hi = mid;

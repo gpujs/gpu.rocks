@@ -10,11 +10,16 @@
 // pipeline with zero readbacks.
 //
 // Backend facts these tasks rely on (verified against the gpu.js source):
-// GL pipeline kernels return Texture objects with .toArray(); the CPU
+// GL pipeline kernels return Texture objects with .toArray(); the WebGPU
+// backend returns a WebGPUBufferResult with the same .toArray(); the CPU
 // backend returns plain arrays, so mode-safe reads use the same guard
-// gpu.js uses internally: `v.toArray ? v.toArray() : v`. Feeding a
-// non-immutable pipeline kernel its own output throws "Source and
-// destination … are the same. Use immutable = true" on BOTH backends.
+// gpu.js uses internally — plus an await, because under the async contract
+// the kernel call AND .toArray() both return Promises:
+// `v.toArray ? await v.toArray() : v`. Feeding a non-immutable pipeline
+// kernel its own output is refused on every backend: the GL backends say
+// "Source and destination … are the same. Use immutable = true", WebGPU says
+// the argument "is this kernel's own output buffer" — same crime, different
+// wording, which is why the prose below quotes neither verbatim.
 
 import { ARRAY_LAYOUT } from '../layoutNote.js';
 import { plainToImageData, quantizePixel } from '../../engine/utils.js';
@@ -39,9 +44,12 @@ function transposeCellHint(got, transposed, eps, y, x) {
     : null;
 }
 
-// Mode-safe read of a pipeline result: Texture on GL, plain array on CPU.
-function toArr(value) {
-  return value && typeof value.toArray === 'function' ? value.toArray() : value;
+// Mode-safe read of a pipeline result: Texture on GL, WebGPUBufferResult on
+// WebGPU, plain array on CPU. Async because toArray() is itself a Promise under
+// the async contract — awaiting a plain array is a no-op, so one shape serves
+// every backend. Every caller is inside an async test, so every caller awaits.
+async function toArr(value) {
+  return value && typeof value.toArray === 'function' ? await value.toArray() : value;
 }
 
 // Deterministic 256-sample signal in 0–1 (task 1).
@@ -198,16 +206,19 @@ export default {
         result <em>stays in GPU memory</em>, and what you get back is a <strong>texture</strong> —
         a lightweight handle to data that never left the card. Log one and you'll see an object,
         not numbers. When you actually want the values, you ask for the download explicitly with
-        <code>.toArray()</code>.</p>
+        <code>.toArray()</code> — and since the download is a real trip across the bus, it is
+        asynchronous like the kernel call itself: <code>await result.toArray()</code>.</p>
         <p>One backend wrinkle to know: the CPU backend has no textures, so there a pipeline
-        kernel hands back a plain array. Mode-safe code uses the same guard gpu.js uses
-        internally: <code>result.toArray ? result.toArray() : result</code>.</p>`,
+        kernel hands back a plain array — which has no <code>.toArray</code> at all. Mode-safe code
+        uses the same guard gpu.js uses internally, with the await in front of the call it guards:
+        <code>result.toArray ? await result.toArray() : result</code>. (Awaiting a plain array is a
+        no-op, so that one line is correct on every backend.)</p>`,
       goal: `<strong>Goal:</strong> make the <code>boost</code> kernel a pipeline kernel, then
         download its result explicitly and log the first sample.`,
       requirements: [
         'Add <code>pipeline: true</code> to the kernel settings',
         'Log the raw result — see what a texture looks like in the console',
-        'Download the values with <code>.toArray()</code>, using the mode-safe guard',
+        'Download the values with <code>await .toArray()</code>, using the mode-safe guard',
         `Log the first value as <code>console.log('first sample:', values[0])</code>`,
       ],
       hints: [
@@ -218,8 +229,8 @@ export default {
         },
         {
           title: 'Hint 2 — the mode-safe download',
-          body: `<pre><code>const values = result.toArray ? result.toArray() : result;</code></pre>
-<p>On the GL backend this calls <code>toArray()</code>; on the CPU backend
+          body: `<pre><code>const values = result.toArray ? await result.toArray() : result;</code></pre>
+<p>On a GPU backend this awaits <code>toArray()</code>; on the CPU backend
             <code>result</code> is already an array and passes through untouched.</p>`,
         },
       ],
@@ -238,11 +249,11 @@ const boost = gpu.createKernel(function (signal) {
   // TODO: keep the result on the GPU
 });
 
-const result = boost(signal);
+const result = await boost(signal);
 console.log(result);
 
 // TODO: \`result\` is about to become a texture. Download the values
-// explicitly (mode-safe: result.toArray ? result.toArray() : result)
+// explicitly (mode-safe: result.toArray ? await result.toArray() : result)
 // and log the first one as:  console.log('first sample:', values[0]);
 `,
       solutionCode: `// pipeline: true — the result stays in GPU memory as a texture.
@@ -255,12 +266,13 @@ const boost = gpu.createKernel(function (signal) {
   pipeline: true,
 });
 
-const result = boost(signal);
-console.log(result); // GL backend: a Texture object — no numbers in sight
+const result = await boost(signal);
+console.log(result); // GPU backends: a texture handle — no numbers in sight
 
-// The explicit download. CPU backend already returns a plain array,
-// so guard the call — the same trick gpu.js uses internally.
-const values = result.toArray ? result.toArray() : result;
+// The explicit download, and it is a trip across the bus, so await it.
+// The CPU backend already returns a plain array, so guard the call —
+// the same trick gpu.js uses internally.
+const values = result.toArray ? await result.toArray() : result;
 console.log('first sample:', values[0]);
 `,
       inputs: utils => ({ signal: makeSignal01(utils) }),
@@ -280,7 +292,7 @@ console.log('first sample:', values[0]);
           run: async ctx => {
             const arr = new Array(256);
             for (let i = 0; i < 256; i++) arr[i] = (i % 100) / 100;
-            const out = toArr(ctx.kernel(arr));
+            const out = await toArr(await ctx.kernel(arr));
             ctx.assert(out && out.length === 256, `expected 256 values, got ${out && out.length}`);
             for (let i = 0; i < 256; i++) {
               ctx.assertClose(out[i], Math.min(arr[i] * 1.5, 1), 2e-3, `sample ${i}`);
@@ -305,7 +317,7 @@ console.log('first sample:', values[0]);
           name: 'private test #1',
           run: async ctx => {
             const signal = makeSignal01(ctx.utils, 8842);
-            const out = toArr(ctx.kernel(signal));
+            const out = await toArr(await ctx.kernel(signal));
             ctx.assert(out.length === 256, 'expected 256 values');
             for (let i = 0; i < 256; i++) {
               ctx.assertClose(out[i], Math.min(signal[i] * 1.5, 1), 2e-3, `sample ${i}`);
@@ -368,8 +380,8 @@ const contrast = gpu.createKernel(function (map) {
   return l;
 }, { output: [64, 64] });
 
-const mapTexture = luminance(photo); // a texture — still on the GPU
-const result = contrast(mapTexture); // and straight back in it goes
+const mapTexture = await luminance(photo); // a texture — still on the GPU
+const result = await contrast(mapTexture); // and straight back in it goes
 console.log('center cell:', result[32][32]);
 `,
       solutionCode: `const gpu = new GPU({ mode });
@@ -386,8 +398,8 @@ const contrast = gpu.createKernel(function (map) {
   return Math.min(Math.max((l - 0.5) * 2 + 0.5, 0), 1);
 }, { output: [64, 64] });
 
-const mapTexture = luminance(photo); // a texture — still on the GPU
-const result = contrast(mapTexture); // and straight back in it goes
+const mapTexture = await luminance(photo); // a texture — still on the GPU
+const result = await contrast(mapTexture); // and straight back in it goes
 console.log('center cell:', result[32][32]);
 `,
       inputs: utils => ({ photo: utils.makeTestImage(64) }),
@@ -400,7 +412,7 @@ console.log('center cell:', result[32][32]);
             const plain = ctx.kernels.find(k => k.kernel && !k.kernel.pipeline);
             ctx.assert(piped, 'no pipeline kernel found — keep pipeline: true on luminance');
             ctx.assert(plain, 'no plain kernel found — contrast should NOT be a pipeline kernel');
-            if (ctx.resolvedMode === 'gpu') {
+            if (ctx.resolvedMode !== 'cpu') {
               ctx.assert(
                 plain.lastArgs && plain.lastArgs[0] && typeof plain.lastArgs[0].toArray === 'function',
                 'contrast should be fed the texture itself — no .toArray() in between'
@@ -415,7 +427,7 @@ console.log('center cell:', result[32][32]);
             const plain = ctx.kernels.find(k => k.kernel && !k.kernel.pipeline);
             ctx.assert(piped && plain, 'expected a pipeline kernel and a plain kernel');
             const img = ctx.utils.makeTestImage(64);
-            const out = plain(piped(img));
+            const out = await plain(await piped(img));
             const pixels = img.plain; // host-side view of the same image
             const cases = [[0, 0], [7, 41], [32, 32], [63, 63]];
             for (const [y, x] of cases) {
@@ -440,7 +452,7 @@ console.log('center cell:', result[32][32]);
             const image = constantImage(64, [0.8, 0.3, 0.5, 1]);
             const luminance = luminanceOf(image.at(0, 0));
             const expected = contrastOf(luminance);
-            const out = plain(piped(image));
+            const out = await plain(await piped(image));
             const probes = contrastProbes(luminance);
             for (let y = 0; y < 64; y++) {
               for (let x = 0; x < 64; x++) {
@@ -473,13 +485,13 @@ console.log('center cell:', result[32][32]);
       requirements: [
         'Make <code>normalize</code> and <code>gamma</code> pipeline kernels',
         'Leave <code>smooth</code> as a plain kernel — the one download you actually want',
-        'Do not change the chain: <code>smooth(gamma(normalize(signal)))</code> stays as-is',
+        'Do not change the chain: <code>await smooth(await gamma(await normalize(signal)))</code> stays as-is',
       ],
       hints: [
         {
           title: 'Hint 1 — where is the readback hiding?',
           body: `<p>There's no <code>.toArray()</code> in the starter, but the readbacks are
-            still there: a non-pipeline kernel's <em>return value</em> is the readback.
+            still there: a non-pipeline kernel's <em>awaited return value</em> is the readback.
             Count them: normalize downloads, gamma re-uploads and downloads, smooth re-uploads.</p>`,
         },
         {
@@ -516,7 +528,7 @@ const smooth = gpu.createKernel(function (v) {
 
 // This chain is CORRECT — and slow. Each non-pipeline return is a full
 // GPU → JS download, and the next call re-uploads it. Four transfers.
-const out = smooth(gamma(normalize(signal)));
+const out = await smooth(await gamma(await normalize(signal)));
 console.log('smoothed[0]:', out[0]);
 `,
       solutionCode: `const gpu = new GPU({ mode });
@@ -542,7 +554,7 @@ const smooth = gpu.createKernel(function (v) {
 
 // Identical chain, one transfer in, one out. The code didn't change —
 // the data's home address did.
-const out = smooth(gamma(normalize(signal)));
+const out = await smooth(await gamma(await normalize(signal)));
 console.log('smoothed[0]:', out[0]);
 `,
       inputs: utils => ({ signal: makeRawSignal(utils) }),
@@ -555,7 +567,7 @@ console.log('smoothed[0]:', out[0]);
             ctx.assert(a.kernel && a.kernel.pipeline === true, 'normalize should have pipeline: true');
             ctx.assert(b.kernel && b.kernel.pipeline === true, 'gamma should have pipeline: true');
             ctx.assert(c.kernel && !c.kernel.pipeline, 'smooth should stay a plain kernel — its return IS the readback you want');
-            if (ctx.resolvedMode === 'gpu') {
+            if (ctx.resolvedMode !== 'cpu') {
               ctx.assert(
                 b.lastArgs && b.lastArgs[0] && typeof b.lastArgs[0].toArray === 'function',
                 'gamma should receive a texture from normalize, not an array'
@@ -568,7 +580,7 @@ console.log('smoothed[0]:', out[0]);
           run: async ctx => {
             const [a, b, c] = ctx.kernels;
             const signal = makeRawSignal(ctx.utils);
-            const out = c(b(a(signal)));
+            const out = await c(await b(await a(signal)));
             const ref = refChain3(signal);
             ctx.assert(out && out.length === 256, `expected 256 values, got ${out && out.length}`);
             for (let i = 0; i < 256; i++) {
@@ -583,7 +595,7 @@ console.log('smoothed[0]:', out[0]);
           run: async ctx => {
             const [a, b, c] = ctx.kernels;
             const signal = makeRawSignal(ctx.utils, 5150);
-            const out = c(b(a(signal)));
+            const out = await c(await b(await a(signal)));
             const ref = refChain3(signal);
             for (let i = 0; i < 256; i++) {
               ctx.assertClose(out[i], ref[i], 3e-3, `sample ${i}`);
@@ -599,9 +611,10 @@ console.log('smoothed[0]:', out[0]);
       title: 'Feedback Loops: immutable Textures',
       intro: `<p>Simulations don't run once — they <strong>step</strong>: the output of step
         <em>n</em> is the input of step <em>n</em>+1. With pipelines that means feeding a
-        kernel its own texture back. Try it naively and gpu.js stops you cold:
-        <em>"Source and destination … are the same. Use immutable = true"</em> — the kernel
-        would be reading the very texture it's writing to.</p>
+        kernel its own texture back. Try it naively and gpu.js stops you cold — the kernel would
+        be reading the very storage it is writing to, and every backend refuses. WebGL puts it as
+        <em>"Source and destination … are the same. Use immutable = true"</em>; WebGPU says the
+        argument <em>"is this kernel's own output buffer"</em>. Same crime, and the same fix.</p>
         <p><code>immutable: true</code> is the fix: each call renders to a <em>fresh</em>
         texture instead of recycling one, so last step's output is safe to read while this
         step writes. (In long-running sims you'd call <code>texture.delete()</code> on old
@@ -620,9 +633,12 @@ console.log('smoothed[0]:', out[0]);
       hints: [
         {
           title: 'Hint 1 — read the error message',
-          body: `<p>Run the starter as-is. The error names both the crime and the sentence:
-            the kernel's input and output are the same storage, and <code>immutable = true</code>
-            is the fix. gpu.js error messages are unusually honest.</p>`,
+          body: `<p>Run the starter as-is. The error names the crime: this kernel's input is its
+            own output storage. On WebGL it names the sentence too — <code>immutable = true</code>;
+            on WebGPU it only tells you the buffer is the kernel's own, and
+            <code>immutable: true</code> is still the fix. Either way, the second step of the loop
+            is where it fires: the first step reads <code>upload</code>'s texture, which is somebody
+            else's.</p>`,
         },
         {
           title: 'Hint 2 — why upload() exists',
@@ -664,12 +680,12 @@ const step = gpu.createKernel(function (heat) {
   // let the error message tell you the missing setting.
 });
 
-let state = upload(field);
+let state = await upload(field);
 for (let i = 0; i < 12; i++) {
-  state = step(state); // output straight back in — a feedback loop
+  state = await step(state); // output straight back in — a feedback loop
 }
 
-const heat = state.toArray ? state.toArray() : state;
+const heat = state.toArray ? await state.toArray() : state;
 console.log('peak after 12 steps:', heat[64]);
 `,
       solutionCode: `const gpu = new GPU({ mode });
@@ -693,12 +709,12 @@ const step = gpu.createKernel(function (heat) {
   immutable: true, // fresh output texture per call — feedback is now safe
 });
 
-let state = upload(field);
+let state = await upload(field);
 for (let i = 0; i < 12; i++) {
-  state = step(state); // output straight back in — a feedback loop
+  state = await step(state); // output straight back in — a feedback loop
 }
 
-const heat = state.toArray ? state.toArray() : state;
+const heat = state.toArray ? await state.toArray() : state;
 console.log('peak after 12 steps:', heat[64]);
 `,
       inputs: () => ({ field: makeSpike(128, 64, 1) }),
@@ -722,9 +738,9 @@ console.log('peak after 12 steps:', heat[64]);
             const step = ctx.kernels.find(k => k.kernel && k.kernel.immutable);
             ctx.assert(upload && step, 'expected an upload kernel and an immutable step kernel');
             const seed = makeSpike(128, 64, 1);
-            let state = upload(seed);
-            for (let i = 0; i < 12; i++) state = step(state);
-            const heat = toArr(state);
+            let state = await upload(seed);
+            for (let i = 0; i < 12; i++) state = await step(state);
+            const heat = await toArr(state);
             const ref = refDiffuse(seed, 12);
             for (let x = 0; x < 128; x++) {
               ctx.assertClose(heat[x], ref[x], 2e-3, `cell ${x}`);
@@ -737,9 +753,9 @@ console.log('peak after 12 steps:', heat[64]);
             const upload = ctx.kernels.find(k => k.kernel && k.kernel.pipeline && !k.kernel.immutable);
             const step = ctx.kernels.find(k => k.kernel && k.kernel.immutable);
             ctx.assert(upload && step, 'expected an upload kernel and an immutable step kernel');
-            let state = upload(makeSpike(128, 64, 1));
-            for (let i = 0; i < 12; i++) state = step(state);
-            const heat = toArr(state);
+            let state = await upload(makeSpike(128, 64, 1));
+            for (let i = 0; i < 12; i++) state = await step(state);
+            const heat = await toArr(state);
             let sum = 0;
             for (let x = 0; x < 128; x++) sum += heat[x];
             ctx.assertClose(sum, 1, 1e-2, 'total heat in the field');
@@ -756,9 +772,9 @@ console.log('peak after 12 steps:', heat[64]);
             const step = ctx.kernels.find(k => k.kernel && k.kernel.immutable);
             ctx.assert(upload && step, 'expected an upload kernel and an immutable step kernel');
             const seed = makeSpike(128, 40, 0.75);
-            let state = upload(seed);
-            for (let i = 0; i < 12; i++) state = step(state);
-            const heat = toArr(state);
+            let state = await upload(seed);
+            for (let i = 0; i < 12; i++) state = await step(state);
+            const heat = await toArr(state);
             const ref = refDiffuse(seed, 12);
             let sum = 0;
             for (let x = 0; x < 128; x++) {
@@ -842,7 +858,7 @@ const paint = gpu.createKernel(function (map) {
 }, { output: [64, 64], graphical: true });
 
 // The whole pipeline: after \`photo\` goes up, nothing comes back down.
-paint(blur(luminance(photo)));
+await paint(await blur(await luminance(photo)));
 render(paint.canvas);
 `,
       solutionCode: `const gpu = new GPU({ mode });
@@ -877,7 +893,7 @@ const paint = gpu.createKernel(function (map) {
 }, { output: [64, 64], graphical: true });
 
 // The whole pipeline: after \`photo\` goes up, nothing comes back down.
-paint(blur(luminance(photo)));
+await paint(await blur(await luminance(photo)));
 render(paint.canvas);
 `,
       inputs: utils => ({ photo: utils.makeTestImage(64) }),
@@ -895,7 +911,7 @@ render(paint.canvas);
               ctx.canvas.width === 64 && ctx.canvas.height === 64,
               `expected a 64×64 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            if (ctx.resolvedMode === 'gpu') {
+            if (ctx.resolvedMode !== 'cpu') {
               ctx.assert(
                 paint.lastArgs && paint.lastArgs[0] && typeof paint.lastArgs[0].toArray === 'function',
                 'paint should be fed the blur texture directly — zero readbacks'
@@ -908,7 +924,7 @@ render(paint.canvas);
           run: async ctx => {
             const [lum, blur] = ctx.kernels;
             const img = ctx.utils.makeTestImage(64);
-            const out = toArr(blur(lum(img)));
+            const out = await toArr(await blur(await lum(img)));
             const map = refLuminanceMap(img);
             const ref = refBlur3(map);
             // interior, all four edges, and a corner
@@ -949,7 +965,7 @@ render(paint.canvas);
             const [lum, blur, paint] = ctx.kernels;
             const image = constantImage(64, [0.35, 0.65, 0.15, 1]);
             const expected = luminanceOf(image.at(0, 0)) * 255;
-            paint(blur(lum(image)));
+            await paint(await blur(await lum(image)));
             const pixels = paint.getPixels();
             for (let i = 0; i < pixels.length; i += 149 * 4) {
               ctx.assertClose(pixels[i], expected, 2, `red at byte ${i}`);
@@ -965,7 +981,7 @@ render(paint.canvas);
             // blurred luminance, independent of the canvas.
             const [lum, blur] = ctx.kernels;
             const img = ctx.utils.makeTestImage(64);
-            const out = toArr(blur(lum(img)));
+            const out = await toArr(await blur(await lum(img)));
             const map = refLuminanceMap(img);
             const ref = refBlur3(map);
             for (let y = 0; y < 64; y++) {

@@ -60,6 +60,63 @@ export function gpuSupported() {
   }
 }
 
+export function webgpuSupported() {
+  try {
+    return Boolean(GPU.isWebGPUSupported);
+  } catch (e) {
+    return false;
+  }
+}
+
+// The toolbar's four options map onto gpu.js modes. The names the learner picks
+// are the real backends, not euphemisms, so what the console reports and what
+// they chose are the same word.
+//
+//   auto   -> 'async'  best available: WebGPU when an adapter answers, WebGL
+//                      otherwise. Kernels ALWAYS return a Promise in this mode,
+//                      whichever backend wins, which is why every task awaits.
+//   webgpu -> 'webgpu' explicit. Refuses graphical, ImageData and Math.random.
+//   webgl  -> 'gpu'    the WebGL2/WebGL backend. Synchronous.
+//   cpu    -> 'cpu'    single-threaded JavaScript.
+//
+// 'async' upgrades PER KERNEL: a kernel gpu.js cannot compile for WebGPU stays
+// on WebGL, and a kernel consuming a WebGL texture is pulled back down to WebGL
+// to match it. So a pipeline chain stays on one backend by itself — measured,
+// not assumed — and graphical work stays on WebGL without being told to.
+const GPUJS_MODE = { auto: 'async', webgpu: 'webgpu', webgl: 'gpu', cpu: 'cpu' };
+
+export function toGpujsMode(uiMode) {
+  return GPUJS_MODE[uiMode] || 'async';
+}
+
+// Which backend did each kernel actually get?
+//
+// Two traps here, both already paid for once. `createKernel` returns a SHORTCUT
+// FUNCTION, so `k.constructor` is Function — the instance is `k.kernel`. And
+// `constructor.name` is mangled in the production bundle, so a name check works
+// in dev and silently reports the wrong backend on the deployed site, which is
+// worse than reporting nothing.
+//
+// gpu.js gives every kernel class a `static get mode()` returning a string
+// LITERAL ('cpu' | 'gpu' | 'webgpu'), and a literal survives minification
+// intact — verified in dist. That is the discriminator.
+const BACKEND_BY_MODE = { webgpu: 'webgpu', gpu: 'webgl', headlessgl: 'webgl', cpu: 'cpu' };
+
+function backendOf(k) {
+  try {
+    const built = k && k.kernel;
+    if (!built || !built.constructor) return null;
+    const mode = built.constructor.mode;
+    if (typeof mode === 'string' && BACKEND_BY_MODE[mode]) return BACKEND_BY_MODE[mode];
+    // Fallbacks, in case a future backend arrives without a mode string.
+    if (typeof CPUKernel === 'function' && built instanceof CPUKernel) return 'cpu';
+    if (built.context) return 'webgl';
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Did gpu.js build a CPU kernel for this run-shortcut? Identity, not name:
 // esbuild mangles `class CPUKernel` down to `class C` in the production build,
 // so a constructor.name check works in dev and silently never fires in the
@@ -163,6 +220,32 @@ function substituteCpuImages(args) {
 // first invocation emits a "kernel compiled" system log line.
 function patchKernel(kernel, push, resolvedMode) {
   let announced = false;
+  // In 'async' mode the kernel is not built until its first call RESOLVES —
+  // gpu.js decides between WebGPU and WebGL inside that promise — so the
+  // announcement has to wait for it, or it reports the pre-upgrade backend (or
+  // no output at all). Sync backends announce immediately, as before.
+  const announce = target => {
+    if (announced) return;
+    announced = true;
+    try {
+      const built = target.kernel;
+      const output = built && built.output ? Array.from(built.output) : null;
+      if (output && output.length) {
+        const threads = output.reduce((a, b) => a * b, 1);
+        const backend = backendOf(target);
+        push({
+          type: 'system',
+          time: timeString(),
+          text:
+            `▸ kernel compiled · output ${output.join('×')} · ` +
+            `${threads.toLocaleString('en-US')} threads` +
+            (backend ? ` · ${backend}` : ''),
+        });
+      }
+    } catch (e) {
+      // announcement is cosmetic — never let it break a run
+    }
+  };
   const proxy = new Proxy(kernel, {
     apply(target, thisArg, args) {
       // the ImageData, not the substitution: the benchmark re-invokes through
@@ -171,23 +254,13 @@ function patchKernel(kernel, push, resolvedMode) {
       const callArgs = resolvedMode === 'cpu' ? substituteCpuImages(args) : args;
       applyImageArgumentTypes(target, callArgs);
       const result = Reflect.apply(target, thisArg, callArgs);
-      if (!announced) {
-        announced = true;
-        try {
-          const built = target.kernel;
-          const output = built && built.output ? Array.from(built.output) : null;
-          if (output && output.length) {
-            const threads = output.reduce((a, b) => a * b, 1);
-            push({
-              type: 'system',
-              time: timeString(),
-              text: `▸ kernel compiled · output ${output.join('×')} · ${threads.toLocaleString('en-US')} threads`,
-            });
-          }
-        } catch (e) {
-          // announcement is cosmetic — never let it break a run
-        }
+      if (result && typeof result.then === 'function') {
+        return result.then(value => {
+          announce(target);
+          return value;
+        });
       }
+      announce(target);
       return result;
     },
   });
@@ -346,33 +419,73 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
 
   if (!probe) push({ type: 'system', time: timeString(), text: SANDBOX_NOTE });
 
+  // 'gpu' is accepted as an alias for 'webgl': it is what saved progress and
+  // older links carry, and it is what the toolbar called this backend before
+  // WebGPU existed here.
+  const uiMode = mode === 'gpu' ? 'webgl' : mode;
   const gpuOk = gpuSupported();
+  const webgpuOk = webgpuSupported();
   let resolvedMode;
-  if (mode === 'cpu') {
+  if (uiMode === 'cpu') {
     resolvedMode = 'cpu';
     push({ type: 'system', time: timeString(), text: '▸ mode "cpu" → selected cpu' });
-  } else if (mode === 'gpu') {
-    if (gpuOk) {
-      resolvedMode = 'gpu';
-      push({ type: 'system', time: timeString(), text: '▸ mode "gpu" → selected gpu (WebGL)' });
-    } else {
-      resolvedMode = 'cpu';
-      push({
-        type: 'system',
-        time: timeString(),
-        text: '▸ mode "gpu" requested but WebGL is unavailable here — falling back to cpu',
-      });
-    }
-  } else {
+  } else if (uiMode === 'webgl') {
     resolvedMode = gpuOk ? 'gpu' : 'cpu';
     push({
       type: 'system',
       time: timeString(),
       text: gpuOk
-        ? '▸ mode "auto" → selected gpu (WebGL)'
-        : '▸ mode "auto" → selected cpu (WebGL unavailable)',
+        ? '▸ mode "webgl" → selected WebGL'
+        : '▸ mode "webgl" requested but WebGL is unavailable here — falling back to cpu',
+    });
+  } else if (uiMode === 'webgpu') {
+    resolvedMode = webgpuOk ? 'webgpu' : gpuOk ? 'gpu' : 'cpu';
+    push({
+      type: 'system',
+      time: timeString(),
+      text: webgpuOk
+        ? '▸ mode "webgpu" → selected WebGPU (no graphical, ImageData or Math.random)'
+        : `▸ mode "webgpu" requested but this browser has no navigator.gpu — falling back to ${resolvedMode === 'gpu' ? 'WebGL' : 'cpu'}`,
+    });
+  } else if (task && task.backend === 'webgl') {
+    // A task may PIN the GPU path to WebGL2. This exists for one reason: a
+    // chain whose lesson is "the data never leaves the GPU".
+    //
+    // Under 'async' the upgrade is per kernel, so a chain that mixes — a
+    // pipelined compute chain feeding a graphical paint, say, or any kernel
+    // that must decline sitting downstream of one that upgraded — hands a
+    // texture across backends. gpu.js bridges it correctly, but bridging means
+    // a readback, which is precisely the cost those modules exist to teach
+    // away, and it silently invalidates their measured timings. Pinning keeps
+    // the whole chain on one backend so the lesson and the numbers stay true.
+    //
+    // WebGPU is still explicitly selectable on these tasks; the console says
+    // what happened. This only changes what "auto" means.
+    resolvedMode = gpuOk ? 'gpu' : 'cpu';
+    push({
+      type: 'system',
+      time: timeString(),
+      text: gpuOk
+        ? '▸ mode "auto" → WebGL (this task pins the chain to one backend so it never reads back mid-pipeline)'
+        : '▸ mode "auto" → cpu (this task asks for WebGL, which is unavailable here)',
+    });
+  } else {
+    // auto. 'async' both picks the backend AND puts every kernel under the
+    // Promise contract; it degrades to WebGL by itself when WebGPU declines.
+    resolvedMode = gpuOk || webgpuOk ? 'async' : 'cpu';
+    push({
+      type: 'system',
+      time: timeString(),
+      text:
+        resolvedMode === 'async'
+          ? `▸ mode "auto" → async${webgpuOk ? ' (WebGPU where the kernel allows it, else WebGL)' : ' (WebGL — no navigator.gpu here)'}`
+          : '▸ mode "auto" → selected cpu (no GPU backend available)',
     });
   }
+  // Everything downstream asks one of two questions: "is this the slow
+  // single-threaded backend?" and "may I substitute a plain array for an
+  // ImageData?". Both are the same question.
+  const isCpuMode = resolvedMode === 'cpu';
 
   // GPU subclass: forces the resolved mode, records instances and kernels.
   class RecordingGPU extends GPU {
@@ -510,8 +623,35 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
   // lands on the CPU — which is why the course passes images as ImageData
   // instead (engine/utils.plainToImageData). Saying so, and saying what to do
   // about it, beats letting the console claim a GPU run.
+  //
+  // Under 'async' there are now TWO kinds of falling back, and only one is a
+  // problem. Declining WebGPU for WebGL is routine and expected — graphical
+  // kernels, ImageData arguments and Math.random all do it by design, and the
+  // course leans on that. Landing on the CPU backend when a GPU one was asked
+  // for is the one worth warning about, and it still is.
+  const backends = {};
+  for (const k of kernels) {
+    const which = backendOf(k);
+    if (which) backends[which] = (backends[which] || 0) + 1;
+  }
+  const backendNames = Object.keys(backends);
+  if (!probe && !isCpuMode && backendNames.length) {
+    push({
+      type: 'system',
+      time: timeString(),
+      text:
+        '▸ ran on ' +
+        backendNames
+          .map(name => `${name} (${backends[name]} kernel${backends[name] === 1 ? '' : 's'})`)
+          .join(' + ') +
+        (backendNames.length > 1
+          ? ' — a kernel WebGPU cannot compile stays on WebGL, and anything reading its texture follows it'
+          : ''),
+    });
+  }
+
   const usedCpuKernel = kernels.some(isCpuKernel);
-  const fellBackToCPU = resolvedMode === 'gpu' && usedCpuKernel;
+  const fellBackToCPU = !isCpuMode && usedCpuKernel;
   if (fellBackToCPU && !probe) {
     push({
       type: 'warn',
@@ -540,6 +680,7 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
     kernels,
     canvas,
     resolvedMode,
+    backends: backendNames.length ? backends : null,
     durationMs,
     fellBackToCPU,
     probeStats: probe ? probeStats : undefined,
@@ -675,10 +816,13 @@ function invokableKernels(runResult) {
 // avoid. Doing that inside the timing loop made the benchmark measure a
 // pipeline taken apart, and it reported the CPU beating the GPU on the very
 // tasks that teach chaining.
-function drainGpu(kernels, lastResult) {
+async function drainGpu(kernels, lastResult) {
   try {
     if (lastResult && typeof lastResult.toArray === 'function') {
-      lastResult.toArray(); // reading the final texture waits for the chain
+      // reading the final texture waits for the chain. Under the async
+      // contract toArray() itself returns a Promise, so awaiting is what
+      // actually makes the timer cover the work rather than the enqueue.
+      await lastResult.toArray();
       return;
     }
     // otherwise find a GL context among the kernels and fence on it; reading
@@ -696,21 +840,26 @@ function drainGpu(kernels, lastResult) {
   }
 }
 
-function runChain(kernels) {
+// Await every stage: in async mode a kernel returns a Promise, and firing the
+// whole chain without awaiting would both scramble the ordering a chain depends
+// on and time nothing but the enqueue.
+async function runChain(kernels) {
   let last;
-  for (const k of kernels) last = k(...k.lastArgs);
+  for (const k of kernels) last = await k(...k.lastArgs);
   return last;
 }
 
-function timeKernels(kernels) {
-  // warm-up (compilation, first-run allocation)
-  drainGpu(kernels, runChain(kernels));
+async function timeKernels(kernels) {
+  // warm-up (compilation, first-run allocation, and in async mode the WebGPU
+  // adapter probe plus the kernel swap that follows it — none of which is what
+  // we are trying to measure)
+  await drainGpu(kernels, await runChain(kernels));
 
   const times = [];
   const started = performance.now();
   while (times.length < 5 && performance.now() - started < 250) {
     const t0 = performance.now();
-    drainGpu(kernels, runChain(kernels));
+    await drainGpu(kernels, await runChain(kernels));
     times.push(performance.now() - t0);
   }
   times.sort((a, b) => a - b);
@@ -725,14 +874,16 @@ export async function executeBenchmark(code, task) {
     if (!cpuKernels.length) {
       return { error: { message: 'nothing to benchmark — the code never invoked a kernel' } };
     }
-    const cpuMs = timeKernels(cpuKernels);
+    const cpuMs = await timeKernels(cpuKernels);
 
-    if (!gpuSupported()) return { gpuUnavailable: true, cpuMs };
+    if (!gpuSupported() && !webgpuSupported()) return { gpuUnavailable: true, cpuMs };
 
-    // WebGL exists here, so a failure below is the user's code failing in gpu
-    // mode (the GL backend rejects some code the cpu backend tolerates) — that
-    // is gpuFailed, never gpuUnavailable.
-    const gpuRun = await executeRun(code, { mode: 'gpu', task });
+    // The GPU side is 'auto' — i.e. gpu.js 'async' — so the benchmark measures
+    // the backend a learner actually gets when they press Run, WebGPU or WebGL,
+    // rather than pinning it to one and reporting a number nobody experiences.
+    // A failure below is the user's code failing on that backend (it rejects
+    // some code the cpu backend tolerates) — gpuFailed, never gpuUnavailable.
+    const gpuRun = await executeRun(code, { mode: 'auto', task });
     if (!gpuRun.ok) return { gpuFailed: true, cpuMs, error: gpuRun.error };
     const gpuKernels = invokableKernels(gpuRun);
     if (!gpuKernels.length) {
@@ -742,11 +893,12 @@ export async function executeBenchmark(code, task) {
         error: { message: 'the code never invoked a kernel in gpu mode' },
       };
     }
-    const gpuMs = timeKernels(gpuKernels);
+    const gpuMs = await timeKernels(gpuKernels);
 
     return {
       cpuMs,
       gpuMs,
+      backends: gpuRun.backends || null,
       ratio: gpuMs > 0 ? cpuMs / gpuMs : Infinity,
       fasterOn: gpuMs <= cpuMs ? 'gpu' : 'cpu',
       // gpu.js swaps in a CPU kernel for anything it can't compile for WebGL,

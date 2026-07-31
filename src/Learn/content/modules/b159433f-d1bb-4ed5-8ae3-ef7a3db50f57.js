@@ -55,7 +55,8 @@
 //
 // SIZING FOR THE PAYOFF. Task 5's claim is asymptotic, so it only means
 // anything at a size where the asymptotics have arrived. Measured on an M1 Max
-// through the worker sandbox, brute force against the pipelined FFT route:
+// through the worker sandbox, ON THE WebGL BACKEND, brute force against the
+// pipelined FFT route:
 //     n =  2,048   4.5 ms vs 4.3 ms   1.0×
 //     n =  4,096   5.6 ms vs 4.4 ms   1.2×
 //     n =  8,192  10.1 ms vs 4.5 ms   2.2×
@@ -65,6 +66,26 @@
 // easier one: a software rasteriser slows a compute-bound O(n²) sweep far more
 // than it slows 31 launches of light per-thread work, so the FFT route's margin
 // widens on weaker hardware rather than narrowing.)
+//
+// THE DEFAULT BACKEND IS THE NARROWER ONE. Read that table as the WebGL figure
+// rather than a universal one: the course now defaults to `auto`, which picks
+// WebGPU here, and the margin there is roughly half. Re-measured at LONG_N
+// through the same sandbox, median of five runs each:
+//     WebGL    15.6 ms vs 5.2 ms   3.0×     (reproduces the table above)
+//     WebGPU    4.4 ms vs 3.0 ms   1.5×     ← what "auto" selects
+//               4.0 ms vs 2.2 ms   1.8×     (mode "webgpu", chosen explicitly)
+// That is the same asymmetry the note above describes, running the other way.
+// WebGPU speeds the compute-bound O(n²) sweep up by ~3.5× and the 31-launch
+// ladder by only ~1.7×, because the ladder is launch-bound and the sweep is
+// not — so the margin NARROWS on stronger hardware exactly as it widens on
+// weaker. Do not read 3.2× as the number a learner sees.
+//
+// None of which changes the lesson or the sizing: the FFT route still wins on
+// every backend, and pipeline + immutable is still the whole reason it does
+// (see AND WHY THE ROUTE IS PIPELINED below — that measurement is WebGL and has
+// not been repeated on WebGPU). Nothing learner-facing quotes a ratio: task 5's
+// intro says "find out what happens" and no test asserts one, so only this
+// comment needed to catch up.
 //
 // 16,384 is also the ceiling the engine allows. The pre-flight guard in
 // engine/sandbox.js reruns the program with every output axis clamped to 64 and
@@ -247,9 +268,10 @@ function rawAutoAt(x, lags) {
 // A pipelined kernel hands back a gpu.js Texture instead of an array; the CPU
 // backend has no textures and hands back the array itself. Task 5's ladder is
 // pipelined, so everything that reads its output goes through here — including
-// these tests.
-function readBack(result) {
-  return result && typeof result.toArray === 'function' ? result.toArray() : result;
+// these tests. toArray() is a promise under the async contract, so this is
+// async and every caller awaits it.
+async function readBack(result) {
+  return result && typeof result.toArray === 'function' ? await result.toArray() : result;
 }
 
 // The energy of the SHIFTED slice alone — what a kernel returns when both
@@ -346,9 +368,12 @@ function paddedSignal(x) {
 }
 
 // Drive a butterfly-pass kernel log2(PAD) = 15 times. sign −1 forward, +1 back.
-function runTransform(pass, data, sign) {
+// Each pass is awaited before the next one starts: every pass reads the texture
+// the previous one wrote, so the ladder is strictly ordered and gathering the
+// fifteen launches would corrupt the transform.
+async function runTransform(pass, data, sign) {
   let cur = data;
-  for (let ns = 1; ns < PAD; ns *= 2) cur = pass(cur, ns, sign);
+  for (let ns = 1; ns < PAD; ns *= 2) cur = await pass(cur, ns, sign);
   return cur;
 }
 
@@ -550,7 +575,7 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: ${N} },
 });
 
-const r = correlate(signal);
+const r = await correlate(signal);
 console.log('r[0], the signal against itself:', r[0]);
 
 // TODO: scan lags ${MIN_LAG}…${MAX_LAG - 1} for the biggest value, then
@@ -573,7 +598,7 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: ${N} },
 });
 
-const r = correlate(signal);
+const r = await correlate(signal);
 console.log('r[0], the signal against itself:', r[0]);
 
 // Lag 0 always wins and always lies, so the search starts past it.
@@ -590,7 +615,7 @@ console.log('period:', bestLag, 'samples');
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const x = makeTone();
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             ctx.assert(
               out && out.length === MAX_LAG,
               `expected ${MAX_LAG} correlation values, got ${out && out.length}`
@@ -604,7 +629,7 @@ console.log('period:', bestLag, 'samples');
           name: 'cell <code>lag</code> holds <code>Σ signal[i] · signal[i + lag]</code>',
           run: async ctx => {
             const x = makeTone();
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             const ref = rawAuto(x, MAX_LAG);
             const head = headEnergy(x, MAX_LAG);
             const tail = tailEnergy(x, MAX_LAG);
@@ -626,7 +651,7 @@ console.log('period:', bestLag, 'samples');
             const x = makeTone();
             const ref = rawAuto(x, MAX_LAG);
             const expected = argmaxFrom(ref, MIN_LAG, MAX_LAG - 1);
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             // Only diagnose the SEARCH once the kernel itself is right —
             // otherwise an unfinished kernel logs 0 and gets told about lag 0.
             const kernelOk = Math.abs(out[expected] - ref[expected]) <= 0.02;
@@ -650,7 +675,7 @@ console.log('period:', bestLag, 'samples');
           run: async ctx => {
             // An octave lower: same kernel, period 64 instead of 32.
             const x = makeToneLow();
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             const ref = rawAuto(x, MAX_LAG);
             const head = headEnergy(x, MAX_LAG);
             const tail = tailEnergy(x, MAX_LAG);
@@ -728,7 +753,7 @@ audio.createMediaStreamSource(mic).connect(analyser);
 
 const frame = new Float32Array(analyser.fftSize);
 analyser.getFloatTimeDomainData(frame);
-const r = correlate(frame);   // the same kernel, real audio</code></pre>
+const r = await correlate(frame);   // the same kernel, real audio</code></pre>
 <p>None of that runs here, and not for a policy reason: your code executes inside a Web
             Worker, and a Worker has no <code>AudioContext</code>, no
             <code>OfflineAudioContext</code> and no <code>navigator.mediaDevices</code>. So the
@@ -758,7 +783,7 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: ${N} },
 });
 
-const r = correlate(signal);
+const r = await correlate(signal);
 
 let p = ${MIN_LAG};
 for (let lag = ${MIN_LAG}; lag < ${MAX_LAG - 1}; lag++) {
@@ -789,7 +814,7 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: ${N} },
 });
 
-const r = correlate(signal);
+const r = await correlate(signal);
 
 let p = ${MIN_LAG};
 for (let lag = ${MIN_LAG}; lag < ${MAX_LAG - 1}; lag++) {
@@ -813,7 +838,7 @@ console.log('pitch:', sampleRate / (p + delta), 'Hz');
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const x = makeNoteA();
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             ctx.assert(
               out && out.length === MAX_LAG,
               `expected ${MAX_LAG} correlation values, got ${out && out.length}`
@@ -871,7 +896,7 @@ console.log('pitch:', sampleRate / (p + delta), 'Hz');
             // A different note through the same kernel, and a tighter cut on the
             // reported pitch than the raw integer lag could ever satisfy.
             const other = makeNoteE();
-            const out = ctx.kernel(other);
+            const out = await ctx.kernel(other);
             const ref = rawAuto(other, MAX_LAG);
             for (let lag = 0; lag < MAX_LAG; lag++) {
               ctx.assertClose(out[lag], ref[lag], 0.02, `lag ${lag} of a 330 Hz note`);
@@ -984,7 +1009,7 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: ${N} },
 });
 
-const rho = correlate(signal);
+const rho = await correlate(signal);
 console.log('rho[0] (should be exactly 1):', rho[0]);
 
 // TODO: walk from lag ${MIN_LAG} and take the FIRST local peak that reaches ${THRESHOLD}.
@@ -1015,7 +1040,7 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: ${N} },
 });
 
-const rho = correlate(signal);
+const rho = await correlate(signal);
 console.log('rho[0] (should be exactly 1):', rho[0]);
 
 // The FIRST peak over the threshold — not the tallest. Every whole number of
@@ -1038,7 +1063,7 @@ console.log('pitch:', sampleRate / period, 'Hz');
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             const x = makeVoiced();
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             ctx.assert(
               out && out.length === MAX_LAG,
               `expected ${MAX_LAG} values, got ${out && out.length}`
@@ -1054,7 +1079,7 @@ console.log('pitch:', sampleRate / period, 'Hz');
           name: 'each lag is divided by <em>its own</em> two overlapping slices',
           run: async ctx => {
             const x = makeVoiced();
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             const ref = nccAuto(x, MAX_LAG);
             const raw = rawAuto(x, MAX_LAG);
             const half = halfNormalised(x, MAX_LAG);
@@ -1076,7 +1101,7 @@ console.log('pitch:', sampleRate / period, 'Hz');
             const x = makeVoiced();
             const ref = nccAuto(x, MAX_LAG);
             const expected = firstPeakOver(ref, MIN_LAG, MAX_LAG - 2, THRESHOLD);
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             const kernelOk = Math.abs(out[expected] - ref[expected]) <= 2e-3;
             const octave =
               'that is twice the period — the octave error. Every whole number of periods is a ' +
@@ -1110,7 +1135,7 @@ console.log('pitch:', sampleRate / period, 'Hz');
           run: async ctx => {
             // The whole curve on a different voice — period 50, trap at 100.
             const x = makeVoicedLow();
-            const out = ctx.kernel(x);
+            const out = await ctx.kernel(x);
             const ref = nccAuto(x, MAX_LAG);
             const raw = rawAuto(x, MAX_LAG);
             const half = halfNormalised(x, MAX_LAG);
@@ -1181,7 +1206,7 @@ return im;</code></pre>
         {
           title: 'Hint 2 — reading two planes back',
           body: `<p>The result is two rows, not two columns:</p>
-<pre><code>const spec = spectrum(signal);
+<pre><code>const spec = await spectrum(signal);
 const mag = Math.hypot(spec[0][bin], spec[1][bin]);</code></pre>
 <p>Plane first, bin second — <code>output: [n, 2]</code> is indexed <code>[y][x]</code>
             like any other 2D output.</p>`,
@@ -1236,8 +1261,8 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: ${N} },
 });
 
-const spec = spectrum(signal);
-const rho = correlate(signal);
+const spec = await spectrum(signal);
+const rho = await correlate(signal);
 
 // The autocorrelation's verdict — the first peak over the threshold, as before.
 let period = -1;
@@ -1293,8 +1318,8 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: ${N} },
 });
 
-const spec = spectrum(signal);
-const rho = correlate(signal);
+const spec = await spectrum(signal);
+const rho = await correlate(signal);
 
 // The autocorrelation's verdict — the first peak over the threshold, as before.
 let period = -1;
@@ -1327,7 +1352,7 @@ console.log('autocorrelation:', sampleRate / period, 'Hz');
               spectrum,
               `no kernel with output [${N}, 2] taking one argument found — the spectrum kernel takes the signal and returns two planes`
             );
-            const out = spectrum(makeMissing());
+            const out = await spectrum(makeMissing());
             ctx.assert(out && out.length === 2, `expected 2 planes, got ${out && out.length}`);
             ctx.assert(
               out[0] && out[0].length === N,
@@ -1341,7 +1366,7 @@ console.log('autocorrelation:', sampleRate / period, 'Hz');
             const spectrum = findSpectrum(ctx);
             ctx.assert(spectrum, `no kernel with output [${N}, 2] found`);
             const x = makeMissing();
-            const out = spectrum(x);
+            const out = await spectrum(x);
             const [re, im] = dftPlanes(x);
             for (const bin of [0, 8, 16, 24, 32, 100]) {
               // The forward transform's sign convention flips the sign of the
@@ -1366,7 +1391,7 @@ console.log('autocorrelation:', sampleRate / period, 'Hz');
             const spectrum = findSpectrum(ctx);
             ctx.assert(spectrum, `no kernel with output [${N}, 2] found`);
             const x = makeMissing();
-            const out = spectrum(x);
+            const out = await spectrum(x);
             const mag = bin => Math.hypot(out[0][bin], out[1][bin]);
             let loudest = 1;
             for (let bin = 1; bin < N / 2; bin++) if (mag(bin) > mag(loudest)) loudest = bin;
@@ -1416,7 +1441,7 @@ console.log('autocorrelation:', sampleRate / period, 'Hz');
             const correlate = findCorrelator(ctx);
             ctx.assert(spectrum && correlate, 'expected a spectrum kernel and a correlation kernel');
             const x = makeMissingLow();
-            const out = spectrum(x);
+            const out = await spectrum(x);
             const [re, im] = dftPlanes(x);
             for (let bin = 0; bin < N; bin += 7) {
               ctx.assertClose(out[0][bin], re[bin], 0.1, `the real part of bin ${bin}`);
@@ -1427,7 +1452,7 @@ console.log('autocorrelation:', sampleRate / period, 'Hz');
             for (let bin = 1; bin < N / 2; bin++) if (mag(bin) > mag(loudest)) loudest = bin;
             ctx.assert(loudest === 8, `expected bin 8 to be loudest for this signal, got ${loudest}`);
             ctx.assert(mag(4) < 0.01 * mag(8), 'bin 4 (the fundamental) should be empty');
-            const rho = Array.from(correlate(x));
+            const rho = Array.from(await correlate(x));
             ctx.assert(
               firstPeakOver(rho, MIN_LAG, MAX_LAG - 2, THRESHOLD) === 128,
               'the autocorrelation should still find the period at lag 128, with no energy at that frequency anywhere in the spectrum'
@@ -1527,9 +1552,9 @@ return 0;</code></pre>
         },
         {
           title: 'Hint 2 — four lines of wiring',
-          body: `<pre><code>const spec = transform(padded(), -1);
-const p = power(spec);
-const back = readBack(transform(p, +1));
+          body: `<pre><code>const spec = await transform(padded(), -1);
+const p = await power(spec);
+const back = await readBack(await transform(p, +1));
 for (let lag = 0; lag &lt; ${LONG_LAGS}; lag++) {
   out[lag] = back[0][lag] / ${PAD};
 }</code></pre>
@@ -1542,11 +1567,14 @@ for (let lag = 0; lag &lt; ${LONG_LAGS}; lag++) {
         {
           title: 'Hint 3 — timing it honestly',
           body: `<p>The first call to anything here compiles a shader, so throw it away:</p>
-<pre><code>correlate(signal); viaFFT();          // warm up, discard
+<pre><code>await correlate(signal); await viaFFT();   // warm up, discard
 
 let t0 = Date.now();
-for (let i = 0; i &lt; 5; i++) correlate(signal);
+for (let i = 0; i &lt; 5; i++) await correlate(signal);
 console.log('brute force:', (Date.now() - t0) / 5, 'ms');</code></pre>
+<p>Every call is <code>await</code>ed, including the five inside the loop: a kernel call
+            hands back a promise, so timing an unawaited one measures how long it took to
+            <em>queue</em> the work rather than how long the work took.</p>
 <p>Both routes end in exactly one download — <code>correlate</code> returns an array,
             <code>viaFFT</code> calls <code>readBack</code> once — so neither is being timed with
             its homework left on the GPU. The <strong>Benchmark</strong> button will still disagree
@@ -1632,15 +1660,18 @@ const power = gpu.createKernel(function (spec) {
 }, { output: [${PAD}, 2], ...LADDER });
 
 // A pipelined kernel returns a gpu.js Texture; the CPU backend has no textures
-// and returns the array itself. This is the one download either route makes.
-function readBack(result) {
-  return result.toArray ? result.toArray() : result;
+// and returns the array itself. This is the one download either route makes,
+// and toArray() is awaited like every other GPU call.
+async function readBack(result) {
+  return result.toArray ? await result.toArray() : result;
 }
 
-// The ladder: ${PASSES} passes, the stride doubling each time.
-function transform(data, sign) {
+// The ladder: ${PASSES} passes, the stride doubling each time. Every pass is
+// AWAITED before the next one starts — each reads the texture the last one
+// wrote, so firing them all off together would corrupt the transform.
+async function transform(data, sign) {
   let cur = data;
-  for (let ns = 1; ns < ${PAD}; ns *= 2) cur = fftPass(cur, ns, sign);
+  for (let ns = 1; ns < ${PAD}; ns *= 2) cur = await fftPass(cur, ns, sign);
   return cur;
 }
 
@@ -1654,14 +1685,15 @@ function padded() {
   return [re, im];
 }
 
-function viaFFT() {
+async function viaFFT() {
   const out = new Float32Array(${LONG_LAGS});
   // TODO: transform → power → inverse transform → readBack → divide by ${PAD}.
+  // Every kernel call is awaited, and in order.
   return out;
 }
 
-const brute = correlate(signal);
-const fast = viaFFT();
+const brute = await correlate(signal);
+const fast = await viaFFT();
 
 let maxDiff = 0;
 for (let lag = 0; lag < ${LONG_LAGS}; lag++) {
@@ -1746,15 +1778,18 @@ const power = gpu.createKernel(function (spec) {
 }, { output: [${PAD}, 2], ...LADDER });
 
 // A pipelined kernel returns a gpu.js Texture; the CPU backend has no textures
-// and returns the array itself. This is the one download either route makes.
-function readBack(result) {
-  return result.toArray ? result.toArray() : result;
+// and returns the array itself. This is the one download either route makes,
+// and toArray() is awaited like every other GPU call.
+async function readBack(result) {
+  return result.toArray ? await result.toArray() : result;
 }
 
-// The ladder: ${PASSES} passes, the stride doubling each time.
-function transform(data, sign) {
+// The ladder: ${PASSES} passes, the stride doubling each time. Every pass is
+// AWAITED before the next one starts — each reads the texture the last one
+// wrote, so firing them all off together would corrupt the transform.
+async function transform(data, sign) {
   let cur = data;
-  for (let ns = 1; ns < ${PAD}; ns *= 2) cur = fftPass(cur, ns, sign);
+  for (let ns = 1; ns < ${PAD}; ns *= 2) cur = await fftPass(cur, ns, sign);
   return cur;
 }
 
@@ -1768,17 +1803,17 @@ function padded() {
   return [re, im];
 }
 
-function viaFFT() {
-  const spec = transform(padded(), -1);
-  const p = power(spec);
-  const back = readBack(transform(p, +1));
+async function viaFFT() {
+  const spec = await transform(padded(), -1);
+  const p = await power(spec);
+  const back = await readBack(await transform(p, +1));
   const out = new Float32Array(${LONG_LAGS});
   for (let lag = 0; lag < ${LONG_LAGS}; lag++) out[lag] = back[0][lag] / ${PAD};
   return out;
 }
 
-const brute = correlate(signal);
-const fast = viaFFT();
+const brute = await correlate(signal);
+const fast = await viaFFT();
 
 let maxDiff = 0;
 for (let lag = 0; lag < ${LONG_LAGS}; lag++) {
@@ -1787,15 +1822,17 @@ for (let lag = 0; lag < ${LONG_LAGS}; lag++) {
 console.log('max difference:', maxDiff, 'on a peak of', brute[0]);
 
 // Warm up first — the first call to each route compiles shaders.
-correlate(signal);
-viaFFT();
+await correlate(signal);
+await viaFFT();
 
+// Each of the five runs is awaited before the next starts. Timing an unawaited
+// call would measure how long it took to QUEUE the work, not to do it.
 let t0 = Date.now();
-for (let i = 0; i < 5; i++) correlate(signal);
+for (let i = 0; i < 5; i++) await correlate(signal);
 console.log('brute force:', (Date.now() - t0) / 5, 'ms');
 
 t0 = Date.now();
-for (let i = 0; i < 5; i++) viaFFT();
+for (let i = 0; i < 5; i++) await viaFFT();
 console.log('fft route:', (Date.now() - t0) / 5, 'ms');
 `,
       inputs: () => ({ signal: makeLongTone() }),
@@ -1804,31 +1841,50 @@ console.log('fft route:', (Date.now() - t0) / 5, 'ms');
           name: 'the power kernel squares the magnitudes and empties plane 1',
           run: async ctx => {
             const candidates = kernelsShaped(ctx, PAD, 2, 1);
+            const passes = kernelsShaped(ctx, PAD, 2, 3);
             ctx.assert(
               candidates.length,
               `no kernel with output [${PAD}, 2] taking one argument found — power(spec) is the kernel to write`
             );
+            ctx.assert(
+              passes.length,
+              `no butterfly-pass kernel with output [${PAD}, 2] found — power(spec) is fed by the ladder`
+            );
+            // The probe (3 + 4i) is delivered THROUGH the learner's own ladder
+            // rather than handed to power() as a plain pair of arrays, and that
+            // is not decoration. gpu.js locks a kernel's argument type on its
+            // first call; power() has only ever seen a pipelined texture, and on
+            // the WebGPU backend handing it a plain array afterwards throws
+            // outright ("WebGPUBufferResult passed as argument … is from a
+            // different WebGPU device"). WebGL2 and the CPU backend tolerate the
+            // switch, which is exactly why the old spelling of this test passed
+            // everywhere except the backend `auto` now picks.
+            //
+            // The transform of a complex impulse (3 + 4i)·δ[0] is the constant
+            // (3 + 4i) in EVERY bin — no float64 reference needed for 32,768
+            // points, and the same two numbers as before.
             const re = new Float32Array(PAD);
             const im = new Float32Array(PAD);
             re[0] = 3; im[0] = 4; // |z|² = 25, |z| = 5
-            re[1] = -2; im[1] = 1; // |z|² = 5
+            const spec = await runTransform(passes[0], [re, im], -1);
             let power = null;
             let magOnly = false;
             for (const k of candidates) {
               let out;
               try {
-                out = readBack(k([re, im]));
+                out = await readBack(await k(spec));
               } catch (e) {
                 continue;
               }
-              if (!out || out.length !== 2) continue;
-              if (Math.abs(out[0][0] - 25) <= 1e-3 && Math.abs(out[0][1] - 5) <= 1e-3) {
+              if (!out || out.length !== 2 || !out[0] || out[0].length !== PAD) continue;
+              const flat = i => Math.abs(out[0][i] - 25) <= 1e-2;
+              if (flat(0) && flat(7) && flat(PAD - 1)) {
                 power = k;
-                ctx.assertClose(out[1][0], 0, 1e-3,
+                ctx.assertClose(out[1][0], 0, 1e-2,
                   'plane 1 of the power spectrum should be 0 — the power spectrum is real, and leaving the old imaginary part there feeds noise into the inverse transform');
                 break;
               }
-              if (Math.abs(out[0][0] - 5) <= 1e-3) magOnly = true;
+              if (Math.abs(out[0][0] - 5) <= 1e-2) magOnly = true;
             }
             ctx.assert(
               power,
@@ -1892,8 +1948,8 @@ console.log('fft route:', (Date.now() - t0) / 5, 'ms');
             const pass = passes[0];
             const power = powers[0];
             const x = makeLongToneLow();
-            const spec = runTransform(pass, paddedSignal(x), -1);
-            const back = readBack(runTransform(pass, power(spec), +1));
+            const spec = await runTransform(pass, paddedSignal(x), -1);
+            const back = await readBack(await runTransform(pass, await power(spec), +1));
             ctx.assert(
               back && back[0] && back[0].length === PAD,
               `the round trip should come back as two planes of ${PAD} values`

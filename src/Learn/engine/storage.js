@@ -49,6 +49,7 @@
 
 import { getModule, modules } from '../content/index.js';
 import { moduleKeyPrefix, parseTaskKey, taskKey } from '../content/registry.js';
+import { addAwaits } from './awaitCodemod.js';
 
 const THEME_KEY = 'gpujs-learn:theme';
 const SCHEMA_KEY = 'gpujs-learn:schema';
@@ -320,6 +321,66 @@ export function getArchivedCode(module, task, version) {
   return read(`${CODE_PREFIX}${module.uuid}:v${at}:${slug}`);
 }
 
+// ---- migration: awaiting kernels for the async/WebGPU backend -------------
+//
+// The course moved to gpu.js `async` mode, where EVERY kernel call returns a
+// Promise whichever backend wins. Code a learner wrote before that still says
+// `const r = k(data)`, which now yields a Promise and fails its tests with no
+// hint as to why — their code did not change, the ground under it did.
+//
+// So attempt the rewrite for them. Three rules govern this, because silently
+// mangling someone's work is far worse than leaving it alone:
+//
+//   1. Only touch what we can prove is a kernel — a name bound from
+//      gpu.createKernel/createKernelMap in that same document.
+//   2. SYNTAX-CHECK the result. `await` inside a non-async callback
+//      (`arr.map(x => k(x))`) is a syntax error, and rather than try to detect
+//      every such shape we simply parse the output and discard it if it broke.
+//   3. Keep the original under a `:pre-await` key, always, so nothing is lost
+//      and the editor can offer it back.
+//
+// Idempotent: a document that already awaits every call site is left untouched
+// and not backed up.
+
+const PRE_AWAIT_SUFFIX = ':pre-await';
+const AWAIT_MIGRATION_KEY = 'gpujs-learn:await-migrated';
+
+/**
+ * Run addAwaits() over every saved document once. Returns a report; never
+ * throws, and degrades to a no-op when localStorage is unavailable.
+ */
+export function migrateSavedCodeToAwait() {
+  const report = { ran: false, upgraded: 0, unchanged: 0, skipped: 0 };
+  try {
+    if (read(AWAIT_MIGRATION_KEY)) return { ...report, reason: 'already-migrated' };
+    if (!write(AWAIT_MIGRATION_KEY, '1')) return { ...report, reason: 'unavailable' };
+    report.ran = true;
+    for (const key of allKeys()) {
+      if (!key.startsWith(CODE_PREFIX)) continue;
+      if (key.endsWith(PRE_AWAIT_SUFFIX)) continue;
+      const before = read(key);
+      if (before == null) continue;
+      const after = addAwaits(before);
+      if (after == null) {
+        // either already awaited, kernel-free, or the rewrite did not parse —
+        // all three mean "leave the learner's document exactly as it is"
+        report.unchanged++;
+        continue;
+      }
+      if (write(key + PRE_AWAIT_SUFFIX, before) && write(key, after)) report.upgraded++;
+      else report.skipped++;
+    }
+    return report;
+  } catch (e) {
+    return { ...report, reason: 'failed' };
+  }
+}
+
+/** The learner's document as it stood before the await migration, if kept. */
+export function getPreAwaitCode(taskId) {
+  return read(CODE_PREFIX + taskId + PRE_AWAIT_SUFFIX);
+}
+
 // ---- migration: schema 1 (`<oldModuleId>-<taskNum>`) → schema 2 ------------
 
 export function getSchemaVersion() {
@@ -467,7 +528,13 @@ export function migrateLegacyProgress() {
   }
 }
 
-// Run it the moment the storage layer is loaded — before any component can ask
-// what the learner has done. Guarded so importing this file outside a browser
-// is inert rather than fatal.
-if (typeof window !== 'undefined') migrateLegacyProgress();
+// Run them the moment the storage layer is loaded — before any component can
+// ask what the learner has done, or open an editor on a document that predates
+// the async backend. Guarded so importing this file outside a browser is inert
+// rather than fatal. Order matters: the key rename has to finish before the
+// await pass walks the code keys, or it would rewrite the old keys and leave
+// the renamed ones untouched.
+if (typeof window !== 'undefined') {
+  migrateLegacyProgress();
+  migrateSavedCodeToAwait();
+}

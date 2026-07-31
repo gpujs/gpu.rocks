@@ -329,6 +329,16 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     return saved != null ? saved : starterCode;
   });
   const [mode, setMode] = useState('auto');
+  // WebGPU has no graphical mode — gpu.js refuses `graphical: true` on that
+  // backend outright. Auto handles it silently (the kernel declines the upgrade
+  // and paints on WebGL), but offering an explicit WebGPU option that can only
+  // throw would be a trap, so it is disabled here and says why. Judged from the
+  // task rather than the editor's current text so the option does not flicker
+  // in and out while someone types.
+  const graphicalTask = useMemo(() => {
+    const source = `${task.starterCode || ''}\n${task.solutionCode || ''}`;
+    return /graphical:\s*true|this\.color\s*\(/.test(source);
+  }, [task]);
   const [logs, setLogs] = useState([]);
   const [report, setReport] = useState(null);
   const [bench, setBench] = useState(null);
@@ -586,8 +596,11 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
             aria-label="Execution mode"
           >
             <option value="auto">Auto</option>
+            <option value="webgpu" disabled={graphicalTask}>
+              {graphicalTask ? 'WebGPU (not for graphical)' : 'WebGPU'}
+            </option>
+            <option value="webgl">WebGL</option>
             <option value="cpu">CPU</option>
-            <option value="gpu">GPU</option>
           </select>
           <span aria-hidden="true">▾</span>
         </label>
