@@ -87,12 +87,6 @@
   <url><loc>https://gpu.rocks/learn/matrix-multiply-972e080b/3</loc></url>
   <url><loc>https://gpu.rocks/learn/matrix-multiply-972e080b/4</loc></url>
   <url><loc>https://gpu.rocks/learn/matrix-multiply-972e080b/5</loc></url>
-  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805</loc></url>
-  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/1</loc></url>
-  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/2</loc></url>
-  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/3</loc></url>
-  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/4</loc></url>
-  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/5</loc></url>
   <url><loc>https://gpu.rocks/learn/monte-carlo-methods-9ea19810</loc></url>
   <url><loc>https://gpu.rocks/learn/monte-carlo-methods-9ea19810/1</loc></url>
   <url><loc>https://gpu.rocks/learn/monte-carlo-methods-9ea19810/2</loc></url>
@@ -104,6 +98,51 @@
   <url><loc>https://gpu.rocks/learn/n-body-gravity-5de47751/3</loc></url>
   <url><loc>https://gpu.rocks/learn/n-body-gravity-5de47751/4</loc></url>
   <url><loc>https://gpu.rocks/learn/n-body-gravity-5de47751/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/colour-spaces-8d79c6af</loc></url>
+  <url><loc>https://gpu.rocks/learn/colour-spaces-8d79c6af/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/colour-spaces-8d79c6af/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/colour-spaces-8d79c6af/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/colour-spaces-8d79c6af/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/colour-spaces-8d79c6af/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805</loc></url>
+  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/convolution-and-filters-66933805/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/thresholding-and-morphology-670eaafa</loc></url>
+  <url><loc>https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/thresholding-and-morphology-670eaafa/6</loc></url>
+  <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a</loc></url>
+  <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a/6</loc></url>
+  <url><loc>https://gpu.rocks/learn/template-matching-f57b4bed</loc></url>
+  <url><loc>https://gpu.rocks/learn/template-matching-f57b4bed/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/template-matching-f57b4bed/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/template-matching-f57b4bed/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/template-matching-f57b4bed/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/template-matching-f57b4bed/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/optical-flow-e85c6dfa</loc></url>
+  <url><loc>https://gpu.rocks/learn/optical-flow-e85c6dfa/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/optical-flow-e85c6dfa/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/optical-flow-e85c6dfa/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/optical-flow-e85c6dfa/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/optical-flow-e85c6dfa/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/video-filters-4d39e404</loc></url>
+  <url><loc>https://gpu.rocks/learn/video-filters-4d39e404/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/video-filters-4d39e404/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/video-filters-4d39e404/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/video-filters-4d39e404/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/video-filters-4d39e404/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/video-filters-4d39e404/6</loc></url>
   <url><loc>https://gpu.rocks/learn/pixels-from-scratch-d2869039</loc></url>
   <url><loc>https://gpu.rocks/learn/pixels-from-scratch-d2869039/1</loc></url>
   <url><loc>https://gpu.rocks/learn/pixels-from-scratch-d2869039/2</loc></url>
