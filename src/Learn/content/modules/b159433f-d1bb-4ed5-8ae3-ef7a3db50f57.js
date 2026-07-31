@@ -9,7 +9,8 @@
 // digits between the samples → the three ways a naive peak-pick lies (lag 0,
 // the shrinking overlap, the octave error) → the missing fundamental, where
 // the spectrum's loudest peak is an octave above the note you hear → the same
-// curve via the FFT (Wiener–Khinchin), verified against brute force and timed.
+// curve via the FFT (Wiener–Khinchin), verified against brute force and timed
+// on a buffer long enough that it wins.
 //
 // The thesis: pitch is not the loudest frequency. It is the shift at which a
 // signal first agrees with itself, and that is a correlation question — this
@@ -43,16 +44,46 @@
 //   • the two-plane DFT, bins peaking at 256 — worst drift 7.8e-3 under
 //     SwiftShader (which is what headless verification runs on, and the harsher
 //     of the two), asserted at ±0.1. Margin 13×.
-//   • the FFT route's intermediates reach 1.4e5 before the 1/1024 — worst
-//     disagreement with brute force 1.07e-4, asserted at ±0.05. Margin 470×.
+//   • task 5 is a different scale of problem and its margins are RELATIVE. Its
+//     correlation peaks at r[0] = 6,802.8, and the inverse transform hands that
+//     back as 32768 × r[0] = 2.2e8 before the divide, so an absolute epsilon
+//     carried over from the 512-sample tasks means nothing there. The two
+//     GPU routes disagree by at worst 0.0791 — one part in 86,000 — asserted at
+//     ROUTES_EPS = 2, which is one part in 3,400. Margin 25×. The FFT route
+//     against a float64 reference is tighter again and is asserted at
+//     REF_EPS = 0.2.
 //
-// ONE PROBE NEEDS ITS OWN EPSILON, AND MUST KEEP IT. A mistake that scales the
-// answer by n scales its float error by n too: the "missing 1/1024" probe in
-// task 5 predicts 143,806, and the value the GPU actually produces is 1024×
-// a float32 result. It is given eps 500 rather than the test's own tolerance
-// for exactly that reason — measured at 143,806.54 on the backend against
-// 143,806.56 in float64. Tighten it and the probe goes silent on the GPU while
-// still firing in cpu mode, which is the worst possible way for it to fail.
+// SIZING FOR THE PAYOFF. Task 5's claim is asymptotic, so it only means
+// anything at a size where the asymptotics have arrived. Measured on an M1 Max
+// through the worker sandbox, brute force against the pipelined FFT route:
+//     n =  2,048   4.5 ms vs 4.3 ms   1.0×
+//     n =  4,096   5.6 ms vs 4.4 ms   1.2×
+//     n =  8,192  10.1 ms vs 4.5 ms   2.2×
+//     n = 16,384  15.7 ms vs 4.9 ms   3.2×      ← LONG_N
+// (Headless Chrome reached the real GPU here — ANGLE/Metal, not SwiftShader as
+// in the DFT margin above. That is the harder case for this comparison, not the
+// easier one: a software rasteriser slows a compute-bound O(n²) sweep far more
+// than it slows 31 launches of light per-thread work, so the FFT route's margin
+// widens on weaker hardware rather than narrowing.)
+//
+// 16,384 is also the ceiling the engine allows. The pre-flight guard in
+// engine/sandbox.js reruns the program with every output axis clamped to 64 and
+// refuses the real run if measured × (requestedThreads / clampedThreads)
+// exceeds the budget; for a [PAD, 2] output that ratio is PAD / 64, so the
+// clamped ladder's ~155 ms estimates 159 s at PAD = 65,536 and is refused no
+// matter what budgetMs says (it caps at 60 s). At PAD = 32,768 the run asks for
+// exactly 65,536 threads, which is PROBE_MIN_THREADS, and the guard is skipped.
+// Going bigger therefore needs a different data layout, not a bigger budget.
+//
+// AND WHY THE ROUTE IS PIPELINED. Without pipeline + immutable the ladder
+// downloads and re-uploads PAD × 2 floats between all 31 launches, and it loses
+// at every size the engine permits: 13.6 ms at n = 2,048 rising to only 23 ms
+// at n = 16,384, against a brute force that is one launch. The crossover for
+// that version sits near n = 131,072, which the guard refuses and which cpu
+// mode would need half a minute per call to run. Keeping the intermediates in
+// device memory is what makes the theorem's O(n log n) visible on a clock; both
+// routes still end in exactly one download, so the race is fair.
+//
 // Nothing asserted here sits near a decision boundary. The one genuine tie in
 // the module (task 3, where every EVEN multiple of the period scores exactly
 // 1.000, so "the tallest peak" is decided by float noise) is deliberately never
@@ -66,7 +97,22 @@ const N = 512; // samples per analysis window — 62.5 ms
 const MAX_LAG = 256; // lags 0…255: periods down to 32 Hz
 const MIN_LAG = 8; // 8 samples = 1024 Hz — above any instrument's fundamental
 const THRESHOLD = 0.8; // "this peak is real" cut on the normalised score
-const PAD = 1024; // zero-padded length for the FFT route
+
+// Task 5 works at its own size, and has to: see SIZING FOR THE PAYOFF above.
+// One two-second buffer, every lag of it, zero-padded to twice its length.
+const LONG_N = 16384; // samples — 2.0 s at 8192 Hz
+const LONG_LAGS = LONG_N; // every lag. The WHOLE correlation, which is the point
+const PAD = 2 * LONG_N; // 32768 — zero-padded to twice LONG_N
+const PASSES = Math.log2(PAD); // 15 butterfly passes per transform
+const LAUNCHES = 2 * PASSES + 1; // …plus the power kernel: 31 launches a round trip
+
+// Float32 tolerances for task 5. They are derived from the peak of that task's
+// correlation (r[0] ≈ 6,800) rather than carried over from the 512-sample
+// tasks, because the float32 error here scales with the peak and the peak is
+// 48× bigger — see FLOAT MARGINS above for the measurements behind them.
+const RELATIVE_AGREEMENT = 1e-4; // the claim the prose makes, and the bound asserted
+const ROUTES_EPS = 2; // ≈ r[0] (6,800) × RELATIVE_AGREEMENT, rounded up
+const REF_EPS = 0.2; // the FFT route against float64 — a tenth of that
 
 // Four decimal places: clean in the Task inputs panel, and identical in the
 // test and in the kernel, so an expectation computed here is what the kernel
@@ -94,10 +140,23 @@ function synth({ f0, partials, tau = Infinity, alternate = 0, period = 0, n = N 
   return x;
 }
 
-// Task 1 and 5: a plucked string at 256 Hz — period exactly 32 samples.
+// Task 1: a plucked string at 256 Hz — period exactly 32 samples.
 const TONE = { f0: 256, partials: [[1, 1], [2, 0.6], [3, 0.35], [4, 0.2]], tau: 400 };
 // Task 1's private test: the same pluck an octave down, period 64.
 const TONE_LOW = { f0: 128, partials: [[1, 1], [2, 0.6], [3, 0.35], [4, 0.2]], tau: 400 };
+
+// Task 5: the same string, held for two seconds. The decay is deliberately slow
+// — tau 24000 across 16384 samples, so the signal is still at half amplitude at
+// the end. A tone that dies in 400 samples would leave the far lags correlating
+// silence against silence, and the "whole correlation" this task times would be
+// mostly zeros: a shorter problem wearing a longer problem's costume.
+const LONG_TONE = {
+  f0: 256, partials: [[1, 1], [2, 0.6], [3, 0.35], [4, 0.2]], tau: 24000, n: LONG_N,
+};
+// Task 5's private test: an octave down, period 64, same length.
+const LONG_TONE_LOW = {
+  f0: 128, partials: [[1, 1], [2, 0.6], [3, 0.35], [4, 0.2]], tau: 24000, n: LONG_N,
+};
 
 // Task 2: concert A. 8192 / 440 = 18.618 samples — deliberately nowhere near
 // an integer, which is the whole point of the task.
@@ -127,6 +186,8 @@ const MISSING_LOW = { f0: 64, partials: [[2, 1, 1.3], [3, 0.7, 0.2], [4, 0.5, 2.
 
 const makeTone = () => synth(TONE);
 const makeToneLow = () => synth(TONE_LOW);
+const makeLongTone = () => synth(LONG_TONE);
+const makeLongToneLow = () => synth(LONG_TONE_LOW);
 const makeNoteA = () => synth(NOTE_A);
 const makeNoteE = () => synth(NOTE_E);
 const makeVoiced = () => synth(VOICED);
@@ -165,6 +226,30 @@ function nccAuto(x, maxLag) {
     rho[lag] = dot / Math.sqrt(head * tail);
   }
   return rho;
+}
+
+// The same float64 reference, but only at the lags asked for. Task 5's signal
+// is 16,384 samples long and its correlation has 16,384 lags: rawAuto() over
+// all of them is 268 million multiply-adds of plain JavaScript, which is fine
+// on a GPU and absurd inside a test. Every lag costs one pass over the signal,
+// so a dozen sampled lags cost a dozen passes — and a wrong curve cannot hide
+// at lag 0, lag 1, the period, an octave down and the far end all at once.
+function rawAutoAt(x, lags) {
+  const out = new Map();
+  for (const lag of lags) {
+    let sum = 0;
+    for (let i = 0; i + lag < x.length; i++) sum += x[i] * x[i + lag];
+    out.set(lag, sum);
+  }
+  return out;
+}
+
+// A pipelined kernel hands back a gpu.js Texture instead of an array; the CPU
+// backend has no textures and hands back the array itself. Task 5's ladder is
+// pipelined, so everything that reads its output goes through here — including
+// these tests.
+function readBack(result) {
+  return result && typeof result.toArray === 'function' ? result.toArray() : result;
 }
 
 // The energy of the SHIFTED slice alone — what a kernel returns when both
@@ -250,14 +335,8 @@ function dftPlanes(x) {
   return [re, im];
 }
 
-function magnitudesOf(planes) {
-  const mag = new Array(planes[0].length);
-  for (let k = 0; k < mag.length; k++) mag[k] = Math.hypot(planes[0][k], planes[1][k]);
-  return mag;
-}
-
 // The zero-padded complex input the FFT route starts from. Float32Arrays from
-// the first call: every pass returns Float32Arrays and gpu.js locks an
+// the first call: the ladder is fed Float32Arrays and gpu.js locks an
 // argument's container type on the first invocation (gpujs/gpu.js#857).
 function paddedSignal(x) {
   const re = new Float32Array(PAD);
@@ -266,7 +345,7 @@ function paddedSignal(x) {
   return [re, im];
 }
 
-// Drive a butterfly-pass kernel log2(PAD) = 10 times. sign −1 forward, +1 back.
+// Drive a butterfly-pass kernel log2(PAD) = 15 times. sign −1 forward, +1 back.
 function runTransform(pass, data, sign) {
   let cur = data;
   for (let ns = 1; ns < PAD; ns *= 2) cur = pass(cur, ns, sign);
@@ -1094,8 +1173,10 @@ for (let i = 0; i &lt; this.constants.n; i++) {
 if (this.thread.y === 0) return re;
 return im;</code></pre>
 <p>Both sums get computed by both threads and one of them is thrown away. That is
-            wasteful and it is also the shape gpu.js gives you; the FFT in the next task earns the
-            waste back a hundred times over.</p>`,
+            wasteful and it is also the shape gpu.js gives you — and at ${N} bins the whole
+            transform is one launch, so you will not notice. The next task runs the same idea over
+            a buffer ${LONG_N / N} times longer, which is where the O(n²) stops being a remark and
+            becomes the thing you are waiting for.</p>`,
         },
         {
           title: 'Hint 2 — reading two planes back',
@@ -1360,42 +1441,73 @@ console.log('autocorrelation:', sampleRate / period, 'Hz');
     {
       slug: 'fft-autocorrelation',
       title: 'Payoff: The Same Curve, via the FFT',
-      intro: `<p>The brute-force correlator does <code>${MAX_LAG} × ${N}</code> multiply-adds. Ask
-        for every lag of a one-second buffer and it is O(n²) with a large constant. There is a way
-        out, and it is one of the prettiest results in the subject: the
+      // This task is the module's only big one, and it is big on purpose: the
+      // claim it makes is about asymptotics, and asymptotics are invisible at
+      // 512 samples. Measured here (M1 Max, headless Chrome, worker sandbox),
+      // one Run of the reference solution — two correctness passes, two warmups
+      // and five timed runs of each route:
+      //     gpu mode  0.14 s
+      //     cpu mode  4.4 s   ← the number this budget exists for
+      // In cpu mode gpu.js compiles the kernels to single-threaded JavaScript,
+      // so the brute force really does walk all 268 million loop iterations, nine
+      // times over, at ~590 ms a call. The default run watchdog is 10 s, which
+      // that clears on this machine and would not on a machine three times
+      // slower. 12 s doubles the run and tests watchdogs to 24 s
+      // (WATCHDOG_HEADROOM in engine/runner.js), leaving 5× headroom.
+      //
+      // It does NOT widen the pre-flight guard, and does not need to: this
+      // task's largest kernel asks for exactly PROBE_MIN_THREADS threads, so
+      // the guard skips it. See SIZING FOR THE PAYOFF at the top of this file.
+      budgetMs: 12000,
+      intro: `<p>Every lag of the correlation costs a pass over the signal, so the whole curve costs
+        <code>n</code> passes over <code>n</code> samples: <strong>O(n²)</strong>, with a large
+        constant. There is a way out, and it is one of the prettiest results in the subject: the
         <strong>Wiener–Khinchin theorem</strong>. The autocorrelation of a signal is the inverse
         transform of its <strong>power spectrum</strong>. Transform, square the magnitudes, transform
         back — O(n log n), and the whole correlation comes out at once.</p>
         <p>Two details make it true rather than nearly true. First, the transform believes your
         signal repeats forever, so a shifted copy wraps around from the end onto the beginning; the
-        cure is to <strong>zero-pad</strong> to twice the length, which is why ${N} samples go into
-        a ${PAD}-point transform. Second, the inverse transform of this library — like most —
-        leaves a factor of ${PAD} behind, so divide by it at the end.</p>
+        cure is to <strong>zero-pad</strong> to twice the length, which is why ${LONG_N.toLocaleString('en-US')}
+        samples go into a ${PAD.toLocaleString('en-US')}-point transform. Second, the inverse
+        transform of this library — like most — leaves a factor of ${PAD.toLocaleString('en-US')}
+        behind, so divide by it at the end.</p>
+        <p><strong>This task is bigger than the other four, and that is the whole point.</strong>
+        Tasks 1–4 analysed one ${N}-sample window, because that is what pitch detection actually
+        does. Here the buffer is ${LONG_N.toLocaleString('en-US')} samples — two seconds of that
+        same plucked string — and the question is the <em>whole</em> correlation, every one of its
+        ${LONG_LAGS.toLocaleString('en-US')} lags. That is
+        ${LONG_LAGS.toLocaleString('en-US')} threads each sweeping all
+        ${LONG_N.toLocaleString('en-US')} samples —
+        ${(LONG_LAGS * LONG_N).toLocaleString('en-US')} loop iterations, of which the
+        ${((LONG_N * (LONG_N + 1)) / 2).toLocaleString('en-US')} inside the shrinking overlap do a
+        multiply-add — against ${LAUNCHES} kernel launches over
+        ${PAD.toLocaleString('en-US')} points. At this size the asymptotics have stopped being a
+        promise about large n and started being the thing you are waiting for.</p>
         <p>One thing this route is <em>not</em> is fragile. The power spectrum throws phase away,
         so nothing here ever calls <code>Math.atan2</code> — and a bin whose imaginary part is
         near zero has a phase that flips a whole turn on float32 noise. Squaring magnitudes has no
-        such seam, which is why a ${PAD}-point round trip through ${Math.log2(PAD) * 2} kernel
-        launches still agrees with brute force to five decimal places.</p>
+        such seam, which is why a ${PAD.toLocaleString('en-US')}-point round trip through
+        ${LAUNCHES} kernel launches still tracks the brute-force curve to better than one part in
+        ${Math.round(1 / RELATIVE_AGREEMENT).toLocaleString('en-US')} — measured at one part in
+        86,000 on the hardware these notes were written on.</p>
         <p>The FFT itself is written for you below — <em>The FFT Butterfly</em> derives that pass
         properly; here it is a given — and its shape should look familiar even so: a JavaScript
-        loop calling one kernel ${Math.log2(PAD)} times with a doubling stride, which is the
-        halving ladder from Reductions read backwards. It carries a complex array as two planes,
-        exactly as the last task's spectrum did. Your job is the theorem: the power kernel, and
-        four lines of wiring.</p>
+        loop calling one kernel ${PASSES} times with a doubling stride, which is the halving ladder
+        from Reductions read backwards. Read its settings, though, because one of them is the
+        difference between a GPU transform and ${LAUNCHES} round trips to the GPU and back.</p>
         <p>Then press the point home with a stopwatch — warm up first, and read the numbers the way
-        Measuring Speed Honestly insists on. Be ready for an unflattering answer. At ${N} samples
-        the brute force is only ${(MAX_LAG * N).toLocaleString('en-US')} multiply-adds in a single
-        launch, while the FFT route costs ${2 * Math.log2(PAD)} launches plus a full download and
-        upload between every one of them. The asymptotics are not in doubt; at this size they have
-        not started paying yet, and saying so is the honest version of the lesson.</p>
+        Measuring Speed Honestly insists on. The direct route is not a strawman: it is one launch,
+        it is perfectly parallel, and below a few thousand samples it <em>wins</em>, because
+        ${LAUNCHES} launches cost more than one until there is enough work to pay for them. Find out
+        what happens when there is.</p>
         ${COMPLEX_NOTE}`,
       goal: `<strong>Goal:</strong> write the power-spectrum kernel, wire up the
         transform → power → inverse transform route, show its answer matches brute force, and time
         both.`,
       requirements: [
         `<code>power</code> takes the two-plane spectrum and returns <code>output: [${PAD}, 2]</code>: plane 0 is <code>re² + im²</code>, plane 1 is <code>0</code>`,
-        'Wire up <code>transform(padded, −1)</code> → <code>power</code> → <code>transform(…, +1)</code>, and divide the real plane by <code>' + PAD + '</code>',
-        "Log the largest disagreement with brute force: <code>console.log('max difference:', d)</code> — it should be under 0.01",
+        'Wire up <code>transform(padded(), −1)</code> → <code>power</code> → <code>transform(…, +1)</code>, read the result back, and divide the real plane by <code>' + PAD + '</code>',
+        "Log the largest disagreement with brute force: <code>console.log('max difference:', d)</code>",
         "Warm up, then time five runs of each and log <code>'brute force:'</code> and <code>'fft route:'</code> in milliseconds",
       ],
       hints: [
@@ -1417,12 +1529,15 @@ return 0;</code></pre>
           title: 'Hint 2 — four lines of wiring',
           body: `<pre><code>const spec = transform(padded(), -1);
 const p = power(spec);
-const back = transform(p, +1);
-for (let lag = 0; lag &lt; ${MAX_LAG}; lag++) {
+const back = readBack(transform(p, +1));
+for (let lag = 0; lag &lt; ${LONG_LAGS}; lag++) {
   out[lag] = back[0][lag] / ${PAD};
 }</code></pre>
-<p>If every value comes out exactly ${PAD} times too big, the last division is the piece
-            that is missing.</p>`,
+<p><code>readBack</code> is there because the ladder is <strong>pipelined</strong>: every
+            pass hands the next one a texture that never leaves the GPU, and only the last result
+            is downloaded. Drop it and you are indexing a <code>Texture</code> object, which has no
+            <code>[0]</code>. If instead every value comes out exactly ${PAD} times too big, the
+            division is the piece that is missing.</p>`,
         },
         {
           title: 'Hint 3 — timing it honestly',
@@ -1432,20 +1547,29 @@ for (let lag = 0; lag &lt; ${MAX_LAG}; lag++) {
 let t0 = Date.now();
 for (let i = 0; i &lt; 5; i++) correlate(signal);
 console.log('brute force:', (Date.now() - t0) / 5, 'ms');</code></pre>
-<p>The <strong>Benchmark</strong> button will disagree with your own numbers, and it is not
-            wrong: it times every kernel separately with a forced readback after each, which for a
-            ten-pass ladder measures the ladder taken apart.</p>`,
+<p>Both routes end in exactly one download — <code>correlate</code> returns an array,
+            <code>viaFFT</code> calls <code>readBack</code> once — so neither is being timed with
+            its homework left on the GPU. The <strong>Benchmark</strong> button will still disagree
+            with your own numbers, and it is not wrong: it times every kernel separately with a
+            forced readback after each, which for a ${PASSES}-pass ladder measures the ladder taken
+            apart.</p>`,
         },
       ],
       transfer: `Convolution and correlation via the transform is the reason cuFFT, vkFFT and
         Apple's vDSP exist, and the reason every deep-learning framework once shipped an
-        FFT-based convolution path. The crossover point is real and worth knowing: below a few
-        hundred taps the direct form wins on hardware that likes dense arithmetic, which is
-        exactly what you are about to measure.`,
+        FFT-based convolution path. Both halves of what you just measured are load-bearing: the
+        crossover is real, so small filters stay direct (below a few hundred taps the direct form
+        wins on hardware that likes dense arithmetic), and so is the rule that got the transform
+        route across it — a multi-pass GPU algorithm keeps its intermediates in device memory.
+        Every one of those libraries batches its passes for the same reason, and a CUDA programmer
+        calling <code>cudaMemcpy</code> between kernels is making the mistake this task's
+        <code>pipeline</code> flag exists to avoid.`,
       starterCode: `// Two routes to the same curve. One is O(n²), the other O(n log n).
 const gpu = new GPU({ mode });
 
 // ---- route 1: brute force, exactly as in task 1 --------------------------
+// ${LONG_LAGS.toLocaleString('en-US')} threads, each sweeping all ${LONG_N.toLocaleString('en-US')} samples:
+// ${(LONG_LAGS * LONG_N).toLocaleString('en-US')} loop iterations for the whole curve.
 const correlate = gpu.createKernel(function (signal) {
   const lag = this.thread.x;
   let sum = 0;
@@ -1456,13 +1580,23 @@ const correlate = gpu.createKernel(function (signal) {
   }
   return sum;
 }, {
-  output: [${MAX_LAG}],
-  constants: { n: ${N} },
+  output: [${LONG_LAGS}],
+  constants: { n: ${LONG_N} },
 });
 
-// ---- route 2: one radix-2 butterfly pass, run ${Math.log2(PAD)} times -----
+// ---- route 2: one radix-2 butterfly pass, run ${PASSES} times ------------
 // GIVEN, and the same two-plane layout as before: data[0][i] real,
 // data[1][i] imaginary, output [${PAD}, 2] read back as result[plane][i].
+//
+// LADDER is what makes this a transform ON the GPU rather than ${LAUNCHES} trips to
+// it and back:
+//   pipeline + immutable — a pass hands the next one a texture that stays in
+//     device memory, so the ladder pays for ONE download, not ${LAUNCHES}.
+//   optimizeFloatMemory — four floats to a texel, which is also what keeps a
+//     ${PAD}-wide output inside the 16384-texel texture limit.
+// correlate() downloads its answer once too, so the race below is fair.
+const LADDER = { pipeline: true, immutable: true, optimizeFloatMemory: true };
+
 const fftPass = gpu.createKernel(function (data, ns, sign) {
   const i = this.thread.x;
   const block = Math.floor(i / (2 * ns));
@@ -1488,24 +1622,31 @@ const fftPass = gpu.createKernel(function (data, ns, sign) {
 }, {
   output: [${PAD}, 2],
   constants: { half: ${PAD / 2} },
+  ...LADDER,
 });
 
 // TODO: the one kernel you have to write.
 const power = gpu.createKernel(function (spec) {
   // plane 0 → re * re + im * im, plane 1 → 0
   return 0;
-}, { output: [${PAD}, 2] });
+}, { output: [${PAD}, 2], ...LADDER });
 
-// The ladder: ${Math.log2(PAD)} passes, the stride doubling each time.
+// A pipelined kernel returns a gpu.js Texture; the CPU backend has no textures
+// and returns the array itself. This is the one download either route makes.
+function readBack(result) {
+  return result.toArray ? result.toArray() : result;
+}
+
+// The ladder: ${PASSES} passes, the stride doubling each time.
 function transform(data, sign) {
   let cur = data;
   for (let ns = 1; ns < ${PAD}; ns *= 2) cur = fftPass(cur, ns, sign);
   return cur;
 }
 
-// ${N} samples zero-padded to ${PAD}, plus an all-zero imaginary plane.
-// Float32Array from the start: every pass hands the next one Float32Arrays,
-// and gpu.js locks an argument's container type on the first call.
+// ${LONG_N.toLocaleString('en-US')} samples zero-padded to ${PAD.toLocaleString('en-US')}, plus an all-zero
+// imaginary plane. Float32Array from the start: gpu.js locks an argument's
+// container type on the first call.
 function padded() {
   const re = new Float32Array(${PAD});
   const im = new Float32Array(${PAD});
@@ -1514,8 +1655,8 @@ function padded() {
 }
 
 function viaFFT() {
-  const out = new Float32Array(${MAX_LAG});
-  // TODO: transform → power → inverse transform → divide by ${PAD}.
+  const out = new Float32Array(${LONG_LAGS});
+  // TODO: transform → power → inverse transform → readBack → divide by ${PAD}.
   return out;
 }
 
@@ -1523,10 +1664,10 @@ const brute = correlate(signal);
 const fast = viaFFT();
 
 let maxDiff = 0;
-for (let lag = 0; lag < ${MAX_LAG}; lag++) {
+for (let lag = 0; lag < ${LONG_LAGS}; lag++) {
   maxDiff = Math.max(maxDiff, Math.abs(fast[lag] - brute[lag]));
 }
-console.log('max difference:', maxDiff);
+console.log('max difference:', maxDiff, 'on a peak of', brute[0]);
 
 // TODO: warm both routes up, then time five runs of each and log
 //   console.log('brute force:', ms, 'ms');
@@ -1536,6 +1677,8 @@ console.log('max difference:', maxDiff);
 const gpu = new GPU({ mode });
 
 // ---- route 1: brute force, exactly as in task 1 --------------------------
+// ${LONG_LAGS.toLocaleString('en-US')} threads, each sweeping all ${LONG_N.toLocaleString('en-US')} samples:
+// ${(LONG_LAGS * LONG_N).toLocaleString('en-US')} loop iterations for the whole curve.
 const correlate = gpu.createKernel(function (signal) {
   const lag = this.thread.x;
   let sum = 0;
@@ -1546,13 +1689,23 @@ const correlate = gpu.createKernel(function (signal) {
   }
   return sum;
 }, {
-  output: [${MAX_LAG}],
-  constants: { n: ${N} },
+  output: [${LONG_LAGS}],
+  constants: { n: ${LONG_N} },
 });
 
-// ---- route 2: one radix-2 butterfly pass, run ${Math.log2(PAD)} times -----
+// ---- route 2: one radix-2 butterfly pass, run ${PASSES} times ------------
 // GIVEN, and the same two-plane layout as before: data[0][i] real,
 // data[1][i] imaginary, output [${PAD}, 2] read back as result[plane][i].
+//
+// LADDER is what makes this a transform ON the GPU rather than ${LAUNCHES} trips to
+// it and back:
+//   pipeline + immutable — a pass hands the next one a texture that stays in
+//     device memory, so the ladder pays for ONE download, not ${LAUNCHES}.
+//   optimizeFloatMemory — four floats to a texel, which is also what keeps a
+//     ${PAD}-wide output inside the 16384-texel texture limit.
+// correlate() downloads its answer once too, so the race below is fair.
+const LADDER = { pipeline: true, immutable: true, optimizeFloatMemory: true };
+
 const fftPass = gpu.createKernel(function (data, ns, sign) {
   const i = this.thread.x;
   const block = Math.floor(i / (2 * ns));
@@ -1578,6 +1731,7 @@ const fftPass = gpu.createKernel(function (data, ns, sign) {
 }, {
   output: [${PAD}, 2],
   constants: { half: ${PAD / 2} },
+  ...LADDER,
 });
 
 // |X|², not |X|: the theorem is about power, and the imaginary plane is zero.
@@ -1589,18 +1743,24 @@ const power = gpu.createKernel(function (spec) {
     return re * re + im * im;
   }
   return 0;
-}, { output: [${PAD}, 2] });
+}, { output: [${PAD}, 2], ...LADDER });
 
-// The ladder: ${Math.log2(PAD)} passes, the stride doubling each time.
+// A pipelined kernel returns a gpu.js Texture; the CPU backend has no textures
+// and returns the array itself. This is the one download either route makes.
+function readBack(result) {
+  return result.toArray ? result.toArray() : result;
+}
+
+// The ladder: ${PASSES} passes, the stride doubling each time.
 function transform(data, sign) {
   let cur = data;
   for (let ns = 1; ns < ${PAD}; ns *= 2) cur = fftPass(cur, ns, sign);
   return cur;
 }
 
-// ${N} samples zero-padded to ${PAD}, plus an all-zero imaginary plane.
-// Float32Array from the start: every pass hands the next one Float32Arrays,
-// and gpu.js locks an argument's container type on the first call.
+// ${LONG_N.toLocaleString('en-US')} samples zero-padded to ${PAD.toLocaleString('en-US')}, plus an all-zero
+// imaginary plane. Float32Array from the start: gpu.js locks an argument's
+// container type on the first call.
 function padded() {
   const re = new Float32Array(${PAD});
   const im = new Float32Array(${PAD});
@@ -1611,9 +1771,9 @@ function padded() {
 function viaFFT() {
   const spec = transform(padded(), -1);
   const p = power(spec);
-  const back = transform(p, +1);
-  const out = new Float32Array(${MAX_LAG});
-  for (let lag = 0; lag < ${MAX_LAG}; lag++) out[lag] = back[0][lag] / ${PAD};
+  const back = readBack(transform(p, +1));
+  const out = new Float32Array(${LONG_LAGS});
+  for (let lag = 0; lag < ${LONG_LAGS}; lag++) out[lag] = back[0][lag] / ${PAD};
   return out;
 }
 
@@ -1621,10 +1781,10 @@ const brute = correlate(signal);
 const fast = viaFFT();
 
 let maxDiff = 0;
-for (let lag = 0; lag < ${MAX_LAG}; lag++) {
+for (let lag = 0; lag < ${LONG_LAGS}; lag++) {
   maxDiff = Math.max(maxDiff, Math.abs(fast[lag] - brute[lag]));
 }
-console.log('max difference:', maxDiff);
+console.log('max difference:', maxDiff, 'on a peak of', brute[0]);
 
 // Warm up first — the first call to each route compiles shaders.
 correlate(signal);
@@ -1638,7 +1798,7 @@ t0 = Date.now();
 for (let i = 0; i < 5; i++) viaFFT();
 console.log('fft route:', (Date.now() - t0) / 5, 'ms');
 `,
-      inputs: () => ({ signal: makeTone() }),
+      inputs: () => ({ signal: makeLongTone() }),
       publicTests: [
         {
           name: 'the power kernel squares the magnitudes and empties plane 1',
@@ -1657,7 +1817,7 @@ console.log('fft route:', (Date.now() - t0) / 5, 'ms');
             for (const k of candidates) {
               let out;
               try {
-                out = k([re, im]);
+                out = readBack(k([re, im]));
               } catch (e) {
                 continue;
               }
@@ -1681,20 +1841,25 @@ console.log('fft route:', (Date.now() - t0) / 5, 'ms');
         {
           name: 'the FFT route reproduces the brute-force curve',
           run: async ctx => {
-            const x = makeTone();
-            const ref = rawAuto(x, MAX_LAG);
+            // The reference for THIS assertion is the number the learner logged,
+            // and the curve it came from is 16,384 lags long — so the only
+            // float64 value needed is r[0], which sets the scale everything
+            // else is judged against.
+            const peak = rawAutoAt(makeLongTone(), [0]).get(0);
             const nums = loggedNumbers(ctx.logs, 'max difference');
-            const hint = reportedHint(nums, 0, 0.05, [
-              [143806, `every value is ${PAD}× too big — the inverse transform leaves a factor of ${PAD} behind, so the last step is back[0][lag] / ${PAD}`, 500],
-              [137, 'that curve came from |X| rather than |X|² — the theorem squares the magnitudes, so no Math.sqrt and no Math.hypot', 5],
+            const noDivide = (PAD - 1) * peak;
+            const hint = reportedHint(nums, 0, ROUTES_EPS, [
+              [noDivide,
+                `every value is ${PAD} times too big — the inverse transform leaves a factor of ${PAD} behind, so the last step is back[0][lag] / ${PAD}`,
+                noDivide * 0.01],
             ]);
             ctx.assert(
               nums.length,
               "log the largest disagreement — console.log('max difference:', maxDiff)"
             );
             ctx.assert(
-              nums.some(v => Math.abs(v) <= 0.05),
-              hint || `the two routes should agree to well under 0.01, on a curve whose peak is ${ref[0].toFixed(1)}`
+              nums.some(v => Math.abs(v) <= ROUTES_EPS),
+              hint || `the two routes should agree to about one part in ${Math.round(1 / RELATIVE_AGREEMENT).toLocaleString('en-US')} — that is ${ROUTES_EPS} or better on a curve whose peak is ${peak.toFixed(0)}`
             );
           },
         },
@@ -1718,21 +1883,37 @@ console.log('fft route:', (Date.now() - t0) / 5, 'ms');
           name: 'private test #1',
           run: async ctx => {
             // Rebuild the whole route from the learner's own kernels, on a
-            // signal their code never saw.
+            // signal their code never saw. The float64 reference is computed at
+            // a sample of lags rather than all 16,384: see rawAutoAt.
             const passes = kernelsShaped(ctx, PAD, 2, 3);
             const powers = kernelsShaped(ctx, PAD, 2, 1);
             ctx.assert(passes.length, `no butterfly-pass kernel with output [${PAD}, 2] found`);
             ctx.assert(powers.length, `no power kernel with output [${PAD}, 2] found`);
             const pass = passes[0];
             const power = powers[0];
-            const x = makeToneLow();
+            const x = makeLongToneLow();
             const spec = runTransform(pass, paddedSignal(x), -1);
-            const back = runTransform(pass, power(spec), +1);
-            const ref = rawAuto(x, MAX_LAG);
-            for (let lag = 0; lag < MAX_LAG; lag++) {
-              ctx.assertClose(back[0][lag] / PAD, ref[lag], 0.05,
+            const back = readBack(runTransform(pass, power(spec), +1));
+            ctx.assert(
+              back && back[0] && back[0].length === PAD,
+              `the round trip should come back as two planes of ${PAD} values`
+            );
+            const lags = [0, 1, 32, 64, 128, 512, 2048, 8192, LONG_LAGS - 1];
+            const ref = rawAutoAt(x, lags);
+            for (const lag of lags) {
+              ctx.assertClose(back[0][lag] / PAD, ref.get(lag), REF_EPS,
                 `lag ${lag} of the transform route`);
             }
+            // …and the music survived the round trip: this pluck is an octave
+            // below task 1's, so its first peak sits at lag 64.
+            let bestLag = MIN_LAG;
+            for (let lag = MIN_LAG; lag < 200; lag++) {
+              if (back[0][lag] > back[0][bestLag]) bestLag = lag;
+            }
+            ctx.assert(
+              bestLag === 64,
+              `the transform route should still peak at lag 64 for this 128 Hz pluck, got ${bestLag}`
+            );
           },
         },
       ],

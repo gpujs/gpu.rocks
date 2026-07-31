@@ -23,7 +23,7 @@ export default {
   'dft-versus-fft': [
     {
       name: 'work',
-      caption: 'one pass over a square, or nine passes over a line',
+      caption: 'one pass over a square, or thirteen passes over a line',
       placement: 'intro',
     },
   ],

@@ -20,7 +20,10 @@
 // bounds come from this.constants (compile-time known), only numbers / nested
 // numeric arrays as arguments, and every task passes in CPU mode. Sizes stay
 // at 4,096 for the O(n²) tasks and 65,536 for the linear ones so verification
-// is fast.
+// is fast — except in task 5, which has to show the two formulations trading
+// places and therefore runs the quadratic pass at 131,072 as well. That one
+// declares a budgetMs and skips its big ranking pass on the CPU backend; the
+// reasoning is written out beside the declaration.
 
 // ---- deterministic inputs --------------------------------------------------
 
@@ -1215,67 +1218,125 @@ console.log('above it:', total(countAbove(scores, cutoff)));
     {
       slug: 'which-one-wins',
       title: 'Which One Wins?',
-      intro: `<p>Two formulations, one answer, two prices. Both are wired up below on the same 4,096
-        scores, and both report the same thing so the comparison is honest — the score at the
-        boundary. Rank-by-counting reads 4,096² ≈ 16.8 <strong>million</strong> values to find it;
-        the bisection reads 4,096 of them eighteen times, about 74,000. Then the bisection runs
-        again on sixteen times the data, where ranking would need 4.3 <em>billion</em> comparisons
-        and is simply not on the menu.</p>
-        <p>One <code>performance.now()</code> sample is not a benchmark — it is a shape. Still, the
-        three lines are worth reading, and then worth reading again with <strong>Mode</strong>
-        switched from Auto to CPU. (<strong>⏱ Benchmark</strong> answers a different question: it
-        times the whole file at once, so it tells you what the GPU backend is worth for this code as
-        a whole, not which of the two formulations won.)</p>
-        <p>Expect to be annoyed. On a GPU at 4,096 the ranking pass usually <em>wins</em>, despite
+      // Sized to show the CROSSOVER rather than one side of it, which means the
+      // big ranking pass (131,072² ≈ 17.2e9 comparisons) has to actually run.
+      // Two consequences, both handled here rather than by the learner:
+      //
+      //   • The pre-flight guard extrapolates a run from a probe with the
+      //     output clamped to ~4,096 threads, so a [512, 256] grid clamps to
+      //     [64, 64] and the estimate is 32× the probe. (Authoring this task
+      //     is what found the guard's old per-axis clamp of 64, under which a
+      //     1D [131072] extrapolated 2,048× and was refused at any budget;
+      //     sandbox.js now spreads the same thread count over however many
+      //     axes there are. The grid here is kept because it is honest about
+      //     what a wide launch already is, not to dodge the guard.)
+      //
+      //     Even so the estimate is wildly pessimistic, because most of what
+      //     the probe times (four kernel compiles and 72 counting launches,
+      //     each shipping the array to the GPU) does not scale with the clamp
+      //     at all. Measured in the worker sandbox on an M1 Max: probe
+      //     174-226 ms → an estimate of 6-7 s, against a real run of ~0.5 s.
+      //     Hence 20000 rather than something near the truth: it keeps a GPU
+      //     about three times slower than this one out of a refusal it does
+      //     not deserve. It is a ceiling, not a cost — nothing waits for it.
+      //     The run watchdog then allows twice the budget (see runner.js).
+      //   • 17.2 billion comparisons single-threaded is about a minute, so the
+      //     BIG ranking pass is measured on the gpu backend only. Everything
+      //     else — both bisections and the 4,096 ranking pass — runs on both,
+      //     which keeps `verify-learn --mode cpu` at ~0.4 s for this task and
+      //     still lets the CPU backend make the same point (there the ranking
+      //     pass already loses at 4,096). No size does both: the CPU backend
+      //     costs ~3 ns per comparison, so anything large enough for the GPU
+      //     crossover (~65,000 here) is already 13 s of JavaScript.
+      //
+      //     One knock-on effect, called out in the intro rather than hidden:
+      //     ⏱ Benchmark runs the file once per backend and times the kernels
+      //     each run invoked, so the cpu side is missing the big ranking pass
+      //     and the chip reports ~1×. The intro says why, and uses it.
+      budgetMs: 20000,
+      intro: `<p>Two formulations, one answer, and a price that depends on <code>n</code>. Both are
+        wired up below, both report the same thing so the comparison is honest — the score at the
+        boundary — and both run <strong>twice</strong>: once on 4,096 scores, once on 131,072.
+        Rank-by-counting reads 4,096² ≈ 16.8 <strong>million</strong> values at the small size and
+        17.2 <strong>billion</strong> at the large one. The bisection reads 4,096 values eighteen
+        times (about 74,000) and 131,072 eighteen times (about 2.4 million). Between the two sizes
+        one of those grows 1,024×, the other 32×.</p>
+        <p>So run it, and watch the winner change. At 4,096 the ranking pass <em>wins</em>, despite
         doing two hundred times the arithmetic: it is one dense, embarrassingly parallel launch,
         which is precisely what the hardware is for, while the bisection spends its life waiting for
-        eighteen tiny kernels to come back — latency, not arithmetic. On the CPU backend the order
-        flips, because there the operation count is all that is left. And at 65,536 the argument is
-        over: only one of them runs at all. Which formulation wins depends on <code>n</code>, on the
-        backend, and on nothing you can read off a complexity class.</p>`,
-      goal: `<strong>Goal:</strong> write one <code>bisect()</code> driver, use it at both sizes,
-        and read off the three timings.`,
+        eighteen tiny kernels to come back — latency, not arithmetic. At 131,072 the arithmetic
+        finally outgrows the latency and the order flips. On the machine this was written on (an M1
+        Max) the small size measures about <strong>1 ms</strong> for the ranking against
+        <strong>10 ms</strong> for the bisection, and the large one about <strong>48 ms</strong>
+        against <strong>15 ms</strong>: 32× the data costs the bisection five milliseconds, because
+        eighteen round trips are eighteen round trips whatever they carry, and costs the ranking
+        pass everything. The crossover sits near 65,000, where the two trade places from run to run
+        — and it will not sit there on your hardware, which is the point.</p>
+        <p>Every kernel gets one untimed warm-up call before the clock starts: a kernel's first
+        launch compiles it, and a shader compiler inside the timer measures nothing you asked about.
+        Even so, one <code>performance.now()</code> sample is a shape, not a benchmark. Read the
+        four lines, then read them again with <strong>Mode</strong> switched from Auto to CPU —
+        there the ranking pass loses at 4,096 already (about 50 ms against 0.2 ms), and at 131,072
+        it is not run at all, because a minute of single-threaded counting is the same lesson in a
+        harsher form.</p>
+        <p><strong>⏱ Benchmark</strong> answers a different question, and on this task it answers it
+        badly — which is worth seeing once. It runs the whole file twice, once per backend, and on
+        the CPU backend the file skips the big ranking pass; so it times a smaller job on one side
+        and reports something near <strong>1×</strong>. That number means "the CPU backend got out
+        of the work", not "the GPU is not helping" — timing two things that are not the same thing
+        is the oldest way to get a benchmark wrong, and it is exactly what the four lines above go
+        out of their way to avoid.</p>`,
+      goal: `<strong>Goal:</strong> write one <code>bisect()</code> driver and one
+        <code>boundaryOf()</code> scan, use them at both sizes, and read off the four timings.`,
       requirements: [
-        'One <code>bisect(counter, values, k)</code> serving both the 4,096 and the 65,536 case',
+        'One <code>bisect(counter, values, k)</code> serving both the 4,096 and the 131,072 case',
         'It brackets from the data, halves while <code>hi - lo &gt; 0.5</code>, and returns <code>Math.floor(lo)</code>',
-        'The ranking side reports the same boundary: the score of the element whose rank is <code>K - 1</code>',
-        'All three measurements run and log a time (the <code>console.log</code> lines are already written)',
+        'One <code>boundaryOf(ranks, values)</code> for the ranking side: the score of the element whose rank is <code>K - 1</code>, over flat ranks so the same scan serves the grid',
+        'Every measurement the backend can afford runs and logs a time — four on the GPU, three on the CPU, where the 131,072-score ranking pass is reported instead of run (already written)',
       ],
       hints: [
         {
           title: 'Hint 1 — one driver, two counters',
           body: `<p><code>bisect</code> never mentions a size: it takes the counting kernel as an
             argument and gets its bracket from the values it was handed. That is why the same four
-            lines serve 4,096 scores and 65,536.</p>`,
+            lines serve 4,096 scores and 131,072.</p>`,
         },
         {
           title: 'Hint 2 — the boundary from ranks',
           body: `<p>The <code>K</code>-th largest score is the one whose rank is <code>K - 1</code>.
             One plain loop over the ranks finds it:</p>
 <pre><code>for (let i = 0; i &lt; ranks.length; i++) {
-  if (ranks[i] === K - 1) cutByRank = scores[i];
-}</code></pre>`,
+  if (ranks[i] === K - 1) cut = values[i];
+}</code></pre>
+<p>The big ranking pass hands back a 512 × 256 grid, so the driver flattens it first
+            (<code>utils.flatten</code>) — flat rank <code>i</code> then belongs to
+            <code>values[i]</code> in both cases.</p>`,
         },
         {
           title: 'Hint 3 — reading the numbers',
-          body: `<p>The two cutoffs will not be the same number, and they should not be: the ranking
-            pass reports the 10th largest <em>score</em>, the bisection reports the largest whole
-            number strictly below it. Both describe the same boundary — exactly ten scores are above
-            the bisection's cutoff, and the tenth of them is the ranking pass's answer.</p>`,
+          body: `<p>The two cutoffs at a size will not be the same number, and they should not be:
+            the ranking pass reports the 10th largest <em>score</em>, the bisection reports the
+            largest whole number strictly below it. Both describe the same boundary — exactly ten
+            scores are above the bisection's cutoff, and the tenth of them is the ranking pass's
+            answer.</p>
+<p>Then compare the two <em>times</em> at 4,096 against the two at 131,072. The
+            bisection barely notices the 32× more data; the ranking pass notices it 1,024 times
+            over.</p>`,
         },
       ],
       transfer: `Picking a formulation by measurement rather than by asymptotics is the whole job.
         CUB ships several k-selection strategies and dispatches on size; cuDNN and cuBLAS carry
         multiple kernels per operation and choose at runtime; PyTorch's <code>topk</code> switches
         between a sorting path and a radix-select path on <code>k</code> and <code>n</code>. The
-        crossovers are found the way you just found this one — by running both.`,
-      starterCode: `// Same question, two formulations. Time them, then hit ⏱ Benchmark.
+        crossovers are found the way you just found this one — by running both on both sides of it,
+        warm, and reading the clock.`,
+      starterCode: `// Same question, two formulations, two sizes. Time them, then ⏱ Benchmark.
 const gpu = new GPU({ mode });
 
 const K = 10;
 
-// --- approach A: rank everything (tasks 1-2), 4096 scores
-const rankScores = gpu.createKernel(function (values) {
+// --- approach A: rank everything (tasks 1-2), at both sizes
+const rankSmall = gpu.createKernel(function (values) {
   const mine = values[this.thread.x];
   let ahead = 0;
   for (let j = 0; j < this.constants.n; j++) {
@@ -1289,8 +1350,26 @@ const rankScores = gpu.createKernel(function (values) {
   return ahead;
 }, { output: [4096], constants: { n: 4096 } });
 
+// The same pass on 131,072 scores. A launch that wide is a 2D texture
+// underneath whatever you call it, so this one says so — a 512 x 256
+// grid, ranked by the flat index y * 512 + x, exactly like task 3.
+const rankBig = gpu.createKernel(function (values) {
+  const me = this.thread.y * this.constants.width + this.thread.x;
+  const mine = values[me];
+  let ahead = 0;
+  for (let j = 0; j < this.constants.n; j++) {
+    const other = values[j];
+    if (j < me) {
+      if (other >= mine) ahead++;
+    } else if (other > mine) {
+      ahead++;
+    }
+  }
+  return ahead;
+}, { output: [512, 256], constants: { n: 131072, width: 512 } });
+
 // --- approach B: bisect for a cutoff (task 4), at both sizes
-const count4k = gpu.createKernel(function (values, t) {
+const countSmall = gpu.createKernel(function (values, t) {
   let hits = 0;
   for (let i = 0; i < this.constants.chunk; i++) {
     if (values[i * this.constants.threads + this.thread.x] > t) hits++;
@@ -1298,13 +1377,13 @@ const count4k = gpu.createKernel(function (values, t) {
   return hits;
 }, { output: [64], constants: { threads: 64, chunk: 64 } });
 
-const count64k = gpu.createKernel(function (values, t) {
+const countBig = gpu.createKernel(function (values, t) {
   let hits = 0;
   for (let i = 0; i < this.constants.chunk; i++) {
     if (values[i * this.constants.threads + this.thread.x] > t) hits++;
   }
   return hits;
-}, { output: [256], constants: { threads: 256, chunk: 256 } });
+}, { output: [512], constants: { threads: 512, chunk: 256 } });
 
 function total(partials) {
   let sum = 0;
@@ -1328,31 +1407,55 @@ function bisect(counter, values, k) {
   return 0;
 }
 
+function boundaryOf(ranks, values) {
+  // TODO: the K-th largest score is the one whose rank is K - 1. Ranks
+  // arrive flat, so this same scan serves both sizes.
+  return 0;
+}
+
+// A kernel's first launch compiles it, and a shader compiler inside the
+// timer is not a measurement. One untimed warm-up call each.
+rankSmall(scores);
+bisect(countSmall, scores, K);
+if (mode === 'gpu') rankBig(bigScores);
+bisect(countBig, bigScores, K);
+
 let t0 = performance.now();
-const ranks = rankScores(scores);
-let cutByRank = 0;
-// TODO: the K-th largest score is the one whose rank is K - 1.
-const rankMs = performance.now() - t0;
+const smallByRank = boundaryOf(rankSmall(scores), scores);
+const rankSmallMs = performance.now() - t0;
 
 t0 = performance.now();
-const cut4k = bisect(count4k, scores, K);
-const bisectMs = performance.now() - t0;
+const smallCut = bisect(countSmall, scores, K);
+const bisectSmallMs = performance.now() - t0;
+
+console.log('rank 4096:', rankSmallMs.toFixed(1), 'ms - 10th largest score is', smallByRank);
+console.log('bisect 4096:', bisectSmallMs.toFixed(1), 'ms - cutoff', smallCut);
+
+// 131,072 x 131,072 = 17.2 billion comparisons. The GPU eats them in tens
+// of milliseconds; the CPU backend, one thread, would need about a minute,
+// so there this measurement is reported rather than run.
+if (mode === 'gpu') {
+  t0 = performance.now();
+  const bigByRank = boundaryOf(utils.flatten(rankBig(bigScores)), bigScores);
+  const rankBigMs = performance.now() - t0;
+  console.log('rank 131072:', rankBigMs.toFixed(1), 'ms - 10th largest score is', bigByRank);
+} else {
+  console.log('rank 131072: not run on the cpu backend - 17.2 billion comparisons, about a minute');
+}
 
 t0 = performance.now();
-const cut64k = bisect(count64k, bigScores, K);
-const bigMs = performance.now() - t0;
+const bigCut = bisect(countBig, bigScores, K);
+const bisectBigMs = performance.now() - t0;
 
-console.log('rank 4096:', rankMs.toFixed(1), 'ms - 10th largest score is', cutByRank);
-console.log('bisect 4096:', bisectMs.toFixed(1), 'ms - cutoff', cut4k);
-console.log('bisect 65536:', bigMs.toFixed(1), 'ms - cutoff', cut64k);
+console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
 `,
-      solutionCode: `// Same question, two formulations. Time them, then hit ⏱ Benchmark.
+      solutionCode: `// Same question, two formulations, two sizes. Time them, then ⏱ Benchmark.
 const gpu = new GPU({ mode });
 
 const K = 10;
 
-// --- approach A: rank everything (tasks 1-2), 4096 scores
-const rankScores = gpu.createKernel(function (values) {
+// --- approach A: rank everything (tasks 1-2), at both sizes
+const rankSmall = gpu.createKernel(function (values) {
   const mine = values[this.thread.x];
   let ahead = 0;
   for (let j = 0; j < this.constants.n; j++) {
@@ -1366,8 +1469,26 @@ const rankScores = gpu.createKernel(function (values) {
   return ahead;
 }, { output: [4096], constants: { n: 4096 } });
 
+// The same pass on 131,072 scores. A launch that wide is a 2D texture
+// underneath whatever you call it, so this one says so — a 512 x 256
+// grid, ranked by the flat index y * 512 + x, exactly like task 3.
+const rankBig = gpu.createKernel(function (values) {
+  const me = this.thread.y * this.constants.width + this.thread.x;
+  const mine = values[me];
+  let ahead = 0;
+  for (let j = 0; j < this.constants.n; j++) {
+    const other = values[j];
+    if (j < me) {
+      if (other >= mine) ahead++;
+    } else if (other > mine) {
+      ahead++;
+    }
+  }
+  return ahead;
+}, { output: [512, 256], constants: { n: 131072, width: 512 } });
+
 // --- approach B: bisect for a cutoff (task 4), at both sizes
-const count4k = gpu.createKernel(function (values, t) {
+const countSmall = gpu.createKernel(function (values, t) {
   let hits = 0;
   for (let i = 0; i < this.constants.chunk; i++) {
     if (values[i * this.constants.threads + this.thread.x] > t) hits++;
@@ -1375,13 +1496,13 @@ const count4k = gpu.createKernel(function (values, t) {
   return hits;
 }, { output: [64], constants: { threads: 64, chunk: 64 } });
 
-const count64k = gpu.createKernel(function (values, t) {
+const countBig = gpu.createKernel(function (values, t) {
   let hits = 0;
   for (let i = 0; i < this.constants.chunk; i++) {
     if (values[i * this.constants.threads + this.thread.x] > t) hits++;
   }
   return hits;
-}, { output: [256], constants: { threads: 256, chunk: 256 } });
+}, { output: [512], constants: { threads: 512, chunk: 256 } });
 
 function total(partials) {
   let sum = 0;
@@ -1400,7 +1521,7 @@ function bracket(values) {
 }
 
 // Size-free: the counting kernel is an argument, the bracket comes from
-// the data. The same four lines serve 4096 scores and 65536.
+// the data. The same four lines serve 4,096 scores and 131,072.
 function bisect(counter, values, k) {
   let [lo, hi] = bracket(values);
   while (hi - lo > 0.5) {
@@ -1411,79 +1532,121 @@ function bisect(counter, values, k) {
   return Math.floor(lo);
 }
 
-let t0 = performance.now();
-const ranks = rankScores(scores);
-let cutByRank = 0;
-for (let i = 0; i < ranks.length; i++) {
-  if (ranks[i] === K - 1) cutByRank = scores[i];
+// Also size-free: flat ranks in, the K-th largest score out.
+function boundaryOf(ranks, values) {
+  let cut = 0;
+  for (let i = 0; i < ranks.length; i++) {
+    if (ranks[i] === K - 1) cut = values[i];
+  }
+  return cut;
 }
-const rankMs = performance.now() - t0;
+
+// A kernel's first launch compiles it, and a shader compiler inside the
+// timer is not a measurement. One untimed warm-up call each.
+rankSmall(scores);
+bisect(countSmall, scores, K);
+if (mode === 'gpu') rankBig(bigScores);
+bisect(countBig, bigScores, K);
+
+let t0 = performance.now();
+const smallByRank = boundaryOf(rankSmall(scores), scores);
+const rankSmallMs = performance.now() - t0;
 
 t0 = performance.now();
-const cut4k = bisect(count4k, scores, K);
-const bisectMs = performance.now() - t0;
+const smallCut = bisect(countSmall, scores, K);
+const bisectSmallMs = performance.now() - t0;
+
+console.log('rank 4096:', rankSmallMs.toFixed(1), 'ms - 10th largest score is', smallByRank);
+console.log('bisect 4096:', bisectSmallMs.toFixed(1), 'ms - cutoff', smallCut);
+
+// 131,072 x 131,072 = 17.2 billion comparisons. The GPU eats them in tens
+// of milliseconds; the CPU backend, one thread, would need about a minute,
+// so there this measurement is reported rather than run.
+if (mode === 'gpu') {
+  t0 = performance.now();
+  const bigByRank = boundaryOf(utils.flatten(rankBig(bigScores)), bigScores);
+  const rankBigMs = performance.now() - t0;
+  console.log('rank 131072:', rankBigMs.toFixed(1), 'ms - 10th largest score is', bigByRank);
+} else {
+  console.log('rank 131072: not run on the cpu backend - 17.2 billion comparisons, about a minute');
+}
 
 t0 = performance.now();
-const cut64k = bisect(count64k, bigScores, K);
-const bigMs = performance.now() - t0;
+const bigCut = bisect(countBig, bigScores, K);
+const bisectBigMs = performance.now() - t0;
 
-console.log('rank 4096:', rankMs.toFixed(1), 'ms - 10th largest score is', cutByRank);
-console.log('bisect 4096:', bisectMs.toFixed(1), 'ms - cutoff', cut4k);
-console.log('bisect 65536:', bigMs.toFixed(1), 'ms - cutoff', cut64k);
+console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
 `,
       inputs: utils => ({
         scores: makeFineScores(utils, 4096, 606),
-        bigScores: makeFineScores(utils, 65536, 4801),
+        bigScores: makeFineScores(utils, 131072, 4801),
       }),
       publicTests: [
         {
-          name: 'all three kernels still work: one ranker, two counters',
+          name: 'all four kernels still work: two rankers, two counters',
           run: async ctx => {
-            const rank = kernelWithOutput(ctx, [4096]);
+            const rankSmall = kernelWithOutput(ctx, [4096]);
+            const rankBig = kernelWithOutput(ctx, [512, 256]);
             const small = kernelWithOutput(ctx, [64]);
-            const big = kernelWithOutput(ctx, [256]);
-            ctx.assert(rank, 'no kernel with output [4096] found — the ranking pass');
-            ctx.assert(small, 'no kernel with output [64] found — the 4096-score counter');
-            ctx.assert(big, 'no kernel with output [256] found — the 65536-score counter');
+            const big = kernelWithOutput(ctx, [512]);
+            ctx.assert(rankSmall, 'no kernel with output [4096] found — the 4,096-score ranking pass');
+            ctx.assert(rankBig, 'no kernel with output [512, 256] found — the 131,072-score ranking pass');
+            ctx.assert(small, 'no kernel with output [64] found — the 4,096-score counter');
+            ctx.assert(big, 'no kernel with output [512] found — the 131,072-score counter');
             const values = makeFineScores(ctx.utils, 4096, 606);
-            const gotRanks = rank(values);
+            const gotRanks = rankSmall(values);
             const wantRanks = ranksOf(values);
             const badRank = firstMismatch(gotRanks, wantRanks, 0.5);
-            ctx.assert(badRank < 0, `the ranking pass is wrong at element ${badRank}`);
+            ctx.assert(badRank < 0, `the 4,096-score ranking pass is wrong at element ${badRank}`);
             ctx.assertClose(
               sumOf(small(values, 40000)),
               howManyAbove(values, 40000),
               0.5,
-              'the 4096-score counter'
+              'the 4,096-score counter'
             );
-            const bigValues = makeFineScores(ctx.utils, 65536, 4801);
+            // The big RANKING pass is 17.2 billion comparisons — invoked here
+            // it would add a minute to a cpu-mode check, so its correctness is
+            // read off the run's own log line instead (see the boundary test,
+            // which only asks for it on the gpu backend). The big COUNTER is
+            // one linear pass, so it is exercised directly on both.
+            const bigValues = makeFineScores(ctx.utils, 131072, 4801);
             ctx.assertClose(
               sumOf(big(bigValues, 40000)),
               howManyAbove(bigValues, 40000),
               0.5,
-              'the 65536-score counter'
+              'the 131,072-score counter'
             );
           },
         },
         {
-          name: 'three measurements, each with a time',
+          name: 'every measurement this backend can afford reports a time',
           run: async ctx => {
-            for (const label of ['rank 4096', 'bisect 4096', 'bisect 65536']) {
+            const timed = ['rank 4096', 'bisect 4096', 'bisect 131072'];
+            if (ctx.resolvedMode === 'gpu') timed.push('rank 131072');
+            for (const label of timed) {
               const text = lineWith(ctx.logs, label);
-              ctx.assert(text, `nothing was logged for "${label}" — all three measurements have to run`);
+              ctx.assert(text, `nothing was logged for "${label}" — that measurement has to run`);
               const ms = millisecondsOn(text);
               ctx.assert(
                 ms !== null && Number.isFinite(ms) && ms >= 0,
                 `"${text}" does not report a duration in ms`
               );
             }
+            if (ctx.resolvedMode !== 'gpu') {
+              // Skipped, but not silently: the line still has to say so.
+              ctx.assert(
+                lineWith(ctx.logs, 'rank 131072'),
+                'nothing was logged for "rank 131072" — on the cpu backend it reports why it did ' +
+                  'not run, which is still a line'
+              );
+            }
           },
         },
         {
-          name: 'both formulations agree about the boundary',
+          name: 'both formulations agree about the boundary, at both sizes',
           run: async ctx => {
             const values = makeFineScores(ctx.utils, 4096, 606);
-            const bigValues = makeFineScores(ctx.utils, 65536, 4801);
+            const bigValues = makeFineScores(ctx.utils, 131072, 4801);
             const tenth = topValues(values, 10)[9];
 
             const rankLine = lineWith(ctx.logs, 'rank 4096');
@@ -1499,17 +1662,44 @@ console.log('bisect 65536:', bigMs.toFixed(1), 'ms - cutoff', cut64k);
 
             const smallLine = lineWith(ctx.logs, 'bisect 4096');
             ctx.assert(smallLine, 'nothing was logged for "bisect 4096"');
-            const cut4k = numberAfter(smallLine, 'cutoff');
-            ctx.assert(cut4k !== null, `could not read a cutoff out of "${smallLine}"`);
-            const smallHint = cutoffHint(values, cut4k, 10);
+            const smallCut = numberAfter(smallLine, 'cutoff');
+            ctx.assert(smallCut !== null, `could not read a cutoff out of "${smallLine}"`);
+            const smallHint = cutoffHint(values, smallCut, 10);
             ctx.assert(smallHint === null, smallHint);
 
-            const bigLine = lineWith(ctx.logs, 'bisect 65536');
-            ctx.assert(bigLine, 'nothing was logged for "bisect 65536"');
-            const cut64k = numberAfter(bigLine, 'cutoff');
-            ctx.assert(cut64k !== null, `could not read a cutoff out of "${bigLine}"`);
-            const bigHint = cutoffHint(bigValues, cut64k, 10);
+            const bigLine = lineWith(ctx.logs, 'bisect 131072');
+            ctx.assert(bigLine, 'nothing was logged for "bisect 131072"');
+            const bigCut = numberAfter(bigLine, 'cutoff');
+            ctx.assert(bigCut !== null, `could not read a cutoff out of "${bigLine}"`);
+            const bigHint = cutoffHint(bigValues, bigCut, 10);
             ctx.assert(bigHint === null, bigHint);
+
+            // The big ranking pass runs on the gpu backend only, so only there
+            // is there a boundary of its own to agree with the big cutoff.
+            if (ctx.resolvedMode === 'gpu') {
+              const bigRankLine = lineWith(ctx.logs, 'rank 131072');
+              const bigByRank = numberAfter(bigRankLine, 'score is');
+              ctx.assert(bigByRank !== null, `could not read a score out of "${bigRankLine}"`);
+              const bigTenth = topValues(bigValues, 10)[9];
+              const gridHint = diagnose(bigByRank, bigTenth, 0.5, [
+                [topValues(bigValues, 11)[10], 'that is the ELEVENTH largest of the 131,072 — rank K − 1 is the K-th largest'],
+                [tenth, 'that is the 4,096-score answer — the big pass ranks bigScores, not scores'],
+                [0, 'no cell reported rank K − 1 — the grid of ranks has to be flattened before the scan, utils.flatten(rankBig(bigScores))'],
+              ]);
+              ctx.assertClose(
+                bigByRank,
+                bigTenth,
+                0.5,
+                gridHint || 'the 10th largest of the 131,072 scores'
+              );
+              ctx.assertClose(
+                bigCut,
+                bigTenth - 1,
+                0.5,
+                'the two formulations disagree at 131,072: the bisection\'s cutoff should be the ' +
+                  'whole number just below the ranking pass\'s 10th largest score'
+              );
+            }
           },
         },
       ],
@@ -1519,9 +1709,10 @@ console.log('bisect 65536:', bigMs.toFixed(1), 'ms - cutoff', cut64k);
           run: async ctx => {
             // Drive the learner's own counter through a full bisection to make
             // sure the kernel — not just the driver — holds up at every guess.
-            const big = kernelWithOutput(ctx, [256]);
-            ctx.assert(big, 'no kernel with output [256] found');
-            const values = makeFineScores(ctx.utils, 65536, 1204);
+            // 18 linear passes, so this costs the same on either backend.
+            const big = kernelWithOutput(ctx, [512]);
+            ctx.assert(big, 'no kernel with output [512] found');
+            const values = makeFineScores(ctx.utils, 131072, 1204);
             let [lo, hi] = bracketOf(values);
             while (hi - lo > 0.5) {
               const mid = (lo + hi) / 2;

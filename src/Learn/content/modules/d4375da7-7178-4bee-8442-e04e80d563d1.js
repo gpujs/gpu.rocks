@@ -12,8 +12,56 @@
 // Kernel-authoring rules (contract): no closures inside kernel functions,
 // every value arrives as an argument / this.thread.* / this.constants.*,
 // statically bounded loops, Math.* per gpu.js's whitelist. Every task passes
-// in cpu mode as well as gpu mode, and n stays ≤ 512 so the O(n²) DFT in
-// task 5 finishes in single-digit milliseconds on the CPU backend.
+// in cpu mode as well as gpu mode. Tasks 1–4 and 6 stay at n ≤ 256; task 5 is
+// the payoff task and is sized differently — see below.
+//
+// ---------------------------------------------------------------------------
+// WHY TASK 5 IS BIG — n = 8,192, and why not 512, 4,096 or 16,384
+//
+// Task 5 races the naive DFT against the FFT, so it is only worth running at a
+// size where the FFT actually wins. It did not, at 512. Measured in a real
+// browser on an Apple M1 Max (ANGLE/Metal), gpu mode, one call each after two
+// warm-ups, median of 40:
+//
+//   n       naive DFT     FFT (this task)   FFT as task 4 wrote it
+//   512       0.7 ms        —                 5.1 ms   ← the FFT LOSES 7×
+//   4,096     3.0 ms      1.4 ms              7.6 ms   ← 2.0×, and 1.25× at worst
+//   8,192     3.5 ms      1.5 ms              8.2 ms   ← 2.3–2.7×, never below 1.9×
+//   16,384    9.8 ms      1.8 ms              9.8 ms   ← 5.4×, and unshippable
+//
+// Two separate things had to change to get there.
+//
+//  1. THE FFT STOPS COPYING ITSELF BACK. Task 4 chains its passes through
+//     JavaScript arrays, which is fourteen readbacks at n = 8,192 — measured at
+//     ~0.5 ms each, against ~0.07 ms for the launch they wrap. That is the
+//     whole reason a small FFT loses to a brute-force kernel, so task 5 keeps
+//     the intermediate spectra on the card (pipeline: true) and reads back
+//     once: 8.2 ms → 1.5 ms. Two butterfly kernels take turns, because a
+//     pipelined kernel writes into its own texture and cannot also be the one
+//     reading it. gpu.js's CPU backend accepts `pipeline` and simply hands back
+//     the array, which is why fft() ends `buffer.toArray ? … : buffer`.
+//
+//  2. n GOES UP UNTIL THE ARITHMETIC OUTWEIGHS THE LAUNCHES. At 4,096 the
+//     margin is 2.0× typical but 1.25× worst-case — inside the noise. 8,192 is
+//     the smallest power of two that wins by a stable multiple.
+//
+// n = 16,384 would win by 5.4× and is NOT used: a [w, 2] kernel needs a
+// w-wide texture, and MAX_TEXTURE_SIZE is 8,192 on Chrome's software WebGL
+// (SwiftShader) — measured, the kernel refuses to build — so 16,384 makes the
+// task fail outright on every machine without a GPU, including CI runners.
+// 8,192 runs everywhere. Learner-visible numbers off the real console, through
+// the worker sandbox: 1.6 ms vs 3.5 ms on the M1 (2.0–2.5× typical, 5.5× on a
+// cold device), and 10.4 ms vs 1,408.7 ms — 135× — on SwiftShader, where all
+// five tests still pass.
+//
+// THE CPU BACKEND CANNOT PAY FOR THE FULL SPECTRUM. One thread does ~3.1e7
+// of the naive transform's multiply-accumulates per second, so all 8,192 bins
+// is ~2.2 s per call and scripts/verify-learn.mjs calls it six times. So in cpu
+// mode the definition is asked for a 1,024-bin SLICE (`bins`) — an 8× head
+// start, and it still loses by 36× (7.3 ms against 271 ms). Everything about
+// the FFT side is identical in both modes; only how much of the spectrum the
+// naive side is asked for changes, and the task says so in the code, in the
+// prose and in the console.
 //
 // ---------------------------------------------------------------------------
 // COMPLEX NUMBERS — TWO PLANES (the Signal Processing convention)
@@ -35,10 +83,13 @@
 // BIT_COUNT = 32 bits in a loop (src/backend/web-gl{,2}/fragment-shader.js:
 // bitwiseAnd / bitwiseOr / bitwiseZeroFillLeftShift / bitwiseSignedRightShift);
 // the native GLSL integer operators are never emitted. Bitonic Sort found the
-// same thing about `^`. Three of those per bit, nine bits, is ~800 shader loop
-// iterations to compute one index — against nine float operations for
+// same thing about `^`. Three of those per bit, thirteen bits at task 5's size,
+// is ~1,250 shader loop iterations to compute one index — against thirteen
+// float operations for
 // `reversed = reversed * 2 + v % 2; v = Math.floor(v / 2);`. The arithmetic
-// form is cheaper, portable, and it shows the learner what bit reversal IS.
+// form is cheaper, portable, and it shows the learner what bit reversal IS —
+// and it stays exact where it now has to: re-checked over all 8,192 indices at
+// 13 bits, cpu and gpu, against the float64 reference — zero mismatches.
 //
 // ---------------------------------------------------------------------------
 // FLOAT MARGINS — chosen from measurements, not from hope
@@ -51,12 +102,28 @@
 //   task 2  one butterfly pass, n = 8 ........... 4e-7    tolerance 1e-3
 //   task 3  a permutation (exact integers) ...... 0       tolerance 1e-3
 //   task 4  8-stage FFT, n = 256, peak 128 ...... 1.5e-5  tolerance 5e-3
-//   task 5  naive DFT, n = 512, peak 256 ........ 7.3e-3  tolerance 0.15
+//   task 5  naive DFT, n = 8,192 ................ see below
 //   task 6  FFT round trip, n = 256 ............. 5.3e-7  tolerance 5e-3
 //
-// Every tolerance is at least 20× the measured error and at least 30× smaller
-// than the gap to the nearest wrong answer a probe names, so no assertion in
-// this module sits anywhere near a decision boundary.
+// TASK 5 IS THE ONE PLACE A TOLERANCE IS A FRACTION OF THE SPECTRUM RATHER
+// THAN A FIXED NUMBER, and the reason is worth stating: at n = 8,192 the
+// naive transform is the INACCURATE one. Its phase is -2π·k·t/n with k·t up to
+// 6.7e7 — past float32's 2^24 of integer resolution — so the angle it feeds
+// cos/sin carries ~4e-3 rad of error, and 8,192 terms of that accumulate.
+// Measured against a float64 reference in gpu mode, worst absolute error over
+// the whole spectrum:
+//
+//   naive DFT, two tones .... 2.41  (peak 4,096 → 5.9e-4 relative)
+//   naive DFT, noise ........ 0.43  (peak   307 → 1.4e-3 relative)
+//   THE FFT, same signals ... 0.0015 and 0.0001  (3.6e-7 relative)
+//
+// The FFT is ~1,600× more accurate here, which is task 5's third punchline and
+// not a coincidence: thirteen passes accumulate thirteen roundings, n² terms
+// accumulate n². The assertions therefore use eps = 3% of the reference's own
+// peak: ≥21× the measured error, and ≥33× smaller than the gap to the nearest
+// wrong answer a probe names (every one of them is O(peak) away). Every other
+// tolerance in this module is at least 20× the measured error and at least 30×
+// smaller than that gap, so no assertion here sits near a decision boundary.
 //
 // TWO RULES THAT FALL OUT OF THAT, BOTH LEARNED THE HARD WAY ELSEWHERE:
 //
@@ -149,6 +216,53 @@ function dftRef(re, im, sign = -1) {
     }
   }
   return [outRe, outIm];
+}
+
+// The same definition, evaluated at a LIST of bins instead of all of them.
+// Task 5 runs at n = 8,192, where a whole-spectrum dftRef is 67 million float64
+// terms — about a wall-clock second per call, and its tests would want six of
+// them. The assertions only ever read the bins in `list`, so those are the only
+// bins worth predicting; results come back indexed by POSITION IN THE LIST, not
+// by bin number.
+function dftRefAt(x, list, sign = -1) {
+  const n = x.length;
+  const outRe = new Array(list.length).fill(0);
+  const outIm = new Array(list.length).fill(0);
+  for (let q = 0; q < list.length; q++) {
+    const k = list[q];
+    let re = 0;
+    let im = 0;
+    for (let t = 0; t < n; t++) {
+      const angle = (sign * TAU * k * t) / n;
+      re += x[t] * Math.cos(angle);
+      im += x[t] * Math.sin(angle);
+    }
+    outRe[q] = re;
+    outIm[q] = im;
+  }
+  return [outRe, outIm];
+}
+
+// Which bins task 5's assertions read out of the `bins` the naive kernel
+// produced. The low end in full — DC, the tones, the first harmonics, where a
+// spectrum is easiest to read by eye — then a stride to the very top, so no
+// mistake can hide in a stretch nobody looked at. Around 96 bins either way,
+// which is ~0.8 million float64 terms to predict rather than 67 million.
+function checkBins(bins) {
+  const list = [];
+  for (let k = 0; k < 24 && k < bins; k++) list.push(k);
+  const stride = Math.max(1, Math.floor(bins / 72));
+  for (let k = 24; k < bins; k += stride) list.push(k);
+  if (list[list.length - 1] !== bins - 1) list.push(bins - 1);
+  return list;
+}
+
+// The biggest magnitude in a reference spectrum. Task 5's tolerance is a
+// fraction of this rather than a fixed number — see the FLOAT MARGINS note.
+function peakOf(re, im) {
+  let peak = 0;
+  for (let i = 0; i < re.length; i++) peak = Math.max(peak, Math.hypot(re[i], im[i]));
+  return peak;
 }
 
 // The m-point DFT of every second sample of `x`, starting at `offset` — task 1's
@@ -505,21 +619,34 @@ function scheduleProbes(signal, n) {
   ];
 }
 
-// Task 5: the naive DFT itself.
-function naiveProbes(signal, n) {
-  const zeros = new Array(n).fill(0);
-  const correct = dftRef(signal, zeros, -1);
-  const inverse = dftRef(signal, zeros, 1);
-  const scaled = [correct[0].map(v => v / n), correct[1].map(v => v / n)];
+// Task 5: the naive DFT itself. Everything here is indexed by POSITION IN
+// `list` (see dftRefAt): the kernel produces `bins` of them, the assertions
+// read ~96, and a probe has to predict exactly the cells the assertions read.
+// `correct` is passed in because the caller has already paid for it, and `eps`
+// because two of these predictions are a factor of n SMALLER than the spectrum
+// and would otherwise be swallowed by a tolerance sized for the spectrum: at
+// n = 8,192 the test's eps is 3% of a peak of 4,096, i.e. 123, while a spectrum
+// divided by n peaks at 0.5. Held to 123 that prediction matches a kernel that
+// returned nothing at all, and the learner whose loop body is still a TODO gets
+// told their scale factor is wrong. Both small predictions therefore carry
+// eps/n, which is ~50× their own float error and still nowhere near zero.
+function naiveProbes(signal, list, correctRe, correctIm, eps) {
+  const n = signal.length;
+  const smallEps = eps / n;
+  // The forward transform of a REAL signal and its inverse differ only in the
+  // sign of the imaginary part, so the "wrong exponent" prediction is free.
+  const inverse = [correctRe, correctIm.map(v => -v)];
+  const scaled = [correctRe.map(v => v / n), correctIm.map(v => v / n)];
   const swapped = (() => {
     // k and t exchanged: the sum runs over bins instead of samples.
-    const outRe = new Array(n).fill(0);
-    const outIm = new Array(n).fill(0);
-    for (let k = 0; k < n; k++) {
+    const outRe = new Array(list.length).fill(0);
+    const outIm = new Array(list.length).fill(0);
+    for (let q = 0; q < list.length; q++) {
+      const k = list[q];
       for (let t = 0; t < n; t++) {
         const angle = (-TAU * k * t) / n;
-        outRe[k] += signal[k] * Math.cos(angle);
-        outIm[k] += signal[k] * Math.sin(angle);
+        outRe[q] += signal[k] * Math.cos(angle);
+        outIm[q] += signal[k] * Math.sin(angle);
       }
     }
     return [outRe, outIm];
@@ -529,15 +656,20 @@ function naiveProbes(signal, n) {
       'every imaginary part has the wrong sign — that is e^(+2πi·kt/n), the INVERSE transform. ' +
       'Its spectrum is the correct one mirrored about bin 0, and for a real signal the ' +
       'magnitudes are identical, so nothing but the sign gives it away'],
-    // No tolerance override on this one, unlike task 6's mirror image of it:
-    // dividing by n divides the accumulated float error by n too, so the
-    // observation is QUIETER than the test's own tolerance, not noisier.
+    // Dividing by n divides the accumulated float error by n too, so this
+    // observation is QUIETER than the test's own tolerance, not noisier — the
+    // override above is what keeps it from swallowing an empty spectrum.
     [(p, i) => scaled[p][i],
       'the whole spectrum is divided by n. Some texts put the 1/n on the forward transform; ' +
-      'this course puts it on the inverse (task 6), so the forward transform must not scale'],
+      'this course puts it on the inverse (task 6), so the forward transform must not scale',
+      smallEps],
     [(p, i) => swapped[p][i],
       'the sample index and the bin index are the wrong way round — the loop variable indexes ' +
       'the signal, x[t], and this.thread.x is the bin k'],
+    [() => 0,
+      'every bin came back zero, in both planes — the accumulation loop is running but nothing ' +
+      'inside it is adding to re and im',
+      smallEps],
   ];
 }
 
@@ -609,60 +741,100 @@ function findFftKernels(ctx, n) {
   };
 }
 
-// A kernel that behaves like a naive DFT: hand it a single-sample impulse at
-// t = 0 and every bin of a forward transform comes back 1. Only one-argument
-// kernels are tried, so the butterfly is never invoked with the wrong arity.
-function findTransformKernel(ctx, n) {
-  const impulse = new Array(n).fill(0);
+// ---- task 5: finding the learner's naive DFT --------------------------------
+//
+// Task 5's run builds four kernels — the permutation, two butterfly passes and
+// the naive transform — and in gpu mode all four declare the same [n, 2]
+// output, so width alone cannot pick one out. Arity narrows it to two (the
+// permutation and the naive transform each take just the signal), and BEHAVIOUR
+// settles it: handed a unit impulse at t = 0, a forward transform returns 1 in
+// every bin, while a permutation returns the impulse somewhere else. The
+// butterfly kernels are never invoked, so nothing is ever called at the wrong
+// arity — and the permutation, being pipelined, hands back a texture rather
+// than an array, which rules it out before any arithmetic is looked at.
+//
+// In cpu mode the naive side is asked for a 1,024-bin slice, so it is the only
+// kernel of its width and the search ends on the first candidate.
+
+const NAIVE_N = 8192; // the transform length task 5 runs at, both modes
+const NAIVE_CPU_BINS = 1024; // how much of the spectrum the CPU backend is asked for
+
+// The search runs ONCE PER RUN rather than once per test: on the CPU backend a
+// speculative call to the naive kernel costs ~0.27 s, and task 5's three tests
+// would otherwise pay for the same answer three times. Keyed by the run's
+// kernel array, which is a fresh object for every run.
+const naiveCache = new WeakMap();
+
+function naiveCandidates(ctx, width) {
+  return twoPlaneKernels(ctx, width).filter(k => argCount(k) === 1);
+}
+
+// Every bin of the transform of a unit impulse at t = 0 is exactly 1.
+function transformsAnImpulseFlat(k, width) {
+  const impulse = new Array(NAIVE_N).fill(0);
   impulse[0] = 1;
-  for (const k of twoPlaneKernels(ctx, n)) {
-    if (argCount(k) !== 1) continue;
-    let out;
-    try {
-      out = k(impulse);
-    } catch (e) {
-      continue; // an argument type it was not built for
-    }
-    if (!out || !out[0] || out[0].length !== n) continue;
-    let flat = true;
-    for (let i = 0; i < n; i++) {
-      if (Math.abs(out[0][i] - 1) > 0.05 || Math.abs(out[1][i]) > 0.05) flat = false;
-    }
-    if (flat) return k;
+  let out;
+  try {
+    out = k(impulse);
+  } catch (e) {
+    return false; // an argument type it was not built for
   }
-  return null;
+  // a pipelined kernel hands back a texture, not indexable planes
+  if (!out || !out[0] || out[0].length !== width) return false;
+  for (let i = 0; i < width; i++) {
+    if (Math.abs(out[0][i] - 1) > 0.05 || Math.abs(out[1][i]) > 0.05) return false;
+  }
+  return true;
 }
 
 // When nothing passes the impulse test the learner has still built something,
 // and reporting only "nothing looked like a transform" throws away every probe
-// below. So pick the one-argument kernel that is plainly NOT the permutation
-// (its output on a ramp is not a rearrangement of that ramp) and let the
-// spectrum probes say what actually went wrong with it.
-function findDftCandidate(ctx, n) {
-  const ramp = new Array(n);
-  for (let i = 0; i < n; i++) ramp[i] = i;
-  for (const k of twoPlaneKernels(ctx, n)) {
-    if (argCount(k) !== 1) continue;
-    let out;
-    try {
-      out = k(ramp);
-    } catch (e) {
-      continue;
-    }
-    if (!out || !out[0] || out[0].length !== n) continue;
-    const seen = new Set();
-    let isPermutation = true;
-    for (let i = 0; i < n; i++) {
-      const v = Math.round(out[0][i]);
-      if (Math.abs(out[0][i] - v) > 1e-3 || v < 0 || v >= n || seen.has(v)) {
-        isPermutation = false;
-        break;
-      }
-      seen.add(v);
-    }
-    if (!isPermutation) return k;
+// below. So fall back to the one-argument kernel that is plainly NOT the
+// permutation (its output on a ramp is not a rearrangement of that ramp) and
+// let the spectrum probes say what actually went wrong with it.
+function rearrangesARamp(k, width) {
+  const ramp = new Array(NAIVE_N);
+  for (let i = 0; i < NAIVE_N; i++) ramp[i] = i;
+  let out;
+  try {
+    out = k(ramp);
+  } catch (e) {
+    return true; // cannot be read, so it is not the candidate we want
   }
-  return null;
+  if (!out || !out[0] || out[0].length !== width) return true;
+  const seen = new Set();
+  for (let i = 0; i < width; i++) {
+    const v = Math.round(out[0][i]);
+    if (Math.abs(out[0][i] - v) > 1e-3 || v < 0 || v >= NAIVE_N || seen.has(v)) return false;
+    seen.add(v);
+  }
+  return true;
+}
+
+function findNaiveDft(ctx) {
+  if (naiveCache.has(ctx.kernels)) return naiveCache.get(ctx.kernels);
+  const widths = [NAIVE_N, NAIVE_CPU_BINS];
+  let found = null;
+  for (const width of widths) {
+    found = naiveCandidates(ctx, width).find(k => transformsAnImpulseFlat(k, width)) || null;
+    if (found) break;
+  }
+  if (!found) {
+    for (const width of widths) {
+      found = naiveCandidates(ctx, width).find(k => !rearrangesARamp(k, width)) || null;
+      if (found) break;
+    }
+  }
+  naiveCache.set(ctx.kernels, found);
+  return found;
+}
+
+// How many bins the learner actually asked their naive kernel for — the tests
+// read it off the kernel rather than re-deriving it from the mode, so a learner
+// who changes `bins` is still measured against what they built.
+function binsOf(k) {
+  const output = k && k.kernel && k.kernel.output;
+  return output ? output[0] : 0;
 }
 
 // Task 6 builds three kernels, two of which take two arguments — so arity is
@@ -1784,32 +1956,78 @@ console.log('bin 12 magnitude:', Math.hypot(buffer[0][12], buffer[1][12]));
     {
       slug: 'dft-versus-fft',
       title: 'Same Answer, Two Centuries Apart',
+      // A payoff task is only worth running at a size where the payoff shows.
+      // At n = 512 it did not: the FFT's ten kernel launches cost more than the
+      // arithmetic they saved, and the better algorithm lost its own race. This
+      // one runs at n = 8,192 — see WHY TASK 5 IS BIG at the top of this file —
+      // and 20 s is what that size costs on the SLOWEST backend it has to work
+      // on, not on the one it was written on. Measured, whole task (the run
+      // plus its five tests):
+      //
+      //   M1 Max, gpu mode ........  0.9 s   (run 0.8 s, tests 0.1 s)
+      //   cpu backend .............  2.2 s   (run 1.0 s, tests 1.2 s)
+      //   SwiftShader, gpu mode ... 10.8 s   (run 5.1 s, tests 5.7 s)
+      //
+      // Software WebGL is where the number comes from: on any machine with no
+      // GPU one naive transform of 8,192 samples is ~1.4 s, and this task does
+      // several. That is legitimately slow, not a runaway, and it leaves no
+      // useful headroom under the 10 s run / 15 s test / 30 s benchmark
+      // defaults in engine/runner.js — the ⏱ Benchmark chip alone is two full
+      // runs plus two adaptive timing loops. 20 s doubles (runner.js's
+      // WATCHDOG_HEADROOM) to a 40 s watchdog on all three, which is ~4× the
+      // slowest measurement above.
+      //
+      // NOT the reason, and worth writing down so nobody assumes it is: the
+      // pre-flight guard in engine/sandbox.js never fires here. It only judges
+      // runs above PROBE_MIN_THREADS = 65,536 threads, and an [8192, 2] kernel
+      // asks for 16,384 — verified by running this task at budgetMs = 1000 in
+      // both modes and watching it go through untouched.
+      budgetMs: 20000,
       intro: `<p>A permutation and a stack of index arithmetic produced <em>something</em>. The
         only way to know it is the Fourier transform is to compute the Fourier transform the way
         the definition says and compare, bin by bin. That is this task: write the naive DFT, run
-        both at n = 512 — nine passes this time, since log₂(512) = 9 — and check they agree.</p>
-        <p>Then count. The DFT visits every sample for every bin: n² = <strong>262,144</strong>
+        both at n = 8,192 — thirteen passes this time, since log₂(8,192) = 13 — and check they
+        agree.</p>
+        <p>Then count. The DFT visits every sample for every bin: n² = <strong>67,108,864</strong>
         complex multiplies. The FFT does log₂(n) passes of n/2 butterflies:
-        <strong>2,304</strong>. A factor of 114 — and it is not a constant, it is a ratio that grows
-        without bound. At n = 4,096 it is 683×; at 65,536, a window of about 1.5 seconds of CD
-        audio, it is <strong>8,192×</strong>, which is the difference between a spectrogram that
-        renders live and one that does not render at all. Gauss found the trick in 1805 and left it
+        <strong>53,248</strong>. A factor of 1,260 — and it is not a constant, it is a ratio that
+        grows without bound. At n = 65,536, a window of about 1.5 seconds of CD audio, it is
+        <strong>8,192×</strong>, which is the difference between a spectrogram that renders live
+        and one that does not render at all. Gauss found the trick in 1805 and left it
         unpublished; Cooley and Tukey published it in 1965 and it went on to underwrite digital
         audio, JPEG's cousin the DCT, radio astronomy, MRI, and the modem you are reading this
         through.</p>
-        <p>The stopwatch is a more complicated story, and worth sitting with. On the CPU backend,
-        where the operation count is all that is left, the FFT wins by roughly the factor you would
-        expect. On the GPU at n = 512 it often <em>loses</em>: the DFT is one dense launch of 1,024
-        threads doing plenty of arithmetic each — exactly what the hardware is for — while the FFT
-        is ten launches of almost nothing, and pays ten times the driver round trip to save
-        arithmetic that was never the bottleneck. Run it, then run it again with <strong>Mode</strong>
-        switched from Auto to CPU. Measuring Speed Honestly is the module that owns this argument;
-        the ⏱ <strong>Benchmark</strong> chip answers a different question again, timing the whole
-        file at once rather than either transform alone.</p>`,
+        <p>Now the stopwatch, and the reason this task is the size it is. <strong>Kernel launches
+        are not free.</strong> A launch plus the readback around it costs about half a millisecond
+        here, and the FFT needs fourteen of them where the definition needs one. At n = 512 that
+        overhead <em>is</em> the transform, and the algorithm doing 114× less arithmetic loses the
+        race outright. That is a real and permanent GPU lesson — a small transform is not worth
+        sending to a GPU at all — but it is no longer this task's punchline, because the fix for
+        it is the one change the code below makes to the FFT you built in task 4: every pass hands
+        the next one a <em>texture</em> (<code>pipeline: true</code>) instead of a JavaScript
+        array, so the spectrum crosses back to the CPU once instead of fourteen times. Measured,
+        that single change takes the FFT from 8.2 ms to 1.5 ms.</p>
+        <p>With both things settled — enough arithmetic that it outweighs the launches, and no
+        copies that buy nothing — the race is not close. On the machine this was written on, in
+        gpu mode: the FFT in <strong>1.5 ms</strong>, the definition in <strong>3.5 ms</strong>.
+        Run it and read your own two numbers off the console. Then switch <strong>Mode</strong>
+        from Auto to CPU, where there is no launch overhead left and nothing but the operation
+        count decides it, and watch the gap open past <strong>35×</strong> — against a naive
+        transform that has been handed only a 1,024-bin slice of the spectrum instead of all
+        8,192, because the whole thing is two seconds of a single thread. A machine with no GPU
+        at all, running WebGL in software, reports about 135×.</p>
+        <p>One last thing in the console, which is not about speed. The two answers agree to about
+        six parts in ten thousand, and nearly all of that gap is the <em>naive</em> one being
+        wrong: 8,192 float32 terms summed into one running total, against thirteen roundings for
+        the FFT. The fast algorithm is also the accurate one, and that is not a coincidence.
+        Measuring Speed Honestly is the module that owns the benchmarking argument; the ⏱
+        <strong>Benchmark</strong> chip answers a different question again, timing the whole file
+        at once rather than either transform alone.</p>`,
       goal: `<strong>Goal:</strong> write the naive DFT kernel, confirm it agrees with the FFT
         bin by bin, and log the two operation counts and both timings.`,
       requirements: [
         'The DFT kernel is one thread per output cell, looping over all <code>this.constants.n</code> samples',
+        'The output is <code>bins</code> wide but every bin sums over all <code>n</code> samples — the output width and the loop bound are different numbers',
         'Angles are <code>-2π·k·t / n</code> with <code>k = this.thread.x</code> — no scaling by <code>n</code>',
         'Compare the two spectra bin by bin and <code>console.log</code> the verdict',
         '<code>console.log</code> both operation counts and both elapsed times (already wired up)',
@@ -1833,22 +2051,41 @@ im += x[t] * Math.sin(angle);</code></pre>
         {
           title: 'Hint 3 — what "agree" should mean',
           body: `<p>Not equality. The two computations do wildly different numbers of float32
-            operations and will not land on the same bits — the DFT accumulates 512 terms into one
-            running total, the FFT nine. Compare the largest difference against the size of the
-            spectrum, not against zero: <code>worst / peak &lt; 1e-3</code> is a generous margin
-            and a truthful one.</p>`,
+            operations and will not land on the same bits — the DFT accumulates 8,192 terms into
+            one running total, the FFT thirteen. Compare the largest difference against the size
+            of the spectrum, not against zero: <code>worst / peak &lt; 5e-3</code> is a generous
+            margin and a truthful one. Expect about <code>6e-4</code>, and expect nearly all of it
+            to belong to the DFT: its phase <code>-2π·k·t / n</code> runs <code>k·t</code> up past
+            67 million, which float32 cannot even hold to the nearest whole number.</p>`,
         },
       ],
       transfer: `Checking a fast implementation against the slow definition on a small input is
         how every FFT library is tested — cuFFT, FFTW and rocFFT all ship exactly this comparison
         in their accuracy suites, usually reported as relative error against a reference computed
         at higher precision. It is also the honest answer to "is my GPU port correct": not "the
-        pictures look the same", but the definition, at a size where you can afford it.`,
+        pictures look the same", but the definition, at a size where you can afford it. The
+        second habit here travels just as far: when a chain of kernels loses to a brute-force
+        one, count the round trips before you touch the arithmetic. Keeping intermediates on the
+        device is what <code>pipeline: true</code> is for in gpu.js, what CUDA graphs and Metal
+        command buffers are for elsewhere, and it is very often the whole difference.`,
       starterCode: `// The definition versus the algorithm. Same answer, different bill.
 const gpu = new GPU({ mode });
-const n = 512;
+const n = 8192;                 // log2(8192) = 13 butterfly passes
 
-// ---- the fast one, complete (tasks 3 and 4)
+// The naive transform reads the WHOLE signal once for every bin it produces, so
+// a full spectrum is n * n work. A GPU eats that; one CPU thread needs about two
+// seconds of it. So on the CPU backend the definition is asked for a 1,024-bin
+// slice instead — an 8x head start, and it loses anyway.
+const bins = mode === 'gpu' ? n : 1024;
+
+// ---- the fast one, complete (tasks 3 and 4), with ONE change
+// Every pass hands the next one a TEXTURE instead of a JavaScript array. Copying
+// the spectrum off the card after each of thirteen passes costs far more than the
+// passes do, and that — not the arithmetic — is why a small FFT loses this race.
+// Two butterfly kernels take turns because a pipelined kernel writes into its own
+// texture and so cannot also be the one reading it.
+const stage = { output: [n, 2], pipeline: true };
+
 const scramble = gpu.createKernel(function (x) {
   let v = this.thread.x;
   let reversed = 0;
@@ -1858,9 +2095,9 @@ const scramble = gpu.createKernel(function (x) {
   }
   if (this.thread.y === 0) return x[reversed];
   return 0;
-}, { output: [n, 2], constants: { bits: 9 } });
+}, { ...stage, constants: { bits: 13 } });
 
-const butterfly = gpu.createKernel(function (spectrum, half) {
+const onePass = function (spectrum, half) {
   const i = this.thread.x;
   const j = Math.floor(i / half) % 2;
   const base = i - j * half;
@@ -1880,12 +2117,20 @@ const butterfly = gpu.createKernel(function (spectrum, half) {
   }
   if (j === 0) return ai + ti;
   return ai - ti;
-}, { output: [n, 2] });
+};
+
+const evenPass = gpu.createKernel(onePass, stage);
+const oddPass = gpu.createKernel(onePass, stage);
 
 function fft(samples) {
   let buffer = scramble(samples);
-  for (let half = 1; half < n; half *= 2) buffer = butterfly(buffer, half);
-  return buffer;
+  let pass = 0;
+  for (let half = 1; half < n; half *= 2) {
+    buffer = (pass++ % 2 === 0 ? evenPass : oddPass)(buffer, half);
+  }
+  // one read back, at the very end. The CPU backend has no textures and has
+  // handed back a plain array already, so there is nothing to convert there.
+  return buffer.toArray ? buffer.toArray() : buffer;
 }
 
 // ---- the slow one
@@ -1898,9 +2143,12 @@ const dft = gpu.createKernel(function (x) {
   }
   if (this.thread.y === 0) return re;
   return im;
-}, { output: [n, 2], constants: { n } });
+}, { output: [bins, 2], constants: { n } });
 
-// Warm both up before timing anything — the first call compiles a shader.
+// Warm both up before timing: the first call compiles a shader, and a GPU handed
+// its first work of the day is still spinning its clocks up.
+fft(signal);
+dft(signal);
 fft(signal);
 dft(signal);
 
@@ -1912,23 +2160,38 @@ const t2 = performance.now();
 
 let worst = 0;
 let peak = 0;
-for (let k = 0; k < n; k++) {
+for (let k = 0; k < bins; k++) {
   worst = Math.max(worst, Math.abs(fast[0][k] - slow[0][k]), Math.abs(fast[1][k] - slow[1][k]));
   peak = Math.max(peak, Math.hypot(slow[0][k], slow[1][k]));
 }
 
-console.log('DFT complex multiplies:', n * n);
+console.log('bins the definition was asked for:', bins, 'of', n);
+console.log('DFT complex multiplies:', bins * n);
 console.log('FFT complex multiplies:', (n / 2) * Math.log2(n));
 console.log('worst bin difference:', worst, 'against a peak of', peak);
-console.log('agree:', worst / peak < 1e-3);
+console.log('agree:', worst / peak < 5e-3);
 console.log('fft ms:', (t1 - t0).toFixed(3));
 console.log('dft ms:', (t2 - t1).toFixed(3));
+console.log('the definition took', ((t2 - t1) / (t1 - t0)).toFixed(1), 'times as long');
 `,
       solutionCode: `// The definition versus the algorithm. Same answer, different bill.
 const gpu = new GPU({ mode });
-const n = 512;
+const n = 8192;                 // log2(8192) = 13 butterfly passes
 
-// ---- the fast one, complete (tasks 3 and 4)
+// The naive transform reads the WHOLE signal once for every bin it produces, so
+// a full spectrum is n * n work. A GPU eats that; one CPU thread needs about two
+// seconds of it. So on the CPU backend the definition is asked for a 1,024-bin
+// slice instead — an 8x head start, and it loses anyway.
+const bins = mode === 'gpu' ? n : 1024;
+
+// ---- the fast one, complete (tasks 3 and 4), with ONE change
+// Every pass hands the next one a TEXTURE instead of a JavaScript array. Copying
+// the spectrum off the card after each of thirteen passes costs far more than the
+// passes do, and that — not the arithmetic — is why a small FFT loses this race.
+// Two butterfly kernels take turns because a pipelined kernel writes into its own
+// texture and so cannot also be the one reading it.
+const stage = { output: [n, 2], pipeline: true };
+
 const scramble = gpu.createKernel(function (x) {
   let v = this.thread.x;
   let reversed = 0;
@@ -1938,9 +2201,9 @@ const scramble = gpu.createKernel(function (x) {
   }
   if (this.thread.y === 0) return x[reversed];
   return 0;
-}, { output: [n, 2], constants: { bits: 9 } });
+}, { ...stage, constants: { bits: 13 } });
 
-const butterfly = gpu.createKernel(function (spectrum, half) {
+const onePass = function (spectrum, half) {
   const i = this.thread.x;
   const j = Math.floor(i / half) % 2;
   const base = i - j * half;
@@ -1960,12 +2223,20 @@ const butterfly = gpu.createKernel(function (spectrum, half) {
   }
   if (j === 0) return ai + ti;
   return ai - ti;
-}, { output: [n, 2] });
+};
+
+const evenPass = gpu.createKernel(onePass, stage);
+const oddPass = gpu.createKernel(onePass, stage);
 
 function fft(samples) {
   let buffer = scramble(samples);
-  for (let half = 1; half < n; half *= 2) buffer = butterfly(buffer, half);
-  return buffer;
+  let pass = 0;
+  for (let half = 1; half < n; half *= 2) {
+    buffer = (pass++ % 2 === 0 ? evenPass : oddPass)(buffer, half);
+  }
+  // one read back, at the very end. The CPU backend has no textures and has
+  // handed back a plain array already, so there is nothing to convert there.
+  return buffer.toArray ? buffer.toArray() : buffer;
 }
 
 // ---- the slow one
@@ -1980,9 +2251,12 @@ const dft = gpu.createKernel(function (x) {
   }
   if (this.thread.y === 0) return re;
   return im;
-}, { output: [n, 2], constants: { n } });
+}, { output: [bins, 2], constants: { n } });
 
-// Warm both up before timing anything — the first call compiles a shader.
+// Warm both up before timing: the first call compiles a shader, and a GPU handed
+// its first work of the day is still spinning its clocks up.
+fft(signal);
+dft(signal);
 fft(signal);
 dft(signal);
 
@@ -1994,41 +2268,50 @@ const t2 = performance.now();
 
 let worst = 0;
 let peak = 0;
-for (let k = 0; k < n; k++) {
+for (let k = 0; k < bins; k++) {
   worst = Math.max(worst, Math.abs(fast[0][k] - slow[0][k]), Math.abs(fast[1][k] - slow[1][k]));
   peak = Math.max(peak, Math.hypot(slow[0][k], slow[1][k]));
 }
 
-console.log('DFT complex multiplies:', n * n);
+console.log('bins the definition was asked for:', bins, 'of', n);
+console.log('DFT complex multiplies:', bins * n);
 console.log('FFT complex multiplies:', (n / 2) * Math.log2(n));
 console.log('worst bin difference:', worst, 'against a peak of', peak);
-console.log('agree:', worst / peak < 1e-3);
+console.log('agree:', worst / peak < 5e-3);
 console.log('fft ms:', (t1 - t0).toFixed(3));
 console.log('dft ms:', (t2 - t1).toFixed(3));
+console.log('the definition took', ((t2 - t1) / (t1 - t0)).toFixed(1), 'times as long');
 `,
-      inputs: () => ({ signal: makeTones(512, [[7, 1, 'sin'], [29, 0.5, 'cos']]) }),
+      inputs: () => ({ signal: makeTones(NAIVE_N, [[7, 1, 'sin'], [29, 0.5, 'cos']]) }),
       publicTests: [
         {
           name: 'the DFT kernel computes the transform from the definition',
           run: async ctx => {
-            ctx.assert(ctx.kernels.length >= 3, 'expected three kernels — scramble, butterfly and dft');
-            const dft = findTransformKernel(ctx, 512) || findDftCandidate(ctx, 512);
+            ctx.assert(
+              ctx.kernels.length >= 4,
+              'expected four kernels — the permutation, two butterfly passes and the naive DFT'
+            );
+            const dft = findNaiveDft(ctx);
             ctx.assert(
               dft,
               'no kernel behaved like a transform of a real signal — handed a unit impulse at ' +
               't = 0, a forward transform returns 1 in every bin'
             );
-            const x = makeTones(512, [[7, 1, 'sin'], [29, 0.5, 'cos']]);
+            const bins = binsOf(dft);
+            const x = makeTones(NAIVE_N, [[7, 1, 'sin'], [29, 0.5, 'cos']]);
             const out = dft(x);
-            const zeros = new Array(512).fill(0);
-            const [wantRe, wantIm] = dftRef(x, zeros, -1);
+            const list = checkBins(bins);
+            const [wantRe, wantIm] = dftRefAt(x, list);
+            const eps = 0.03 * peakOf(wantRe, wantIm);
             const hint = diagnoseSpectrum(
-              512, (p, i) => out[p][i], (p, i) => (p === 0 ? wantRe[i] : wantIm[i]),
-              0.15, naiveProbes(x, 512)
+              list.length,
+              (p, q) => out[p][list[q]],
+              (p, q) => (p === 0 ? wantRe[q] : wantIm[q]),
+              eps, naiveProbes(x, list, wantRe, wantIm, eps)
             );
-            for (let k = 0; k < 512; k++) {
-              ctx.assertClose(out[0][k], wantRe[k], 0.15, hint || `real part of bin ${k}`);
-              ctx.assertClose(out[1][k], wantIm[k], 0.15, hint || `imaginary part of bin ${k}`);
+            for (let q = 0; q < list.length; q++) {
+              ctx.assertClose(out[0][list[q]], wantRe[q], eps, hint || `real part of bin ${list[q]}`);
+              ctx.assertClose(out[1][list[q]], wantIm[q], eps, hint || `imaginary part of bin ${list[q]}`);
             }
           },
         },
@@ -2038,20 +2321,24 @@ console.log('dft ms:', (t2 - t1).toFixed(3));
             ctx.assert(
               loggedText(ctx.logs, 'agree: true'),
               'the FFT and the DFT do not agree yet — log the verdict, and if it says false the ' +
-              'DFT kernel is not yet computing the same thing the nine passes are'
+              'DFT kernel is not yet computing the same thing the thirteen passes are'
             );
           },
         },
         {
           name: 'both operation counts and both timings are logged',
           run: async ctx => {
+            const dft = findNaiveDft(ctx);
+            const bins = dft ? binsOf(dft) : NAIVE_N;
             ctx.assert(
-              logged(ctx.logs, 512 * 512, 0.5),
-              'log the naive transform\'s cost — 512 bins × 512 samples = 262,144 complex multiplies'
+              logged(ctx.logs, bins * NAIVE_N, 0.5),
+              `log the naive transform's cost — ${bins.toLocaleString('en-US')} bins × ` +
+              `${NAIVE_N.toLocaleString('en-US')} samples = ` +
+              `${(bins * NAIVE_N).toLocaleString('en-US')} complex multiplies`
             );
             ctx.assert(
-              logged(ctx.logs, 256 * 9, 0.5),
-              'log the FFT\'s cost — 9 passes × 256 butterflies = 2,304 complex multiplies'
+              logged(ctx.logs, (NAIVE_N / 2) * 13, 0.5),
+              'log the FFT\'s cost — 13 passes × 4,096 butterflies = 53,248 complex multiplies'
             );
             const timings = ctx.logs.filter(
               line => line.type === 'log' && line.text && /\bms\b/.test(line.text)
@@ -2069,53 +2356,75 @@ console.log('dft ms:', (t2 - t1).toFixed(3));
           run: async ctx => {
             // A signal with no clean structure at all, so a spectrum that is
             // right only where symmetry helps does not survive.
-            const dft = findTransformKernel(ctx, 512) || findDftCandidate(ctx, 512);
+            const dft = findNaiveDft(ctx);
             ctx.assert(dft, 'no naive DFT kernel found');
-            const x = makeSamples(ctx.utils, 512, 26535);
+            const bins = binsOf(dft);
+            const x = makeSamples(ctx.utils, NAIVE_N, 26535);
             const out = dft(x);
-            const [wantRe, wantIm] = dftRef(x, new Array(512).fill(0), -1);
+            const list = checkBins(bins);
+            const [wantRe, wantIm] = dftRefAt(x, list);
+            const eps = 0.03 * peakOf(wantRe, wantIm);
             const hint = diagnoseSpectrum(
-              512, (p, i) => out[p][i], (p, i) => (p === 0 ? wantRe[i] : wantIm[i]),
-              0.15, naiveProbes(x, 512)
+              list.length,
+              (p, q) => out[p][list[q]],
+              (p, q) => (p === 0 ? wantRe[q] : wantIm[q]),
+              eps, naiveProbes(x, list, wantRe, wantIm, eps)
             );
-            for (let k = 0; k < 512; k++) {
-              ctx.assertClose(out[0][k], wantRe[k], 0.15, hint || `real part of bin ${k}`);
-              ctx.assertClose(out[1][k], wantIm[k], 0.15, hint || `imaginary part of bin ${k}`);
+            for (let q = 0; q < list.length; q++) {
+              ctx.assertClose(out[0][list[q]], wantRe[q], eps, hint || `real part of bin ${list[q]}`);
+              ctx.assertClose(out[1][list[q]], wantIm[q], eps, hint || `imaginary part of bin ${list[q]}`);
             }
           },
         },
         {
           name: 'private test #2',
           run: async ctx => {
-            // Two properties of a forward transform of a REAL signal that a
-            // sign flip breaks and a magnitude plot cannot see: bin 0 is the
-            // plain sum of the samples, and bin k is the conjugate of bin n − k.
-            const dft = findTransformKernel(ctx, 512) || findDftCandidate(ctx, 512);
+            // Properties of a forward transform of a REAL signal that a
+            // magnitude plot cannot see AND that survive being asked for only
+            // the bottom of the spectrum — which is what the cpu backend gets,
+            // so conjugate symmetry about bin n − k is not available here.
+            const dft = findNaiveDft(ctx);
             ctx.assert(dft, 'no naive DFT kernel found');
-            // 0.7 of DC on top of the tones, so bin 0 is 358.4 rather than 0 —
+            const n = NAIVE_N;
+            // 0.7 of DC on top of the tones, so bin 0 is 5,734.4 rather than 0 —
             // a spectrum quietly divided by n would pass a bin-0 check against
-            // zero and fails this one by a factor of 512.
-            const x = makeTones(512, [[3, 1, 'sin'], [11, 0.4, 'cos'], [60, 0.8, 'sin']])
+            // zero and fails this one by a factor of 8,192.
+            const x = makeTones(n, [[3, 1, 'sin'], [11, 0.4, 'cos'], [60, 0.8, 'sin']])
               .map(v => v + 0.7);
             const out = dft(x);
+            // 1% of one tone's magnitude: 220× the worst float32 error this
+            // kernel was measured at, and 140× smaller than the smallest gap any
+            // assertion below has to see across.
+            const eps = n / 200;
             let sum = 0;
-            for (let t = 0; t < 512; t++) sum += x[t];
+            for (let t = 0; t < n; t++) sum += x[t];
             ctx.assertClose(
-              out[0][0], sum, 0.15,
+              out[0][0], sum, eps,
               'bin 0 of a forward transform is the plain sum of the samples, with no scaling — ' +
               `expected ≈${sum.toFixed(2)}`
             );
-            for (const k of [1, 3, 11, 60, 129, 255]) {
-              ctx.assertClose(
-                out[0][512 - k], out[0][k], 0.2,
-                `bin ${512 - k} should be the complex conjugate of bin ${k} for a real signal`
-              );
-              ctx.assertClose(
-                out[1][512 - k], -out[1][k], 0.2,
-                `bin ${512 - k} should be the complex conjugate of bin ${k} — its imaginary part ` +
-                'is the negative, not the same'
-              );
-            }
+            // A sine of amplitude A sitting on whole bin b puts −A·n/2 in the
+            // IMAGINARY part of bin b and nothing in the real part; a cosine
+            // does the opposite, with a PLUS. Only the sign of the exponent
+            // decides which way the imaginary parts go, and no magnitude plot
+            // would ever show it.
+            const sine = 'a sine of amplitude A on whole bin b puts −A·n/2 in the IMAGINARY part ' +
+              'of bin b — a plus there is e^(+2πi·kt/n), the inverse transform';
+            ctx.assertClose(out[1][3], -n / 2, eps, sine);
+            ctx.assertClose(out[1][60], -0.8 * (n / 2), eps, sine);
+            ctx.assertClose(
+              out[0][11], 0.4 * (n / 2), eps,
+              'a cosine of amplitude A on whole bin b puts +A·n/2 in the REAL part of bin b — ' +
+              `bin 11 should be ≈${(0.4 * (n / 2)).toFixed(1)}`
+            );
+            ctx.assertClose(out[0][3], 0, eps, 'the real part of bin 3 — a pure sine has none');
+            ctx.assertClose(out[1][11], 0, eps, 'the imaginary part of bin 11 — a pure cosine has none');
+            ctx.assertClose(
+              out[0][25], 0, eps,
+              'bin 25 carries no tone in this signal, so both of its parts are zero — energy ' +
+              'showing up there means the bins are not lining up with the samples'
+            );
+            ctx.assertClose(out[1][25], 0, eps, 'the imaginary part of empty bin 25');
           },
         },
       ],

@@ -18,11 +18,13 @@
 //
 // NUMBERS THIS MODULE IS BUILT ON (measured, not guessed — see the prose):
 //   • the scene is one synthetic picture at two sizes: 64 for the stage tasks,
-//     96 for the assembly, with ±0.12 of per-pixel noise;
+//     384 for the assembly, with ±0.12 of per-pixel noise;
 //   • thresholds low = 0.30, high = 0.70 on raw Sobel magnitudes (which reach
 //     ~2.2 on this scene);
-//   • at 64 the hysteresis settles after exactly 28 passes; at 96, after 14,
-//     which is why the pipeline task runs a fixed 16.
+//   • at 64 the hysteresis settles after exactly 28 passes; at 384, after 59 on
+//     the task's own photo and 56 on the private test's, which is why the
+//     pipeline task runs a fixed 64 — a fixed count has to cover the worst
+//     photo it will be handed, not the best.
 //
 // FLOAT DETERMINISM. Tasks 3–5 take their maps as INPUTS with the magnitudes
 // rounded to 3 decimals. That is not decoration: non-maximum suppression is a
@@ -43,8 +45,24 @@ const NOISE = 0.12; // per-pixel noise amplitude in the synthetic scene
 const SEED = 6901; // one seed, so every task sees the same picture
 const LOW = 0.3; // double-threshold thresholds, on raw Sobel magnitudes
 const HIGH = 0.7;
-const BIG = 96; // the assembly task's image; the stage tasks use 64
-const PASSES = 16; // fixed hysteresis passes in the pipeline (96 needs 14)
+// The assembly task's image; the stage tasks use 64. 384 is where the payoff
+// task's claim stops being an argument and becomes a measurement: 147,456
+// threads is enough work per launch to pay for making the launch, so the
+// pipelined chain beats both the readback-between-stages wiring and the CPU
+// backend by a wide margin (the numbers are in that task's prose).
+//
+// Why not larger. Larger IS faster — at 512 the pipelined chain wins by 10×
+// rather than 7× — but the pre-flight guard extrapolates a 64×64 probe by the
+// THREAD ratio, and that ratio grows as the square. At 512 the extrapolation
+// reaches ~22 s on a software WebGL rasteriser, which would mean asking for
+// roughly twice this task's budget and doubling its hang watchdog with it.
+// cpu mode is not the constraint at either size: the whole module verifies on
+// the CPU backend in about 2 s.
+const BIG = 384;
+// Fixed hysteresis passes in the pipeline. 384 settles after 59 on this photo
+// and 56 on the private test's; 64 covers both with room, and is the number the
+// launch arithmetic in the prose is written against (8 + 64 = 72 launches).
+const PASSES = 64;
 
 function luminanceOf(pixel) {
   return LUM[0] * pixel[0] + LUM[1] * pixel[1] + LUM[2] * pixel[2];
@@ -1932,6 +1950,21 @@ console.log('edge pixels:', count);
     {
       slug: 'assemble-the-pipeline',
       title: 'Payoff: Five Stages, Zero Round Trips',
+      // WHY THIS TASK ASKS FOR A BUDGET. The pre-flight guard estimates a run's
+      // cost by timing the code with every output axis clamped to 64 and
+      // multiplying by the thread ratio — here 384²/64² = 36×. That model fits
+      // a kernel whose cost is per-thread. This chain's cost is per-LAUNCH, and
+      // the clamped probe is dominated by creating a GL context and compiling
+      // nine shaders — a fixed cost the 36× then multiplies. Measured: the probe
+      // extrapolates to ~3 s on a laptop GPU and ~13 s where WebGL falls back to
+      // a software rasteriser, against a real run of ~10 ms (gpu) / ~55 ms
+      // (cpu). 25 s clears the software-rasteriser case with room to spare and
+      // still refuses genuinely pathological per-thread work, which overshoots
+      // the guard by hundreds of times rather than by two. The cost of asking is
+      // that the hang watchdogs scale with it (runner.js: 2× the budget), so
+      // this is deliberately the smallest number that makes the task reliable
+      // rather than the largest the validator would take.
+      budgetMs: 25000,
       intro: `<p>Everything you have written, in one chain, on a real ${BIG}×${BIG} photo:
         <strong>luminance → blur<sub>x</sub> → blur<sub>y</sub> → magnitude + direction →
         suppression → threshold → hysteresis → edges</strong>. Nine kernel objects, and with the
@@ -1939,25 +1972,44 @@ console.log('edge pixels:', count);
         <p>That launch count is the point. Without <code>pipeline: true</code>, every one of those
         stages ends with a full download to JavaScript and the next one begins with a full upload:
         ${BIG}×${BIG} floats, ${((BIG * BIG * 4) / 1024).toFixed(0)} KB, crossing the bus twice per
-        stage, <strong>${(PASSES + 8) * 2} transfers</strong> to produce one edge map. With
-        pipelines it is two: the photo goes up, the edge map comes down, and the ${PASSES + 7}
-        intermediates never leave the card. Pipelines &amp; Textures taught the mechanism on a
-        three-stage chain; this is the chain long enough to make the arithmetic obvious.</p>
-        <p>Press <strong>Benchmark</strong> when it runs — and read the answer with your eyes open,
-        because it is not the answer you are being sold. Two things are worth knowing about that
-        button. It times each kernel <em>separately</em> and forces a readback after every one, so
-        what it measures is this pipeline <em>taken apart</em>, not the pipeline. And at
-        ${BIG}×${BIG} the CPU backend will very likely win outright: ${PASSES + 8} launches of
-        ${(BIG * BIG).toLocaleString('en-US')} threads is nowhere near enough work per launch to
-        pay for the driver overhead of making them. That is not a hole in the lesson, it is the
-        lesson — the ${(PASSES + 8) * 2}-transfers-versus-2 saving is structural and real whatever
-        the stopwatch says at this size, and Measuring Speed Honestly makes a whole meal of the
-        difference between the two claims.</p>
+        stage — <strong>${(PASSES + 8) * 2} transfers</strong> and
+        ${((BIG * BIG * 4 * (PASSES + 8) * 2) / (1024 * 1024)).toFixed(0)} MB of traffic to produce
+        one edge map. With pipelines it is two: the photo goes up, the edge map comes down, and the
+        ${PASSES + 7} intermediates never leave the card. Pipelines &amp; Textures taught the
+        mechanism on a three-stage chain; this is the chain long enough to make the arithmetic
+        obvious.</p>
+        <p>And at this size the stopwatch finally agrees with the arithmetic. Press
+        <strong>Run</strong>: the console reports the whole thing — nine kernels compiled,
+        ${PASSES + 8} launches, one edge map counted — in about <strong>45 ms</strong> on the
+        laptop GPU these notes were measured on. Now delete the eight <code>pipeline: true</code>
+        flags, so that every stage hands its result back to JavaScript and the next one uploads it
+        again, and run it once more: about <strong>120 ms</strong>. Same kernels, same arithmetic,
+        same ${PASSES + 8} launches — the extra 75 ms is bus traffic and nothing else. (Both
+        figures carry roughly 35 ms of one-time shader compilation. Time the chain on its own,
+        without that, and it is <strong>10 ms pipelined against 70 ms round-tripping</strong> — a
+        clean seven times.) Eight deletions and two clicks: run that experiment rather than take
+        this paragraph's word for it.</p>
+        <p><strong>Benchmark</strong> agrees from the other direction, reporting the GPU
+        <strong>7–8× faster</strong> than the CPU backend here — roughly 2 ms against 15 ms. Know
+        what that button does before you quote it, though: it replays each of the nine kernels
+        <em>once</em> with the arguments it last received, so your ${PASSES}-pass hysteresis loop
+        collapses into a single call, and it drains the pipeline once at the end rather than after
+        every stage. It times one pass of the chain, not the whole of it — which is why its
+        milliseconds and your console's are different sizes.</p>
+        <p>One honest footnote, because none of that holds at every size. Shrink the photo to
+        96×96 and the same chain measures 3.2 ms on the GPU against 2.0 ms on the CPU — the CPU
+        wins outright, because 24 launches over 9,216 threads is nowhere near enough work per
+        launch to pay for the driver overhead of making them. The transfer arithmetic is just as
+        true down there; it simply has nothing to show for itself. Launch overhead swamping small
+        work is a real effect, and Measuring Speed Honestly makes a whole meal of it — it is just
+        not the ending this particular chain deserves.</p>
         <p>The hysteresis loop changes shape here, and honestly so. In task 5 you looped until a
         pass changed nothing — which you could only know by reading the state back and comparing
         it. On a pipeline that readback is the very thing you are trying to avoid, so this version
-        runs a <strong>fixed ${PASSES} passes</strong> and never asks. This photo settles after 14;
-        the last two do nothing, and you pay for them anyway. That is the deal.</p>
+        runs a <strong>fixed ${PASSES} passes</strong> and never asks. This photo settles after 59;
+        the last five do nothing, and you pay for them anyway. A fixed count has to cover the worst
+        photo you will be handed rather than this one — the second photo the tests use needs 56.
+        That is the deal.</p>
         ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> make every stage but the last a pipeline kernel, give the
         hysteresis kernel <code>immutable: true</code> so it can eat its own output, and wire the

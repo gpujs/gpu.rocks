@@ -209,7 +209,18 @@ function patchKernel(kernel, push, resolvedMode) {
 // clamp, small output): a false refusal of legitimate code would be worse
 // than the freeze it prevents. It does not catch a plain `while (true)` in
 // user code — only the worker's watchdog can.
-const PROBE_AXIS_CAP = 64; // clamp each output axis to this during the probe
+// The probe runs a slice of the work; this is how big that slice should be.
+// It is a THREAD COUNT, not a per-axis cap, because a fixed per-axis cap
+// punishes 1D kernels: clamping [131072] to [64] extrapolates a probe whose
+// cost is mostly fixed by 2048x, which refuses legitimate work at any budget,
+// while the same thread count as [512, 256] clamps to [64, 64] and scales by
+// only 32x. Same work, different refusal — purely an artefact of the shape.
+const PROBE_TARGET_THREADS = 4096;
+
+// 4096 over one axis, 64 over two, 16 over three.
+function probeAxisCap(dims) {
+  return Math.max(2, Math.round(Math.pow(PROBE_TARGET_THREADS, 1 / Math.max(1, dims))));
+}
 const PROBE_MIN_THREADS = 65536; // only guard runs larger than this
 const RUN_BUDGET_MS = 5000; // refuse a run estimated to exceed this
 // …unless the task says otherwise. Some payoff tasks only make their point at
@@ -226,7 +237,8 @@ function budgetFor(task) {
 
 function clampOutputSetting(output) {
   if (Array.isArray(output)) {
-    const clamped = output.map(n => (typeof n === 'number' ? Math.min(n, PROBE_AXIS_CAP) : n));
+    const cap = probeAxisCap(output.filter(n => typeof n === 'number').length);
+    const clamped = output.map(n => (typeof n === 'number' ? Math.min(n, cap) : n));
     const threads = of => of.reduce((a, b) => a * (typeof b === 'number' ? b : 1), 1);
     return { clamped, requestedThreads: threads(output), clampedThreads: threads(clamped) };
   }
@@ -234,7 +246,8 @@ function clampOutputSetting(output) {
     const axes = ['x', 'y', 'z'].filter(k => typeof output[k] === 'number');
     if (!axes.length) return null;
     const clamped = { ...output };
-    axes.forEach(k => { clamped[k] = Math.min(output[k], PROBE_AXIS_CAP); });
+    const cap = probeAxisCap(axes.length);
+    axes.forEach(k => { clamped[k] = Math.min(output[k], cap); });
     const threads = o => axes.reduce((a, k) => a * o[k], 1);
     return { clamped, requestedThreads: threads(output), clampedThreads: threads(clamped) };
   }
@@ -288,7 +301,12 @@ async function preflight(code, mode, task) {
     : probe.durationMs;
   const estimateMs = durationMs * scale;
   if (estimateMs <= budgetFor(task)) return null;
-  return { probeMs: durationMs, estimateMs, threads: stats.requestedThreads };
+  return {
+    probeMs: durationMs,
+    estimateMs,
+    threads: stats.requestedThreads,
+    probeThreads: stats.clampedThreads,
+  };
 }
 
 // ---- executeRun ------------------------------------------------------------
@@ -410,7 +428,8 @@ export async function executeRun(code, { mode = 'auto', task, probe = false, onL
       const seconds = Math.round(refusal.estimateMs / 1000);
       const message =
         `refused to run: this would take about ${seconds}s and freeze the page. ` +
-        `A ${PROBE_AXIS_CAP}×${PROBE_AXIS_CAP} slice took ${refusal.probeMs.toFixed(0)} ms, and the ` +
+        `A ${refusal.probeThreads.toLocaleString('en-US')}-thread slice took ` +
+        `${refusal.probeMs.toFixed(0)} ms, and the ` +
         `kernel asks for ${refusal.threads.toLocaleString('en-US')} threads. That much work per ` +
         `thread usually means a kernel is handling a whole row or array where it should handle one ` +
         `value — check that every array is indexed down to a number before you do arithmetic on it.`;
