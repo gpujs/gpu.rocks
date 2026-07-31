@@ -22,25 +22,38 @@ const tracks = [
     modules: [
       'f1399353-b65c-463a-bbba-adcaeb779e17', // Hello, Kernel
       '42b68d01-e46e-455d-9321-2425db8b9eb6', // Data In, Data Out
-      'c3876efb-c01c-42ee-826b-d166a182bcd1', // Thinking in Parallel
       '9f4aeaa5-71d4-4b0d-afc4-b08c24b7e08e', // Pipelines & Textures
       'b9188894-0ae1-4e75-8538-4348f6fc61ae', // Measuring Speed Honestly
     ],
   },
   {
     number: 2,
-    title: 'Advanced Math',
+    title: 'Parallel Primitives',
+    tagline: 'The handful of patterns everything else is built from',
+    modules: [
+      'c3876efb-c01c-42ee-826b-d166a182bcd1', // Thinking in Parallel
+      '3dadc130-6cf9-4798-a0c9-be53e8f78d67', // Reductions
+      '351cfa41-ceee-4120-97e2-338870fa3aed', // Prefix Sums (Scan)
+      '0aed2e43-9c72-49a3-b5a4-9056872704e2', // Stream Compaction
+      'dfb254f4-b68c-464e-af9e-1439efb7fcec', // Histograms & Binning
+      '1ba56df3-64f4-4387-8723-958f4ad53c09', // Top-K Selection
+      '84e0728e-6dbd-4f06-8c76-14b708a55b47', // Bitonic Sort
+      'fd3ff796-daed-4036-9202-987b374bb4d3', // Radix Sort
+    ],
+  },
+  {
+    number: 3,
+    title: 'Mathematical Applications',
     tagline: 'Heavy math, thousands of threads at once',
     modules: [
       '972e080b-a2a9-4151-ac98-d1d9caf7b6b9', // Matrix Multiply
-      '3dadc130-6cf9-4798-a0c9-be53e8f78d67', // Reductions
       '66933805-3a1d-48c0-a287-16d3d7d00016', // Convolution & Filters
       '9ea19810-b622-4611-a049-9daa49021ca2', // Monte Carlo Methods
       '5de47751-c27a-47ca-ad4a-17f875176788', // N-Body Gravity
     ],
   },
   {
-    number: 3,
+    number: 4,
     title: 'Computational Graphics',
     tagline: 'Pictures computed, not drawn',
     modules: [
