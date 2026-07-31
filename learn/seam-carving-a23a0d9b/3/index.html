@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        var path = window.location.pathname;
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
+        }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
+      <title>Reading the Seam Back Out · Seam Carving: Content-Aware Resizing — GPU.js Learn</title>
+    <meta name="description" content="Goal: write backtrack(cost) so it returns one column index per row, top to bottom, tracing the cheapest seam — then plot it.">
+    <link rel="canonical" href="https://gpu.rocks/learn/seam-carving-a23a0d9b/3">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GPU.js">
+    <meta property="og:url" content="https://gpu.rocks/learn/seam-carving-a23a0d9b/3">
+    <meta property="og:title" content="Reading the Seam Back Out · Seam Carving: Content-Aware Resizing — GPU.js Learn">
+    <meta property="og:description" content="Goal: write backtrack(cost) so it returns one column index per row, top to bottom, tracing the cheapest seam — then plot it.">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="GPU.js jellyfish logo — GPU accelerated JavaScript">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Reading the Seam Back Out · Seam Carving: Content-Aware Resizing — GPU.js Learn">
+    <meta name="twitter:description" content="Goal: write backtrack(cost) so it returns one column index per row, top to bottom, tracing the cheapest seam — then plot it.">
+    <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Reading the Seam Back Out","description":"Goal: write backtrack(cost) so it returns one column index per row, top to bottom, tracing the cheapest seam — then plot it.","url":"https://gpu.rocks/learn/seam-carving-a23a0d9b/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Seam Carving: Content-Aware Resizing","url":"https://gpu.rocks/learn/seam-carving-a23a0d9b","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/seam-carving-a23a0d9b/3.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
+  </head>
+  <body>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/seam-carving-a23a0d9b">Seam Carving: Content-Aware Resizing</a></nav>
+<p class="ssg-eyebrow">Task 3 of 6</p>
+<h1>Reading the Seam Back Out</h1>
+<p>The cost map now knows the price of every seam: <code>cost[71][x]</code> is what
+        the cheapest seam ending at column <code>x</code> costs. What it does not contain is the
+        seam. To get that you start at the cheapest cell of the bottom row and walk
+        <em>upwards</em>, at each step moving to the cheapest of the (at most) three cells you
+        could have come from.</p>
+        <p>Here is the part worth saying out loud: <strong>this walk does not go on the GPU.</strong>
+        It is 72 steps, each of which reads three numbers and picks one, and each step needs the
+        answer to the one before it. A kernel launch costs more than the whole walk does. Knowing
+        which part of an algorithm to leave on the host is not a compromise — it is the skill. (The
+        same is true of the traceback in <em>Wavefronts: Aligning DNA on the Diagonal</em>: the
+        expensive half is parallel, the cheap half is a loop.)</p>
+        <p>The picture also has flat regions, and flat regions have ties. There is usually more than
+        one cheapest seam; any of them is a correct answer, and the tests below check that the seam
+        you produce is <em>optimal</em>, not that it is one particular optimum.</p>
+<figure><figcaption>the cost map holds the price; the path has to be walked back out of it — A six by four grid of cumulative costs. The cheapest cell of the bottom row, holding eight, is the start; from it a path is traced upwards, each step taking the cheapest of the three cells above, until it reaches the top row.</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> write <code>backtrack(cost)</code> so it returns one column
+        index per row, top to bottom, tracing the cheapest seam — then <code>plot</code> it.</div>
+
+<h2>Requirements</h2><ul><li>Start at the column of the smallest value in the LAST row of <code>cost</code></li><li>Walking up, from column <code>x</code> in row <code>y + 1</code> the seam can only have come from <code>x - 1</code>, <code>x</code> or <code>x + 1</code> in row <code>y</code> — take the cheapest that exists</li><li>Return an array of <code>cost.length</code> column indices, one per row</li><li><code>plot(seam, …)</code> — it draws the path, and it is how the tests read your answer</li></ul>
+<details><summary>Hint 1 — where the walk starts</summary><p>The bottom row holds the finished prices, so the cheapest seam is the one that
+            ends at its smallest entry:</p>
+<pre><code>let x = 0;
+for (let i = 1; i &lt; w; i++) if (cost[h - 1][i] &lt; cost[h - 1][x]) x = i;</code></pre></details>
+<details><summary>Hint 2 — the step upwards</summary><p>Exactly the mirror of the recurrence that built the map — the same window of
+            three, the same two guards:</p>
+<pre><code>let best = x;
+if (x &gt; 0 &amp;&amp; cost[y][x - 1] &lt; cost[y][best]) best = x - 1;
+if (x + 1 &lt; w &amp;&amp; cost[y][x + 1] &lt; cost[y][best]) best = x + 1;
+x = best;</code></pre>
+<p>Only cells within one column of where you already are — that is what makes the result a
+            connected seam rather than 72 unrelated minima.</p></details>
+<details><summary>Hint 3 — direction</summary><p>The loop runs <code>for (let y = h - 2; y &gt;= 0; y--)</code>. Walking the other
+            way looks plausible and is wrong: the cumulative map was <em>built</em> downwards, so
+            only the bottom row holds finished prices. Row 0's numbers are raw energies.</p></details>
+<h2>Same idea elsewhere</h2>Every dynamic program ends this way: a parallel fill and a serial traceback. CUDA
+        DP kernels return the score matrix and walk it on the host; production Smith–Waterman
+        implementations do the same, and even hand back only the score when the alignment is not
+        needed. The lesson generalises past DP — if a step is O(n) with a serial dependency and the
+        fill was O(n²) in parallel, the launch overhead alone decides where it belongs.
+<h2>All tasks in Seam Carving: Content-Aware Resizing</h2>
+<ol class="ssg-tasks"><li><a href="/learn/seam-carving-a23a0d9b/1">What Can We Afford to Lose?</a></li><li><a href="/learn/seam-carving-a23a0d9b/2">The Cheapest Path Down: One Launch per Row</a></li><li><a href="/learn/seam-carving-a23a0d9b/3">Reading the Seam Back Out</a></li><li><a href="/learn/seam-carving-a23a0d9b/4">Take It Out, Let the Picture Close Up</a></li><li><a href="/learn/seam-carving-a23a0d9b/5">Payoff: Thirty-Two Seams</a></li><li><a href="/learn/seam-carving-a23a0d9b/6">What It Does Badly, and the Fix Everybody Ships</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/seam-carving-a23a0d9b/2">← previous task</a> · <a href="/learn/seam-carving-a23a0d9b/4">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
+  </body>
+</html>

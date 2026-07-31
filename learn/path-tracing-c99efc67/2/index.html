@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        var path = window.location.pathname;
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
+        }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
+      <title>Where the Ray Hits · Progressive Path Tracing: Noise Melting Into an Image — GPU.js Learn</title>
+    <meta name="description" content="Goal: finish sphereT so it returns the distance to the nearest visible hit, or -1 when there isn't one.">
+    <link rel="canonical" href="https://gpu.rocks/learn/path-tracing-c99efc67/2">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GPU.js">
+    <meta property="og:url" content="https://gpu.rocks/learn/path-tracing-c99efc67/2">
+    <meta property="og:title" content="Where the Ray Hits · Progressive Path Tracing: Noise Melting Into an Image — GPU.js Learn">
+    <meta property="og:description" content="Goal: finish sphereT so it returns the distance to the nearest visible hit, or -1 when there isn't one.">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="GPU.js jellyfish logo — GPU accelerated JavaScript">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Where the Ray Hits · Progressive Path Tracing: Noise Melting Into an Image — GPU.js Learn">
+    <meta name="twitter:description" content="Goal: finish sphereT so it returns the distance to the nearest visible hit, or -1 when there isn't one.">
+    <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Where the Ray Hits","description":"Goal: finish sphereT so it returns the distance to the nearest visible hit, or -1 when there isn't one.","url":"https://gpu.rocks/learn/path-tracing-c99efc67/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Progressive Path Tracing: Noise Melting Into an Image","url":"https://gpu.rocks/learn/path-tracing-c99efc67","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/path-tracing-c99efc67/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
+  </head>
+  <body>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/path-tracing-c99efc67">Progressive Path Tracing: Noise Melting Into an Image</a></nav>
+<p class="ssg-eyebrow">Task 2 of 5</p>
+<h1>Where the Ray Hits</h1>
+<p>Before anything can bounce, a ray has to find a surface. The sibling module
+        <em>Ray-Marched Metaballs</em> walks its rays forward in safe hops, because a signed
+        distance field is all it has to go on. A sphere gives you something better: an exact answer,
+        one square root long.</p>
+        <p>Write the ray as <code>o + t·d</code> with <code>d</code> a <strong>unit</strong> vector,
+        put <code>e = o − centre</code>, and asking "where does the ray meet the surface" is asking
+        when <code>|e + t·d|² = r²</code>. Because <code>d</code> is unit, the <code>t²</code>
+        coefficient is exactly 1 and the whole thing collapses to</p>
+<pre><code>b = e · d
+c = e · e - r * r
+t = -b ± Math.sqrt(b * b - c)</code></pre>
+        <p>Three cases, and all three matter. A negative discriminant means the ray misses. Two
+        roots mean it goes in one side and out the other — the one you can <em>see</em> is the
+        nearer, <code>−b − √(b² − c)</code>. And a root at or behind <code>t = 0</code> is in the
+        ray's past: the sphere is behind the camera, and it must not be reported as a hit. Reject
+        anything up to <code>t = 0.001</code> rather than just the negatives — the next task fires
+        rays that start <em>on</em> a surface, and in float32 such a ray finds that surface again
+        at a <code>t</code> a hair above zero.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> finish <code>sphereT</code> so it returns the distance to the
+        nearest visible hit, or <code>-1</code> when there isn't one.</div>
+
+<h2>Requirements</h2><ul><li>Compute <code>b = e·d</code> and <code>c = e·e − r * r</code> for <code>e = o − centre</code></li><li>Return <code>-1</code> when the discriminant <code>b * b - c</code> is not positive</li><li>Otherwise return the NEAR root <code>-b - Math.sqrt(disc)</code> — and <code>-1</code> instead when that root is at or behind the ray's origin (<code>t &lt;= 0.001</code>)</li></ul>
+<details><summary>Hint 1 — the shape of the function</summary><p>Three early exits and one answer:</p>
+<pre><code>const disc = b * b - c;
+if (disc &lt;= 0) {
+  return -1;          // the ray misses this sphere entirely
+}
+const t = -b - Math.sqrt(disc);
+if (t &lt;= 0.001) {
+  return -1;          // the hit is behind us (or right on top of us)
+}
+return t;</code></pre></details>
+<details><summary>Hint 2 — why 0.001 and not 0</summary><p>The next task fires rays that start <em>on</em> a surface. In float32 the
+            starting point is never quite on it, and a root at <code>t = 0.000001</code> is that
+            same surface hitting itself. The small epsilon is what stops a bounce from being
+            immediately swallowed by the thing it bounced off.</p></details>
+<details><summary>Hint 3 — what the picture should look like</summary><p>Nearer is brighter. You should get a pale sphere sitting on a floor that fades
+            with distance, and the flat background colour everywhere the ray found nothing.</p></details>
+<h2>Same idea elsewhere</h2>An RTX or RDNA ray-tracing core is silicon that does exactly this — traversal plus
+        an intersection test — a few billion times a second, and the API shape around it (DXR's
+        closest-hit shader, OptiX's <code>rtTrace</code>, Vulkan's ray query) is still one thread,
+        one ray, one nearest hit. Analytic primitives never went away either: spheres, boxes and
+        capsules still get intersected in closed form because closed form is faster than a mesh.
+<h2>All tasks in Progressive Path Tracing: Noise Melting Into an Image</h2>
+<ol class="ssg-tasks"><li><a href="/learn/path-tracing-c99efc67/1">Dice Every Thread Can Roll</a></li><li><a href="/learn/path-tracing-c99efc67/2">Where the Ray Hits</a></li><li><a href="/learn/path-tracing-c99efc67/3">One Path Per Pixel, and It Looks Terrible</a></li><li><a href="/learn/path-tracing-c99efc67/4">The Buffer That Outlives the Frame</a></li><li><a href="/learn/path-tracing-c99efc67/5">The Noise Falls Like 1/√n</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/path-tracing-c99efc67/1">← previous task</a> · <a href="/learn/path-tracing-c99efc67/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
+  </body>
+</html>

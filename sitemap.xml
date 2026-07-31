@@ -68,6 +68,13 @@
   <url><loc>https://gpu.rocks/learn/top-k-selection-1ba56df3/3</loc></url>
   <url><loc>https://gpu.rocks/learn/top-k-selection-1ba56df3/4</loc></url>
   <url><loc>https://gpu.rocks/learn/top-k-selection-1ba56df3/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/jump-flooding-a741a650</loc></url>
+  <url><loc>https://gpu.rocks/learn/jump-flooding-a741a650/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/jump-flooding-a741a650/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/jump-flooding-a741a650/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/jump-flooding-a741a650/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/jump-flooding-a741a650/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/jump-flooding-a741a650/6</loc></url>
   <url><loc>https://gpu.rocks/learn/bitonic-sort-84e0728e</loc></url>
   <url><loc>https://gpu.rocks/learn/bitonic-sort-84e0728e/1</loc></url>
   <url><loc>https://gpu.rocks/learn/bitonic-sort-84e0728e/2</loc></url>
@@ -123,6 +130,13 @@
   <url><loc>https://gpu.rocks/learn/gradient-descent-c94c3f22/3</loc></url>
   <url><loc>https://gpu.rocks/learn/gradient-descent-c94c3f22/4</loc></url>
   <url><loc>https://gpu.rocks/learn/gradient-descent-c94c3f22/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/ising-model-1f12d841</loc></url>
+  <url><loc>https://gpu.rocks/learn/ising-model-1f12d841/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/ising-model-1f12d841/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/ising-model-1f12d841/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/ising-model-1f12d841/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/ising-model-1f12d841/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/ising-model-1f12d841/6</loc></url>
   <url><loc>https://gpu.rocks/learn/colour-spaces-8d79c6af</loc></url>
   <url><loc>https://gpu.rocks/learn/colour-spaces-8d79c6af/1</loc></url>
   <url><loc>https://gpu.rocks/learn/colour-spaces-8d79c6af/2</loc></url>
@@ -149,6 +163,13 @@
   <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a/4</loc></url>
   <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a/5</loc></url>
   <url><loc>https://gpu.rocks/learn/canny-edges-6901c51a/6</loc></url>
+  <url><loc>https://gpu.rocks/learn/seam-carving-a23a0d9b</loc></url>
+  <url><loc>https://gpu.rocks/learn/seam-carving-a23a0d9b/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/seam-carving-a23a0d9b/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/seam-carving-a23a0d9b/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/seam-carving-a23a0d9b/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/seam-carving-a23a0d9b/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/seam-carving-a23a0d9b/6</loc></url>
   <url><loc>https://gpu.rocks/learn/template-matching-f57b4bed</loc></url>
   <url><loc>https://gpu.rocks/learn/template-matching-f57b4bed/1</loc></url>
   <url><loc>https://gpu.rocks/learn/template-matching-f57b4bed/2</loc></url>
@@ -233,6 +254,13 @@
   <url><loc>https://gpu.rocks/learn/reaction-diffusion-bc3d0b34/2</loc></url>
   <url><loc>https://gpu.rocks/learn/reaction-diffusion-bc3d0b34/3</loc></url>
   <url><loc>https://gpu.rocks/learn/reaction-diffusion-bc3d0b34/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/hydraulic-erosion-07165ca1</loc></url>
+  <url><loc>https://gpu.rocks/learn/hydraulic-erosion-07165ca1/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/hydraulic-erosion-07165ca1/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/hydraulic-erosion-07165ca1/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/hydraulic-erosion-07165ca1/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/hydraulic-erosion-07165ca1/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/hydraulic-erosion-07165ca1/6</loc></url>
   <url><loc>https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd</loc></url>
   <url><loc>https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd/1</loc></url>
   <url><loc>https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd/2</loc></url>
@@ -240,4 +268,17 @@
   <url><loc>https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd/4</loc></url>
   <url><loc>https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd/5</loc></url>
   <url><loc>https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd/6</loc></url>
+  <url><loc>https://gpu.rocks/learn/path-tracing-c99efc67</loc></url>
+  <url><loc>https://gpu.rocks/learn/path-tracing-c99efc67/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/path-tracing-c99efc67/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/path-tracing-c99efc67/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/path-tracing-c99efc67/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/path-tracing-c99efc67/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/sequence-alignment-a85ca6d9</loc></url>
+  <url><loc>https://gpu.rocks/learn/sequence-alignment-a85ca6d9/1</loc></url>
+  <url><loc>https://gpu.rocks/learn/sequence-alignment-a85ca6d9/2</loc></url>
+  <url><loc>https://gpu.rocks/learn/sequence-alignment-a85ca6d9/3</loc></url>
+  <url><loc>https://gpu.rocks/learn/sequence-alignment-a85ca6d9/4</loc></url>
+  <url><loc>https://gpu.rocks/learn/sequence-alignment-a85ca6d9/5</loc></url>
+  <url><loc>https://gpu.rocks/learn/sequence-alignment-a85ca6d9/6</loc></url>
 </urlset>

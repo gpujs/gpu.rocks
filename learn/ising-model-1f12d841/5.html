@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        var path = window.location.pathname;
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
+        }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
+      <title>Two Halves Make a Sweep · The Ising Model: Colour to Break the Race — GPU.js Learn</title>
+    <meta name="description" content="Goal: write the black half-sweep and chain the two halves into one full sweep, black(red(s)) .">
+    <link rel="canonical" href="https://gpu.rocks/learn/ising-model-1f12d841/5">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GPU.js">
+    <meta property="og:url" content="https://gpu.rocks/learn/ising-model-1f12d841/5">
+    <meta property="og:title" content="Two Halves Make a Sweep · The Ising Model: Colour to Break the Race — GPU.js Learn">
+    <meta property="og:description" content="Goal: write the black half-sweep and chain the two halves into one full sweep, black(red(s)) .">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="GPU.js jellyfish logo — GPU accelerated JavaScript">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Two Halves Make a Sweep · The Ising Model: Colour to Break the Race — GPU.js Learn">
+    <meta name="twitter:description" content="Goal: write the black half-sweep and chain the two halves into one full sweep, black(red(s)) .">
+    <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Two Halves Make a Sweep","description":"Goal: write the black half-sweep and chain the two halves into one full sweep, black(red(s)) .","url":"https://gpu.rocks/learn/ising-model-1f12d841/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The Ising Model: Colour to Break the Race","url":"https://gpu.rocks/learn/ising-model-1f12d841","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/ising-model-1f12d841/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
+  </head>
+  <body>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/ising-model-1f12d841">The Ising Model: Colour to Break the Race</a></nav>
+<p class="ssg-eyebrow">Task 5 of 6</p>
+<h1>Two Halves Make a Sweep</h1>
+<p>The red half is not a sweep — half the lattice has not been offered a move. The black
+        half is the same kernel with its parity test flipped, and the ordering that matters is in the
+        <strong>chaining</strong>: <code>black(red(s))</code>. The black cells read the lattice the red
+        half produced, so their <code>ΔE</code> accounts for the reds that just moved. That is not an
+        optimisation, it is the correctness argument: a black cell's four neighbours are all red, and
+        the reds have finished.</p>
+        <p>Give the two halves different seeds too — <code>2k</code> and <code>2k + 1</code> — or every
+        black cell would draw the same number its red neighbours just used.</p>
+        <p>Then run it. Same starting lattice as task 3, same temperature, same thirty sweeps, and
+        the energy that climbed from <code>−0.01</code> to <code>+1.30</code> now falls to about
+        <code>−1.84</code>, sweep after sweep — 26 of the 29 steps go down, and the three that do not
+        tick back up by less than <code>0.004</code>. That wobble is the temperature doing its job:
+        <code>T = 1.5</code> is cold, not zero, so a handful of uphill moves are accepted every sweep
+        and the energy is allowed to breathe. Nothing about the physics changed and nothing got
+        slower: the same 16,384 spins are offered the same moves. All that changed is <em>which of
+        them are allowed to move at the same time</em>.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> write the black half-sweep and chain the two halves into one full
+        sweep, <code>black(red(s))</code>.</div>
+
+<h2>Requirements</h2><ul><li>The black kernel is the red kernel with its parity test flipped — parity <code>1</code> moves, everything else passes through</li><li>Create the red kernel first and the black kernel second</li><li>One full sweep is <code>await black(await red(s, T, 2k), T, 2k + 1)</code> — the black half reads what the red half wrote</li></ul>
+<details><summary>Hint 1 — the black kernel</summary><p>Copy the red kernel and change one digit:</p>
+<pre><code>const parity = (x + y) % 2;
+if (parity !== 1) return spin;</code></pre>
+<p>Still a number, never a boolean — the WebGL backend rejects <code>const isBlack = …</code>
+            exactly as it rejects <code>isRed</code>.</p></details>
+<details><summary>Hint 2 — the chain is the lesson</summary><pre><code>const afterRed = await red(s, temperature, k * 2);
+s = await black(afterRed, temperature, k * 2 + 1);   // NOT black(s, …)</code></pre>
+<p>Or in one line, <code>await black(await red(s, T, 2 * k), T, 2 * k + 1)</code>. The inner
+            <code>await</code> is not decoration: an un-awaited kernel call hands the black half a
+            Promise instead of a lattice.</p></details>
+<h2>Same idea elsewhere</h2>Two dispatches with a dependency between them is the ordinary shape of GPU work —
+        WebGPU puts a barrier between compute passes, CUDA orders them on a stream, Vulkan wants an
+        explicit pipeline barrier. What no platform will do is order threads <em>inside</em> one
+        dispatch, which is exactly why the update had to be split in two. Production lattice Monte
+        Carlo goes one step further and launches only the cells of one colour, so the half that would
+        copy itself is never scheduled at all; the trade is a strided memory access pattern against
+        half the threads, and which wins is a benchmark, not an argument.
+<h2>All tasks in The Ising Model: Colour to Break the Race</h2>
+<ol class="ssg-tasks"><li><a href="/learn/ising-model-1f12d841/1">What a Flip Would Cost</a></li><li><a href="/learn/ising-model-1f12d841/2">Randomness Without a Random Number Generator</a></li><li><a href="/learn/ising-model-1f12d841/3">Everyone at Once Is Wrong</a></li><li><a href="/learn/ising-model-1f12d841/4">Colour the Lattice</a></li><li><a href="/learn/ising-model-1f12d841/5">Two Halves Make a Sweep</a></li><li><a href="/learn/ising-model-1f12d841/6">Drag the Temperature Across Tc</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/ising-model-1f12d841/4">← previous task</a> · <a href="/learn/ising-model-1f12d841/6">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
+  </body>
+</html>

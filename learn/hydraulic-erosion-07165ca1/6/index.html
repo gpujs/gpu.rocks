@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        var path = window.location.pathname;
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
+        }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
+      <title>Two Hundred Steps, and a River Appears · Hydraulic Erosion: Carving Terrain by Accumulation — GPU.js Learn</title>
+    <meta name="description" content="Goal: run STEPS steps, painting and rendering every EVERY th one, so the console shows a scrubber from bare noise to a river network.">
+    <link rel="canonical" href="https://gpu.rocks/learn/hydraulic-erosion-07165ca1/6">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GPU.js">
+    <meta property="og:url" content="https://gpu.rocks/learn/hydraulic-erosion-07165ca1/6">
+    <meta property="og:title" content="Two Hundred Steps, and a River Appears · Hydraulic Erosion: Carving Terrain by Accumulation — GPU.js Learn">
+    <meta property="og:description" content="Goal: run STEPS steps, painting and rendering every EVERY th one, so the console shows a scrubber from bare noise to a river network.">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="GPU.js jellyfish logo — GPU accelerated JavaScript">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Two Hundred Steps, and a River Appears · Hydraulic Erosion: Carving Terrain by Accumulation — GPU.js Learn">
+    <meta name="twitter:description" content="Goal: run STEPS steps, painting and rendering every EVERY th one, so the console shows a scrubber from bare noise to a river network.">
+    <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Two Hundred Steps, and a River Appears","description":"Goal: run STEPS steps, painting and rendering every EVERY th one, so the console shows a scrubber from bare noise to a river network.","url":"https://gpu.rocks/learn/hydraulic-erosion-07165ca1/6","position":6,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Hydraulic Erosion: Carving Terrain by Accumulation","url":"https://gpu.rocks/learn/hydraulic-erosion-07165ca1","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/hydraulic-erosion-07165ca1/6.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
+  </head>
+  <body>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/hydraulic-erosion-07165ca1">Hydraulic Erosion: Carving Terrain by Accumulation</a></nav>
+<p class="ssg-eyebrow">Task 6 of 6</p>
+<h1>Two Hundred Steps, and a River Appears</h1>
+<p>The payoff. 96×96, two hundred steps, and the only thing that has changed is
+        scale — the physics is the four kernels you already wrote, and the loop is the one from
+        last task, wrapped in a <code>step()</code> helper. (It calls kernels, so it is
+        <code>async</code>, and every caller has to <code>await</code> it.)</p>
+        <p>What is new is that you <strong>render inside the loop</strong>. The console collapses
+        consecutive <code>render()</code> calls into a frame scrubber, so painting every tenth
+        step costs one line and buys the whole story: drag the handle under the picture and watch
+        a plausible-but-lifeless fractal grow a drainage network. Frame 1 is ten steps in — the
+        water has barely spread and the map is still raw noise. Frame 20 has rivers.</p>
+        <p>The painter is task 1's hillshade with the water laid over it in blue, so the channels
+        are visible while they form. And the erosion dial is worth dragging for what it
+        <em>doesn't</em> do: sixteen times the pick-up rate — <code>0.05</code> to
+        <code>0.8</code> — moves about half as much rock again (44.6 units of height against
+        66.8 over the run, deepest cut 0.062 against 0.076), and the drainage pattern is
+        essentially the same picture. Two reasons, and both are the module: <em>where</em> the
+        water goes was settled by the routing long before any rock shifted, and a stream that
+        bites faster also loads up faster and starts settling, so the model throttles itself.
+        That is the whole of temporal accumulation: a cheap step, run often, producing structure
+        no single pass could have computed.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> run <code>STEPS</code> steps, painting and rendering every
+        <code>EVERY</code>th one, so the console shows a scrubber from bare noise to a river
+        network.</div>
+
+<h2>Requirements</h2><ul><li><code>await step()</code> <code>STEPS</code> times — it is async, so the <code>await</code> is not optional</li><li>Every <code>EVERY</code> steps, <code>await paint(height, water)</code> then <code>render(paint.canvas)</code></li><li>Keep the <code>render()</code> calls consecutive — a <code>console.log</code> between two of them splits the scrubber</li></ul>
+<details><summary>Hint 1 — the shape of it</summary><pre><code>for (let i = 1; i &lt;= STEPS; i++) {
+  await step();
+  if (i % EVERY === 0) {
+    await paint(height, water);
+    render(paint.canvas);
+  }
+}</code></pre>
+<p>Twenty frames out of two hundred steps, and no bookkeeping at all.</p></details>
+<details><summary>Hint 2 — why step() needs its await</summary><p><code>step()</code> awaits four kernels, so it returns a promise like any
+            other async function. Call it without <code>await</code> and the loop fires two
+            hundred overlapping steps at grids that are still being written — the picture will
+            be nonsense and the console will tell you a promise turned up where a grid should be.</p></details>
+<details><summary>Hint 3 — reading the scrubber</summary><p>The first frames look like nothing is happening: the water is still spreading
+            out. Around frame 3 thin blue threads appear on the slopes, and from there they
+            thicken, merge, and cut visible notches into the ridges. The two hollows fill up and
+            become lakes.</p></details>
+<h2>Same idea elsewhere</h2>This is the shape of every offline GPU simulation that ends in a picture:
+        a compute loop that never leaves the device, a render pass tapping it every N steps, and
+        a result that exists only because the cheap step ran thousands of times. Landscape tools
+        (Houdini, World Machine, Gaea) run exactly this loop — just at 4096² and with a few more
+        terms in the capacity.
+<h2>All tasks in Hydraulic Erosion: Carving Terrain by Accumulation</h2>
+<ol class="ssg-tasks"><li><a href="/learn/hydraulic-erosion-07165ca1/1">Seeing the Ground</a></li><li><a href="/learn/hydraulic-erosion-07165ca1/2">Which Way Is Down</a></li><li><a href="/learn/hydraulic-erosion-07165ca1/3">Everybody Downhill At Once</a></li><li><a href="/learn/hydraulic-erosion-07165ca1/4">Capacity: What the Water Can Carry</a></li><li><a href="/learn/hydraulic-erosion-07165ca1/5">Ping-Pong the Whole Landscape</a></li><li><a href="/learn/hydraulic-erosion-07165ca1/6">Two Hundred Steps, and a River Appears</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/hydraulic-erosion-07165ca1/5">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
+  </body>
+</html>

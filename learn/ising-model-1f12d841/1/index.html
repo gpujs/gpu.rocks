@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        var path = window.location.pathname;
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
+        }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
+      <title>What a Flip Would Cost · The Ising Model: Colour to Break the Race — GPU.js Learn</title>
+    <meta name="description" content="Goal: finish the kernel so cell [y][x] holds 2 · s[y][x] · (sum of its four neighbours) , with the neighbour indices wrapping round the lattice.">
+    <link rel="canonical" href="https://gpu.rocks/learn/ising-model-1f12d841/1">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GPU.js">
+    <meta property="og:url" content="https://gpu.rocks/learn/ising-model-1f12d841/1">
+    <meta property="og:title" content="What a Flip Would Cost · The Ising Model: Colour to Break the Race — GPU.js Learn">
+    <meta property="og:description" content="Goal: finish the kernel so cell [y][x] holds 2 · s[y][x] · (sum of its four neighbours) , with the neighbour indices wrapping round the lattice.">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="GPU.js jellyfish logo — GPU accelerated JavaScript">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="What a Flip Would Cost · The Ising Model: Colour to Break the Race — GPU.js Learn">
+    <meta name="twitter:description" content="Goal: finish the kernel so cell [y][x] holds 2 · s[y][x] · (sum of its four neighbours) , with the neighbour indices wrapping round the lattice.">
+    <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"What a Flip Would Cost","description":"Goal: finish the kernel so cell [y][x] holds 2 · s[y][x] · (sum of its four neighbours) , with the neighbour indices wrapping round the lattice.","url":"https://gpu.rocks/learn/ising-model-1f12d841/1","position":1,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The Ising Model: Colour to Break the Race","url":"https://gpu.rocks/learn/ising-model-1f12d841","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/ising-model-1f12d841/1.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
+  </head>
+  <body>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/ising-model-1f12d841">The Ising Model: Colour to Break the Race</a></nav>
+<p class="ssg-eyebrow">Task 1 of 6</p>
+<h1>What a Flip Would Cost</h1>
+<p>A magnet, stripped to almost nothing: a grid of arrows, each one either
+        <strong>up</strong> (<code>+1</code>) or <strong>down</strong> (<code>−1</code>), and a single
+        rule — neighbours would rather agree. Ernst Ising's 1925 model is that sentence and no more,
+        and it is still the standard proving ground for phase transitions, because it is simple
+        enough to be solved exactly and rich enough to have one.</p>
+        <p>Agreement is written as energy. Every neighbouring pair contributes <code>−s·s'</code>:
+        <code>−1</code> when the two agree, <code>+1</code> when they do not, so the lattice's total
+        energy falls as more spins line up. Now ask what one spin flipping would do. Its four bonds
+        all reverse, so the change is</p>
+<pre><code>ΔE = 2 · s · (up + down + left + right)</code></pre>
+        <p>and because every spin and every neighbour is <code>±1</code>, that has exactly five possible
+        values: <code>−8</code> when all four neighbours disagree with you (flipping is a bargain),
+        through <code>0</code>, up to <code>+8</code> when all four agree (flipping is the most expensive
+        move on the board). This lattice is a <strong>torus</strong> — the right edge is glued to the
+        left, the top to the bottom — so there are no boundary cells to special-case, and every one of
+        the 16,384 threads does the identical four reads. Pure gather, the shape Thinking in Parallel
+        calls the one that always parallelises.</p>
+<figure><figcaption>five neighbourhoods, five prices — and only two of them are ever a gamble — Five spin neighbourhoods side by side, with four, three, two, one and zero neighbours agreeing with the centre spin, and the resulting flip costs +8, +4, 0, -4 and -8.</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> finish the kernel so cell <code>[y][x]</code> holds
+        <code>2 · s[y][x] · (sum of its four neighbours)</code>, with the neighbour indices wrapping
+        round the lattice.</div>
+
+<h2>Requirements</h2><ul><li>Sum the four axis neighbours with wrap-around — no diagonals, no boundary special case</li><li>Wrap by adding the size first: <code>(x + n - 1) % n</code>, never <code>(x - 1) % n</code></li><li>Return <code>2 * s[y][x] * sum</code></li></ul>
+<details><summary>Hint 1 — where the 2 comes from</summary><p>This spin's share of the energy is <code>−s · (neighbour sum)</code>. Flip it and the
+            share becomes <code>+s · (neighbour sum)</code>. The difference between those two is
+            <code>2 · s · (neighbour sum)</code> — the bonds do not just vanish, they reverse, so the
+            change is twice the share, not once.</p></details>
+<details><summary>Hint 2 — the wrap that bites</summary><p><code>(x - 1) % n</code> is <code>-1</code> at <code>x = 0</code>, in JavaScript and in
+            gpu.js's GLSL alike — both keep the sign of the left operand. Reading
+            <code>s[y][-1]</code> gives you <code>undefined</code> on the CPU backend and a zero out of
+            nowhere on WebGL. Add the size before you subtract:</p>
+<pre><code>const left  = s[y][(x + n - 1) % n];
+const right = s[y][(x + 1) % n];
+const up    = s[(y + n - 1) % n][x];
+const down  = s[(y + 1) % n][x];</code></pre></details>
+<details><summary>Hint 3 — the whole body</summary><pre><code>const sum = s[y][(x + 1) % n] + s[y][(x + n - 1) % n]
+          + s[(y + 1) % n][x] + s[(y + n - 1) % n][x];
+return 2 * s[y][x] * sum;</code></pre></details>
+<h2>Same idea elsewhere</h2>A four-neighbour gather with periodic wrap is one of the most-written kernels there
+        is — CUDA and WGSL spell it the same way, and a graphics API gives you the wrap for free by
+        setting a texture's address mode to <code>repeat</code> instead of doing modular arithmetic
+        at all. The five-value structure matters too: a stencil whose result comes from a tiny
+        discrete set is exactly the case where production Ising codes drop the exponential and look
+        the answer up in a five-entry table.
+<h2>All tasks in The Ising Model: Colour to Break the Race</h2>
+<ol class="ssg-tasks"><li><a href="/learn/ising-model-1f12d841/1">What a Flip Would Cost</a></li><li><a href="/learn/ising-model-1f12d841/2">Randomness Without a Random Number Generator</a></li><li><a href="/learn/ising-model-1f12d841/3">Everyone at Once Is Wrong</a></li><li><a href="/learn/ising-model-1f12d841/4">Colour the Lattice</a></li><li><a href="/learn/ising-model-1f12d841/5">Two Halves Make a Sweep</a></li><li><a href="/learn/ising-model-1f12d841/6">Drag the Temperature Across Tc</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/ising-model-1f12d841/2">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
+  </body>
+</html>

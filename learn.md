@@ -21,6 +21,7 @@ The handful of patterns everything else is built from
 - [Stream Compaction](https://gpu.rocks/learn/stream-compaction-0aed2e43.md) — Filtering on a GPU: flag what survives, scan to find out where it lands, then gather it into a packed array. (5 tasks)
 - [Histograms & Binning](https://gpu.rocks/learn/histograms-and-binning-dfb254f4.md) — Counting values into bins with no atomics — the scatter that has to become a gather. (5 tasks)
 - [Top-K Selection](https://gpu.rocks/learn/top-k-selection-1ba56df3.md) — The ten largest of a million values: rank by counting, gather the winners, or bisect for a cutoff — and when each one wins. (5 tasks)
+- [Jump Flooding: Voronoi in log n Passes](https://gpu.rocks/learn/jump-flooding-a741a650.md) — A Voronoi diagram and a signed distance field in log₂(n) passes — more total work than the CPU algorithm, and faster anyway. (6 tasks)
 - [Bitonic Sort](https://gpu.rocks/learn/bitonic-sort-84e0728e.md) — More comparisons than quicksort, and far faster on a GPU — because the whole comparison schedule is fixed before the data arrives. (5 tasks)
 - [Radix Sort](https://gpu.rocks/learn/radix-sort-fd3ff796.md) — A histogram, a scan and a gather assembled into the sort production GPU libraries actually run. (6 tasks)
 
@@ -35,6 +36,7 @@ Heavy math, thousands of threads at once
 - [Iterative Linear Solvers](https://gpu.rocks/learn/iterative-solvers-e73b8e1f.md) — Jacobi, Gauss-Seidel, and why colouring a grid like a chessboard turns a sequential algorithm parallel. (5 tasks)
 - [The Heat Equation & Stability](https://gpu.rocks/learn/heat-and-stability-514063bb.md) — Why a correct-looking simulation explodes — the step-size limit, and the implicit step that ignores it. (5 tasks)
 - [Gradient Descent](https://gpu.rocks/learn/gradient-descent-c94c3f22.md) — Fit a line by walking downhill — the gradient as a reduction, the learning rate as a stability limit, and 1,024 searches in one launch. (5 tasks)
+- [The Ising Model: Colour to Break the Race](https://gpu.rocks/learn/ising-model-1f12d841.md) — Metropolis on a lattice of spins, the race that makes an all-at-once update silently wrong, and the checkerboard that repairs it — ending in a temperature slider you can drag through a phase transition. (6 tasks)
 
 ## Computer Vision
 
@@ -44,6 +46,7 @@ Teaching a GPU to look at pictures, not just draw them
 - [Convolution & Filters](https://gpu.rocks/learn/convolution-and-filters-66933805.md) — Sliding-window math on signals and images: blur, sharpen, edge detection. (5 tasks)
 - [Thresholding & Morphology](https://gpu.rocks/learn/thresholding-and-morphology-670eaafa.md) — Turning grey pixels into a clean binary mask: global and adaptive thresholds, then erosion and dilation as a neighbourhood min and max. (6 tasks)
 - [The Canny Edge Pipeline](https://gpu.rocks/learn/canny-edges-6901c51a.md) — The edge detector every vision library ships, one kernel per stage — blur, gradient, thinning, thresholds, hysteresis — then chained with pipeline: true. (6 tasks)
+- [Seam Carving: Content-Aware Resizing](https://gpu.rocks/learn/seam-carving-a23a0d9b.md) — Shrink a picture by deleting its most boring pixels — an energy map, a wavefront DP one launch per row, and a gather that reflows the image. (6 tasks)
 - [Template Matching](https://gpu.rocks/learn/template-matching-f57b4bed.md) — Finding a patch in a picture — and why a raw difference score is fooled by a light switch. (5 tasks)
 - [Optical Flow](https://gpu.rocks/learn/optical-flow-e85c6dfa.md) — Per-pixel motion between two frames: the aperture problem, a 2×2 least-squares solve per thread, and knowing when not to believe the answer. (5 tasks)
 - [Video Filters](https://gpu.rocks/learn/video-filters-4d39e404.md) — Sixteen milliseconds a frame, and state that survives between them: temporal filtering, motion masks and a background model. (6 tasks)
@@ -68,7 +71,13 @@ Pictures computed, not drawn
 - [Escape-Time Fractals](https://gpu.rocks/learn/escape-time-fractals-0de4764c.md) — Mandelbrot and Julia sets with smooth coloring — infinite detail from a ten-line kernel. (5 tasks)
 - [Cellular Automata](https://gpu.rocks/learn/cellular-automata-407c2c34.md) — Conway's Life and friends: feed a kernel's output back in and watch worlds evolve. (5 tasks)
 - [Reaction–Diffusion](https://gpu.rocks/learn/reaction-diffusion-bc3d0b34.md) — Two chemicals, two equations, and suddenly: coral, fingerprints, leopard spots. (4 tasks)
+- [Hydraulic Erosion: Carving Terrain by Accumulation](https://gpu.rocks/learn/hydraulic-erosion-07165ca1.md) — Rain on a fractal heightmap, one gather at a time — until the noise grows rivers. (6 tasks)
 - [Ray-Marched Metaballs](https://gpu.rocks/learn/ray-marched-metaballs-8b1282bd.md) — Signed distance fields and soft shadows — a real-time 3D scene with no triangles at all. (6 tasks)
+- [Progressive Path Tracing: Noise Melting Into an Image](https://gpu.rocks/learn/path-tracing-c99efc67.md) — Every pixel fires its own random rays; a buffer that outlives the frame turns the static into a picture. (5 tasks)
+
+## Others
+
+- [Wavefronts: Aligning DNA on the Diagonal](https://gpu.rocks/learn/sequence-alignment-a85ca6d9.md) — Smith-Waterman looks fatally serial — until you notice that every cell on an anti-diagonal is independent. (6 tasks)
 
 ---
 

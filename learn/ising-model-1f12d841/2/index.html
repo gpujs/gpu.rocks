@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        var path = window.location.pathname;
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
+        }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
+      <title>Randomness Without a Random Number Generator · The Ising Model: Colour to Break the Race — GPU.js Learn</title>
+    <meta name="description" content="Goal: fill a 128×128 grid with hash(x, y, seed) in [0, 1) , using no Math.random anywhere.">
+    <link rel="canonical" href="https://gpu.rocks/learn/ising-model-1f12d841/2">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GPU.js">
+    <meta property="og:url" content="https://gpu.rocks/learn/ising-model-1f12d841/2">
+    <meta property="og:title" content="Randomness Without a Random Number Generator · The Ising Model: Colour to Break the Race — GPU.js Learn">
+    <meta property="og:description" content="Goal: fill a 128×128 grid with hash(x, y, seed) in [0, 1) , using no Math.random anywhere.">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="GPU.js jellyfish logo — GPU accelerated JavaScript">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Randomness Without a Random Number Generator · The Ising Model: Colour to Break the Race — GPU.js Learn">
+    <meta name="twitter:description" content="Goal: fill a 128×128 grid with hash(x, y, seed) in [0, 1) , using no Math.random anywhere.">
+    <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Randomness Without a Random Number Generator","description":"Goal: fill a 128×128 grid with hash(x, y, seed) in [0, 1) , using no Math.random anywhere.","url":"https://gpu.rocks/learn/ising-model-1f12d841/2","position":2,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"The Ising Model: Colour to Break the Race","url":"https://gpu.rocks/learn/ising-model-1f12d841","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/ising-model-1f12d841/2.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
+  </head>
+  <body>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/ising-model-1f12d841">The Ising Model: Colour to Break the Race</a></nav>
+<p class="ssg-eyebrow">Task 2 of 6</p>
+<h1>Randomness Without a Random Number Generator</h1>
+<p>The rule that makes this a <em>model of temperature</em> rather than a downhill slide
+        needs a coin toss per spin per sweep. On a CPU you reach for <code>Math.random()</code> without
+        thinking. Think about it here: an ordinary generator is a <strong>stream</strong> — one hidden
+        state, advanced once per call, so call number 900 depends on call number 899. That is a
+        sequential dependency, and it is the same one Thinking in Parallel rules out. There is no
+        ordering between 16,384 threads and nothing they can share. gpu.js is blunt about it too: the
+        WebGPU backend <em>refuses</em> <code>Math.random</code> at compile time, and on WebGL a kernel
+        that calls it is no longer reproducible.</p>
+        <p>So stop asking for a stream and ask for a <strong>function</strong>:
+        <code>u = hash(x, y, seed)</code>. Same thread, same sweep, same number — every time, on every
+        backend. Different thread, unrelated number. No state, no ordering, and a run you can replay
+        exactly, which is what makes a stochastic simulation debuggable at all. This is not a
+        compromise for gpu.js's benefit; it is what production GPU Monte Carlo does.</p>
+        <p>A hash has one job: make the output look nothing like the input. Three moves do it. The
+        <em>fold</em> multiplies <code>x</code>, <code>y</code> and <code>seed</code> by unrelated odd
+        constants and adds them, which spreads the three inputs across sixteen bits. The
+        <em>squaring</em> step is the only nonlinear one, and without it a hash is just an affine map:
+        neighbouring cells would come out a fixed distance apart, which is not randomness, it is a
+        ramp. The <em>byte swap</em> moves the high eight bits down where the next multiply can reach
+        them. Every intermediate stays under <code>2²⁴</code> — the largest integer a 32-bit float
+        holds exactly — so WebGPU, WebGL and the CPU compute the identical value and nothing about your
+        run depends on which one you got.</p>
+
+<div class="ssg-goal"><strong>Goal:</strong> fill a 128×128 grid with <code>hash(x, y, seed)</code> in
+        <code>[0, 1)</code>, using no <code>Math.random</code> anywhere.</div>
+
+<h2>Requirements</h2><ul><li>Fold <code>x</code>, <code>y</code> and <code>seed</code> into one value below <code>65536</code></li><li>Mix it twice: square a low slice, swap the two bytes, one multiply-and-add round</li><li>Return the mixed value divided by <code>65536</code> so it lands in <code>[0, 1)</code></li><li>No <code>Math.random</code> — the same seed must give the same field every run</li></ul>
+<details><summary>Hint 1 — the fold, and why the seed belongs in it</summary><p>Three odd constants, one modulo:</p>
+<pre><code>let h = (x * 1103 + y * 2749 + seed * 3571) % 65536;</code></pre>
+<p>Leave <code>seed</code> out and the field is the same 16,384 numbers on every sweep — the
+            simulation would take one step and then repeat it forever. The seed is what makes this a
+            <em>sequence</em> of fields rather than one field.</p></details>
+<details><summary>Hint 2 — the two mixing moves</summary><p>Squaring is the nonlinear part. <code>h % 2048</code> keeps the value small enough
+            that <code>q * q</code> stays under <code>2²⁴</code> and the arithmetic is still exact:</p>
+<pre><code>let q = h % 2048;
+h = (h + q * q) % 65536;</code></pre>
+<p>The swap exchanges the high and low bytes. Note which side gets the multiply —
+            <code>h % 256</code> is the LOW byte, so it is the one that has to move UP:</p>
+<pre><code>h = (h % 256) * 256 + Math.floor(h / 256);</code></pre></details>
+<details><summary>Hint 3 — the whole body</summary><pre><code>let h = (x * 1103 + y * 2749 + seed * 3571) % 65536;
+let q = h % 2048;
+h = (h + q * q) % 65536;
+h = (h % 256) * 256 + Math.floor(h / 256);
+h = (h * 253 + 30011) % 65536;
+q = h % 2048;
+h = (h + q * q) % 65536;
+return h / 65536;</code></pre>
+<p>Two rounds, not one — and the reason is not where you would look for it. Inside a
+            single field one round is already fine: neighbouring cells measure <code>0.021</code>
+            against the two-round hash's <code>0.032</code>, which is the same noise. The damage is
+            <em>between consecutive seeds</em>. One squaring plus one multiply is still so nearly
+            affine that <code>hash(x, y, k)</code> and <code>hash(x+1, y+1, k+1)</code> correlate at
+            <code>0.30</code>, against <code>0.007</code>–<code>0.021</code> with two rounds — and that is precisely the
+            pair the next task puts side by side, a red cell drawing at seed <code>2k</code> and the
+            black neighbour that reads it drawing at <code>2k + 1</code>.</p></details>
+<h2>Same idea elsewhere</h2>Counter-based randomness — hash a coordinate instead of advancing a stream — is the
+        standard on every parallel platform: Random123 / Philox in CUDA, <code>curand</code>'s
+        counter-based generators, and essentially every shader that needs noise. The reason is the same
+        everywhere: a stream forces an order on things that have none, while a hash gives every thread
+        an independent draw for free and makes the whole run reproducible. Keeping the arithmetic
+        inside the exactly-representable integer range is the other half of the trick, and it is why
+        real GPU hashes are written in integer types rather than floats.
+<h2>All tasks in The Ising Model: Colour to Break the Race</h2>
+<ol class="ssg-tasks"><li><a href="/learn/ising-model-1f12d841/1">What a Flip Would Cost</a></li><li><a href="/learn/ising-model-1f12d841/2">Randomness Without a Random Number Generator</a></li><li><a href="/learn/ising-model-1f12d841/3">Everyone at Once Is Wrong</a></li><li><a href="/learn/ising-model-1f12d841/4">Colour the Lattice</a></li><li><a href="/learn/ising-model-1f12d841/5">Two Halves Make a Sweep</a></li><li><a href="/learn/ising-model-1f12d841/6">Drag the Temperature Across Tc</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/ising-model-1f12d841/1">← previous task</a> · <a href="/learn/ising-model-1f12d841/3">next task →</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
+  </body>
+</html>
