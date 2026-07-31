@@ -9223,10 +9223,16 @@ function rmsOf(grid) {
 }
 
 let u = plate;
+const curve = [];
 for (let k = 0; k <= SWEEPS; k++) {
+  curve.push(rmsOf(await residual(u)));
   if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(await residual(u)));
   u = await sweep(u);
 }
+
+// A residual that falls 36x is a straight-ish line on a LOG axis and an
+// uninformative hook on a linear one. That is the whole reason for the option.
+plot({ residual: curve }, { title: 'RMS residual per sweep', log: true });
 ```
 
 ---
@@ -9812,6 +9818,10 @@ substitute `α = D·dt/dx²`, and solve for `dt`.
 const dtMax = dx * dx / (2 * D * DIMS);
 await run('SAFE', 0.4 * dtMax);
 await run('PAST THE LINE', 1.6 * dtMax);
+
+// One trace is a flat line hugging the bottom; the other walks off the top.
+// No linear axis can hold both, which is what the log option is for.
+plot(traces, { title: 'hottest |u| per step', log: true });
 ```
 
 ## Same idea elsewhere
@@ -9850,6 +9860,8 @@ function hottest(u) {
   return m;
 }
 
+const traces = {};
+
 async function run(label, dt) {
   const alpha = D * dt / (dx * dx);
   const step = gpu.createKernel(function (u) {
@@ -9866,10 +9878,13 @@ async function run(label, dt) {
 
   console.log(label, '— dt =', dt, ' alpha =', alpha, ' centre weight =', 1 - 4 * alpha);
   let u = seed;
+  const trace = [];
   for (let i = 1; i <= STEPS; i++) {
     u = await step(u);
+    trace.push(hottest(u));
     if (i % 20 === 0) console.log('   step', i, '→ hottest |u| =', hottest(u));
   }
+  traces[label] = trace;
   return u;
 }
 
@@ -9877,6 +9892,10 @@ console.log('stability limit: dt <=', dtMax);
 
 // TODO: run twice — at 0.4 * dtMax, then at 1.6 * dtMax.
 //       run() is async now (it awaits the kernel), so await each call.
+//       Then draw both traces together with
+//       plot(traces, { title: 'hottest |u| per step', log: true })
+//       — a LOG axis, because one of them is about to leave the other behind
+//       by twenty orders of magnitude.
 ```
 
 ---
@@ -10685,17 +10704,23 @@ const rate = 0.1;
 let m = 0;
 let c = 0;
 
+const curve = [];
+
 for (let step = 1; step <= 60; step++) {
   const g = await gradientAt(m, c);
   // TODO: move m and c one step DOWNHILL.
   // g[0] is dL/dm and g[1] is dL/dc — both point UPHILL.
 
+  curve.push(await lossAt(m, c));
   if (step % 10 === 0) console.log('step', step, '· loss', await lossAt(m, c));
 }
 
 console.log('fitted slope:', m);
 console.log('fitted intercept:', c);
 console.log('final loss:', await lossAt(m, c));
+
+// The shape is the lesson: a steep drop, then a floor. Watch WHERE it flattens.
+plot({ loss: curve }, { title: 'loss per step' });
 ```
 
 ---
@@ -22764,7 +22789,13 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   constants: { xMin: -1.6, yMin: -1.6, step: 0.025 },
 });
 
-await julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
+// A real dial. slider() returns the value this run is using and puts a control
+// under the console; moving it re-runs the whole program, so the set redraws as
+// you drag. Defaults are the classic dendrite c = -0.7269 + 0.1889i.
+const cRe = slider('c real', { min: -1, max: 0.4, value: -0.7269, step: 0.001 });
+const cIm = slider('c imag', { min: -0.8, max: 0.8, value: 0.1889, step: 0.001 });
+
+await julia(cRe, cIm);
 render(julia.canvas);
 ```
 

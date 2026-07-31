@@ -687,7 +687,13 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   constants: { xMin: -1.6, yMin: -1.6, step: 0.025 },
 });
 
-await julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
+// A real dial. slider() returns the value this run is using and puts a control
+// under the console; moving it re-runs the whole program, so the set redraws as
+// you drag. Defaults are the classic dendrite c = -0.7269 + 0.1889i.
+const cRe = slider('c real', { min: -1, max: 0.4, value: -0.7269, step: 0.001 });
+const cIm = slider('c imag', { min: -0.8, max: 0.8, value: 0.1889, step: 0.001 });
+
+await julia(cRe, cIm);
 render(julia.canvas);
 `,solutionCode:`// Same loop, roles flipped: the pixel is z₀, and c is a knob you turn.
 const gpu = new GPU({ mode });
@@ -720,7 +726,13 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   constants: { xMin: -1.6, yMin: -1.6, step: 0.025 },
 });
 
-await julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
+// A real dial. slider() returns the value this run is using and puts a control
+// under the console; moving it re-runs the whole program, so the set redraws as
+// you drag. Defaults are the classic dendrite c = -0.7269 + 0.1889i.
+const cRe = slider('c real', { min: -1, max: 0.4, value: -0.7269, step: 0.001 });
+const cIm = slider('c imag', { min: -0.8, max: 0.8, value: 0.1889, step: 0.001 });
+
+await julia(cRe, cIm);
 render(julia.canvas);
 `,publicTests:[{name:"with <code>c = 0</code> the Julia set is the unit disk — inside black, outside shaded",run:async e=>{e.assert(e.kernels.length>=1,"no kernel was created — call gpu.createKernel()"),e.assert(e.canvas,"no canvas — is the kernel graphical: true, and did you call render()?"),e.assert(e.canvas.width===128&&e.canvas.height===128,`expected a 128×128 canvas, got ${e.canvas.width}×${e.canvas.height}`),await e.kernel(0,0);const t=e.getPixels();for(let s=4;s<128;s+=8)for(let n=4;n<128;n+=8){const o=-1.6+n*.025,a=-1.6+s*.025,r=o*o+a*a,i=(s*128+n)*4;r<.9?e.assert(t[i]+t[i+1]+t[i+2]<=3,`pixel (${n}, ${s}) is inside the unit disk — expected black, got rgb(${t[i]}, ${t[i+1]}, ${t[i+2]})`):r>4.25&&e.assert(t[i+2]>100,`pixel (${n}, ${s}) is far outside the disk — expected a blue-ish shade, got rgb(${t[i]}, ${t[i+1]}, ${t[i+2]})`)}}},{name:"c is a live argument — turn the dial and the center pixel flips",run:async e=>{await e.kernel(0,0);let t=e.getPixels();const s=8256*4;e.assert(t[s]+t[s+1]+t[s+2]<=3,"with c = 0 the center pixel (z₀ = 0) never escapes — it should be black"),await e.kernel(-2.5,0),t=e.getPixels(),e.assert(t[s+2]>100,"with c = -2.5 the center pixel escapes in one step — it should be shaded, not black. Is c actually used in the loop?")}}],privateTests:[{name:"private test #1",run:async e=>{await e.kernel(0,0);const t=e.getPixels();let s=10836*4;e.assert(t[s]+t[s+1]+t[s+2]<=3,`pixel (84, 84) lies inside the unit disk — expected black, got rgb(${t[s]}, ${t[s+1]}, ${t[s+2]})`),s=8196*4;const n=yh(-1.5,0,0,0)/wl,[o,a,r]=rp(n);e.assertClose(t[s],o,4,"red at pixel (4, 64)"),e.assertClose(t[s+1],a,4,"green at pixel (4, 64)"),e.assertClose(t[s+2],r,4,"blue at pixel (4, 64)")}}]}]},Jv=Object.freeze({__proto__:null,default:Yv});function pr(e,t,s=2026){const n=e.seededRandom(s),o=new Array(t);for(let a=0;a<t;a++)o[a]=Math.round(Math.pow(n(),3)*1e3);return o}function zn(e,t,s){const n=e.seededRandom(s),o=new Array(t);for(let a=0;a<t;a++)o[a]=Math.round(-8e3*Math.log(1-n()));return o}function Hl(e,t,s=1701){const n=e.seededRandom(s),o=new Array(t);for(let a=0;a<t;a++){const r=new Array(t),i=a/t;for(let l=0;l<t;l++){const h=l/t,p=Math.exp(-((h-.22)*(h-.22)+(i-.68)*(i-.68))*30)+.82*Math.exp(-((h-.74)*(h-.74)+(i-.31)*(i-.31))*55)+.55*Math.exp(-((h-.55)*(h-.55)+(i-.86)*(i-.86))*90);r[l]=Math.round(600*p+40*n())}o[a]=r}return o}function Za(e){const t=new Array(e.length);for(let n=0;n<e.length;n++)t[n]=n;t.sort((n,o)=>e[o]-e[n]||n-o);const s=new Array(e.length);for(let n=0;n<t.length;n++)s[t[n]]=n;return s}function Ln(e,t){const s=Za(e),n=new Array(t).fill(0);for(let o=0;o<e.length;o++)s[o]<t&&(n[s[o]]=e[o]);return n}function Kr(e,t){let s=0;for(let n=0;n<e.length;n++)e[n]>t&&s++;return s}function Vl(e){let t=0;for(let s=0;s<e.length;s++)t+=e[s];return t}function _m(e){const t=[];for(let s=0;s<e.length;s++)for(let n=0;n<e[s].length;n++)t.push(e[s][n]);return t}function Ry(e,t){return e%t*t+Math.floor(e/t)}function bh(e,t){const s=_m(e),n=Za(s),o=new Array(t).fill(-1);for(let a=0;a<s.length;a++)n[a]<t&&(o[n[a]]=a);return o}function Fy(e,t,s,n){const o=new Array(s).fill(0);for(let a=0;a<s;a++){let r=0;for(let i=0;i<n;i++)e[i*s+a]>t&&r++;o[a]=r}return o}function Gy(e){let t=e[0],s=e[0];for(let n=1;n<e.length;n++)e[n]<t&&(t=e[n]),e[n]>s&&(s=e[n]);return[t-1,s]}function Zv(e){const t=[...e].sort((n,o)=>o-n),s=new Map;for(let n=0;n<t.length;n++)s.has(t[n])||s.set(t[n],n);return e.map(n=>s.get(n))}function Qv(e){const t=[...e].sort((n,o)=>o-n),s=new Map;for(let n=0;n<t.length;n++)s.set(t[n],n+1);return e.map(n=>s.get(n))}function ex(e){return Za(e.map(t=>-t))}function tx(e){const t=new Array(e.length);for(let n=0;n<e.length;n++)t[n]=n;t.sort((n,o)=>e[o]-e[n]||o-n);const s=new Array(e.length);for(let n=0;n<t.length;n++)s[t[n]]=n;return s}function jl(e,t,s,n){const o=n.filter(a=>Math.abs(e-a[0])<=s&&Math.abs(t-a[0])>s).map(a=>a[1]);return o.length&&o.every(a=>a===o[0])?o[0]:null}function Im(e,t,s){if(!e||e.length<t.length)return!1;for(let n=0;n<t.length;n++)if(!(Math.abs(e[n]-t[n])<=s))return!1;return!0}function Ro(e,t,s,n){const o=n.filter(([a])=>Im(e,a,s)&&!Im(t,a,s)).map(a=>a[1]);return o.length&&o.every(a=>a===o[0])?o[0]:null}function ga(e,t,s){if(!e)return 0;for(let n=0;n<t.length;n++)if(!(Math.abs(e[n]-t[n])<=s))return n;return-1}function vh(e){return[[Zv(e),"every tie collapsed onto one rank — equal scores each counted the same elements ahead of them, so some ranks are claimed twice and the ones in between are claimed by nobody. An element EARLIER in the array has to win the tie: use >= when j < this.thread.x"],[Qv(e),"every element counted itself — a >= against every j puts your own score in the total, so the largest comes back as 1 instead of 0. Only equal scores at a LOWER index should count"],[ex(e),'that is the rank from the bottom: you counted the scores you beat instead of the scores that beat you. Rank 0 has to mean "nothing outranks me"'],[tx(e),"the tie-break points the wrong way — a LATER equal score is taking precedence. The test is >= for j < this.thread.x and > for everyone else, so the earlier element wins"]]}function Fo(e,t){for(const s of e)if(s.type==="log"&&s.text&&s.text.indexOf(t)!==-1)return s.text;return null}function yi(e,t){if(!e)return null;const s=new RegExp(`${t}\\s*(-?\\d+(?:\\.\\d+)?)`).exec(e);return s?parseFloat(s[1]):null}function sx(e){if(!e)return null;const t=/(-?\d+(?:\.\d+)?)\s*ms/.exec(e);return t?parseFloat(t[1]):null}function ds(e,t){return e.kernels.find(s=>{const n=s.kernel&&s.kernel.output;return n&&n.length===t.length&&t.every((o,a)=>n[a]===o)})||null}function cp(e,t,s){if(t===null)return null;const n=Kr(e,t);return n===s?null:n===s+1?`${n} scores clear that cutoff, not ${s} — the bracket settled one element too low. The invariant is "at least k scores are above lo", so the guess is kept when count >= k, not when count > k`:n===s-1?`only ${n} scores clear that cutoff — it settled one element too high. Report lo (the side of the bracket that still lets k through), not hi, and count with > rather than >=`:n>e.length/2?`${n.toLocaleString("en-US")} scores clear that cutoff — the bracket never moved. Check that the loop actually narrows it: one of lo or hi has to become mid every pass`:`${n.toLocaleString("en-US")} scores clear that cutoff, but exactly ${s} should`}var nx={uuid:"1ba56df3-64f4-4387-8723-958f4ad53c09",version:1,slug:"top-k-selection",title:"Top-K Selection",blurb:"The ten largest of a million values: rank by counting, gather the winners, or bisect for a cutoff — and when each one wins.",tasks:[{slug:"rank-by-counting",title:"Rank by Counting",intro:`<p>"Give me the ten largest of these four thousand scores." On a CPU you keep a heap
         of ten and walk the data once — and that plan does not port, because the heap's contents
@@ -3856,7 +3868,11 @@ console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
             out of the centre, so the centre keeps <code>1 − 2·dims·α</code>. Set that to zero,
             substitute <code>α = D·dt/dx²</code>, and solve for <code>dt</code>.</p>`},{title:"Hint 2 — the two runs",body:`<pre><code>const dtMax = dx * dx / (2 * D * DIMS);
 await run('SAFE', 0.4 * dtMax);
-await run('PAST THE LINE', 1.6 * dtMax);</code></pre>`}],transfer:`Every production explicit solver computes this number and refuses to exceed it:
+await run('PAST THE LINE', 1.6 * dtMax);
+
+// One trace is a flat line hugging the bottom; the other walks off the top.
+// No linear axis can hold both, which is what the log option is for.
+plot(traces, { title: 'hottest |u| per step', log: true });</code></pre>`}],transfer:`Every production explicit solver computes this number and refuses to exceed it:
         CFL conditions in fluid codes, the diffusion-number check in a thermal simulation, the
         substepping loop in a cloth or fluid solver on the GPU. It is also why GPU simulations
         so often become <em>launch-bound</em> — halving <code>dx</code> to sharpen a picture
@@ -3885,6 +3901,8 @@ function hottest(u) {
   return m;
 }
 
+const traces = {};
+
 async function run(label, dt) {
   const alpha = D * dt / (dx * dx);
   const step = gpu.createKernel(function (u) {
@@ -3901,10 +3919,13 @@ async function run(label, dt) {
 
   console.log(label, '— dt =', dt, ' alpha =', alpha, ' centre weight =', 1 - 4 * alpha);
   let u = seed;
+  const trace = [];
   for (let i = 1; i <= STEPS; i++) {
     u = await step(u);
+    trace.push(hottest(u));
     if (i % 20 === 0) console.log('   step', i, '→ hottest |u| =', hottest(u));
   }
+  traces[label] = trace;
   return u;
 }
 
@@ -3912,6 +3933,10 @@ console.log('stability limit: dt <=', dtMax);
 
 // TODO: run twice — at 0.4 * dtMax, then at 1.6 * dtMax.
 //       run() is async now (it awaits the kernel), so await each call.
+//       Then draw both traces together with
+//       plot(traces, { title: 'hottest |u| per step', log: true })
+//       — a LOG axis, because one of them is about to leave the other behind
+//       by twenty orders of magnitude.
 `,solutionCode:`// Two runs of the same simulation. Only the step size differs.
 const gpu = new GPU({ mode });
 
@@ -3935,6 +3960,8 @@ function hottest(u) {
   return m;
 }
 
+const traces = {};
+
 async function run(label, dt) {
   const alpha = D * dt / (dx * dx);
   const step = gpu.createKernel(function (u) {
@@ -3951,10 +3978,13 @@ async function run(label, dt) {
 
   console.log(label, '— dt =', dt, ' alpha =', alpha, ' centre weight =', 1 - 4 * alpha);
   let u = seed;
+  const trace = [];
   for (let i = 1; i <= STEPS; i++) {
     u = await step(u);
+    trace.push(hottest(u));
     if (i % 20 === 0) console.log('   step', i, '→ hottest |u| =', hottest(u));
   }
+  traces[label] = trace;
   return u;
 }
 
@@ -3962,6 +3992,10 @@ console.log('stability limit: dt <=', dtMax);
 
 await run('SAFE', 0.4 * dtMax);
 await run('PAST THE LINE', 1.6 * dtMax);
+
+// One trace is a flat line hugging the bottom; the other walks off the top.
+// No linear axis can hold both, which is what the log option is for.
+plot(traces, { title: 'hottest |u| per step', log: true });
 `,inputs:()=>({seed:Wt(48,8,1)}),publicTests:[{name:"the limit is <code>dx² / (2·D·dims)</code>, and it is logged",run:async e=>{const t=Nc(e.logs,/limit/i),s=t.find(o=>Math.abs(o-Uc)<=1e-6),n=t.map(o=>_p(o,Uc,1e-6,o2())).find(Boolean);e.assert(s!==void 0,n||`the stability limit line should report ${Uc} — dt ≤ dx² / (2·D·dims) with dx = ${$l}, D = ${cn}, dims = 2`)}},{name:"two runs, one on each side of the line",run:async e=>{e.assert(e.kernels.length>=2,`expected two runs (two kernels, one per step size), found ${e.kernels.length}`+(e.kernels.length===0?" — run() is never called":""));const t=(await Ip(e,48)).filter(o=>!Number.isNaN(o));e.assert(t.length>=2,"could not read a diffusion number back out of two kernels");const s=Math.min(...t),n=Math.max(...t);e.assertClose(s,bs(Ph),2e-4,`the safe run should use dt = 0.4 · dtMax = ${Ph}, i.e. α = ${bs(Ph)}`),e.assertClose(n,bs(Ap),2e-4,`the reckless run should use dt = 1.6 · dtMax = ${Ap}, i.e. α = ${bs(Ap)}`),e.assert(n>.25,"neither run crossed the line — one of them has to be past α = 1/4")}},{name:"below the line the field only ever cools; above it, it detonates",run:async e=>{const t=await Ip(e,48),s=e.kernels.find((i,l)=>t[l]<.25),n=e.kernels.find((i,l)=>t[l]>.25);e.assert(s,"no run inside the limit — one of the two step sizes must be below dtMax"),e.assert(n,"no run past the limit — one of the two step sizes must be above dtMax");const o=Wt(48,8,1);let a=o;for(let i=0;i<cw;i++)a=await s(a);e.assert(wr(a,1.001),`the stable run left the range of its own initial data (hottest |u| = ${Rh(a)}) — with a positive centre weight every new value is an average of five old ones, so it cannot`);let r=o;for(let i=0;i<cw;i++)r=await n(r);e.assert(!wr(r,1e6),`the run past the limit should have blown up, but its hottest |u| is only ${Rh(r)} — is the second run really at 1.6 · dtMax?`)}}],privateTests:[{name:"private test #1",run:async e=>{const t=await Ip(e,48),s=e.kernels.find((h,p)=>t[p]<.25),n=e.kernels.find((h,p)=>t[p]>.25);e.assert(s&&n,"expected one kernel inside the limit and one past it");const o=Wt(48,12,1);let a=o;for(let h=0;h<40;h++)a=await s(a);const r=Yl(o,bs(Ph),40);for(let h=0;h<48;h+=3)for(let p=0;p<48;p+=3)e.assertClose(a[h][p],r[h][p],2e-4,`stable run, cell [${h}][${p}] after 40 steps`);e.assert(wr(a,1.001),"the stable run must stay inside its own initial range"),e.assertClose(Ti(a),Ti(o),.005,"heat is conserved on a torus");let i=o;const l=[];for(let h=1;h<=60;h++)i=await n(i),h%20===0&&l.push(Rh(i));e.assert(!wr(i,1e6),"the run past the limit did not blow up"),e.assert(!(l[0]<1)&&!(l[1]<l[0])&&!(l[2]<l[1]),`an unstable run grows every step; this trace does not: ${l.join(", ")}`)}}]},{slug:"stability-scan",title:"Sixteen Step Sizes at Once",intro:`<p>You have been told where the line is. Now measure it — and measure it the way
         a GPU makes cheap: not by running sixteen simulations one after another, but by
         running <strong>all sixteen in the same kernel launch</strong>.</p>
@@ -5325,6 +5359,10 @@ for (let i = 0; i < verletCurve.length; i++) {
 console.log('RK4    final energy:', rk4Curve[1023].toFixed(4));
 console.log('Verlet final energy:', verletCurve[1023].toFixed(4));
 console.log('Verlet never fell below:', verletLow.toFixed(4));
+
+// The numbers say it; the picture is why anyone believes it. One line slides
+// steadily downhill for a thousand steps. The other ripples and comes back.
+plot({ RK4: rk4Curve, Verlet: verletCurve }, { title: 'energy / E0 over 1,024 steps' });
 `,publicTests:[{name:"two energy curves, 1,024 samples each",run:async e=>{e.assert(e.kernels.length>=2,`expected 2 kernels (rk4Energy, verletEnergy), found ${e.kernels.length}`);const t=await Gh(e);e.assert(t.rk4,"no kernel produced the RK4 energy curve"),e.assert(t.verlet,Dp(t));const s=await t.verlet(Os);for(let n=0;n<Bs;n+=97)e.assert(Number.isFinite(s[n]),`Verlet sample ${n} came back ${s[n]}`)}},{name:"RK4 slides downhill: the energy only ever falls",run:async e=>{const{rk4:t}=await Gh(e);e.assert(t,"no kernel produced the RK4 energy curve");const s=await t(Os),n=[0,255,511,767,1023];for(const o of n){const a=rn(Hr,Os,o+1);e.assertClose(s[o],a,.01*a,`RK4 energy after ${o+1} steps`)}for(let o=1;o<n.length;o++)e.assert(s[n[o]]<s[n[o-1]]-.01,`RK4's energy after ${n[o]+1} steps is not below its value after ${n[o-1]+1} steps — this curve should fall monotonically`);e.assert(s[1023]<.85,`after 1,024 steps RK4 should have leaked about a fifth of the energy (≈0.806 of the start), got ${s[1023].toFixed(4)}`)}},{name:"Verlet never dips below the energy it started with",run:async e=>{const t=await Gh(e);e.assert(t.verlet,Dp(t));const s=await t.verlet(Os);for(const a of[0,255,511,767,1023]){const r=rn(na,Os,a+1);e.assertClose(s[a],r,.01*r,`Verlet energy after ${a+1} steps`)}let n=1/0,o=-1/0;for(let a=0;a<Bs;a++)s[a]<n&&(n=s[a]),s[a]>o&&(o=s[a]);e.assert(n>=.999,`the Verlet curve dipped to ${n.toFixed(6)} — released from x = 0 its energy is at its minimum, so a correct symplectic step can ripple upward but never below 1`),e.assert(o<=1.08,`the Verlet curve reached ${o.toFixed(4)} — the ripple should stay inside dt²/(4 − dt²) ≈ 6.7% above the start, and stay there forever`)}},{name:"the verdict is logged",run:async e=>{const t=gw(e.logs),s=rn(Hr,Os,Bs),n=rn(na,Os,Bs);e.assert(t.some(o=>Math.abs(o-s)<=.01),`log RK4's final energy — expected ≈${s.toFixed(4)} in the console output`),e.assert(t.some(o=>Math.abs(o-n)<=.01),`log Verlet's final energy — expected ≈${n.toFixed(4)} in the console output`),e.assert(t.some(o=>Math.abs(o-1)<=.002),"log the smallest value the Verlet curve reaches — it should be ≈1.0000, which is the whole point of the task")}}],privateTests:[{name:"private test #1",run:async e=>{const t=await Gh(e);e.assert(t.rk4,"no kernel produced the RK4 energy curve"),e.assert(t.verlet,Dp(t));const s=await t.rk4(.4),n=await t.verlet(.4);for(const r of[63,511,1023]){const i=rn(Hr,.4,r+1),l=rn(na,.4,r+1);e.assertClose(s[r],i,.01*i,`RK4 energy at dt = 0.4 after ${r+1} steps`),e.assertClose(n[r],l,.01*l,`Verlet energy at dt = 0.4 after ${r+1} steps`)}let o=1/0,a=-1/0;for(let r=0;r<Bs;r++)n[r]<o&&(o=n[r]),n[r]>a&&(a=n[r]);e.assert(o>=.999,`Verlet dipped to ${o.toFixed(6)} at dt = 0.4`),e.assert(a<=1.05,`Verlet reached ${a.toFixed(4)} at dt = 0.4`),e.assert(s[1023]<.97&&s[1023]>.9,`RK4 should end near 0.945 of its starting energy at dt = 0.4, got ${s[1023].toFixed(4)}`)}}]}]},k2=Object.freeze({__proto__:null,default:x2});function ww(e,t,s,n,o){return Math.abs(e-t)<=s?`that is the value for cell [${o}][${n}] — this.thread.x and this.thread.y are swapped. Rows come first: image[this.thread.y][this.thread.x]`:null}function Zl(e,t,s){return e?`the picture is transposed — the value for row ${t}, col ${s} turned up at row ${s}, col ${t}. this.thread.x and this.thread.y are swapped; rows come first: image[this.thread.y][this.thread.x].`:null}function fo(e,t,s,n){const o=n.filter(a=>Math.abs(e-a[0])<=s&&Math.abs(t-a[0])>s).map(a=>a[1]);return o.length&&o.every(a=>a===o[0])?o[0]:null}function Rp(e,t){const s=e.length,n=i=>Math.max(0,Math.min(s-1,i)),o=e[n(t-1)],a=e[t],r=e[n(t+1)];return[[(o+a+r)/3,"that is the plain 3-tap mean — this filter weights the taps 0.25 / 0.5 / 0.25"],[a,"that is the sample itself — the weighted average of its neighborhood never happened"],[.25*(o+a+r),"the center tap carries 0.5, not 0.25 — the three weights have to sum to 1"]]}function bw(e){return Number.isFinite(e)?null:"that sample read outside the signal — clamp the neighbor indexes into 0…127 before reading"}function Fp(e,t){const s="the window is not centered on this thread — tap i belongs at x + i − this.constants.radius";return e.map(n=>[n[t],s])}function T2(e,t,s,n){const o=(t*128+s)*4;return e[o]>=253&&e[o+1]>=253&&e[o+2]>=253&&Math.max(n[0],n[1],n[2])<.9?"every channel is clamped to white — that is the sum of the nine samples; divide each one by 9":null}function Gp(e,t,s){const n=e.length,o=i=>Math.max(0,Math.min(n-1,i)),a=e[t][s],r=e[t][o(s-1)]+e[t][o(s+1)]+e[o(t-1)][s]+e[o(t+1)][s];return[[4*a-r,"the center weight is 4, not 5 — the five weights have to sum to 1 so flat areas pass through unchanged"],[5*a+r,"the four neighbors are being added — a sharpen subtracts them: 5·center − left − right − up − down"],[a,"that is the value unchanged — none of the five weights reached the return value"],[r/4,"that is the average of the four neighbors — the 5·center term is missing"]]}function Mi(e,t=2301){const s=e.seededRandom(t),n=new Array(128);for(let o=0;o<128;o++)n[o]=Math.round((Math.sin(o/6)*3+s()*4)*100)/100;return n}function Hn(e,t,s){const n=e.length,o=new Array(n);for(let a=0;a<n;a++){let r=0;for(let i=0;i<t.length;i++){let l=a+i-s;l<0&&(l=0),l>n-1&&(l=n-1),r+=t[i]*e[l]}o[a]=r}return o}function S2(e){const t=e.plain,s=t.length,n=new Array(s);for(let o=0;o<s;o++){const a=new Array(s);for(let r=0;r<s;r++){let i=0,l=0,h=0;for(let p=-1;p<=1;p++)for(let k=-1;k<=1;k++){const _=Math.min(s-1,Math.max(0,o+p)),z=Math.min(s-1,Math.max(0,r+k)),j=t[_][z];i+=j[0],l+=j[1],h+=j[2]}a[r]=[i/9,l/9,h/9]}n[o]=a}return n}function vw(e){const t=e.plain,s=t.length,n=new Array(s);for(let o=0;o<s;o++){const a=new Array(s);for(let r=0;r<s;r++){const i=t[o][r];a[r]=.299*i[0]+.587*i[1]+.114*i[2]}n[o]=a}return n}function M2(e,t,s){const n=e.seededRandom(s),o=new Array(t);for(let a=0;a<t;a++){const r=new Array(t);for(let i=0;i<t;i++)r[i]=Math.round(n()*1e3)/1e3;o[a]=r}return o}function xw(e){const t=e.length,s=new Array(t);for(let n=0;n<t;n++){const o=new Array(t),a=Math.max(0,n-1),r=Math.min(t-1,n+1);for(let i=0;i<t;i++){const l=Math.max(0,i-1),h=Math.min(t-1,i+1);o[i]=5*e[n][i]-e[n][l]-e[n][h]-e[a][i]-e[r][i]}s[n]=o}return s}function kw(e,t){const s=new Array(e).fill(Ft(t));return rs(new Array(e).fill(s))}function Tw(e,t,s){const n=Ft([t,t,t,1]),o=Ft([s,s,s,1]),a=new Array(e);for(let r=0;r<e;r++){const i=new Array(e);for(let l=0;l<e;l++)i[l]=l<e/2?n:o;a[r]=i}return rs(a)}function $2(e,t,s){const n=Ft([t,t,t,1]),o=Ft([s,s,s,1]),a=new Array(e);for(let r=0;r<e;r++)a[r]=new Array(e).fill(r<e/2?n:o);return rs(a)}var C2={uuid:"66933805-3a1d-48c0-a287-16d3d7d00016",version:1,slug:"convolution-and-filters",legacyId:"2-3",title:"Convolution & Filters",blurb:"Sliding-window math on signals and images: blur, sharpen, edge detection.",tasks:[{slug:"smooth-a-signal",title:"Slide a Window: 1D Convolution",intro:`<p>A <strong>convolution</strong> slides a small window of weights along a signal:
         each output sample is a weighted average of the input around it. With weights
         <code>[0.25, 0.5, 0.25]</code> the window <em>smooths</em> — every sample leans toward
@@ -13846,17 +13884,23 @@ const rate = 0.1;
 let m = 0;
 let c = 0;
 
+const curve = [];
+
 for (let step = 1; step <= 60; step++) {
   const g = await gradientAt(m, c);
   // TODO: move m and c one step DOWNHILL.
   // g[0] is dL/dm and g[1] is dL/dc — both point UPHILL.
 
+  curve.push(await lossAt(m, c));
   if (step % 10 === 0) console.log('step', step, '· loss', await lossAt(m, c));
 }
 
 console.log('fitted slope:', m);
 console.log('fitted intercept:', c);
 console.log('final loss:', await lossAt(m, c));
+
+// The shape is the lesson: a steep drop, then a floor. Watch WHERE it flattens.
+plot({ loss: curve }, { title: 'loss per step' });
 `,solutionCode:`// Both kernels are already written. The algorithm is yours.
 const gpu = new GPU({ mode });
 
@@ -13907,17 +13951,24 @@ const rate = 0.1;
 let m = 0;
 let c = 0;
 
+const curve = [];
+
 for (let step = 1; step <= 60; step++) {
   const g = await gradientAt(m, c);
   m = m - rate * g[0];
   c = c - rate * g[1];
 
+  curve.push(await lossAt(m, c));
   if (step % 10 === 0) console.log('step', step, '· loss', await lossAt(m, c));
 }
 
 console.log('fitted slope:', m);
 console.log('fitted intercept:', c);
 console.log('final loss:', await lossAt(m, c));
+
+// The curve does not go to zero. It flattens onto 0.5 — the noise that was
+// baked into the data and that no line can fit away.
+plot({ loss: curve }, { title: 'loss per step' });
 `,inputs:()=>ss(4096),publicTests:[{name:"both kernels are intact — gradient <code>(−6, −8)</code>, loss <code>25.5</code>",run:async e=>{const t=$u(e,[64,2]),s=$u(e,[64]);e.assert(t,"no kernel with output [64, 2] found — keep the gradient kernel"),e.assert(s,"no kernel with output [64] found — keep the loss kernel");const{xs:n,ys:o}=ss(4096),a=await t(n,o,0,0);let r=0,i=0;for(let p=0;p<64;p++)r+=a[0][p],i+=a[1][p];e.assertClose(2*r/4096,-6,.002,"∂L/∂m at m = 0, c = 0"),e.assertClose(2*i/4096,-8,.002,"∂L/∂c at m = 0, c = 0");const l=await s(n,o,0,0);let h=0;for(let p=0;p<64;p++)h+=l[p];e.assertClose(h/4096,25.5,.002,"the loss at m = 0, c = 0")}},{name:"the fitted line <code>y = 3x + 4</code> is logged",run:async e=>{const t=Rr(e.logs),s=Ff(e.logs,t);e.assert(t.some(n=>Math.abs(n-3)<=.001),s||"log the fitted slope — expected to see 3 in the console output"),e.assert(t.some(n=>Math.abs(n-4)<=.001),s||"log the fitted intercept — expected to see 4 in the console output")}},{name:"the final loss <code>0.5</code> is logged",run:async e=>{const t=Rr(e.logs),s=Ff(e.logs,t);e.assert(t.some(n=>Math.abs(n-.5)<=.001),s||"log the final loss — expected to see 0.5 in the console output (25.5 means nothing moved)")}}],privateTests:[{name:"private test #1",run:async e=>{const t=$u(e,[64,2]);e.assert(t,"expected a kernel with output [64, 2]");const{xs:s,ys:n}=ss(4096),[o,a]=await V0(t,s,n,.1,60,10,-5);e.assertClose(o,sh,.001,"slope after 60 steps from (10, −5)"),e.assertClose(a,nh,.001,"intercept after 60 steps from (10, −5)");const[r,i]=await V0(t,s,n,.1,1,0,0);e.assertClose(r,.6,1e-4,"slope after exactly one step from (0, 0)"),e.assertClose(i,.8,1e-4,"intercept after exactly one step from (0, 0)")}},{name:"private test #2",run:async e=>{const t=Rr(e.logs),s=Ff(e.logs,t);e.assert(!s,s||"the descent ran away");const n=$u(e,[64]);e.assert(n,"expected a kernel with output [64]");const{xs:o,ys:a}=ss(4096);for(const[r,i]of[[3,4],[2.5,4.5],[-1,1]]){const l=await n(o,a,r,i);let h=0;for(let p=0;p<64;p++)h+=l[p];e.assertClose(h/4096,K0(r,i),.002,`the loss at m = ${r}, c = ${i}`)}}}]},{slug:"sweep-the-rate",title:"How Big a Step? Ask 256 at Once",intro:`<p>Where did <code>η = 0.1</code> come from? Nowhere. It was a guess, and guesses
         are where gradient descent goes wrong: too small and you never arrive, too large and you
         do not merely overshoot — you <strong>diverge</strong>, because the step lands you
@@ -15783,10 +15834,16 @@ function rmsOf(grid) {
 }
 
 let u = plate;
+const curve = [];
 for (let k = 0; k <= SWEEPS; k++) {
+  curve.push(rmsOf(await residual(u)));
   if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(await residual(u)));
   u = await sweep(u);
 }
+
+// A residual that falls 36x is a straight-ish line on a LOG axis and an
+// uninformative hook on a linear one. That is the whole reason for the option.
+plot({ residual: curve }, { title: 'RMS residual per sweep', log: true });
 `,solutionCode:`// How wrong is the current guess? Plug it back into the equation.
 const gpu = new GPU({ mode });
 const SWEEPS = 60;
@@ -15798,10 +15855,16 @@ ${om}
 ${rm}
 
 let u = plate;
+const curve = [];
 for (let k = 0; k <= SWEEPS; k++) {
+  curve.push(rmsOf(await residual(u)));
   if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(await residual(u)));
   u = await sweep(u);
 }
+
+// A residual that falls 36x is a straight-ish line on a LOG axis and an
+// uninformative hook on a linear one. That is the whole reason for the option.
+plot({ residual: curve }, { title: 'RMS residual per sweep', log: true });
 `,inputs:()=>({plate:ws(oe)}),publicTests:[{name:"the residual of a flat field is <code>0</code> everywhere",run:async e=>{e.assert(e.kernels.length>=2,`expected 2 kernels (the prewired sweep, then residual), found ${e.kernels.length}`);const t=Ed(oe,.4),s=await e.kernels[1](t);e.assert(s&&s.length===oe&&s[0].length===oe,"expected a 32×32 residual grid");const n=En(s,Ya(t),1e-5,sm(t));for(let o=0;o<oe;o++)for(let a=0;a<oe;a++){const i=o===0||a===0||o===oe-1||a===oe-1?"a boundary cell scored non-zero — the edges are given, not solved, so their residual is 0 by definition":n;e.assertClose(s[o][a],0,1e-5,i||`cell [${o}][${a}] of a flat field — every cell already equals its neighbours' average, so nothing is violated`)}}},{name:"interior cells hold <code>left + right + up + down − 4·centre</code>",run:async e=>{const t=Et(e.utils,oe,6180),s=await e.kernels[1](t),n=Ya(t),o=En(s,n,1e-4,sm(t));for(let a=1;a<oe-1;a++)for(let r=1;r<oe-1;r++)e.assertClose(s[a][r],n[a][r],1e-4,o||`cell [${a}][${r}]`)}},{name:"the boundary scores <code>0</code> — a given value cannot be wrong",run:async e=>{const t=Et(e.utils,oe,6180),s=await e.kernels[1](t);for(let n=0;n<oe;n++){const o=[[0,n],[oe-1,n],[n,0],[n,oe-1]];for(const[a,r]of o)e.assert(Number.isFinite(s[a][r]),`boundary cell [${a}][${r}] came back as ${s[a][r]} — it read outside the grid. Return 0 for boundary cells before touching a neighbour`),e.assertClose(s[a][r],0,1e-5,`boundary cell [${a}][${r}] — the edges are given, not solved, so their residual is 0 by definition`)}}},{name:"the console shows the residual falling, sweep by sweep",run:async e=>{const t=E4(oe,Zf,10),s=O4(e);e.assert(s.length>=t.length,`expected ${t.length} residual lines in the console (sweeps 0, 10, … ${Zf}), found ${s.length} — did rmsOf return a number?`);const n=oe*oe,o=(oe-2)*(oe-2);for(let a=0;a<t.length;a++){const r=t[a],i=r*r*n,l=Math.max(2e-5,r*.02),h=_4(s[a],r,l,P4(i,n,o));e.assertClose(s[a],r,l,h||`the residual printed at sweep ${a*10}`)}for(let a=1;a<t.length;a++)e.assert(s[a]<s[a-1],`the residual rose between sweep ${(a-1)*10} and sweep ${a*10} — Jacobi never diverges on this problem, so something is off`);e.assert(s[t.length-1]<.004,`after ${Zf} sweeps the residual should be under 0.004, got ${s[t.length-1]}`)}}],privateTests:[{name:"private test #1",run:async e=>{const t=Et(e.utils,oe,27182),s=await e.kernels[1](t),n=Ya(t),o=En(s,n,1e-4,sm(t));for(let a=0;a<oe;a++)for(let r=0;r<oe;r++)e.assertClose(s[a][r],n[a][r],1e-4,o||`cell [${a}][${r}]`)}},{name:"private test #2",run:async e=>{let t=ws(oe);const s=oa(ra(await e.kernels[1](t)));for(let o=0;o<20;o++)t=await e.kernels[0](t);const n=oa(ra(await e.kernels[1](t)));e.assertClose(s,oa(Ya(ws(oe))),1e-4,"the residual of the starting plate"),e.assert(n<s/5,`20 sweeps should cut the residual by more than 5× (${s.toFixed(5)} → ${n.toFixed(5)})`)}}]},{slug:"red-black-halves",title:"Colour the Board",intro:`<p>Jacobi throws information away. Halfway through a sweep plenty of neighbours
         already have better values, and Jacobi ignores every one of them because it reads only the
         old grid. <strong>Gauss-Seidel</strong> is the fix a human would reach for: walk the cells
