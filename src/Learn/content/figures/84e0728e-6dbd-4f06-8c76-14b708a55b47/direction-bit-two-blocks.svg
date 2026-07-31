@@ -1,0 +1,46 @@
+<svg viewBox="0 0 440 172" role="img" aria-label="At stage 4, the eight indices split on one bit of the index: threads 0 to 3 have dirBit 0 and sort their block ascending, threads 4 to 7 have dirBit 1 and sort theirs descending. The two blocks together rise then fall, which is what bitonic means.">
+  <text x="10" y="14" class="lbl-up">THE DIRECTION BIT — STAGE 4</text>
+
+  <text x="52" y="44" text-anchor="end" class="lbl">dirBit</text>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="80" y="44" fill="var(--teal)">0</text>
+    <text x="126" y="44" fill="var(--teal)">0</text>
+    <text x="172" y="44" fill="var(--teal)">0</text>
+    <text x="218" y="44" fill="var(--teal)">0</text>
+    <text x="264" y="44" fill="var(--amber)">1</text>
+    <text x="310" y="44" fill="var(--amber)">1</text>
+    <text x="356" y="44" fill="var(--amber)">1</text>
+    <text x="402" y="44" fill="var(--amber)">1</text>
+  </g>
+
+  <text x="52" y="60" text-anchor="end" class="lbl">i</text>
+  <g class="lbl" text-anchor="middle">
+    <text x="80" y="60">0</text><text x="126" y="60">1</text><text x="172" y="60">2</text><text x="218" y="60">3</text>
+    <text x="264" y="60">4</text><text x="310" y="60">5</text><text x="356" y="60">6</text><text x="402" y="60">7</text>
+  </g>
+
+  <g fill="none" stroke="var(--teal)" stroke-width="1.5">
+    <rect x="60" y="68" width="40" height="26" rx="4"/>
+    <rect x="106" y="68" width="40" height="26" rx="4"/>
+    <rect x="152" y="68" width="40" height="26" rx="4"/>
+    <rect x="198" y="68" width="40" height="26" rx="4"/>
+  </g>
+  <g fill="none" stroke="var(--amber)" stroke-width="1.5">
+    <rect x="244" y="68" width="40" height="26" rx="4"/>
+    <rect x="290" y="68" width="40" height="26" rx="4"/>
+    <rect x="336" y="68" width="40" height="26" rx="4"/>
+    <rect x="382" y="68" width="40" height="26" rx="4"/>
+  </g>
+  <g style="font-size:11px" text-anchor="middle">
+    <text x="80" y="86">2</text><text x="126" y="86">4</text><text x="172" y="86">6</text><text x="218" y="86">9</text>
+    <text x="264" y="86">8</text><text x="310" y="86">5</text><text x="356" y="86">3</text><text x="402" y="86">1</text>
+  </g>
+
+  <path d="M60 100 v 6 h 178 v -6" fill="none" stroke="var(--teal)" stroke-width="1.1"/>
+  <path d="M244 100 v 6 h 178 v -6" fill="none" stroke="var(--amber)" stroke-width="1.1"/>
+  <text x="149" y="124" text-anchor="middle" style="font-size:10px;fill:var(--teal)">ascending</text>
+  <text x="333" y="124" text-anchor="middle" style="font-size:10px;fill:var(--amber)">descending</text>
+
+  <text x="240" y="144" text-anchor="middle" class="lbl">up, then down — a bitonic sequence</text>
+  <text x="220" y="164" text-anchor="middle" class="formula">dirBit = Math.floor(i / stage) % 2</text>
+</svg>

@@ -1,0 +1,70 @@
+<svg viewBox="0 0 440 196" role="img" aria-label="A row of ten running-count values, non-decreasing from 0 to 5, above four shrinking search windows. Each window is halved at its midpoint until it closes on index 4, the first index whose running count exceeds 2 — the element that belongs in output slot 2.">
+  <text x="10" y="12" class="lbl-up">LOWER BOUND · OUTPUT SLOT j = 2</text>
+
+  <!-- index ruler -->
+  <g class="lbl" text-anchor="middle">
+    <text x="98" y="26">0</text><text x="130" y="26">1</text><text x="162" y="26">2</text>
+    <text x="194" y="26">3</text><text x="226" y="26">4</text><text x="258" y="26">5</text>
+    <text x="290" y="26">6</text><text x="322" y="26">7</text><text x="354" y="26">8</text>
+    <text x="386" y="26">9</text>
+  </g>
+  <text x="76" y="47" text-anchor="end" class="lbl">running</text>
+
+  <!-- the running count: offsets[i] + flags[i], never decreasing -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="84" y="32" width="28" height="22" rx="4"/>
+    <rect x="116" y="32" width="28" height="22" rx="4"/>
+    <rect x="148" y="32" width="28" height="22" rx="4"/>
+    <rect x="180" y="32" width="28" height="22" rx="4"/>
+    <rect x="244" y="32" width="28" height="22" rx="4"/>
+    <rect x="276" y="32" width="28" height="22" rx="4"/>
+    <rect x="308" y="32" width="28" height="22" rx="4"/>
+    <rect x="340" y="32" width="28" height="22" rx="4"/>
+    <rect x="372" y="32" width="28" height="22" rx="4"/>
+  </g>
+  <rect x="212" y="32" width="28" height="22" rx="4" fill="var(--teal)" fill-opacity=".16" stroke="var(--teal)" stroke-width="1.6"/>
+  <g style="font-size:11px" text-anchor="middle">
+    <text x="98" y="48" style="fill:var(--muted)">0</text>
+    <text x="130" y="48" style="fill:var(--muted)">1</text>
+    <text x="162" y="48" style="fill:var(--muted)">1</text>
+    <text x="194" y="48" style="fill:var(--muted)">2</text>
+    <text x="226" y="48" style="fill:var(--teal)">3</text>
+    <text x="258" y="48" style="fill:var(--muted)">3</text>
+    <text x="290" y="48" style="fill:var(--muted)">4</text>
+    <text x="322" y="48" style="fill:var(--muted)">4</text>
+    <text x="354" y="48" style="fill:var(--muted)">4</text>
+    <text x="386" y="48" style="fill:var(--muted)">5</text>
+  </g>
+
+  <!-- where the four halvings converge -->
+  <path d="M226 58 V 150" stroke="var(--teal)" stroke-width="1.1" stroke-dasharray="3 4" fill="none" opacity=".7"/>
+
+  <!-- the window [lo, hi), halved four times -->
+  <g class="lbl" text-anchor="end">
+    <text x="76" y="80">step 1</text>
+    <text x="76" y="102">step 2</text>
+    <text x="76" y="124">step 3</text>
+    <text x="76" y="146">step 4</text>
+  </g>
+  <g fill="var(--blue)" fill-opacity=".16" stroke="var(--blue)" stroke-width="1.2">
+    <rect x="84" y="72" width="320" height="9" rx="4"/>
+    <rect x="84" y="94" width="160" height="9" rx="4"/>
+    <rect x="180" y="116" width="64" height="9" rx="4"/>
+    <rect x="180" y="138" width="32" height="9" rx="4"/>
+  </g>
+  <g stroke="var(--pink)" stroke-width="2" fill="none">
+    <path d="M258 70 V 83"/>
+    <path d="M162 92 V 105"/>
+    <path d="M226 114 V 127"/>
+    <path d="M194 136 V 149"/>
+  </g>
+  <g style="font-size:9px" text-anchor="middle">
+    <text x="258" y="68" style="fill:var(--pink)">3 &gt; 2 ←</text>
+    <text x="162" y="90" style="fill:var(--pink)">1 ≤ 2 →</text>
+    <text x="220" y="112" text-anchor="end" style="fill:var(--pink)">3 &gt; 2 ←</text>
+    <text x="194" y="134" style="fill:var(--pink)">2 ≤ 2 →</text>
+  </g>
+
+  <text x="226" y="162" text-anchor="middle" style="font-size:10px;fill:var(--teal)">lo = 4</text>
+  <text x="220" y="186" text-anchor="middle" class="formula">7 halvings, not 64 reads</text>
+</svg>

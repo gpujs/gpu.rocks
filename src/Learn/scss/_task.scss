@@ -435,8 +435,37 @@
 
   // one typography for every figure — svg files carry NO font-family of
   // their own, they inherit these classes (see figures/ + the mockup)
+  // Typography is shared; colour is not. A CSS rule outranks an SVG
+  // presentation attribute, so a blanket `fill` here silently swallowed every
+  // fill="var(--blue)" a figure author wrote — 38 of 40 figures were drawing
+  // their accent labels in plain ink. Default the colour only when the figure
+  // has not asked for one, on the element or on an enclosing group.
   .diagram svg text {
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  // :where() so these carry the SAME specificity the blanket rule had. A bare
+  // :not([fill]) would score (0,2,2) and quietly outrank `.diagram svg .lbl`
+  // (0,2,1), repainting every muted caption in ink — trading one silent colour
+  // bug for a larger one.
+  .diagram svg text:where(:not([fill])) {
+    fill: var(--ink);
+  }
+
+  .diagram svg :where(g[fill]) text:where(:not([fill])) {
+    fill: inherit;
+  }
+
+  // Same trap one level up: a figure that groups labels as <g class="lbl">
+  // gets nothing, because the rule above targets <text> directly and beats
+  // inheritance from the group. Name the label classes explicitly rather than
+  // inheriting from any classed group — `.arrow` sets fill: none, which would
+  // render such text invisible.
+  .diagram svg :where(g.lbl, g.lbl-up) text:where(:not([fill])) {
+    fill: var(--muted);
+  }
+
+  .diagram svg :where(g.formula) text:where(:not([fill])) {
     fill: var(--ink);
   }
 

@@ -1,0 +1,38 @@
+<svg viewBox="0 0 440 178" role="img" aria-label="A bisection on the value axis. Each step marks a guess in the middle of the live bracket and labels it with how many of the 65,536 scores exceed it: 197, then 11, then 2. The half that cannot contain the cutoff is thrown away each time, until the bracket is narrow enough that exactly ten scores clear it.">
+  <text x="10" y="14" class="lbl-up">BISECT THE VALUE AXIS</text>
+  <text x="78" y="30" class="lbl">score 0</text>
+  <text x="404" y="30" text-anchor="end" class="lbl">93,000</text>
+
+  <!-- step 1: 197 above the middle — still too many, keep the right half -->
+  <text x="10" y="58" class="lbl">step 1</text>
+  <line x1="78" y1="54" x2="404" y2="54" class="cellline"/>
+  <line x1="78" y1="54" x2="404" y2="54" stroke="var(--blue)" stroke-width="3" opacity=".3"/>
+  <path d="M78 48 v12 M404 48 v12" stroke="var(--blue)" stroke-width="1.4" fill="none"/>
+  <path d="M241 46 v16" stroke="var(--pink)" stroke-width="1.4" fill="none"/>
+  <text x="241" y="42" text-anchor="middle" style="font-size:9px;fill:var(--pink)">197</text>
+
+  <!-- step 2 -->
+  <text x="10" y="88" class="lbl">step 2</text>
+  <line x1="78" y1="84" x2="404" y2="84" class="cellline"/>
+  <line x1="241" y1="84" x2="404" y2="84" stroke="var(--blue)" stroke-width="3" opacity=".3"/>
+  <path d="M241 78 v12 M404 78 v12" stroke="var(--blue)" stroke-width="1.4" fill="none"/>
+  <path d="M322 76 v16" stroke="var(--pink)" stroke-width="1.4" fill="none"/>
+  <text x="322" y="72" text-anchor="middle" style="font-size:9px;fill:var(--pink)">11</text>
+
+  <!-- step 3: too few now — the guess was too high, so hi comes down -->
+  <text x="10" y="118" class="lbl">step 3</text>
+  <line x1="78" y1="114" x2="404" y2="114" class="cellline"/>
+  <line x1="322" y1="114" x2="404" y2="114" stroke="var(--blue)" stroke-width="3" opacity=".3"/>
+  <path d="M322 108 v12 M404 108 v12" stroke="var(--blue)" stroke-width="1.4" fill="none"/>
+  <path d="M363 106 v16" stroke="var(--pink)" stroke-width="1.4" fill="none"/>
+  <text x="363" y="102" text-anchor="middle" style="font-size:9px;fill:var(--pink)">2</text>
+
+  <!-- settled -->
+  <text x="10" y="148" class="lbl">step 18</text>
+  <line x1="78" y1="144" x2="404" y2="144" class="cellline"/>
+  <line x1="322" y1="144" x2="330" y2="144" stroke="var(--teal)" stroke-width="3.2"/>
+  <path d="M322 138 v12 M330 138 v12" stroke="var(--teal)" stroke-width="1.5" fill="none"/>
+  <text x="340" y="148" style="font-size:9px;fill:var(--teal)">exactly 10 above</text>
+
+  <text x="220" y="170" text-anchor="middle" class="formula">count &gt;= k → lo = mid  ·  count &lt; k → hi = mid</text>
+</svg>

@@ -1,0 +1,127 @@
+<svg viewBox="0 0 440 206" role="img" aria-label="Ten samples with a row of 0/1 flags beneath them and the exclusive scan of those flags beneath that. Arrows run from each surviving sample down to the packed output slot numbered by its scan value, so the five survivors land in slots 0 to 4 and the rest of the output stays leftover.">
+  <text x="10" y="12" class="lbl-up">SAMPLES · FLAGS · OFFSETS</text>
+
+  <!-- row labels -->
+  <g class="lbl" text-anchor="end">
+    <text x="76" y="38">samples</text>
+    <text x="76" y="71">flags</text>
+    <text x="76" y="103">offsets</text>
+    <text x="76" y="168">packed</text>
+  </g>
+
+  <!-- row 1: the samples. survivors (>= 50) outlined, rejects muted -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="84" y="22" width="28" height="22" rx="4"/>
+    <rect x="148" y="22" width="28" height="22" rx="4"/>
+    <rect x="244" y="22" width="28" height="22" rx="4"/>
+    <rect x="308" y="22" width="28" height="22" rx="4"/>
+    <rect x="340" y="22" width="28" height="22" rx="4"/>
+  </g>
+  <g fill="none" stroke="var(--teal)" stroke-width="1.6">
+    <rect x="116" y="22" width="28" height="22" rx="4"/>
+    <rect x="180" y="22" width="28" height="22" rx="4"/>
+    <rect x="276" y="22" width="28" height="22" rx="4"/>
+    <rect x="372" y="22" width="28" height="22" rx="4"/>
+  </g>
+  <rect x="212" y="22" width="28" height="22" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g style="font-size:11px" text-anchor="middle">
+    <text x="98" y="38" style="fill:var(--muted)">7</text>
+    <text x="130" y="38">82</text>
+    <text x="162" y="38" style="fill:var(--muted)">4</text>
+    <text x="194" y="38">91</text>
+    <text x="226" y="38" style="fill:var(--pink)">55</text>
+    <text x="258" y="38" style="fill:var(--muted)">3</text>
+    <text x="290" y="38">60</text>
+    <text x="322" y="38" style="fill:var(--muted)">2</text>
+    <text x="354" y="38" style="fill:var(--muted)">9</text>
+    <text x="386" y="38">74</text>
+  </g>
+
+  <!-- row 2: the 0/1 mask -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="84" y="56" width="28" height="20" rx="4"/>
+    <rect x="116" y="56" width="28" height="20" rx="4"/>
+    <rect x="148" y="56" width="28" height="20" rx="4"/>
+    <rect x="180" y="56" width="28" height="20" rx="4"/>
+    <rect x="212" y="56" width="28" height="20" rx="4"/>
+    <rect x="244" y="56" width="28" height="20" rx="4"/>
+    <rect x="276" y="56" width="28" height="20" rx="4"/>
+    <rect x="308" y="56" width="28" height="20" rx="4"/>
+    <rect x="340" y="56" width="28" height="20" rx="4"/>
+    <rect x="372" y="56" width="28" height="20" rx="4"/>
+  </g>
+  <g style="font-size:11px" text-anchor="middle">
+    <text x="98" y="71" style="fill:var(--muted)">0</text>
+    <text x="130" y="71" style="fill:var(--teal)">1</text>
+    <text x="162" y="71" style="fill:var(--muted)">0</text>
+    <text x="194" y="71" style="fill:var(--teal)">1</text>
+    <text x="226" y="71" style="fill:var(--pink)">1</text>
+    <text x="258" y="71" style="fill:var(--muted)">0</text>
+    <text x="290" y="71" style="fill:var(--teal)">1</text>
+    <text x="322" y="71" style="fill:var(--muted)">0</text>
+    <text x="354" y="71" style="fill:var(--muted)">0</text>
+    <text x="386" y="71" style="fill:var(--teal)">1</text>
+  </g>
+
+  <!-- row 3: the exclusive scan of the mask -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="84" y="88" width="28" height="20" rx="4"/>
+    <rect x="116" y="88" width="28" height="20" rx="4"/>
+    <rect x="148" y="88" width="28" height="20" rx="4"/>
+    <rect x="180" y="88" width="28" height="20" rx="4"/>
+    <rect x="212" y="88" width="28" height="20" rx="4"/>
+    <rect x="244" y="88" width="28" height="20" rx="4"/>
+    <rect x="276" y="88" width="28" height="20" rx="4"/>
+    <rect x="308" y="88" width="28" height="20" rx="4"/>
+    <rect x="340" y="88" width="28" height="20" rx="4"/>
+    <rect x="372" y="88" width="28" height="20" rx="4"/>
+  </g>
+  <g style="font-size:11px" text-anchor="middle">
+    <text x="98" y="103" style="fill:var(--muted)">0</text>
+    <text x="130" y="103" style="fill:var(--teal)">0</text>
+    <text x="162" y="103" style="fill:var(--muted)">1</text>
+    <text x="194" y="103" style="fill:var(--teal)">1</text>
+    <text x="226" y="103" style="fill:var(--pink)">2</text>
+    <text x="258" y="103" style="fill:var(--muted)">3</text>
+    <text x="290" y="103" style="fill:var(--teal)">3</text>
+    <text x="322" y="103" style="fill:var(--muted)">4</text>
+    <text x="354" y="103" style="fill:var(--muted)">4</text>
+    <text x="386" y="103" style="fill:var(--teal)">4</text>
+  </g>
+
+  <!-- each survivor drops to the slot its offset names -->
+  <g fill="none" stroke="var(--teal)" stroke-width="1.3">
+    <path d="M130 112 C 130 132, 98 132, 98 146"/>
+    <path d="M194 112 C 194 132, 130 132, 130 146"/>
+    <path d="M290 112 C 290 132, 194 132, 194 146"/>
+    <path d="M386 112 C 386 132, 226 132, 226 146"/>
+  </g>
+  <path d="M226 112 C 226 132, 162 132, 162 146" fill="none" stroke="var(--pink)" stroke-width="1.5"/>
+  <g fill="var(--teal)">
+    <path d="M98 152 l -4 -7 h 8 z"/>
+    <path d="M130 152 l -4 -7 h 8 z"/>
+    <path d="M194 152 l -4 -7 h 8 z"/>
+    <path d="M226 152 l -4 -7 h 8 z"/>
+  </g>
+  <path d="M162 152 l -4 -7 h 8 z" fill="var(--pink)"/>
+
+  <!-- the packed output: five survivors, then nothing worth reading -->
+  <g fill="var(--teal)" fill-opacity=".14" stroke="var(--teal)" stroke-width="1.4">
+    <rect x="84" y="152" width="28" height="22" rx="4"/>
+    <rect x="116" y="152" width="28" height="22" rx="4"/>
+    <rect x="180" y="152" width="28" height="22" rx="4"/>
+    <rect x="212" y="152" width="28" height="22" rx="4"/>
+  </g>
+  <rect x="148" y="152" width="28" height="22" rx="4" fill="var(--pink)" fill-opacity=".14" stroke="var(--pink)" stroke-width="1.4"/>
+  <rect x="244" y="152" width="156" height="22" rx="4" fill="none" stroke="var(--line)" stroke-dasharray="4 4"/>
+  <g style="font-size:11px" text-anchor="middle">
+    <text x="98" y="168">82</text>
+    <text x="130" y="168">91</text>
+    <text x="162" y="168" style="fill:var(--pink)">55</text>
+    <text x="194" y="168">60</text>
+    <text x="226" y="168">74</text>
+  </g>
+  <text x="322" y="168" text-anchor="middle" class="lbl">leftover, not data</text>
+
+  <text x="220" y="196" text-anchor="middle" class="formula">survivor i lands at slot offsets[i]</text>
+</svg>

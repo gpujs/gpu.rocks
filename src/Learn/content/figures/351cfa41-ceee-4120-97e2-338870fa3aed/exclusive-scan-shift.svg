@@ -1,0 +1,59 @@
+<svg viewBox="0 0 440 168" role="img" aria-label="Eight counts, their inclusive scan, and their exclusive scan. Each inclusive cell slides one place to the right to become an exclusive cell, a zero is pushed into cell 0, and the last inclusive value — the grand total — falls off the end and has to be kept separately.">
+  <text x="10" y="14" class="lbl-up">ONE CELL TO THE RIGHT</text>
+
+  <!-- counts -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="76" y="26" width="34" height="20" rx="4"/><rect x="114" y="26" width="34" height="20" rx="4"/>
+    <rect x="152" y="26" width="34" height="20" rx="4"/><rect x="190" y="26" width="34" height="20" rx="4"/>
+    <rect x="228" y="26" width="34" height="20" rx="4"/><rect x="266" y="26" width="34" height="20" rx="4"/>
+    <rect x="304" y="26" width="34" height="20" rx="4"/><rect x="342" y="26" width="34" height="20" rx="4"/>
+  </g>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="93" y="40">2</text><text x="131" y="40">0</text><text x="169" y="40">3</text><text x="207" y="40">1</text>
+    <text x="245" y="40">4</text><text x="283" y="40">2</text><text x="321" y="40">1</text><text x="359" y="40">3</text>
+  </g>
+  <text x="68" y="40" text-anchor="end" class="lbl">counts</text>
+
+  <!-- inclusive -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.4">
+    <rect x="76" y="66" width="34" height="20" rx="4"/><rect x="114" y="66" width="34" height="20" rx="4"/>
+    <rect x="152" y="66" width="34" height="20" rx="4"/><rect x="190" y="66" width="34" height="20" rx="4"/>
+    <rect x="228" y="66" width="34" height="20" rx="4"/><rect x="266" y="66" width="34" height="20" rx="4"/>
+    <rect x="304" y="66" width="34" height="20" rx="4"/>
+  </g>
+  <rect x="342" y="66" width="34" height="20" rx="4" fill="none" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="93" y="80">2</text><text x="131" y="80">2</text><text x="169" y="80">5</text><text x="207" y="80">6</text>
+    <text x="245" y="80">10</text><text x="283" y="80">12</text><text x="321" y="80">13</text>
+    <text x="359" y="80" fill="var(--amber)">16</text>
+  </g>
+  <text x="68" y="80" text-anchor="end" class="lbl">inclusive</text>
+
+  <!-- the shift -->
+  <g class="arrow" stroke-width="1.1" opacity=".5">
+    <path d="M93 88 L 131 106"/><path d="M131 88 L 169 106"/><path d="M169 88 L 207 106"/>
+    <path d="M207 88 L 245 106"/><path d="M245 88 L 283 106"/><path d="M283 88 L 321 106"/><path d="M321 88 L 359 106"/>
+  </g>
+  <path d="M359 88 C 388 96, 396 96, 400 104" fill="none" stroke="var(--amber)" stroke-width="1.4" stroke-dasharray="4 3"/>
+  <path fill="var(--amber)" d="M401 108 l -5 -5.6 h 7.4 z"/>
+  <text x="392" y="122" style="font-size:8px" fill="var(--amber)">total</text>
+  <text x="392" y="132" style="font-size:8px" fill="var(--amber)">falls off</text>
+
+  <!-- exclusive -->
+  <rect x="76" y="108" width="34" height="20" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.7"/>
+  <g fill="none" stroke="var(--line)">
+    <rect x="114" y="108" width="34" height="20" rx="4"/><rect x="152" y="108" width="34" height="20" rx="4"/>
+    <rect x="190" y="108" width="34" height="20" rx="4"/><rect x="228" y="108" width="34" height="20" rx="4"/>
+    <rect x="266" y="108" width="34" height="20" rx="4"/><rect x="304" y="108" width="34" height="20" rx="4"/>
+    <rect x="342" y="108" width="34" height="20" rx="4"/>
+  </g>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="93" y="122" fill="var(--teal)">0</text>
+    <text x="131" y="122">2</text><text x="169" y="122">2</text><text x="207" y="122">5</text><text x="245" y="122">6</text>
+    <text x="283" y="122">10</text><text x="321" y="122">12</text><text x="359" y="122">13</text>
+  </g>
+  <text x="68" y="122" text-anchor="end" class="lbl">exclusive</text>
+
+  <text x="10" y="150" class="lbl">session 1 booked nobody, so sessions 1 and 2 start in the same seat</text>
+  <text x="10" y="163" class="formula">exclusive[i] = inclusive[i − 1] &#160;&#160; exclusive[0] = 0</text>
+</svg>

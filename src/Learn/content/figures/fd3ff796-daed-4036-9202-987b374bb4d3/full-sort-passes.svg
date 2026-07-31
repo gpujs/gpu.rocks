@@ -1,0 +1,80 @@
+<svg viewBox="0 0 440 186" role="img" aria-label="Six numbers through three stable passes — by ones digit, then tens, then hundreds — ending sorted. In the last pass four numbers share the hundreds digit 0, and their order is the one the first two passes established.">
+  <text x="10" y="13" class="lbl-up">THREE PASSES, LOW DIGIT FIRST</text>
+
+  <g text-anchor="middle">
+    <text x="48" y="29" class="lbl">start</text>
+    <text x="154" y="29" class="lbl">by ones</text>
+    <text x="260" y="29" class="lbl">by tens</text>
+    <text x="366" y="29" class="lbl">by hundreds</text>
+  </g>
+
+  <!-- ---- column 1: as they arrived ---- -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="16" y="36" width="64" height="18" rx="4"/>
+    <rect x="16" y="57" width="64" height="18" rx="4"/>
+    <rect x="16" y="78" width="64" height="18" rx="4"/>
+    <rect x="16" y="99" width="64" height="18" rx="4"/>
+    <rect x="16" y="141" width="64" height="18" rx="4"/>
+  </g>
+  <rect x="16" y="120" width="64" height="18" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="48" y="49">170</text><text x="48" y="70">45</text><text x="48" y="91">75</text>
+    <text x="48" y="112">90</text><text x="48" y="133" fill="var(--pink)">802</text><text x="48" y="154">24</text>
+  </g>
+
+  <!-- ---- column 2: sorted by the ones digit ---- -->
+  <g text-anchor="end">
+    <text x="116" y="49" class="lbl">0</text><text x="116" y="70" class="lbl">0</text><text x="116" y="91" class="lbl">2</text>
+    <text x="116" y="112" class="lbl">4</text><text x="116" y="133" class="lbl">5</text><text x="116" y="154" class="lbl">5</text>
+  </g>
+  <g fill="none" stroke="var(--line)">
+    <rect x="122" y="36" width="64" height="18" rx="4"/>
+    <rect x="122" y="57" width="64" height="18" rx="4"/>
+    <rect x="122" y="99" width="64" height="18" rx="4"/>
+    <rect x="122" y="120" width="64" height="18" rx="4"/>
+    <rect x="122" y="141" width="64" height="18" rx="4"/>
+  </g>
+  <rect x="122" y="78" width="64" height="18" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="154" y="49">170</text><text x="154" y="70">90</text><text x="154" y="91" fill="var(--pink)">802</text>
+    <text x="154" y="112">24</text><text x="154" y="133">45</text><text x="154" y="154">75</text>
+  </g>
+
+  <!-- ---- column 3: sorted by the tens digit ---- -->
+  <g text-anchor="end">
+    <text x="222" y="49" class="lbl">0</text><text x="222" y="70" class="lbl">2</text><text x="222" y="91" class="lbl">4</text>
+    <text x="222" y="112" class="lbl">7</text><text x="222" y="133" class="lbl">7</text><text x="222" y="154" class="lbl">9</text>
+  </g>
+  <g fill="none" stroke="var(--line)">
+    <rect x="228" y="57" width="64" height="18" rx="4"/>
+    <rect x="228" y="78" width="64" height="18" rx="4"/>
+    <rect x="228" y="99" width="64" height="18" rx="4"/>
+    <rect x="228" y="120" width="64" height="18" rx="4"/>
+    <rect x="228" y="141" width="64" height="18" rx="4"/>
+  </g>
+  <rect x="228" y="36" width="64" height="18" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="260" y="49" fill="var(--pink)">802</text><text x="260" y="70">24</text><text x="260" y="91">45</text>
+    <text x="260" y="112">170</text><text x="260" y="133">75</text><text x="260" y="154">90</text>
+  </g>
+
+  <!-- ---- column 4: sorted by the hundreds digit, and done ---- -->
+  <g text-anchor="end">
+    <text x="328" y="49" class="lbl">0</text><text x="328" y="70" class="lbl">0</text><text x="328" y="91" class="lbl">0</text>
+    <text x="328" y="112" class="lbl">0</text><text x="328" y="133" class="lbl">1</text><text x="328" y="154" class="lbl">8</text>
+  </g>
+  <g fill="var(--teal)" fill-opacity=".16" stroke="var(--teal)" stroke-width="1.3">
+    <rect x="334" y="36" width="64" height="18" rx="4"/>
+    <rect x="334" y="57" width="64" height="18" rx="4"/>
+    <rect x="334" y="78" width="64" height="18" rx="4"/>
+    <rect x="334" y="99" width="64" height="18" rx="4"/>
+  </g>
+  <rect x="334" y="120" width="64" height="18" rx="4" fill="none" stroke="var(--line)"/>
+  <rect x="334" y="141" width="64" height="18" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="366" y="49">24</text><text x="366" y="70">45</text><text x="366" y="91">75</text>
+    <text x="366" y="112">90</text><text x="366" y="133">170</text><text x="366" y="154" fill="var(--pink)">802</text>
+  </g>
+
+  <text x="220" y="176" text-anchor="middle" class="lbl">four ties in the last pass — their order came from passes 1 and 2</text>
+</svg>

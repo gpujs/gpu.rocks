@@ -1,0 +1,103 @@
+<svg viewBox="0 0 440 214" role="img" aria-label="Three passes of a Hillis-Steele scan over eight cells: at pass 0 every cell adds the value one place to its left, at pass 1 two places, at pass 2 four places, and the last row holds the finished inclusive scan. Cells with no partner that far to the left pass their value through unchanged.">
+  <text x="10" y="14" class="lbl-up">THE STRIDE DOUBLES EVERY PASS</text>
+
+  <!-- row 0: the input -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="64" y="26" width="34" height="20" rx="4"/><rect x="102" y="26" width="34" height="20" rx="4"/>
+    <rect x="140" y="26" width="34" height="20" rx="4"/><rect x="178" y="26" width="34" height="20" rx="4"/>
+    <rect x="216" y="26" width="34" height="20" rx="4"/><rect x="254" y="26" width="34" height="20" rx="4"/>
+    <rect x="292" y="26" width="34" height="20" rx="4"/><rect x="330" y="26" width="34" height="20" rx="4"/>
+  </g>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="81" y="40">3</text><text x="119" y="40">1</text><text x="157" y="40">4</text><text x="195" y="40">1</text>
+    <text x="233" y="40">5</text><text x="271" y="40">9</text><text x="309" y="40">2</text><text x="347" y="40">6</text>
+  </g>
+  <text x="56" y="40" text-anchor="end" class="lbl">x</text>
+  <text x="372" y="40" class="lbl">in</text>
+
+  <!-- pass 0, stride 1 -->
+  <g class="arrow" stroke-width="1.1" opacity=".35">
+    <path d="M81 48 L 119 68"/><path d="M119 48 L 157 68"/><path d="M157 48 L 195 68"/>
+    <path d="M195 48 L 233 68"/><path d="M233 48 L 271 68"/><path d="M271 48 L 309 68"/>
+  </g>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.4">
+    <path d="M309 48 L 347 68"/><path d="M347 48 L 347 68"/>
+  </g>
+  <g fill="var(--pink)">
+    <path d="M347 70 l -3.5 -6 h 7 z"/>
+  </g>
+  <rect x="64" y="70" width="34" height="20" rx="4" fill="none" stroke="var(--line)" stroke-dasharray="3 3"/>
+  <g fill="none" stroke="var(--blue)" stroke-width="1.4">
+    <rect x="102" y="70" width="34" height="20" rx="4"/><rect x="140" y="70" width="34" height="20" rx="4"/>
+    <rect x="178" y="70" width="34" height="20" rx="4"/><rect x="216" y="70" width="34" height="20" rx="4"/>
+    <rect x="254" y="70" width="34" height="20" rx="4"/><rect x="292" y="70" width="34" height="20" rx="4"/>
+  </g>
+  <rect x="330" y="70" width="34" height="20" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.7"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="81" y="84" class="lbl" style="font-size:10px">3</text><text x="119" y="84">4</text><text x="157" y="84">5</text><text x="195" y="84">5</text>
+    <text x="233" y="84">6</text><text x="271" y="84">14</text><text x="309" y="84">11</text>
+    <text x="347" y="84" fill="var(--pink)">8</text>
+  </g>
+  <text x="56" y="84" text-anchor="end" class="lbl">d=0</text>
+  <text x="372" y="84" class="lbl">stride 1</text>
+
+  <!-- pass 1, stride 2 -->
+  <g class="arrow" stroke-width="1.1" opacity=".35">
+    <path d="M81 92 L 157 112"/><path d="M119 92 L 195 112"/><path d="M157 92 L 233 112"/>
+    <path d="M195 92 L 271 112"/><path d="M233 92 L 309 112"/>
+  </g>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.4">
+    <path d="M271 92 L 347 112"/><path d="M347 92 L 347 112"/>
+  </g>
+  <g fill="var(--pink)">
+    <path d="M347 114 l -3.5 -6 h 7 z"/>
+  </g>
+  <g fill="none" stroke="var(--line)" stroke-dasharray="3 3">
+    <rect x="64" y="114" width="34" height="20" rx="4"/><rect x="102" y="114" width="34" height="20" rx="4"/>
+  </g>
+  <g fill="none" stroke="var(--blue)" stroke-width="1.4">
+    <rect x="140" y="114" width="34" height="20" rx="4"/><rect x="178" y="114" width="34" height="20" rx="4"/>
+    <rect x="216" y="114" width="34" height="20" rx="4"/><rect x="254" y="114" width="34" height="20" rx="4"/>
+    <rect x="292" y="114" width="34" height="20" rx="4"/>
+  </g>
+  <rect x="330" y="114" width="34" height="20" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.7"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="81" y="128" class="lbl" style="font-size:10px">3</text><text x="119" y="128" class="lbl" style="font-size:10px">4</text>
+    <text x="157" y="128">8</text><text x="195" y="128">9</text><text x="233" y="128">11</text>
+    <text x="271" y="128">19</text><text x="309" y="128">17</text>
+    <text x="347" y="128" fill="var(--pink)">22</text>
+  </g>
+  <text x="56" y="128" text-anchor="end" class="lbl">d=1</text>
+  <text x="372" y="128" class="lbl">stride 2</text>
+
+  <!-- pass 2, stride 4 -->
+  <g class="arrow" stroke-width="1.1" opacity=".35">
+    <path d="M81 136 L 233 156"/><path d="M119 136 L 271 156"/><path d="M157 136 L 309 156"/>
+  </g>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.4">
+    <path d="M195 136 L 347 156"/><path d="M347 136 L 347 156"/>
+  </g>
+  <g fill="var(--pink)">
+    <path d="M347 158 l -3.5 -6 h 7 z"/>
+  </g>
+  <g fill="none" stroke="var(--teal)" stroke-dasharray="3 3">
+    <rect x="64" y="158" width="34" height="20" rx="4"/><rect x="102" y="158" width="34" height="20" rx="4"/>
+    <rect x="140" y="158" width="34" height="20" rx="4"/><rect x="178" y="158" width="34" height="20" rx="4"/>
+  </g>
+  <g fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6">
+    <rect x="216" y="158" width="34" height="20" rx="4"/><rect x="254" y="158" width="34" height="20" rx="4"/>
+    <rect x="292" y="158" width="34" height="20" rx="4"/><rect x="330" y="158" width="34" height="20" rx="4"/>
+  </g>
+  <g style="font-size:10px" text-anchor="middle" fill="var(--teal)">
+    <text x="81" y="172">3</text><text x="119" y="172">4</text>
+    <text x="157" y="172">8</text><text x="195" y="172">9</text>
+    <text x="233" y="172">14</text><text x="271" y="172">23</text>
+    <text x="309" y="172">25</text><text x="347" y="172">31</text>
+  </g>
+  <text x="56" y="172" text-anchor="end" class="lbl">d=2</text>
+  <text x="372" y="172" class="lbl">stride 4</text>
+
+  <text x="56" y="194" text-anchor="end" class="lbl">dashed</text>
+  <text x="64" y="194" class="lbl">= no partner that far left, so the value passes through</text>
+  <text x="220" y="208" text-anchor="middle" class="formula">data[x] + data[x − stride] &#160;&#160; × log₂(8) = 3 passes</text>
+</svg>

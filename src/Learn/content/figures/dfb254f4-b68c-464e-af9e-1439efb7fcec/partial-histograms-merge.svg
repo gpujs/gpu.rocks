@@ -1,0 +1,69 @@
+<svg viewBox="0 0 440 186" role="img" aria-label="Each chunk of the input produces its own partial histogram: one row per chunk, one column per bin. The merge pass adds each bin's column down the rows, so bin 1's partials of 1, 5 and 0 become a final count of 6.">
+  <text x="10" y="12" class="lbl-up">PARTIAL HISTOGRAMS, THEN MERGE</text>
+
+  <g class="lbl" text-anchor="middle">
+    <text x="155" y="24">bin 0</text>
+    <text x="183" y="24">1</text>
+    <text x="211" y="24">2</text>
+    <text x="239" y="24">3</text>
+  </g>
+
+  <!-- chunks of the input -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.4">
+    <rect x="14" y="30" width="86" height="22" rx="5"/>
+    <rect x="14" y="62" width="86" height="22" rx="5"/>
+    <rect x="14" y="94" width="86" height="22" rx="5"/>
+  </g>
+  <g text-anchor="middle" style="font-size:10px" fill="var(--blue)">
+    <text x="57" y="45">chunk 0</text>
+    <text x="57" y="77">chunk 1</text>
+    <text x="57" y="109">chunk 2</text>
+  </g>
+  <g fill="none" class="arrow" stroke-width="1.2">
+    <path d="M104 41 H 128"/>
+    <path d="M104 73 H 128"/>
+    <path d="M104 105 H 128"/>
+  </g>
+  <g class="arrowhead">
+    <path d="M136 41 l -8 -4 v 8 z"/>
+    <path d="M136 73 l -8 -4 v 8 z"/>
+    <path d="M136 105 l -8 -4 v 8 z"/>
+  </g>
+
+  <!-- the grid of partials: one row per chunk -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="142" y="30" width="26" height="22" rx="4"/><rect x="198" y="30" width="26" height="22" rx="4"/><rect x="226" y="30" width="26" height="22" rx="4"/>
+    <rect x="142" y="62" width="26" height="22" rx="4"/><rect x="198" y="62" width="26" height="22" rx="4"/><rect x="226" y="62" width="26" height="22" rx="4"/>
+    <rect x="142" y="94" width="26" height="22" rx="4"/><rect x="198" y="94" width="26" height="22" rx="4"/><rect x="226" y="94" width="26" height="22" rx="4"/>
+  </g>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.5">
+    <rect x="170" y="30" width="26" height="22" rx="4"/>
+    <rect x="170" y="62" width="26" height="22" rx="4"/>
+    <rect x="170" y="94" width="26" height="22" rx="4"/>
+  </g>
+  <g text-anchor="middle" style="font-size:10px">
+    <text x="155" y="45" class="lbl">3</text><text x="183" y="45" fill="var(--pink)">1</text><text x="211" y="45" class="lbl">4</text><text x="239" y="45" class="lbl">2</text>
+    <text x="155" y="77" class="lbl">2</text><text x="183" y="77" fill="var(--pink)">5</text><text x="211" y="77" class="lbl">1</text><text x="239" y="77" class="lbl">2</text>
+    <text x="155" y="109" class="lbl">4</text><text x="183" y="109" fill="var(--pink)">0</text><text x="211" y="109" class="lbl">3</text><text x="239" y="109" class="lbl">3</text>
+  </g>
+  <text x="266" y="45" class="lbl">partial[chunk][bin]</text>
+  <text x="266" y="77" class="lbl">512 codes per row</text>
+
+  <!-- pass two adds each column down the rows -->
+  <path d="M183 118 V 130" fill="none" stroke="var(--pink)" stroke-width="1.4"/>
+  <path d="M183 136 l -4 -7 h 8 z" fill="var(--pink)"/>
+  <text x="200" y="133" style="font-size:10px" fill="var(--pink)">Σ down the column</text>
+
+  <g fill="none" stroke="var(--teal)" stroke-width="1.5">
+    <rect x="142" y="138" width="26" height="24" rx="4"/>
+    <rect x="198" y="138" width="26" height="24" rx="4"/>
+    <rect x="226" y="138" width="26" height="24" rx="4"/>
+  </g>
+  <rect x="170" y="138" width="26" height="24" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <g text-anchor="middle" style="font-size:10px" fill="var(--teal)">
+    <text x="155" y="154">9</text><text x="183" y="154">6</text><text x="211" y="154">8</text><text x="239" y="154">7</text>
+  </g>
+  <text x="266" y="154" class="lbl">final counts</text>
+
+  <text x="220" y="178" text-anchor="middle" class="formula">16 bins × 32 chunks = 512 threads, not 16</text>
+</svg>

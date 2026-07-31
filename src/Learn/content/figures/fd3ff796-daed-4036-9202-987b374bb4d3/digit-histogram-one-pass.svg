@@ -1,0 +1,85 @@
+<svg viewBox="0 0 440 200" role="img" aria-label="One radix-sort pass end to end: eight keys, the digit of each, the count of keys in every bucket, the exclusive scan of those counts into starting slots, and an arrow from each key to the slot its bucket start plus its rank picks out.">
+  <text x="10" y="13" class="lbl-up">ONE PASS, END TO END</text>
+
+  <!-- the keys -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="10" y="22" width="38" height="22" rx="4"/>
+    <rect x="54" y="22" width="38" height="22" rx="4"/>
+    <rect x="142" y="22" width="38" height="22" rx="4"/>
+    <rect x="186" y="22" width="38" height="22" rx="4"/>
+    <rect x="230" y="22" width="38" height="22" rx="4"/>
+    <rect x="274" y="22" width="38" height="22" rx="4"/>
+    <rect x="318" y="22" width="38" height="22" rx="4"/>
+  </g>
+  <rect x="98" y="22" width="38" height="22" rx="4" fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="29" y="37">13</text><text x="73" y="37">22</text><text x="117" y="37">41</text><text x="161" y="37">20</text>
+    <text x="205" y="37">12</text><text x="249" y="37">35</text><text x="293" y="37">40</text><text x="337" y="37">29</text>
+  </g>
+  <text x="366" y="37" class="lbl">keys</text>
+
+  <!-- their digit at this place -->
+  <g text-anchor="middle">
+    <text x="29" y="57" class="lbl">1</text><text x="73" y="57" class="lbl">2</text><text x="161" y="57" class="lbl">0</text>
+    <text x="205" y="57" class="lbl">0</text><text x="249" y="57" class="lbl">3</text><text x="293" y="57" class="lbl">0</text><text x="337" y="57" class="lbl">1</text>
+  </g>
+  <text x="117" y="57" text-anchor="middle" style="font-size:10px" fill="var(--pink)">1</text>
+  <text x="366" y="57" class="lbl">digit</text>
+
+  <!-- the bucket table: counts, then their exclusive scan -->
+  <rect x="134" y="61" width="44" height="48" rx="4" fill="var(--pink)" fill-opacity=".12"/>
+  <text x="10" y="73" class="lbl">bucket</text>
+  <text x="10" y="88" class="lbl">count</text>
+  <text x="10" y="103" class="lbl">start</text>
+  <g text-anchor="middle">
+    <text x="96" y="73" class="lbl">0</text><text x="156" y="73" class="lbl">1</text><text x="216" y="73" class="lbl">2</text><text x="276" y="73" class="lbl">3</text>
+  </g>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="96" y="88">3</text><text x="156" y="88">3</text><text x="216" y="88">1</text><text x="276" y="88">1</text>
+    <text x="96" y="103">0</text><text x="156" y="103">3</text><text x="216" y="103">6</text><text x="276" y="103">7</text>
+  </g>
+  <text x="306" y="88" class="lbl">start = how many keys</text>
+  <text x="306" y="103" class="lbl">have a smaller digit</text>
+
+  <!-- every key travels to start[digit] + its rank inside that bucket -->
+  <g class="arrow" stroke-width="1.1" opacity=".45">
+    <path d="M29 110 L 161 141"/>
+    <path d="M73 110 L 293 141"/>
+    <path d="M161 110 L 29 141"/>
+    <path d="M205 110 L 73 141"/>
+    <path d="M249 110 L 337 141"/>
+    <path d="M293 110 L 117 141"/>
+    <path d="M337 110 L 249 141"/>
+  </g>
+  <path d="M117 110 L 205 141" fill="none" stroke="var(--pink)" stroke-width="1.4"/>
+  <g fill="var(--muted)" opacity=".55">
+    <path d="M161 148 L 157 141 h 8 z"/><path d="M293 148 L 289 141 h 8 z"/>
+    <path d="M29 148 L 25 141 h 8 z"/><path d="M73 148 L 69 141 h 8 z"/>
+    <path d="M337 148 L 333 141 h 8 z"/><path d="M117 148 L 113 141 h 8 z"/>
+    <path d="M249 148 L 245 141 h 8 z"/>
+  </g>
+  <path d="M205 148 L 201 141 h 8 z" fill="var(--pink)"/>
+
+  <!-- the slots after the pass -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="10" y="148" width="38" height="22" rx="4"/>
+    <rect x="54" y="148" width="38" height="22" rx="4"/>
+    <rect x="98" y="148" width="38" height="22" rx="4"/>
+    <rect x="142" y="148" width="38" height="22" rx="4"/>
+    <rect x="230" y="148" width="38" height="22" rx="4"/>
+    <rect x="274" y="148" width="38" height="22" rx="4"/>
+    <rect x="318" y="148" width="38" height="22" rx="4"/>
+  </g>
+  <rect x="186" y="148" width="38" height="22" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="29" y="163">20</text><text x="73" y="163">12</text><text x="117" y="163">40</text><text x="161" y="163">13</text>
+    <text x="205" y="163" fill="var(--teal)">41</text><text x="249" y="163">29</text><text x="293" y="163">22</text><text x="337" y="163">35</text>
+  </g>
+  <text x="366" y="163" class="lbl">slots</text>
+  <g text-anchor="middle">
+    <text x="29" y="181" class="lbl">0</text><text x="73" y="181" class="lbl">1</text><text x="117" y="181" class="lbl">2</text><text x="161" y="181" class="lbl">3</text>
+    <text x="205" y="181" class="lbl">4</text><text x="249" y="181" class="lbl">5</text><text x="293" y="181" class="lbl">6</text><text x="337" y="181" class="lbl">7</text>
+  </g>
+
+  <text x="220" y="196" text-anchor="middle" class="formula">41 → digit 1 → start 3 + 1 earlier 1 → slot 4</text>
+</svg>
