@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Min and Max: Change the Operator · Reductions — GPU.js Learn</title>
     <meta name="description" content="Goal: find both the minimum and the maximum of data with two halving-ladder kernels, and log both.">
@@ -166,7 +166,7 @@
             kernel functions. The fold becomes</p>
 <pre><code>Math.min(data[this.thread.x], data[this.thread.x + this.output.x])</code></pre></details>
 <details><summary>Hint 2 — one driver, two ladders</summary><p>Wrap last task's while-loop in a plain JS function that takes the kernel as
-            a parameter — <code>reduce(minStep, data)</code>, <code>reduce(maxStep, data)</code>
+            a parameter — <code>await reduce(minStep, data)</code>, <code>await reduce(maxStep, data)</code>
             — instead of writing it twice.</p></details>
 <h2>Same idea elsewhere</h2>Pluggable operators are why every library ships reduce as a higher-order
         function: <code>thrust::reduce</code> and ROCm's rocPRIM accept any binary op plus an

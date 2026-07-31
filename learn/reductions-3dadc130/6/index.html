@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Mean and RMS, Fused · Reductions — GPU.js Learn</title>
     <meta name="description" content="Goal: compute and log the mean and the RMS of data — two partial-sum kernels (one fused with squaring) plus one shared dynamic halving ladder.">
@@ -171,8 +171,8 @@
 sum += v * v;</code></pre></details>
 <details><summary>Hint 2 — one ladder, two rides</summary><p>The ladder kernel doesn't care what its 64 inputs mean. Wrap the driver loop
             in a function and call it once with each partials array.</p></details>
-<details><summary>Hint 3 — the whole shape</summary><pre><code>const total = ladder(partialSums(data));
-const totalSq = ladder(partialSquares(data));</code></pre>
+<details><summary>Hint 3 — the whole shape</summary><pre><code>const total = await ladder(await partialSums(data));
+const totalSq = await ladder(await partialSquares(data));</code></pre>
 <p>then divide, square-root,
             and log.</p></details>
 <h2>Same idea elsewhere</h2>Fusing the map into the reduce is a marquee optimization on every platform:

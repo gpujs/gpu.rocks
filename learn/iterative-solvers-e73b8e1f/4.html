@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Two Halves Make a Sweep · Iterative Linear Solvers — GPU.js Learn</title>
     <meta name="description" content="Goal: write the black half-sweep and chain the two halves into one full red-black Gauss-Seidel sweep.">
@@ -163,15 +163,17 @@
 <div class="ssg-goal"><strong>Goal:</strong> write the black half-sweep and chain the two halves into one
         full red-black Gauss-Seidel sweep.</div>
 
-<h2>Requirements</h2><ul><li>The black kernel is the red kernel with its parity test flipped: cells with <code>(x + y) % 2 === 1</code> update, everything else passes through</li><li>Create the red kernel first and the black kernel second</li><li>One full sweep is <code>black(red(u))</code> — the black half reads what the red half wrote</li><li>The boundary is untouched by both halves</li></ul>
+<h2>Requirements</h2><ul><li>The black kernel is the red kernel with its parity test flipped: cells with <code>(x + y) % 2 === 1</code> update, everything else passes through</li><li>Create the red kernel first and the black kernel second</li><li>One full sweep is <code>await black(await red(u))</code> — the black half reads what the red half wrote</li><li>The boundary is untouched by both halves</li></ul>
 <details><summary>Hint 1 — the black kernel</summary><p>Copy the red kernel and change one character:</p>
 <pre><code>const parity = (x + y) % 2;
 if (parity !== 1) return u[y][x];</code></pre>
 <p>Still a number, never a boolean — the WebGL backend rejects
             <code>const isBlack = …</code> exactly as it rejects <code>isRed</code>.</p></details>
-<details><summary>Hint 2 — the chain is the lesson</summary><pre><code>const afterRed = red(guess);
-const afterBoth = black(afterRed);   // NOT black(guess)</code></pre>
-<p>Or, in one line: <code>black(red(guess))</code>.</p></details>
+<details><summary>Hint 2 — the chain is the lesson</summary><pre><code>const afterRed = await red(guess);
+const afterBoth = await black(afterRed);   // NOT black(guess)</code></pre>
+<p>Or, in one line: <code>await black(await red(guess))</code> — the inner
+            <code>await</code> is not optional, because an un-awaited kernel call hands the next
+            kernel a Promise instead of a grid.</p></details>
 <h2>Same idea elsewhere</h2>Two dispatches with a dependency between them is the ordinary shape of GPU work:
         WebGPU inserts a barrier between compute passes, CUDA orders them on a stream, Vulkan wants
         an explicit pipeline barrier. What you cannot do — on any of them — is order threads

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Flip On the Pipeline · Pipelines &amp; Textures — GPU.js Learn</title>
     <meta name="description" content="Goal: make the boost kernel a pipeline kernel, then download its result explicitly and log the first sample.">
@@ -158,19 +158,22 @@
         result <em>stays in GPU memory</em>, and what you get back is a <strong>texture</strong> —
         a lightweight handle to data that never left the card. Log one and you'll see an object,
         not numbers. When you actually want the values, you ask for the download explicitly with
-        <code>.toArray()</code>.</p>
+        <code>.toArray()</code> — and since the download is a real trip across the bus, it is
+        asynchronous like the kernel call itself: <code>await result.toArray()</code>.</p>
         <p>One backend wrinkle to know: the CPU backend has no textures, so there a pipeline
-        kernel hands back a plain array. Mode-safe code uses the same guard gpu.js uses
-        internally: <code>result.toArray ? result.toArray() : result</code>.</p>
+        kernel hands back a plain array — which has no <code>.toArray</code> at all. Mode-safe code
+        uses the same guard gpu.js uses internally, with the await in front of the call it guards:
+        <code>result.toArray ? await result.toArray() : result</code>. (Awaiting a plain array is a
+        no-op, so that one line is correct on every backend.)</p>
 
 <div class="ssg-goal"><strong>Goal:</strong> make the <code>boost</code> kernel a pipeline kernel, then
         download its result explicitly and log the first sample.</div>
 
-<h2>Requirements</h2><ul><li>Add <code>pipeline: true</code> to the kernel settings</li><li>Log the raw result — see what a texture looks like in the console</li><li>Download the values with <code>.toArray()</code>, using the mode-safe guard</li><li>Log the first value as <code>console.log('first sample:', values[0])</code></li></ul>
+<h2>Requirements</h2><ul><li>Add <code>pipeline: true</code> to the kernel settings</li><li>Log the raw result — see what a texture looks like in the console</li><li>Download the values with <code>await .toArray()</code>, using the mode-safe guard</li><li>Log the first value as <code>console.log('first sample:', values[0])</code></li></ul>
 <details><summary>Hint 1 — where does the flag go?</summary><p><code>pipeline: true</code> sits in the settings object, right next to
             <code>output</code>. Nothing about the kernel function itself changes.</p></details>
-<details><summary>Hint 2 — the mode-safe download</summary><pre><code>const values = result.toArray ? result.toArray() : result;</code></pre>
-<p>On the GL backend this calls <code>toArray()</code>; on the CPU backend
+<details><summary>Hint 2 — the mode-safe download</summary><pre><code>const values = result.toArray ? await result.toArray() : result;</code></pre>
+<p>On a GPU backend this awaits <code>toArray()</code>; on the CPU backend
             <code>result</code> is already an array and passes through untouched.</p></details>
 <h2>Same idea elsewhere</h2>A gpu.js texture is the same idea as a <code>GPUBuffer</code> you never map in
         WebGPU, or device memory behind a pointer in CUDA and ROCm: the data has an address on

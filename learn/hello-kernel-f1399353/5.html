@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Pass Something In · Hello, Kernel — GPU.js Learn</title>
     <meta name="description" content="Goal: make ramp return scale * this.thread.x , then call it twice — once with 2.5 , once with 0.5 .">
@@ -164,8 +164,8 @@
 
 <h2>Requirements</h2><ul><li>Give the kernel function a <code>scale</code> parameter</li><li>Multiply the shared argument by this thread's index — shared argument × thread identity</li><li>Call the kernel twice with different scales (already wired up)</li></ul>
 <details><summary>Hint 1 — where arguments come from</summary><p>Kernel arguments are ordinary function parameters:
-            <code>function (scale) { … }</code>, called as <code>ramp(3)</code>. Every one of the
-            64 threads receives the same <code>3</code>.</p></details>
+            <code>function (scale) { … }</code>, called as <code>await ramp(3)</code>. Every one of
+            the 64 threads receives the same <code>3</code>.</p></details>
 <details><summary>Hint 2 — the body</summary><p><code>return scale * this.thread.x;</code> — the argument is shared, the
             index is per-thread, the product is different in every cell.</p></details>
 <h2>Same idea elsewhere</h2>A value shared by all threads is a <em>uniform</em>: WebGPU binds it as a uniform

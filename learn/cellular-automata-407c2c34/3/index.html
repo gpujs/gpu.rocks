@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Generations: Feed It Back · Cellular Automata — GPU.js Learn</title>
     <meta name="description" content="Goal: restore the B3/S23 rule inside the kernel, then run 6 generations by feeding each output back in — logging 'gen ' + g + ': ' + alive + ' alive' after…">
@@ -153,7 +153,7 @@
 <p>One tick is a snapshot; a world is a movie. A kernel has no memory of the previous
         frame — <strong>time lives in JavaScript</strong>. The result of a 2D kernel is an array of
         rows, which is exactly the shape the kernel accepts as input, so
-        <code>current = step(current)</code> is the whole time machine: output becomes input,
+        <code>current = await step(current)</code> is the whole time machine: output becomes input,
         forever.</p>
         <p>Your test subject is the <strong>R-pentomino</strong> — five innocent-looking cells that
         erupt into chaos (on an infinite grid they don't settle down for 1,103 generations; Conway's
@@ -164,10 +164,10 @@
         generations by feeding each output back in — logging
         <code>'gen ' + g + ': ' + alive + ' alive'</code> after every step.</div>
 
-<h2>Requirements</h2><ul><li>Complete the kernel: the same B3/S23 rule you wrote last task</li><li>Loop 6 times in plain JavaScript, reassigning: <code>current = step(current)</code></li><li>After each step, total the live cells in plain JS (kernel output rows are ordinary arrays)</li><li>Log each generation exactly as <code>'gen ' + g + ': ' + alive + ' alive'</code>, g from 1 to 6</li></ul>
+<h2>Requirements</h2><ul><li>Complete the kernel: the same B3/S23 rule you wrote last task</li><li>Loop 6 times in plain JavaScript, reassigning: <code>current = await step(current)</code></li><li>After each step, total the live cells in plain JS (kernel output rows are ordinary arrays)</li><li>Log each generation exactly as <code>'gen ' + g + ': ' + alive + ' alive'</code>, g from 1 to 6</li></ul>
 <details><summary>Hint 1 — the feed-back loop</summary><p><code>let current = world;</code> then</p>
 <pre><code>for (let g = 1; g &lt;= 6; g++) {
-  current = step(current);
+  current = await step(current);
   // …
 }</code></pre>
 <p>No copying, no bookkeeping — the kernel's output is already a valid input.</p></details>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Every Bin, One Thread Each · The DFT, Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: transform the whole signal with one kernel — output: [256, 2] , one thread per (bin, plane) — then find every bin in 1…128 whose magnitude clears 20 and…">
@@ -174,7 +174,7 @@
 <pre><code>const angle = 2 * Math.PI * this.thread.x * i / this.constants.n;</code></pre>
 <p>and widen the output to <code>[256, 2]</code>. That is the whole diff.</p></details>
 <details><summary>Hint 2 — reading the spectrum back</summary><p><code>output: [256, 2]</code> comes back as two rows of 256:</p>
-<pre><code>const spectrum = dft(signal);
+<pre><code>const spectrum = await dft(signal);
 const re = spectrum[0][k];
 const im = spectrum[1][k];</code></pre></details>
 <details><summary>Hint 3 — bins are not hertz</summary><p>A bin index is a count of whole cycles across the buffer. To turn it into a

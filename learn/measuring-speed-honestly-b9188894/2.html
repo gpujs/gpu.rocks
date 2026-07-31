@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Pay the Transfer Tax · Measuring Speed Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the + 1 kernel and the timeKernel helper — warm up, then average 20 timed calls — and log the per-call cost for both payload sizes.">
@@ -155,21 +155,24 @@
         like <code>value + 1</code>, the arithmetic is nearly free — <strong>the ride is the whole
         bill</strong>.</p>
         <p>Below, the same trivial kernel runs on 1,024 values and on 65,536 values — 64× the data,
-        identical math per thread. If compute were the cost, both would time about the same. Warm
-        up first (task 1!), then measure: the per-call cost tracks <strong>bytes moved</strong>,
-        not operations performed.</p>
+        one instruction per thread either way. Warm up first (task 1!), then measure, and read the
+        two numbers together: 64× the payload does <em>not</em> cost 64× the time — on this page the
+        big kernel usually lands under twice the small one — because most of a call is a
+        <strong>fixed toll</strong> paid before any of your data moves. The part that does grow
+        grows with <strong>bytes moved</strong>, not with arithmetic performed; the arithmetic here
+        was free all along.</p>
 <figure><figcaption>same +1 either way — the bill tracks bytes, not math</figcaption></figure>
 <div class="ssg-goal"><strong>Goal:</strong> finish the <code>+ 1</code> kernel and the
         <code>timeKernel</code> helper — warm up, then average 20 timed calls — and log the
         per-call cost for both payload sizes.</div>
 
-<h2>Requirements</h2><ul><li>Kernel returns <code>data[this.thread.x] + 1</code> — one instruction, on purpose</li><li>In <code>timeKernel</code>: call the kernel once <em>untimed</em> to warm it up</li><li>Then time 20 calls with <code>Date.now()</code> and return the average ms per call</li><li>Log both costs (the <code>small:</code>/<code>big:</code> lines are already wired up)</li></ul>
+<h2>Requirements</h2><ul><li>Kernel returns <code>data[this.thread.x] + 1</code> — one instruction, on purpose</li><li>In <code>timeKernel</code> (already <code>async</code> for you): <code>await</code> one <em>untimed</em> call to warm it up</li><li>Then time 20 awaited calls with <code>Date.now()</code> and return the average ms per call</li><li>Log both costs (the <code>small:</code>/<code>big:</code> lines are already wired up)</li></ul>
 <details><summary>Hint 1 — why warm up here too?</summary><p><code>makePlusOne</code> builds <em>two separate kernels</em>, and each one
             compiles on its own first call. Without the warm-up, the big kernel's timing would
             include a compile — task 1's lie all over again.</p></details>
-<details><summary>Hint 2 — the helper body</summary><pre><code>kernel(arg);
+<details><summary>Hint 2 — the helper body</summary><pre><code>await kernel(arg);
 const t0 = Date.now();
-for (let i = 0; i &lt; 20; i++) kernel(arg);
+for (let i = 0; i &lt; 20; i++) await kernel(arg);
 return (Date.now() - t0) / 20;</code></pre></details>
 <h2>Same idea elsewhere</h2>The bus is the bottleneck everywhere: <code>cudaMemcpy</code> across PCIe is the
         classic hot spot in CUDA and ROCm profiles, WebGPU makes you stage the copies explicitly

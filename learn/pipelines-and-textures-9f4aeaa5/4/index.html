@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Feedback Loops: immutable Textures · Pipelines &amp; Textures — GPU.js Learn</title>
     <meta name="description" content="Goal: make the feedback loop legal — the step kernel needs immutable: true — and run 12 diffusion steps without the heat ever visiting JavaScript.">
@@ -152,9 +152,10 @@
 <h1>Feedback Loops: immutable Textures</h1>
 <p>Simulations don't run once — they <strong>step</strong>: the output of step
         <em>n</em> is the input of step <em>n</em>+1. With pipelines that means feeding a
-        kernel its own texture back. Try it naively and gpu.js stops you cold:
-        <em>"Source and destination … are the same. Use immutable = true"</em> — the kernel
-        would be reading the very texture it's writing to.</p>
+        kernel its own texture back. Try it naively and gpu.js stops you cold — the kernel would
+        be reading the very storage it is writing to, and every backend refuses. WebGL puts it as
+        <em>"Source and destination … are the same. Use immutable = true"</em>; WebGPU says the
+        argument <em>"is this kernel's own output buffer"</em>. Same crime, and the same fix.</p>
         <p><code>immutable: true</code> is the fix: each call renders to a <em>fresh</em>
         texture instead of recycling one, so last step's output is safe to read while this
         step writes. (In long-running sims you'd call <code>texture.delete()</code> on old
@@ -168,9 +169,12 @@
         visiting JavaScript.</div>
 
 <h2>Requirements</h2><ul><li>Add <code>immutable: true</code> to the <code>step</code> kernel (keep <code>pipeline: true</code>)</li><li>Keep the loop feeding <code>step</code>'s output straight back in — no readbacks inside it</li><li>After 12 steps, download once and log the peak at cell 64</li></ul>
-<details><summary>Hint 1 — read the error message</summary><p>Run the starter as-is. The error names both the crime and the sentence:
-            the kernel's input and output are the same storage, and <code>immutable = true</code>
-            is the fix. gpu.js error messages are unusually honest.</p></details>
+<details><summary>Hint 1 — read the error message</summary><p>Run the starter as-is. The error names the crime: this kernel's input is its
+            own output storage. On WebGL it names the sentence too — <code>immutable = true</code>;
+            on WebGPU it only tells you the buffer is the kernel's own, and
+            <code>immutable: true</code> is still the fix. Either way, the second step of the loop
+            is where it fires: the first step reads <code>upload</code>'s texture, which is somebody
+            else's.</p></details>
 <details><summary>Hint 2 — why upload() exists</summary><p>The tiny <code>upload</code> kernel copies the seed array into a texture
             once, so <code>step</code> always sees texture inputs from its very first call.
             Keeping argument types stable means the kernel compiles exactly once.</p></details>

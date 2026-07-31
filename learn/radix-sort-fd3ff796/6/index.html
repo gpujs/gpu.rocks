@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Keys That Aren't Plain Integers · Radix Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: sort readings , which run from −2048 to 2047, by biasing them into non-negative integers, sorting, and taking the bias back off.">
@@ -182,7 +182,7 @@
 <details><summary>Hint 1 — the two maps</summary><p>Both kernels are one-line maps over their own cell — one adds
             <code>this.constants.bias</code>, the other subtracts it. Nothing about the sort
             changes.</p></details>
-<details><summary>Hint 2 — the wiring</summary><pre><code>const sorted = decode(radixSort(encode(readings)));</code></pre>
+<details><summary>Hint 2 — the wiring</summary><pre><code>const sorted = await decode(await radixSort(await encode(readings)));</code></pre>
 <p>Encode on the way in, decode on the way out. Miss the decode and every value
             comes back 2,048 too high; miss the encode and the negative keys index off the front
             of the bucket table.</p></details>

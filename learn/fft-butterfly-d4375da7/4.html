@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Drive log₂n Passes · The FFT Butterfly — GPU.js Learn</title>
     <meta name="description" content="Goal: build and print the 8-pass schedule before touching the data, run scramble + 8 butterfly passes over the 256 samples, and log the magnitude of bins 5…">
@@ -179,9 +179,9 @@ for (let half = 1; half &lt; n; half *= 2) schedule.push(half);</code></pre>
             precisely the two halves task 1 started with.</p></details>
 <details><summary>Hint 2 — ping-pong</summary><p>Each pass consumes the previous result and produces a new one, so a single
             variable is all the bookkeeping needed:</p>
-<pre><code>let buffer = scramble(signal);
+<pre><code>let buffer = await scramble(signal);
 for (let s = 0; s &lt; schedule.length; s++) {
-  buffer = butterfly(buffer, schedule[s]);
+  buffer = await butterfly(buffer, schedule[s]);
 }</code></pre>
 <p>gpu.js locks an argument's type on a kernel's first call, and every pass hands
             back the same shape it took, so the chain is type-stable from the start.</p></details>

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Kernel, Any Size · Matrix Multiply — GPU.js Learn</title>
     <meta name="description" content="Goal: make multiply(a, b) work for any square size up to 64 using a single kernel — verify it on the 8×8 and 48×48 pairs provided.">
@@ -163,7 +163,7 @@
 <div class="ssg-goal"><strong>Goal:</strong> make <code>multiply(a, b)</code> work for any square size up
         to 64 using a <em>single</em> kernel — verify it on the 8×8 and 48×48 pairs provided.</div>
 
-<h2>Requirements</h2><ul><li>Kernel options: <code>dynamicOutput</code>, <code>dynamicArguments</code>, and <code>loopMaxIterations: 64</code></li><li>Take <code>size</code> as a third kernel argument and loop <code>k &lt; size</code></li><li>In <code>multiply</code>, call <code>matmul.setOutput([n, n])</code> before invoking</li><li>Exactly one <code>createKernel</code> call serves both sizes</li></ul>
+<h2>Requirements</h2><ul><li>Kernel options: <code>dynamicOutput</code>, <code>dynamicArguments</code>, and <code>loopMaxIterations: 64</code></li><li>Take <code>size</code> as a third kernel argument and loop <code>k &lt; size</code></li><li>In <code>multiply</code>, call <code>matmul.setOutput([n, n])</code> before <code>await</code>-ing the kernel</li><li>Exactly one <code>createKernel</code> call serves both sizes</li></ul>
 <details><summary>Hint 1 — why the cap?</summary><p>On the GPU backend a loop bound that isn't a compile-time constant becomes</p>
 <pre><code>for (i = 0; i &lt; LOOP_MAX; i++) {
   if (!(i &lt; size)) break;
@@ -171,12 +171,14 @@
 }</code></pre>
 <p>in the shader — <code>loopMaxIterations</code> <em>is</em> that LOOP_MAX. Set it to the
             largest size you'll ever pass: 64 here.</p></details>
-<details><summary>Hint 2 — sizing per call</summary><p>Inside <code>multiply</code>:</p>
+<details><summary>Hint 2 — sizing per call</summary><p>Inside <code>multiply</code> — which is <code>async</code>, because a kernel call
+            is awaited:</p>
 <pre><code>const n = a.length;
 matmul.setOutput([n, n]);
-return matmul(a, b, n);</code></pre>
+return await matmul(a, b, n);</code></pre>
 <p>— set the launch shape first,
-            then invoke with the size as the last argument.</p></details>
+            then invoke with the size as the last argument. Its callers then
+            <code>await multiply(…)</code> in turn.</p></details>
 <details><summary>Hint 3 — the kernel</summary><pre><code>function (a, b, size) {
   let sum = 0;
   for (let k = 0; k &lt; size; k++) {

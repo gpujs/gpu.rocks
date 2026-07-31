@@ -199,6 +199,12 @@ That cell count is the `output` option: `output: [16]` means
 “give me 16 cells”, so 16 threads run and their 16 return values come back to you
 collected into one array.
 
+One habit to pick up right now, because it runs through the whole course: **calling a
+kernel is asynchronous**. The call hands you a promise while the GPU gets on with the
+work, so you write `await` in front of it and receive the finished result —
+`const result = await answer();`. Building the kernel with
+`createKernel` stays ordinary and synchronous; only the *call* is awaited.
+
 ## Figures
 
 - **one function, sixteen launches — the loop you never wrote**
@@ -232,7 +238,7 @@ gpu.createKernel(function () {
 })
 ```
 
-Calling it returns an array of sixteen 42s.
+And `await answer()` gives you an array of sixteen 42s.
 
 ## Same idea elsewhere
 
@@ -255,7 +261,8 @@ const answer = gpu.createKernel(function () {
   output: [1],
 });
 
-const result = answer();
+// Calling a kernel is asynchronous — await it to get the finished result.
+const result = await answer();
 console.log(result);
 ```
 
@@ -319,7 +326,7 @@ const whoAmI = gpu.createKernel(function () {
   return 0;
 }, { output: [32] });
 
-const result = whoAmI();
+const result = await whoAmI();
 console.log(result);
 ```
 
@@ -399,7 +406,7 @@ const wave = gpu.createKernel(function () {
   return 0;
 }, { output: [64] });
 
-const samples = wave();
+const samples = await wave();
 console.log(samples);
 ```
 
@@ -478,7 +485,7 @@ const board = gpu.createKernel(function () {
   output: [8],
 });
 
-const result = board();
+const result = await board();
 console.log(result);
 ```
 
@@ -520,8 +527,8 @@ then call it twice — once with `2.5`, once with `0.5`.
 ## Hint 1 — where arguments come from
 
 Kernel arguments are ordinary function parameters:
-`function (scale) { … }`, called as `ramp(3)`. Every one of the
-64 threads receives the same `3`.
+`function (scale) { … }`, called as `await ramp(3)`. Every one of
+the 64 threads receives the same `3`.
 
 ## Hint 2 — the body
 
@@ -543,13 +550,12 @@ const gpu = new GPU({ mode });
 
 const ramp = gpu.createKernel(function (scale) {
   // TODO: scale this thread's index by the argument
-  // (keep the float argument on the LEFT of the multiply)
   return this.thread.x;
 }, { output: [64] });
 
 // One kernel, two launches — no recompilation between calls.
-console.log('scale 2.5:', ramp(2.5));
-console.log('scale 0.5:', ramp(0.5));
+console.log('scale 2.5:', await ramp(2.5));
+console.log('scale 0.5:', await ramp(0.5));
 ```
 
 ---
@@ -635,7 +641,7 @@ const double = gpu.createKernel(function (data) {
   return 0;
 }, { output: [64] });
 
-const result = double(data);
+const result = await double(data);
 console.log(result);
 ```
 
@@ -702,7 +708,7 @@ const table = gpu.createKernel(function () {
   output: [16],
 });
 
-const result = table();
+const result = await table();
 console.log('rows:', result.length);
 console.log('row 0:', result[0]);
 ```
@@ -779,7 +785,7 @@ const grayscale = gpu.createKernel(function (image) {
   graphical: true,
 });
 
-grayscale(inputImage);
+await grayscale(inputImage);
 render(grayscale.canvas);
 ```
 
@@ -797,7 +803,7 @@ Interactive version: https://gpu.rocks/learn/data-in-data-out-42b68d01/3
 
 *Task 4 of 6 · [Data In, Data Out](https://gpu.rocks/learn/data-in-data-out-42b68d01.md) · GPU.js Learn*
 
-A kernel's return value doesn't stay on the GPU — invoking the kernel hands you the
+A kernel's return value doesn't stay on the GPU — awaiting the call hands you the
 finished result as an ordinary (typed) array. From there it's plain JavaScript: loop over it,
 sum it, feed it to a chart, whatever you like.
 
@@ -817,7 +823,7 @@ the returned array in plain JavaScript and log the total with `console.log`.
 
 ## Hint 1 — what comes back?
 
-With `output: [128]` the call `squares()` returns a
+With `output: [128]`, `await squares()` gives you a
 `Float32Array` of 128 numbers. It's indexable and loopable like any array.
 
 ## Hint 2 — the sum
@@ -848,7 +854,7 @@ const squares = gpu.createKernel(function () {
   return this.thread.x;
 }, { output: [128] });
 
-const result = squares();
+const result = await squares();
 console.log(result);
 
 // TODO: total up `result` in plain JavaScript, then:
@@ -930,7 +936,7 @@ const brightness = gpu.createKernel(function (photo) {
   return pixel[0];
 }, { output: [64, 64] });
 
-const map = brightness(photo);
+const map = await brightness(photo);
 console.log('top-left brightness:', map[0][0]);
 ```
 
@@ -1017,8 +1023,8 @@ const paint = gpu.createKernel(function (map) {
   this.color(1, 0, 1, 1);
 }, { output: [64, 64], graphical: true });
 
-const map = luminance(photo);
-paint(map);
+const map = await luminance(photo);
+await paint(map);
 render(paint.canvas);
 ```
 
@@ -1067,11 +1073,14 @@ bus on every single call.
 result *stays in GPU memory*, and what you get back is a **texture** —
 a lightweight handle to data that never left the card. Log one and you'll see an object,
 not numbers. When you actually want the values, you ask for the download explicitly with
-`.toArray()`.
+`.toArray()` — and since the download is a real trip across the bus, it is
+asynchronous like the kernel call itself: `await result.toArray()`.
 
 One backend wrinkle to know: the CPU backend has no textures, so there a pipeline
-kernel hands back a plain array. Mode-safe code uses the same guard gpu.js uses
-internally: `result.toArray ? result.toArray() : result`.
+kernel hands back a plain array — which has no `.toArray` at all. Mode-safe code
+uses the same guard gpu.js uses internally, with the await in front of the call it guards:
+`result.toArray ? await result.toArray() : result`. (Awaiting a plain array is a
+no-op, so that one line is correct on every backend.)
 
 ## Goal
 
@@ -1082,7 +1091,7 @@ download its result explicitly and log the first sample.
 
 - Add `pipeline: true` to the kernel settings
 - Log the raw result — see what a texture looks like in the console
-- Download the values with `.toArray()`, using the mode-safe guard
+- Download the values with `await .toArray()`, using the mode-safe guard
 - Log the first value as `console.log('first sample:', values[0])`
 
 ## Hint 1 — where does the flag go?
@@ -1093,10 +1102,10 @@ download its result explicitly and log the first sample.
 ## Hint 2 — the mode-safe download
 
 ```js
-const values = result.toArray ? result.toArray() : result;
+const values = result.toArray ? await result.toArray() : result;
 ```
 
-On the GL backend this calls `toArray()`; on the CPU backend
+On a GPU backend this awaits `toArray()`; on the CPU backend
 `result` is already an array and passes through untouched.
 
 ## Same idea elsewhere
@@ -1120,11 +1129,11 @@ const boost = gpu.createKernel(function (signal) {
   // TODO: keep the result on the GPU
 });
 
-const result = boost(signal);
+const result = await boost(signal);
 console.log(result);
 
 // TODO: `result` is about to become a texture. Download the values
-// explicitly (mode-safe: result.toArray ? result.toArray() : result)
+// explicitly (mode-safe: result.toArray ? await result.toArray() : result)
 // and log the first one as:  console.log('first sample:', values[0]);
 ```
 
@@ -1215,8 +1224,8 @@ const contrast = gpu.createKernel(function (map) {
   return l;
 }, { output: [64, 64] });
 
-const mapTexture = luminance(photo); // a texture — still on the GPU
-const result = contrast(mapTexture); // and straight back in it goes
+const mapTexture = await luminance(photo); // a texture — still on the GPU
+const result = await contrast(mapTexture); // and straight back in it goes
 console.log('center cell:', result[32][32]);
 ```
 
@@ -1256,12 +1265,12 @@ just without the round trips.
 
 - Make `normalize` and `gamma` pipeline kernels
 - Leave `smooth` as a plain kernel — the one download you actually want
-- Do not change the chain: `smooth(gamma(normalize(signal)))` stays as-is
+- Do not change the chain: `await smooth(await gamma(await normalize(signal)))` stays as-is
 
 ## Hint 1 — where is the readback hiding?
 
 There's no `.toArray()` in the starter, but the readbacks are
-still there: a non-pipeline kernel's *return value* is the readback.
+still there: a non-pipeline kernel's *awaited return value* is the readback.
 Count them: normalize downloads, gamma re-uploads and downloads, smooth re-uploads.
 
 ## Hint 2 — a two-line diff
@@ -1303,7 +1312,7 @@ const smooth = gpu.createKernel(function (v) {
 
 // This chain is CORRECT — and slow. Each non-pipeline return is a full
 // GPU → JS download, and the next call re-uploads it. Four transfers.
-const out = smooth(gamma(normalize(signal)));
+const out = await smooth(await gamma(await normalize(signal)));
 console.log('smoothed[0]:', out[0]);
 ```
 
@@ -1323,9 +1332,10 @@ Interactive version: https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/3
 
 Simulations don't run once — they **step**: the output of step
 *n* is the input of step *n*+1. With pipelines that means feeding a
-kernel its own texture back. Try it naively and gpu.js stops you cold:
-*"Source and destination … are the same. Use immutable = true"* — the kernel
-would be reading the very texture it's writing to.
+kernel its own texture back. Try it naively and gpu.js stops you cold — the kernel would
+be reading the very storage it is writing to, and every backend refuses. WebGL puts it as
+*"Source and destination … are the same. Use immutable = true"*; WebGPU says the
+argument *"is this kernel's own output buffer"*. Same crime, and the same fix.
 
 `immutable: true` is the fix: each call renders to a *fresh*
 texture instead of recycling one, so last step's output is safe to read while this
@@ -1354,9 +1364,12 @@ visiting JavaScript.
 
 ## Hint 1 — read the error message
 
-Run the starter as-is. The error names both the crime and the sentence:
-the kernel's input and output are the same storage, and `immutable = true`
-is the fix. gpu.js error messages are unusually honest.
+Run the starter as-is. The error names the crime: this kernel's input is its
+own output storage. On WebGL it names the sentence too — `immutable = true`;
+on WebGPU it only tells you the buffer is the kernel's own, and
+`immutable: true` is still the fix. Either way, the second step of the loop
+is where it fires: the first step reads `upload`'s texture, which is somebody
+else's.
 
 ## Hint 2 — why upload() exists
 
@@ -1407,12 +1420,12 @@ const step = gpu.createKernel(function (heat) {
   // let the error message tell you the missing setting.
 });
 
-let state = upload(field);
+let state = await upload(field);
 for (let i = 0; i < 12; i++) {
-  state = step(state); // output straight back in — a feedback loop
+  state = await step(state); // output straight back in — a feedback loop
 }
 
-const heat = state.toArray ? state.toArray() : state;
+const heat = state.toArray ? await state.toArray() : state;
 console.log('peak after 12 steps:', heat[64]);
 ```
 
@@ -1519,7 +1532,7 @@ const paint = gpu.createKernel(function (map) {
 }, { output: [64, 64], graphical: true });
 
 // The whole pipeline: after `photo` goes up, nothing comes back down.
-paint(blur(luminance(photo)));
+await paint(await blur(await luminance(photo)));
 render(paint.canvas);
 ```
 
@@ -1560,12 +1573,17 @@ Interactive version: https://gpu.rocks/learn/measuring-speed-honestly-b9188894
 
 The first time you invoke a kernel, gpu.js does far more than run it: it
 **transpiles** your JavaScript function to shader code, hands it to the GPU
-driver to **compile and link**, allocates textures — and *then* runs it.
-The second call skips straight to the run.
+driver to **compile and link**, allocates buffers — and *then* runs it.
+In `auto` mode there is more still: that first call is also where gpu.js asks the
+browser for a WebGPU adapter and rebuilds your kernel for it, so the backend swap happens
+inside the first `await` too. Every call after it skips straight to the run.
 
-So timing the first call measures the compiler, not your kernel. It can be 100× slower
-than the steady state, and it happens exactly once. Every honest benchmark
-**warms up first** and throws that first measurement away.
+So timing the first call measures the compiler, not your kernel. How wide the gap looks
+depends on the backend and on what the driver has already cached: on this page the first
+call typically costs a few times a warm one on WebGPU and ten times or more on WebGL, and on
+a big kernel with a cold shader cache it is wider still. What never changes is that it
+happens exactly once — which is why every honest benchmark **warms up first**
+and throws that first measurement away.
 
 ## Figures
 
@@ -1580,7 +1598,7 @@ than the steady state, and it happens exactly once. Every honest benchmark
 
 - Finish the kernel: return `Math.sin(x / 100) * 100` where `x` is this thread's index
 - Time the first call with `Date.now()` and log it: `first call: N ms`
-- Call the kernel 10 more times in one timed block and log the average: `warm call: N ms`
+- Await 10 more calls in one timed block and log the average: `warm call: N ms`
 
 ## Hint 1 — the stopwatch pattern
 
@@ -1598,7 +1616,7 @@ One stopwatch around a loop of 10 calls, then divide:
 
 ```js
 t0 = Date.now();
-for (let i = 0; i < 10; i++) wave();
+for (let i = 0; i < 10; i++) await wave();
 console.log('warm call:', (Date.now() - t0) / 10, 'ms');
 ```
 
@@ -1621,11 +1639,11 @@ const wave = gpu.createKernel(function () {
 }, { output: [2048] });
 
 // TODO: time the FIRST call with Date.now():
-//   const t0 = Date.now();  ...call wave()...
+//   const t0 = Date.now();  ...await wave()...
 //   console.log('first call:', Date.now() - t0, 'ms');
-const result = wave();
+const result = await wave();
 
-// TODO: call wave() 10 more times inside one timed block, then log the
+// TODO: await wave() 10 more times inside one timed block, then log the
 // average as:  console.log('warm call:', totalMs / 10, 'ms');
 
 console.log('sample value:', result[100]);
@@ -1651,9 +1669,12 @@ like `value + 1`, the arithmetic is nearly free — **the ride is the whole
 bill**.
 
 Below, the same trivial kernel runs on 1,024 values and on 65,536 values — 64× the data,
-identical math per thread. If compute were the cost, both would time about the same. Warm
-up first (task 1!), then measure: the per-call cost tracks **bytes moved**,
-not operations performed.
+one instruction per thread either way. Warm up first (task 1!), then measure, and read the
+two numbers together: 64× the payload does *not* cost 64× the time — on this page the
+big kernel usually lands under twice the small one — because most of a call is a
+**fixed toll** paid before any of your data moves. The part that does grow
+grows with **bytes moved**, not with arithmetic performed; the arithmetic here
+was free all along.
 
 ## Figures
 
@@ -1668,8 +1689,8 @@ per-call cost for both payload sizes.
 ## Requirements
 
 - Kernel returns `data[this.thread.x] + 1` — one instruction, on purpose
-- In `timeKernel`: call the kernel once *untimed* to warm it up
-- Then time 20 calls with `Date.now()` and return the average ms per call
+- In `timeKernel` (already `async` for you): `await` one *untimed* call to warm it up
+- Then time 20 awaited calls with `Date.now()` and return the average ms per call
 - Log both costs (the `small:`/`big:` lines are already wired up)
 
 ## Hint 1 — why warm up here too?
@@ -1681,9 +1702,9 @@ include a compile — task 1's lie all over again.
 ## Hint 2 — the helper body
 
 ```js
-kernel(arg);
+await kernel(arg);
 const t0 = Date.now();
-for (let i = 0; i < 20; i++) kernel(arg);
+for (let i = 0; i < 20; i++) await kernel(arg);
 return (Date.now() - t0) / 20;
 ```
 
@@ -1710,14 +1731,14 @@ function makePlusOne(n) {
 const smallKernel = makePlusOne(1024);   // small = 1,024 values
 const bigKernel = makePlusOne(65536);    // big = 65,536 values
 
-function timeKernel(kernel, arg) {
+async function timeKernel(kernel, arg) {
   // TODO: warm up with one untimed call (task 1!),
   // then time 20 calls and return the average ms per call
   return 0;
 }
 
-console.log('small:', timeKernel(smallKernel, small), 'ms/call');
-console.log('big:', timeKernel(bigKernel, big), 'ms/call');
+console.log('small:', await timeKernel(smallKernel, small), 'ms/call');
+console.log('big:', await timeKernel(bigKernel, big), 'ms/call');
 ```
 
 ---
@@ -1792,7 +1813,7 @@ const partialSums = gpu.createKernel(function () {
   return sum;
 }, { output: [64] });
 
-const result = partialSums();
+const result = await partialSums();
 
 // The same sum for thread 0, computed in float64 JavaScript:
 let ref = 0;
@@ -1879,7 +1900,7 @@ const doubleTiny = gpu.createKernel(function (data) {
   return data[this.thread.x];
 }, { output: [16] });
 
-const fromKernel = doubleTiny(tiny); // also serves as the warm-up call
+const fromKernel = await doubleTiny(tiny); // also serves as the warm-up call
 
 // The same job, plain JavaScript:
 const fromLoop = new Array(16);
@@ -1980,7 +2001,7 @@ const toFahrenheit = gpu.createKernel(function (celsius) {
   return celsius[this.thread.x];
 }, { output: [64] });
 
-const result = toFahrenheit(celsius);
+const result = await toFahrenheit(celsius);
 console.log('first reading:', celsius[0], '°C →', result[0], '°F');
 ```
 
@@ -2052,7 +2073,7 @@ const reverse = gpu.createKernel(function (data) {
   constants: { n: 64 },
 });
 
-const result = reverse(data);
+const result = await reverse(data);
 console.log('first:', result[0], '(should be the old last:', data[63] + ')');
 ```
 
@@ -2137,7 +2158,7 @@ const rotate = gpu.createKernel(function (ring) {
   constants: { n: 64 },
 });
 
-const result = rotate(ring);
+const result = await rotate(ring);
 console.log('ring[0] was', ring[0], '— it should now sit at result[1]:', result[1]);
 ```
 
@@ -2157,14 +2178,22 @@ Interactive version: https://gpu.rocks/learn/thinking-in-parallel-c3876efb/3
 
 The moment a gather reads a *neighbor*, the edges bite. Take the forward
 difference — `out[i] = signal[i+1] − signal[i]`, "how much does the signal jump
-here?". Thread 63 asks for `signal[64]`, which doesn't exist. On the CPU that
-read is `NaN`; on the GPU it's whatever the hardware feels like. Either way,
-garbage.
+here?". Thread 63 asks for `signal[64]`, which does not exist.
 
-The standard fix is **clamping**: pin the index inside
-`0 … n−1` with `Math.min`/`Math.max` before reading.
-The clamped edge cell reads itself, so its difference is exactly 0 — a defined,
-deliberate answer instead of an accident.
+What comes back is **whatever the backend decides** — and the three this
+course runs on decide three different things. Run the starter, then switch
+**Mode** and run it again: the CPU backend gives you `NaN`, WebGL
+gives you a garbage texel from elsewhere in the texture, and WebGPU quietly
+*clamps* the index and gives you `signal[63]` — a perfectly plausible
+number that you never asked for. That last one is the dangerous one: nothing looks wrong,
+so nothing gets fixed.
+
+Reading off the end isn't *wrong*, it is **undefined**: every
+platform is free to answer differently, and they do. So never rely on the read. Decide what
+the edge *means*, and write that down. The usual convention — the one every image
+filter uses — is **replicate**: the last cell repeats the last real
+difference, `signal[63] − signal[62]`. You get it by clamping the index you
+start *from*, so the pair you read is always a pair that exists.
 
 ## Figures
 
@@ -2172,36 +2201,50 @@ deliberate answer instead of an accident.
 
 ## Goal
 
-**Goal:** compute the forward difference with a clamped read, so the
-last cell returns exactly `0` instead of garbage.
+**Goal:** compute the forward difference with a clamped *base*
+index, so the last cell repeats the last real difference —
+`signal[63] − signal[62]` — instead of depending on what this backend happens to
+do with a read past the end.
 
 ## Requirements
 
-- Clamp the neighbor index: `Math.min(this.thread.x + 1, this.constants.n - 1)`
+- Clamp the index you read *from*: `Math.min(this.thread.x, this.constants.n - 2)`
 - Interior cells still return `signal[i+1] − signal[i]`
-- The last cell returns exactly `0`
+- The last cell repeats the one before it — never a value read past the end
 
-## Hint 1 — where the garbage comes from
+## Hint 1 — which read is out of range
 
 Only thread 63 misbehaves: `this.thread.x + 1` is 64, one past the
-end. Every other thread's read is fine — the fix should change *only* that
-one thread's read.
+end. Every other thread's pair is fine, so the fix has to leave 0 … 62 exactly as they
+are and hand 63 a pair that exists.
 
-## Hint 2 — the clamped read
+Careful which index you pin. Clamping the *neighbor* —
+`Math.min(this.thread.x + 1, n - 1)` — makes thread 63 read itself twice and
+return 0, which is the answer WebGPU was already inventing for you. Clamp the
+*base* instead.
+
+## Hint 2 — the clamped base
 
 ```js
-const j = Math.min(this.thread.x + 1, this.constants.n - 1);
-return signal[j] - signal[this.thread.x];
+const i = Math.min(this.thread.x, this.constants.n - 2);
+return signal[i + 1] - signal[i];
 ```
 
-For thread 63, `j` is 63, and `signal[63] - signal[63]` is 0.
+For thread 63, `i` is 62, so the answer is
+`signal[63] - signal[62]` — the last real jump, repeated. Cells 62 and 63
+come back holding the same number, which is exactly what "replicate" means.
 
 ## Same idea elsewhere
 
-Graphics hardware ships this as a sampler setting — `clamp-to-edge`
-address mode in WebGPU and Metal, `cudaAddressModeClamp` on CUDA texture
-objects. Reading a raw buffer instead of a texture? Then you clamp by hand, exactly like
-here.
+Edge conventions are shipped as sampler settings on real hardware —
+`clamp-to-edge` address mode in WebGPU and Metal,
+`cudaAddressModeClamp` on CUDA texture objects, with `repeat` and
+`mirror` sitting beside them as the alternatives. Reading a raw buffer instead
+of a texture? Then you pick the convention by hand, exactly like here — and you *do*
+pick one, because an unguarded read past the end is undefined everywhere: CUDA will happily
+hand you another allocation's memory, and WGSL leaves out-of-range buffer access loose
+enough that two implementations can disagree. The three answers you just got from three
+backends are that fact, one level up.
 
 ## Starter code
 
@@ -2210,16 +2253,18 @@ here.
 const gpu = new GPU({ mode });
 
 const delta = gpu.createKernel(function (signal) {
-  // TODO: thread 63 reads signal[64] — one past the end. Clamp the
-  // neighbor index so the last cell returns 0 instead of garbage.
+  // TODO: thread 63 reads signal[64] — one past the end, and what comes
+  // back is undefined: NaN on cpu, a garbage texel on webgl, a silently
+  // clamped signal[63] on webgpu. Clamp the index you read FROM so the
+  // last cell repeats the last real difference instead.
   return signal[this.thread.x + 1] - signal[this.thread.x];
 }, {
   output: [64],
   constants: { n: 64 },
 });
 
-const result = delta(signal);
-console.log('last delta (should be exactly 0):', result[63]);
+const result = await delta(signal);
+console.log('last two deltas (they should match):', result[62], result[63]);
 ```
 
 ---
@@ -2306,7 +2351,7 @@ const smooth = gpu.createKernel(function (signal) {
   constants: { n: 128 },
 });
 
-const result = smooth(signal);
+const result = await smooth(signal);
 console.log('raw:', signal[64], '→ smoothed:', result[64]);
 ```
 
@@ -2390,8 +2435,8 @@ const blurY = gpu.createKernel(function (grid) {
   return grid[this.thread.y][this.thread.x];
 }, { output: [48, 48], constants: { n: 48 } });
 
-const pass1 = blurX(heightmap);
-const smooth = blurY(pass1);
+const pass1 = await blurX(heightmap);
+const smooth = await blurY(pass1);
 console.log('corner before → after:', heightmap[0][0], '→', smooth[0][0]);
 ```
 
@@ -2485,7 +2530,7 @@ const sumAll = gpu.createKernel(function (data) {
   constants: { n: 4096 },
 });
 
-console.log('total:', sumAll(data)[0]);
+console.log('total:', (await sumAll(data))[0]);
 ```
 
 ---
@@ -2541,7 +2586,7 @@ sum += data[i * this.constants.threads + this.thread.x];
 
 ## Hint 3 — finishing in JS
 
-After `const partial = partials(data);` a plain loop does it:
+After `const partial = await partials(data);` a plain loop does it:
 
 ```js
 let total = 0;
@@ -2573,7 +2618,7 @@ const partials = gpu.createKernel(function (data) {
   constants: { threads: 64, chunk: 64 },
 });
 
-const partial = partials(data);
+const partial = await partials(data);
 console.log('partials:', partial.length);
 
 let total = 0;
@@ -2653,7 +2698,7 @@ const halve = gpu.createKernel(function (data) {
   output: [256],
 });
 
-const folded = halve(data);
+const folded = await halve(data);
 console.log('folded length:', folded.length);
 console.log('first pair sum:', folded[0]);
 ```
@@ -2724,7 +2769,7 @@ rung.
 while (n > 1) {
   n = n / 2;
   halve.setOutput([n]);
-  values = halve(values);
+  values = await halve(values);
 }
 ```
 
@@ -2758,7 +2803,7 @@ let n = values.length;
 while (n > 1) {
   n = n / 2;
   halve.setOutput([n]);
-  values = halve(values);
+  values = await halve(values);
 }
 console.log('total:', values[0]);
 ```
@@ -2809,7 +2854,7 @@ Math.min(data[this.thread.x], data[this.thread.x + this.output.x])
 ## Hint 2 — one driver, two ladders
 
 Wrap last task's while-loop in a plain JS function that takes the kernel as
-a parameter — `reduce(minStep, data)`, `reduce(maxStep, data)`
+a parameter — `await reduce(minStep, data)`, `await reduce(maxStep, data)`
 — instead of writing it twice.
 
 ## Same idea elsewhere
@@ -2836,20 +2881,20 @@ const maxStep = gpu.createKernel(function (data) {
   return data[this.thread.x] + data[this.thread.x + this.output.x];
 }, { dynamicOutput: true, dynamicArguments: true });
 
-function reduce(step, values) {
+async function reduce(step, values) {
   // Float32Array from the start — an argument's type is locked on first call.
   let v = Float32Array.from(values);
   let n = v.length;
   while (n > 1) {
     n = n / 2;
     step.setOutput([n]);
-    v = step(v);
+    v = await step(v);
   }
   return v[0];
 }
 
-console.log('min:', reduce(minStep, data));
-console.log('max:', reduce(maxStep, data));
+console.log('min:', await reduce(minStep, data));
+console.log('max:', await reduce(maxStep, data));
 ```
 
 ---
@@ -2909,8 +2954,8 @@ in a function and call it once with each partials array.
 ## Hint 3 — the whole shape
 
 ```js
-const total = ladder(partialSums(data));
-const totalSq = ladder(partialSquares(data));
+const total = await ladder(await partialSums(data));
+const totalSq = await ladder(await partialSquares(data));
 ```
 
 then divide, square-root,
@@ -2945,19 +2990,19 @@ const halve = gpu.createKernel(function (data) {
   return data[this.thread.x] + data[this.thread.x + this.output.x];
 }, { dynamicOutput: true, dynamicArguments: true });
 
-function ladder(values) {
+async function ladder(values) {
   let v = values;
   let n = v.length;
   while (n > 1) {
     n = n / 2;
     halve.setOutput([n]);
-    v = halve(v);
+    v = await halve(v);
   }
   return v[0];
 }
 
-const total = ladder(partialSums(data));
-const totalSq = ladder(partialSquares(data));
+const total = await ladder(await partialSums(data));
+const totalSq = await ladder(await partialSquares(data));
 
 const mean = total / 4096;
 const rms = Math.sqrt(totalSq / 4096);
@@ -3161,7 +3206,7 @@ const prefix = gpu.createKernel(function (data) {
   constants: { n: 1024 },
 });
 
-const scan = prefix(values);
+const scan = await prefix(values);
 console.log('scan[0]:', scan[0], ' scan[1]:', scan[1], ' scan[2]:', scan[2]);
 // TODO: the last cell is already the grand total — log it.
 console.log('grand total:', 0);
@@ -3240,7 +3285,7 @@ pass `d − 1` returned:
 
 ```js
 for (let stride = 1; stride < N; stride *= 2) {
-  v = scanStep(v, stride);
+  v = await scanStep(v, stride);
 }
 ```
 
@@ -3279,7 +3324,7 @@ let v = Float32Array.from(values);
 
 // TODO: ten passes, stride 1, 2, 4, ... 512. Each pass must read the
 // array the PREVIOUS pass returned.
-v = scanStep(v, 1);
+v = await scanStep(v, 1);
 
 console.log('scan[511]:', v[511]);
 console.log('grand total:', v[N - 1]);
@@ -3381,7 +3426,7 @@ const scanStep = gpu.createKernel(function (data, stride) {
 
 let v = Float32Array.from(counts);
 for (let stride = 1; stride < N; stride *= 2) {
-  v = scanStep(v, stride);
+  v = await scanStep(v, stride);
 }
 const inclusive = v;
 
@@ -3391,7 +3436,7 @@ const toExclusive = gpu.createKernel(function (inclusive) {
   return inclusive[this.thread.x];
 }, { output: [N] });
 
-const offsets = toExclusive(inclusive);
+const offsets = await toExclusive(inclusive);
 
 console.log('counts [0..3]:', counts[0], counts[1], counts[2], counts[3]);
 console.log('offsets[0..3]:', offsets[0], offsets[1], offsets[2], offsets[3]);
@@ -3539,14 +3584,14 @@ const clearLast = gpu.createKernel(function (data) {
 let v = Float32Array.from(values);
 
 for (let stride = 1; stride < N; stride *= 2) {
-  v = upsweep(v, stride);
+  v = await upsweep(v, stride);
 }
 
 const total = v[N - 1]; // the upsweep already reduced the whole array
-v = clearLast(v);
+v = await clearLast(v);
 
 for (let stride = N / 2; stride >= 1; stride /= 2) {
-  v = downsweep(v, stride);
+  v = await downsweep(v, stride);
 }
 
 console.log('exclusive[512]:', v[512]);
@@ -3657,9 +3702,9 @@ const toExclusive = gpu.createKernel(function (inclusive) {
 
 let v = Float32Array.from(counts);
 for (let stride = 1; stride < ITEMS; stride *= 2) {
-  v = scanStep(v, stride);
+  v = await scanStep(v, stride);
 }
-const offsets = toExclusive(v);
+const offsets = await toExclusive(v);
 
 // Your kernel: one thread per SLOT.
 const ownerOf = gpu.createKernel(function (offsets, counts) {
@@ -3668,7 +3713,7 @@ const ownerOf = gpu.createKernel(function (offsets, counts) {
   return 0;
 }, { output: [SLOTS], constants: { items: ITEMS } });
 
-const owners = ownerOf(offsets, counts);
+const owners = await ownerOf(offsets, counts);
 console.log('slots 0-9 belong to sessions:',
   owners[0], owners[1], owners[2], owners[3], owners[4],
   owners[5], owners[6], owners[7], owners[8], owners[9]);
@@ -3782,7 +3827,7 @@ const flag = gpu.createKernel(function (samples) {
   constants: { threshold: 50 },
 });
 
-const flags = flag(samples);
+const flags = await flag(samples);
 console.log('samples:', samples.slice(0, 12).join(', '));
 console.log('flags:  ', Array.from(flags).slice(0, 12).join(', '));
 console.log('same 64 slots, holes and all — a flag says WHO survives, not WHERE it goes.');
@@ -3880,7 +3925,7 @@ const destination = gpu.createKernel(function (flags) {
   constants: { n: 64 },
 });
 
-const offsets = destination(flags);
+const offsets = await destination(flags);
 console.log('flags:   ', Array.from(flags).slice(0, 12).join(', '));
 console.log('offsets: ', Array.from(offsets).slice(0, 12).join(', '));
 ```
@@ -3989,7 +4034,7 @@ const compact = gpu.createKernel(function (samples, flags, offsets) {
   constants: { n: 64 },
 });
 
-const packed = compact(samples, flags, offsets);
+const packed = await compact(samples, flags, offsets);
 console.log('samples:', samples.slice(0, 12).join(', '));
 console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
 ```
@@ -4107,7 +4152,7 @@ const compact = gpu.createKernel(function (samples, flags, offsets) {
   constants: { n: 64, steps: 7 },
 });
 
-const packed = compact(samples, flags, offsets);
+const packed = await compact(samples, flags, offsets);
 console.log('samples:', samples.slice(0, 12).join(', '));
 console.log('packed: ', Array.from(packed).slice(0, 12).join(', '));
 ```
@@ -4218,9 +4263,9 @@ const compact = gpu.createKernel(function (samples, flags, offsets) {
   return value;
 }, { output: [64], constants: { n: 64 } });
 
-const flags = flag(samples);
-const offsets = destination(flags);
-const packed = compact(samples, flags, offsets);
+const flags = await flag(samples);
+const offsets = await destination(flags);
+const packed = await compact(samples, flags, offsets);
 
 // TODO: the scan stops one short — offsets[63] counts everyone BEFORE
 // element 63, so element 63's own flag is still missing from the total.
@@ -4344,7 +4389,7 @@ const countBin = gpu.createKernel(function (codes) {
   constants: { n: 4096, target: 5 },
 });
 
-console.log('codes equal to the target:', countBin(codes)[0]);
+console.log('codes equal to the target:', (await countBin(codes))[0]);
 ```
 
 ---
@@ -4442,7 +4487,7 @@ const histogram = gpu.createKernel(function (codes) {
   constants: { n: 4096 },
 });
 
-const counts = histogram(codes);
+const counts = await histogram(codes);
 console.log('counts:', counts);
 
 // TODO: total the 16 counts in plain JavaScript and log the total.
@@ -4557,7 +4602,7 @@ const histogram = gpu.createKernel(function (samples) {
   constants: { n: 4096, bins: 16, lo: -32, span: 64 },
 });
 
-const counts = histogram(samples);
+const counts = await histogram(samples);
 console.log('counts:', counts);
 
 let total = 0;
@@ -4679,8 +4724,8 @@ const merge = gpu.createKernel(function (partial) {
   constants: { chunks: 32 },
 });
 
-const grid = partials(codes);
-const counts = merge(grid);
+const grid = await partials(codes);
+const counts = await merge(grid);
 console.log('counts:', counts);
 ```
 
@@ -4805,8 +4850,8 @@ const histogram = gpu.createKernel(function (map) {
   constants: { size: 64, bins: 32 },
 });
 
-const map = luminance(photo);
-const counts = histogram(map);
+const map = await luminance(photo);
+const counts = await histogram(map);
 console.log('counts:', counts);
 
 // TODO: total the counts and log the total. 4096 pixels in, 4096 counted.
@@ -4933,7 +4978,7 @@ const rankScores = gpu.createKernel(function (scores) {
   constants: { n: 4096 },
 });
 
-const ranks = rankScores(scores);
+const ranks = await rankScores(scores);
 console.log('rank of element 0:', ranks[0], '(its score is', scores[0] + ')');
 ```
 
@@ -5036,8 +5081,8 @@ const pickTop = gpu.createKernel(function (scores, ranks) {
   return best;
 }, { output: [10], constants: { n: 4096 } });
 
-const ranks = rankScores(scores);
-const top = pickTop(scores, ranks);
+const ranks = await rankScores(scores);
+const top = await pickTop(scores, ranks);
 console.log('top 10:', top);
 ```
 
@@ -5163,8 +5208,8 @@ const pickBrightest = gpu.createKernel(function (ranks) {
   return foundY * this.constants.size + foundX;
 }, { output: [8], constants: { size: 64 } });
 
-const ranks = rankCells(brightness);
-const spots = pickBrightest(ranks);
+const ranks = await rankCells(brightness);
+const spots = await pickBrightest(ranks);
 
 // Flat index back to a location — this part is plain JavaScript.
 const row = Math.floor(spots[0] / 64);
@@ -5250,7 +5295,7 @@ value that `k + 1` scores clear.
 ```js
 while (hi - lo > 0.5) {
   const mid = (lo + hi) / 2;
-  if (total(countAbove(scores, mid)) >= K) lo = mid;
+  if (total(await countAbove(scores, mid)) >= K) lo = mid;
   else hi = mid;
 }
 const cutoff = Math.floor(lo);
@@ -5306,7 +5351,7 @@ lo = lo - 1;
 
 const cutoff = Math.floor(lo);
 console.log('cutoff:', cutoff);
-console.log('above it:', total(countAbove(scores, cutoff)));
+console.log('above it:', total(await countAbove(scores, cutoff)));
 ```
 
 ---
@@ -5487,9 +5532,10 @@ function bracket(values) {
   return [lo - 1, hi];
 }
 
-function bisect(counter, values, k) {
+async function bisect(counter, values, k) {
   // TODO: bracket the values, halve while hi - lo > 0.5 keeping the half
-  // that can still contain the cutoff, and return Math.floor(lo).
+  // that can still contain the cutoff, and return Math.floor(lo). Each
+  // counting pass has to be awaited before its answer can be read.
   return 0;
 }
 
@@ -5501,17 +5547,20 @@ function boundaryOf(ranks, values) {
 
 // A kernel's first launch compiles it, and a shader compiler inside the
 // timer is not a measurement. One untimed warm-up call each.
-rankSmall(scores);
-bisect(countSmall, scores, K);
-if (mode === 'gpu') rankBig(bigScores);
-bisect(countBig, bigScores, K);
+await rankSmall(scores);
+await bisect(countSmall, scores, K);
+// mode carries the gpu.js mode string — 'async' on the default Auto setting,
+// 'gpu' only when WebGL is picked by hand. The question here is "is this the
+// slow single-threaded backend?", so ask that.
+if (mode !== 'cpu') await rankBig(bigScores);
+await bisect(countBig, bigScores, K);
 
 let t0 = performance.now();
-const smallByRank = boundaryOf(rankSmall(scores), scores);
+const smallByRank = boundaryOf(await rankSmall(scores), scores);
 const rankSmallMs = performance.now() - t0;
 
 t0 = performance.now();
-const smallCut = bisect(countSmall, scores, K);
+const smallCut = await bisect(countSmall, scores, K);
 const bisectSmallMs = performance.now() - t0;
 
 console.log('rank 4096:', rankSmallMs.toFixed(1), 'ms - 10th largest score is', smallByRank);
@@ -5520,9 +5569,9 @@ console.log('bisect 4096:', bisectSmallMs.toFixed(1), 'ms - cutoff', smallCut);
 // 131,072 x 131,072 = 17.2 billion comparisons. The GPU eats them in tens
 // of milliseconds; the CPU backend, one thread, would need about a minute,
 // so there this measurement is reported rather than run.
-if (mode === 'gpu') {
+if (mode !== 'cpu') {
   t0 = performance.now();
-  const bigByRank = boundaryOf(utils.flatten(rankBig(bigScores)), bigScores);
+  const bigByRank = boundaryOf(utils.flatten(await rankBig(bigScores)), bigScores);
   const rankBigMs = performance.now() - t0;
   console.log('rank 131072:', rankBigMs.toFixed(1), 'ms - 10th largest score is', bigByRank);
 } else {
@@ -5530,7 +5579,7 @@ if (mode === 'gpu') {
 }
 
 t0 = performance.now();
-const bigCut = bisect(countBig, bigScores, K);
+const bigCut = await bisect(countBig, bigScores, K);
 const bisectBigMs = performance.now() - t0;
 
 console.log('bisect 131072:', bisectBigMs.toFixed(1), 'ms - cutoff', bigCut);
@@ -5655,7 +5704,7 @@ const exchange = gpu.createKernel(function (data) {
   return data[i];
 }, { output: [16] });
 
-const result = exchange(data);
+const result = await exchange(data);
 console.log(result);
 ```
 
@@ -5753,8 +5802,8 @@ const partner = gpu.createKernel(function (stride) {
   return i;
 }, { output: [16] });
 
-console.log('stride 1:', partner(1));
-console.log('stride 4:', partner(4));
+console.log('stride 1:', await partner(1));
+console.log('stride 4:', await partner(4));
 ```
 
 ---
@@ -5869,7 +5918,7 @@ const pass = gpu.createKernel(function (data, stage, stride) {
 }, { output: [8] });
 
 // stage 2, stride 1: pairs (0,1) and (4,5) sort up, (2,3) and (6,7) sort down.
-console.log(pass(data, 2, 1));
+console.log(await pass(data, 2, 1));
 ```
 
 ---
@@ -5992,7 +6041,7 @@ console.log('schedule:', JSON.stringify(schedule));
 // call, and every pass hands back a Float32Array.
 let values = Float32Array.from(data);
 for (let i = 0; i < schedule.length; i++) {
-  values = pass(values, schedule[i][0], schedule[i][1]);
+  values = await pass(values, schedule[i][0], schedule[i][1]);
 }
 
 console.log('smallest:', values[0]);
@@ -6108,7 +6157,7 @@ const padded = values.slice();
 let result = Float32Array.from(padded);
 for (let stage = 2; stage <= size; stage *= 2) {
   for (let stride = stage / 2; stride >= 1; stride /= 2) {
-    result = pass(result, stage, stride);
+    result = await pass(result, stage, stride);
   }
 }
 
@@ -6252,7 +6301,7 @@ const destination = gpu.createKernel(function (digits) {
   constants: { n: 16 },
 });
 
-const dest = destination(digits);
+const dest = await destination(digits);
 console.log('digits:      ', digits.join(' '));
 console.log('destinations:', Array.from(dest).join(' '));
 ```
@@ -6351,7 +6400,7 @@ const destination = gpu.createKernel(function (bits, zeros) {
   constants: { n: 32 },
 });
 
-const bits = lowBit(keys);
+const bits = await lowBit(keys);
 
 let zeros = 0;
 for (let i = 0; i < bits.length; i++) {
@@ -6359,7 +6408,7 @@ for (let i = 0; i < bits.length; i++) {
 }
 console.log('zeros:', zeros);
 
-const dest = destination(bits, zeros);
+const dest = await destination(bits, zeros);
 
 // A scatter — fine in JavaScript, impossible inside a kernel. Task 4 fixes it.
 const out = new Array(32);
@@ -6483,13 +6532,13 @@ const offsets = gpu.createKernel(function (counts) {
   constants: { radix: 16 },
 });
 
-const onesCounts = histogram(keys, 1);
+const onesCounts = await histogram(keys, 1);
 console.log('ones-digit counts: ', Array.from(onesCounts).join(' '));
-console.log('ones-digit offsets:', Array.from(offsets(onesCounts)).join(' '));
+console.log('ones-digit offsets:', Array.from(await offsets(onesCounts)).join(' '));
 
-const sixteensCounts = histogram(keys, 16);
+const sixteensCounts = await histogram(keys, 16);
 console.log('16s-digit counts:  ', Array.from(sixteensCounts).join(' '));
-console.log('16s-digit offsets: ', Array.from(offsets(sixteensCounts)).join(' '));
+console.log('16s-digit offsets: ', Array.from(await offsets(sixteensCounts)).join(' '));
 ```
 
 ---
@@ -6573,7 +6622,7 @@ const gather = gpu.createKernel(function (keys, destinations) {
   constants: { n: 64 },
 });
 
-const sorted = gather(keys, destinations);
+const sorted = await gather(keys, destinations);
 console.log('before:', keys.slice(0, 8).join(' '), '…');
 console.log('after: ', Array.from(sorted).slice(0, 8).join(' '), '…');
 ```
@@ -6638,10 +6687,10 @@ if (d === mine && j < this.thread.x) rank++;
 
 ```js
 for (let place = 1; place <= 256; place *= 16) {
-  const counts = histogram(values, place);
-  const starts = offsets(counts);
-  const dest = destinations(values, place, starts);
-  values = gather(values, dest);
+  const counts = await histogram(values, place);
+  const starts = await offsets(counts);
+  const dest = await destinations(values, place, starts);
+  values = await gather(values, dest);
 }
 ```
 
@@ -6780,7 +6829,7 @@ changes.
 ## Hint 2 — the wiring
 
 ```js
-const sorted = decode(radixSort(encode(readings)));
+const sorted = await decode(await radixSort(await encode(readings)));
 ```
 
 Encode on the way in, decode on the way out. Miss the decode and every value
@@ -6854,19 +6903,23 @@ const gather = gpu.createKernel(function (keys, dest) {
   return value;
 }, { output: [256], constants: { n: 256 } });
 
-function radixSort(values) {
+async function radixSort(values) {
   // gpu.js locks an argument's type on a kernel's first call, and every pass
   // feeds one kernel's output into the next — so the chain starts as a
-  // Float32Array whatever it was handed.
+  // Float32Array whatever it was handed. Each stage is awaited before the
+  // next reads it: the passes are a chain, not a set.
   let v = Float32Array.from(values);
   for (let place = 1; place <= 256; place *= 16) {
-    v = gather(v, destinations(v, place, offsets(histogram(v, place))));
+    const counts = await histogram(v, place);
+    const starts = await offsets(counts);
+    const dest = await destinations(v, place, starts);
+    v = await gather(v, dest);
   }
   return v;
 }
 
 // TODO: bias the readings on the way in, and take the bias off on the way out.
-const sorted = radixSort(readings);
+const sorted = await radixSort(readings);
 console.log('smallest:', sorted[0], '| largest:', sorted[255]);
 ```
 
@@ -6967,7 +7020,7 @@ const dot = gpu.createKernel(function (a, b) {
   output: [16],
 });
 
-console.log(dot(a, b));
+console.log(await dot(a, b));
 ```
 
 ---
@@ -7045,7 +7098,7 @@ const multiply = gpu.createKernel(function (a, b) {
   return a[this.thread.y][this.thread.x] * b[this.thread.y][this.thread.x];
 }, { output: [16, 16] });
 
-const c = multiply(matA, matB);
+const c = await multiply(matA, matB);
 console.log('C[0][0] =', c[0][0]);
 ```
 
@@ -7124,7 +7177,7 @@ const multiply = gpu.createKernel(function (a, b) {
   output: [12, 8],
 });
 
-const c = multiply(rectA, rectB);
+const c = await multiply(rectA, rectB);
 console.log('rows:', c.length, 'cols:', c[0].length);
 ```
 
@@ -7195,7 +7248,7 @@ const transpose = gpu.createKernel(function (m) {
   output: [24, 40],
 });
 
-const t = transpose(matWide);
+const t = await transpose(matWide);
 console.log('rows:', t.length, 'cols:', t[0].length);
 ```
 
@@ -7233,7 +7286,7 @@ to 64 using a *single* kernel — verify it on the 8×8 and 48×48 pairs provide
 
 - Kernel options: `dynamicOutput`, `dynamicArguments`, and `loopMaxIterations: 64`
 - Take `size` as a third kernel argument and loop `k < size`
-- In `multiply`, call `matmul.setOutput([n, n])` before invoking
+- In `multiply`, call `matmul.setOutput([n, n])` before `await`-ing the kernel
 - Exactly one `createKernel` call serves both sizes
 
 ## Hint 1 — why the cap?
@@ -7252,16 +7305,18 @@ largest size you'll ever pass: 64 here.
 
 ## Hint 2 — sizing per call
 
-Inside `multiply`:
+Inside `multiply` — which is `async`, because a kernel call
+is awaited:
 
 ```js
 const n = a.length;
 matmul.setOutput([n, n]);
-return matmul(a, b, n);
+return await matmul(a, b, n);
 ```
 
 — set the launch shape first,
-then invoke with the size as the last argument.
+then invoke with the size as the last argument. Its callers then
+`await multiply(…)` in turn.
 
 ## Hint 3 — the kernel
 
@@ -7308,15 +7363,15 @@ const matmul = gpu.createKernel(function (a, b) {
   return sum;
 }, { output: [8, 8] });
 
-function multiply(a, b) {
+async function multiply(a, b) {
   const n = a.length;
   // TODO: point the kernel at an n×n launch before invoking,
   // and pass n in so the loop knows where to stop.
-  return matmul(a, b);
+  return await matmul(a, b);
 }
 
-console.log('8×8  C[0][0] =', multiply(smallA, smallB)[0][0]);
-console.log('48×48 C[0][0] =', multiply(bigA, bigB)[0][0]);
+console.log('8×8  C[0][0] =', (await multiply(smallA, smallB))[0][0]);
+console.log('48×48 C[0][0] =', (await multiply(bigA, bigB))[0][0]);
 ```
 
 ---
@@ -7416,7 +7471,7 @@ const inside = gpu.createKernel(function (xs, ys) {
   return 0;
 }, { output: [4096] });
 
-const hits = inside(xs, ys);
+const hits = await inside(xs, ys);
 
 let count = 0;
 for (let i = 0; i < hits.length; i++) count += hits[i];
@@ -7505,8 +7560,8 @@ const partialSums = gpu.createKernel(function (hits) {
   return hits[this.thread.x];
 }, { output: [256] });
 
-const hits = inside(xs, ys);
-const partials = partialSums(hits);
+const hits = await inside(xs, ys);
+const partials = await partialSums(hits);
 
 let total = 0;
 for (let i = 0; i < partials.length; i++) total += partials[i];
@@ -7592,7 +7647,7 @@ const partials = gpu.createKernel(function (xs) {
   return sum;
 }, { output: [256] });
 
-const sums = partials(samples);
+const sums = await partials(samples);
 
 let total = 0;
 for (let i = 0; i < sums.length; i++) total += sums[i];
@@ -7668,7 +7723,7 @@ const payoff = gpu.createKernel(function (normals, s0, strike, drift, volT) {
   return st - strike;
 }, { output: [16384] });
 
-const payoffs = payoff(normals, S0, STRIKE, (RATE - SIGMA * SIGMA / 2) * T, SIGMA * Math.sqrt(T));
+const payoffs = await payoff(normals, S0, STRIKE, (RATE - SIGMA * SIGMA / 2) * T, SIGMA * Math.sqrt(T));
 
 let sum = 0;
 for (let i = 0; i < payoffs.length; i++) sum += payoffs[i];
@@ -7764,7 +7819,7 @@ const pull = gpu.createKernel(function (posX, posY, starX, starY, starMass) {
   return 0;
 }, { output: [64] });
 
-const strength = pull(posX, posY, 0, 0, 100);
+const strength = await pull(posX, posY, 0, 0, 100);
 console.log('pull on body 0:', strength[0]);
 ```
 
@@ -7852,7 +7907,7 @@ const accelX = gpu.createKernel(function (posX, posY, mass) {
   return ax;
 }, { output: [64], constants: { n: 64 } });
 
-const ax = accelX(posX, posY, mass);
+const ax = await accelX(posX, posY, mass);
 console.log('net x-pull on body 0:', ax[0]);
 ```
 
@@ -7941,7 +7996,7 @@ const accel = gpu.createKernel(function (posX, posY, mass, soft) {
   return [ax, ay];
 }, { output: [64], constants: { n: 64 } });
 
-const acc = accel(posX, posY, mass, 0.1);
+const acc = await accel(posX, posY, mass, 0.1);
 console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
 ```
 
@@ -8023,7 +8078,7 @@ const stepPos = gpu.createKernel(function (posX, posY, velX, velY, dt) {
 }, { output: [64] });
 
 const DT = 0.01;
-const newVel = stepVel(velX, velY, accX, accY, DT);
+const newVel = await stepVel(velX, velY, accX, accY, DT);
 
 // unpack the [vx, vy] pairs so the position kernel gets plain arrays
 const newVelX = [];
@@ -8033,7 +8088,7 @@ for (let i = 0; i < 64; i++) {
   newVelY.push(newVel[i][1]);
 }
 
-const newPos = stepPos(posX, posY, newVelX, newVelY, DT);
+const newPos = await stepPos(posX, posY, newVelX, newVelY, DT);
 console.log('body 0 moved to', newPos[0][0], newPos[0][1]);
 ```
 
@@ -8069,16 +8124,17 @@ loop you're about to write wouldn't change by a character.
 
 ## Requirements
 
-- Each tick: accelerations first — `accel(px, py, mass, SOFT)`
-- Unpack the pairs, then `stepVel(vx, vy, ax, ay, DT)`, then `stepPos` with the *new* velocities
+- Each tick: accelerations first — `await accel(px, py, mass, SOFT)`
+- Unpack the pairs, then `await stepVel(vx, vy, ax, ay, DT)`, then `await stepPos` with the *new* velocities — awaited one after another, because each reads the one before it
 - Reassign `px, py, vx, vy` so the next tick starts from the new state
 - Run exactly `STEPS` ticks, then log body 0's final position
 
 ## Hint 1 — the shape of one tick
 
-Inside the loop: call `accel`, unpack its pairs into
-`ax, ay` arrays (the `unpack` helper is right there), call
-`stepVel`, unpack, call `stepPos`, unpack.
+Inside the loop: `await accel`, unpack its pairs into
+`ax, ay` arrays (the `unpack` helper is right there),
+`await stepVel`, unpack, `await stepPos`, unpack. One at a
+time — the next call needs the previous one's numbers.
 
 ## Hint 2 — carrying the state
 
@@ -8098,9 +8154,9 @@ py = newPy;
 
 ```js
 for (let step = 0; step < STEPS; step++) {
-  const [ax, ay] = unpack(accel(px, py, mass, SOFT));
-  const [nvx, nvy] = unpack(stepVel(vx, vy, ax, ay, DT));
-  const [npx, npy] = unpack(stepPos(px, py, nvx, nvy, DT));
+  const [ax, ay] = unpack(await accel(px, py, mass, SOFT));
+  const [nvx, nvy] = unpack(await stepVel(vx, vy, ax, ay, DT));
+  const [npx, npy] = unpack(await stepPos(px, py, nvx, nvy, DT));
   px = npx; py = npy; vx = nvx; vy = nvy;
 }
 ```
@@ -8166,10 +8222,11 @@ let vx = velX;
 let vy = velY;
 
 for (let step = 0; step < STEPS; step++) {
-  // TODO — one full tick:
-  //   1. pairs = accel(px, py, mass, SOFT), unpack into ax, ay
-  //   2. stepVel with DT → unpack into the NEW vx, vy
-  //   3. stepPos with the NEW velocities → unpack into the new px, py
+  // TODO — one full tick. Every kernel call is awaited, and in this
+  // order: each stage reads the stage before it.
+  //   1. pairs = await accel(px, py, mass, SOFT), unpack into ax, ay
+  //   2. await stepVel with DT → unpack into the NEW vx, vy
+  //   3. await stepPos with the NEW velocities → unpack into the new px, py
   //   4. reassign px, py, vx, vy for the next tick
 }
 
@@ -8304,7 +8361,7 @@ const trajectory = gpu.createKernel(function (startX, startV, dt) {
   constants: { steps: STEPS },
 });
 
-const finalX = trajectory(startX, startV, DT);
+const finalX = await trajectory(startX, startV, DT);
 
 console.log('trajectory 0 ended at', finalX[0]);
 console.log('the exact answer is  ', startX[0] * Math.cos(T_END) + startV[0] * Math.sin(T_END));
@@ -8435,7 +8492,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 400,          // the largest level; a bigger one would be truncated
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 console.log('levels:', errors.length, '× trajectories:', errors[0].length);
 
 // TODO: average each row into means[], log each one, then log the ratios
@@ -8550,7 +8607,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 200,
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 
 // average the trajectories at each step size, then see what each halving bought
 const means = [];
@@ -8677,7 +8734,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 20,
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 
 // average the trajectories at each step size, then see what each halving bought
 const means = [];
@@ -8797,7 +8854,7 @@ const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
   loopMaxIterations: 200,
 });
 
-const errors = errorOf(startX, startV, levelSteps);
+const errors = await errorOf(startX, startV, levelSteps);
 
 // average the trajectories at each step size, then see what each halving bought
 const means = [];
@@ -8931,8 +8988,8 @@ const verletEnergy = gpu.createKernel(function (dt) {
   return 1;
 }, { output: [1024], loopMaxIterations: 1024 });
 
-const rk4Curve = rk4Energy(DT);
-const verletCurve = verletEnergy(DT);
+const rk4Curve = await rk4Energy(DT);
+const verletCurve = await verletEnergy(DT);
 
 // TODO: log both final energies, and the smallest value the Verlet curve reaches.
 ```
@@ -9055,7 +9112,7 @@ const sweep = gpu.createKernel(function (u) {
   return u[y][x];
 }, { output: [32, 32], constants: { size: 32 } });
 
-const next = sweep(guess);
+const next = await sweep(guess);
 console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
 ```
 
@@ -9167,8 +9224,8 @@ function rmsOf(grid) {
 
 let u = plate;
 for (let k = 0; k <= SWEEPS; k++) {
-  if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(residual(u)));
-  u = sweep(u);
+  if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(await residual(u)));
+  u = await sweep(u);
 }
 ```
 
@@ -9287,7 +9344,7 @@ const red = gpu.createKernel(function (u) {
   return u[y][x];
 }, { output: [32, 32], constants: { size: 32 } });
 
-const afterRed = red(guess);
+const afterRed = await red(guess);
 console.log('a red cell [16][16]:', guess[16][16], '→', afterRed[16][16]);
 console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
 ```
@@ -9326,7 +9383,7 @@ full red-black Gauss-Seidel sweep.
 
 - The black kernel is the red kernel with its parity test flipped: cells with `(x + y) % 2 === 1` update, everything else passes through
 - Create the red kernel first and the black kernel second
-- One full sweep is `black(red(u))` — the black half reads what the red half wrote
+- One full sweep is `await black(await red(u))` — the black half reads what the red half wrote
 - The boundary is untouched by both halves
 
 ## Hint 1 — the black kernel
@@ -9344,11 +9401,13 @@ Still a number, never a boolean — the WebGL backend rejects
 ## Hint 2 — the chain is the lesson
 
 ```js
-const afterRed = red(guess);
-const afterBoth = black(afterRed);   // NOT black(guess)
+const afterRed = await red(guess);
+const afterBoth = await black(afterRed);   // NOT black(guess)
 ```
 
-Or, in one line: `black(red(guess))`.
+Or, in one line: `await black(await red(guess))` — the inner
+`await` is not optional, because an un-awaited kernel call hands the next
+kernel a Promise instead of a grid.
 
 ## Same idea elsewhere
 
@@ -9388,7 +9447,7 @@ const black = gpu.createKernel(function (u) {
   return u[y][x];
 }, { output: [32, 32], constants: { size: 32 } });
 
-const afterRed = red(guess);
+const afterRed = await red(guess);
 // TODO 2: finish the sweep. The black half must read afterRed, not guess.
 const afterSweep = afterRed;
 
@@ -9441,16 +9500,22 @@ the console — Jacobi should need about 275 sweeps and red-black about 170.
 ## Hint 1 — the helper already does the counting
 
 `sweepsToTolerance` takes one argument: a function that turns a grid
-into the next grid. Jacobi's is `u => sweep(u)`. Red-black's is one
-sweep — both halves — expressed the same way.
+into the next grid. Because a kernel call is awaited, that function is
+`async` — Jacobi's is `async u => await sweep(u)`, and the
+helper awaits whatever it returns. Red-black's is one sweep — both halves — expressed
+the same way.
 
 ## Hint 2 — the one-liner
 
 ```js
-const redBlackSweeps = sweepsToTolerance(u => black(red(u)));
+const redBlackSweeps = await sweepsToTolerance(
+  async u => await black(await red(u))
+);
 ```
 
-Both halves inside one call, so the helper counts a full sweep each time it runs it.
+Both halves inside one call, so the helper counts a full sweep each time it runs it. Both
+`await`s matter: the outer one hands the helper a grid, and the inner one is
+what makes the black half read the red half's output instead of a Promise.
 
 ## Same idea elsewhere
 
@@ -9524,25 +9589,26 @@ const MAX_SWEEPS = 400;
 
 // Sweeps until the RMS residual drops below TOL, checking every 5 sweeps.
 // `step` turns one grid into the next.
-function sweepsToTolerance(step) {
+async function sweepsToTolerance(step) {
   let u = plate;
   let sweeps = 0;
   while (sweeps < MAX_SWEEPS) {
-    if (rmsOf(residual(u)) < TOL) break;
+    if (rmsOf(await residual(u)) < TOL) break;
     for (let i = 0; i < CHECK_EVERY; i++) {
-      u = step(u);
+      u = await step(u);
       sweeps++;
     }
   }
   return sweeps;
 }
 
-const jacobiSweeps = sweepsToTolerance(u => sweep(u));
+const jacobiSweeps = await sweepsToTolerance(async u => await sweep(u));
 console.log('jacobi: converged in', jacobiSweeps, 'sweeps');
 
 // TODO: one red-black sweep is the red half followed by the black half,
 //       and the black half has to read what the red half just wrote.
-const redBlackSweeps = sweepsToTolerance(u => u);
+//       Await both halves — an un-awaited call hands black a Promise.
+const redBlackSweeps = await sweepsToTolerance(async u => u);
 console.log('red-black: converged in', redBlackSweeps, 'sweeps');
 ```
 
@@ -9674,7 +9740,7 @@ const step = gpu.createKernel(function (u) {
   constants: { size: 48, alpha: ALPHA },
 });
 
-const next = step(field);
+const next = await step(field);
 console.log('alpha:', ALPHA, ' centre weight 1 - 4*alpha:', 1 - 4 * ALPHA);
 console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
 ```
@@ -9744,8 +9810,8 @@ substitute `α = D·dt/dx²`, and solve for `dt`.
 
 ```js
 const dtMax = dx * dx / (2 * D * DIMS);
-run('SAFE', 0.4 * dtMax);
-run('PAST THE LINE', 1.6 * dtMax);
+await run('SAFE', 0.4 * dtMax);
+await run('PAST THE LINE', 1.6 * dtMax);
 ```
 
 ## Same idea elsewhere
@@ -9784,7 +9850,7 @@ function hottest(u) {
   return m;
 }
 
-function run(label, dt) {
+async function run(label, dt) {
   const alpha = D * dt / (dx * dx);
   const step = gpu.createKernel(function (u) {
     const x = this.thread.x;
@@ -9801,7 +9867,7 @@ function run(label, dt) {
   console.log(label, '— dt =', dt, ' alpha =', alpha, ' centre weight =', 1 - 4 * alpha);
   let u = seed;
   for (let i = 1; i <= STEPS; i++) {
-    u = step(u);
+    u = await step(u);
     if (i % 20 === 0) console.log('   step', i, '→ hottest |u| =', hottest(u));
   }
   return u;
@@ -9809,7 +9875,8 @@ function run(label, dt) {
 
 console.log('stability limit: dt <=', dtMax);
 
-// TODO: run twice — at 0.4 * dtMax, then at 1.6 * dtMax
+// TODO: run twice — at 0.4 * dtMax, then at 1.6 * dtMax.
+//       run() is async now (it awaits the kernel), so await each call.
 ```
 
 ---
@@ -9922,7 +9989,7 @@ const step = gpu.createKernel(function (u, dts) {
 });
 
 let u = seed;
-for (let i = 0; i < STEPS; i++) u = step(u, dts);
+for (let i = 0; i < STEPS; i++) u = await step(u, dts);
 
 // TODO: for each row print the largest |u| left, and keep the largest dt
 // whose row stayed below 1.
@@ -10009,7 +10076,7 @@ return (uOld[y][x] + this.constants.alpha * neighbours)
 `sweep(guess, guess)` replaces the right-hand side with the current
 iterate every sweep, which throws away the one piece of information that makes this a
 *time step*. It still converges — to `∇²u = 0`, a flat field. The
-fix is one word: `guess = sweep(seed, guess);`
+fix is one word: `guess = await sweep(seed, guess);`
 
 ## Same idea elsewhere
 
@@ -10070,7 +10137,7 @@ for (let k = 0; k < SWEEPS; k++) {
   // TODO: the right-hand side is the OLD field and never changes during a
   // solve. This passes the current iterate instead, which throws the time
   // step away and converges to a flat field.
-  guess = sweep(guess, guess);
+  guess = await sweep(guess, guess);
 }
 
 console.log('hottest after one implicit step:', hottest(guess));
@@ -10204,19 +10271,19 @@ function gap(a, b) {
   return m;
 }
 
-function runExplicit(dt, steps) {
+async function runExplicit(dt, steps) {
   const alpha = D * dt / (dx * dx);
   let u = seed;
-  for (let i = 0; i < steps; i++) u = explicitStep(u, alpha);
+  for (let i = 0; i < steps; i++) u = await explicitStep(u, alpha);
   return u;
 }
 
-function runImplicit(dt, steps) {
+async function runImplicit(dt, steps) {
   const alpha = D * dt / (dx * dx);
   let u = seed;
   for (let i = 0; i < steps; i++) {
     let guess = u;
-    for (let k = 0; k < SWEEPS; k++) guess = sweep(u, guess, alpha);
+    for (let k = 0; k < SWEEPS; k++) guess = await sweep(u, guess, alpha);
     u = guess;
   }
   return u;
@@ -10226,9 +10293,9 @@ function runImplicit(dt, steps) {
 const smallSteps = 0;
 const bigSteps = 0;
 
-const fine = runExplicit(DT_SMALL, smallSteps);
-const coarse = runImplicit(DT_BIG, bigSteps);
-const doomed = runExplicit(DT_BIG, bigSteps);
+const fine = await runExplicit(DT_SMALL, smallSteps);
+const coarse = await runImplicit(DT_BIG, bigSteps);
+const doomed = await runExplicit(DT_BIG, bigSteps);
 
 console.log('explicit, dt =', DT_SMALL, 'x', smallSteps, 'steps → hottest', hottest(fine));
 console.log('implicit, dt =', DT_BIG, 'x', bigSteps, 'steps → hottest', hottest(coarse));
@@ -10354,7 +10421,7 @@ const lossPartials = gpu.createKernel(function (xs, ys, m, c) {
   constants: { threads: 64, chunk: 64 },
 });
 
-const partials = lossPartials(xs, ys, 0, 0);
+const partials = await lossPartials(xs, ys, 0, 0);
 
 let total = 0;
 for (let i = 0; i < partials.length; i++) total += partials[i];
@@ -10477,7 +10544,7 @@ const gradPartials = gpu.createKernel(function (xs, ys, m, c) {
   constants: { threads: 64, chunk: 64 },
 });
 
-const rows = gradPartials(xs, ys, 0, 0);
+const rows = await gradPartials(xs, ys, 0, 0);
 
 let sumMx = 0;
 let sumC = 0;
@@ -10537,7 +10604,7 @@ of `0.5`.
 
 - Step *against* the gradient — subtract, do not add
 - Scale each step by `rate`: `m = m - rate * g[0]`
-- Use the averaged gradient `gradientAt()` returns, not a raw sum
+- `gradientAt()` is async — `await` it, and use the averaged gradient it returns, not a raw sum
 - The logged final slope and intercept should read `3` and `4`
 
 ## Hint 1 — which way is downhill?
@@ -10596,8 +10663,8 @@ const lossPartials = gpu.createKernel(function (xs, ys, m, c) {
   return sum;
 }, { output: [64], constants: { threads: 64, chunk: 64 } });
 
-function gradientAt(m, c) {
-  const rows = gradPartials(xs, ys, m, c);
+async function gradientAt(m, c) {
+  const rows = await gradPartials(xs, ys, m, c);
   let sumMx = 0;
   let sumC = 0;
   for (let i = 0; i < 64; i++) {
@@ -10607,8 +10674,8 @@ function gradientAt(m, c) {
   return [(2 * sumMx) / 4096, (2 * sumC) / 4096];
 }
 
-function lossAt(m, c) {
-  const partials = lossPartials(xs, ys, m, c);
+async function lossAt(m, c) {
+  const partials = await lossPartials(xs, ys, m, c);
   let total = 0;
   for (let i = 0; i < 64; i++) total += partials[i];
   return total / 4096;
@@ -10619,16 +10686,16 @@ let m = 0;
 let c = 0;
 
 for (let step = 1; step <= 60; step++) {
-  const g = gradientAt(m, c);
+  const g = await gradientAt(m, c);
   // TODO: move m and c one step DOWNHILL.
   // g[0] is dL/dm and g[1] is dL/dc — both point UPHILL.
 
-  if (step % 10 === 0) console.log('step', step, '· loss', lossAt(m, c));
+  if (step % 10 === 0) console.log('step', step, '· loss', await lossAt(m, c));
 }
 
 console.log('fitted slope:', m);
 console.log('fitted intercept:', c);
-console.log('final loss:', lossAt(m, c));
+console.log('final loss:', await lossAt(m, c));
 ```
 
 ---
@@ -10754,7 +10821,7 @@ const sweep = gpu.createKernel(function (xs, ys, rates) {
   constants: { points: 64, steps: 80, gradScale: 2 / 64, invPoints: 1 / 64 },
 });
 
-const finalLoss = sweep(xs, ys, rates);
+const finalLoss = await sweep(xs, ys, rates);
 
 let converged = 0;
 for (let k = 0; k < finalLoss.length; k++) {
@@ -10880,7 +10947,7 @@ const walk = gpu.createKernel(function (starts) {
   constants: { steps: 200, rate: 0.02 },
 });
 
-const ends = walk(starts);
+const ends = await walk(starts);
 
 let left = 0;
 let middle = 0;
@@ -11035,7 +11102,7 @@ const relativeLuminance = gpu.createKernel(function (photo) {
   return 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2];
 }, { output: [64, 64] });
 
-const map = relativeLuminance(photo);
+const map = await relativeLuminance(photo);
 
 // The same pixel, three ways. Two of them are done for you, on the host —
 // photo.at(x, y) is the host-side view of photo[y][x].
@@ -11200,12 +11267,12 @@ const paintHue = gpu.createKernel(function (h) {
   this.color(r, g, b, 1);
 }, { output: [64, 64], graphical: true });
 
-const hues = hue(chart);
-const sats = saturation(chart);
+const hues = await hue(chart);
+const sats = await saturation(chart);
 console.log('top-left swatch is pure red:  hue', hues[0][0], ' saturation', sats[0][0]);
 console.log('the grey row has no hue:      hue', hues[28][4], ' saturation', sats[28][4]);
 
-paintHue(hues);
+await paintHue(hues);
 render(paintHue.canvas);
 ```
 
@@ -11307,7 +11374,7 @@ const midpoint = gpu.createKernel(function (a, b) {
   return (a[this.thread.x] + b[this.thread.x]) / 2;
 }, { output: [64] });
 
-const mid = midpoint(hueA, hueB);
+const mid = await midpoint(hueA, hueB);
 
 for (let i = 0; i < 4; i++) {
   console.log(hueA[i] + '° and ' + hueB[i] + '° → ' + mid[i] + '°');
@@ -11468,9 +11535,9 @@ const hsvMask = gpu.createKernel(function (photo, hueMap) {
   constants: { target: 0, tol: 15, minSat: 0.35 },
 });
 
-const hues = hue(frame);
-const inRgb = rgbMask(frame);
-const inHsv = hsvMask(frame, hues);
+const hues = await hue(frame);
+const inRgb = await rgbMask(frame);
+const inHsv = await hsvMask(frame, hues);
 
 // TODO: total both masks and log the two counts.
 ```
@@ -11627,7 +11694,7 @@ const histogram = gpu.createKernel(function (bins) {
   return count;
 }, { output: [12], constants: { size: 64 } });
 
-const counts = histogram(hueBin(hue(photo), saturation(photo)));
+const counts = await histogram(await hueBin(await hue(photo), await saturation(photo)));
 console.log('counts:', counts);
 
 // TODO: find the fullest bin and log it. Bin b covers b * 30 ... (b + 1) * 30 degrees.
@@ -11740,7 +11807,7 @@ const smooth = gpu.createKernel(function (signal) {
   return signal[x];
 }, { output: [128] });
 
-const result = smooth(signal);
+const result = await smooth(signal);
 console.log('before:', signal[63], ' after:', result[63]);
 ```
 
@@ -11822,7 +11889,7 @@ const convolve = gpu.createKernel(function (signal, filter) {
 });
 
 const gauss = [0.06, 0.24, 0.4, 0.24, 0.06];
-const result = convolve(signal, gauss);
+const result = await convolve(signal, gauss);
 console.log('smoothed sample 64:', result[64]);
 ```
 
@@ -11922,7 +11989,7 @@ const blur = gpu.createKernel(function (image) {
   constants: { last: 127 },
 });
 
-blur(inputImage);
+await blur(inputImage);
 render(blur.canvas);
 ```
 
@@ -12016,7 +12083,7 @@ const sharpen = gpu.createKernel(function (gray) {
   constants: { last: 95 },
 });
 
-const result = sharpen(gray);
+const result = await sharpen(gray);
 console.log('center before:', gray[48][48], ' after:', result[48][48]);
 ```
 
@@ -12134,8 +12201,8 @@ const sobel = gpu.createKernel(function (gray) {
   constants: { last: 127 },
 });
 
-const grayMap = luminance(inputImage);
-sobel(grayMap);
+const grayMap = await luminance(inputImage);
+await sobel(grayMap);
 render(sobel.canvas);
 ```
 
@@ -12265,7 +12332,7 @@ const threshold = gpu.createKernel(function (photo) {
   constants: { t: 0.49 },
 });
 
-const mask = threshold(photo);
+const mask = await threshold(photo);
 
 // A look at the result: every 4th pixel, '#' where the mask says foreground.
 for (let y = 0; y < 128; y += 4) {
@@ -12401,7 +12468,7 @@ const between = gpu.createKernel(function (tones) {
   constants: { bins: 256 },
 });
 
-const scores = between(tones);
+const scores = await between(tones);
 
 // The argmax is one tiny reduction — plain JavaScript is the right tool here.
 let best = 0;
@@ -12513,7 +12580,7 @@ const adaptive = gpu.createKernel(function (gray) {
   constants: { last: 127, win: 9, radius: 4, area: 81, c: 0.03 },
 });
 
-const mask = adaptive(gray);
+const mask = await adaptive(gray);
 
 // A look at the result: every 4th pixel, '#' where the mask says foreground.
 for (let y = 0; y < 128; y += 4) {
@@ -12663,8 +12730,8 @@ function count(grid) {
 }
 
 console.log('mask      :', count(mask));
-console.log('eroded    :', count(erode(mask)));
-console.log('dilated   :', count(dilate(mask)));
+console.log('eroded    :', count(await erode(mask)));
+console.log('dilated   :', count(await dilate(mask)));
 ```
 
 ---
@@ -12712,7 +12779,7 @@ given kernels, and report what each one changed with the exact labels the starte
 
 ## Requirements
 
-- Opening is `dilate(erode(mask))`; closing is `erode(dilate(mask))`
+- Opening is `await dilate(await erode(mask))`; closing is `await erode(await dilate(mask))`
 - The two-pass opening runs both erosions before either dilation
 - Write the `removed` kernel: `1` where `before` is foreground and `after` is not
 - Log the three counts with the labels already in the starter
@@ -12720,7 +12787,7 @@ given kernels, and report what each one changed with the exact labels the starte
 ## Hint 1 — chaining kernels
 
 A kernel's result is an ordinary 2D array, so it goes straight back into
-another kernel: `dilate(erode(mask))` is the whole opening. Every pass is
+another kernel: `await dilate(await erode(mask))` is the whole opening. Every pass is
 a separate launch, which is exactly how a real pipeline does it (and Pipelines &
 Textures shows how to keep the intermediate on the GPU).
 
@@ -12810,9 +12877,9 @@ const opened = mask;
 const closed = mask;
 const openedTwice = mask;
 
-console.log('opening removed:', count(removed(mask, opened)));
-console.log('closing added:', count(removed(closed, mask)));
-console.log('two passes removed:', count(removed(mask, openedTwice)));
+console.log('opening removed:', count(await removed(mask, opened)));
+console.log('closing added:', count(await removed(closed, mask)));
+console.log('two passes removed:', count(await removed(mask, openedTwice)));
 ```
 
 ---
@@ -12963,8 +13030,8 @@ function count(grid) {
 // TODO: one opening — erode first, then dilate.
 const clean = noisy;
 
-console.log('blobs before cleaning:', count(corners(noisy)));
-console.log('blobs after cleaning:', count(corners(clean)));
+console.log('blobs before cleaning:', count(await corners(noisy)));
+console.log('blobs after cleaning:', count(await corners(clean)));
 ```
 
 ---
@@ -13119,7 +13186,7 @@ const blurY = gpu.createKernel(function (map) {
   constants: { last: 63 },
 });
 
-const smooth = blurY(blurX(gray));
+const smooth = await blurY(await blurX(gray));
 console.log('noisy background pixel:', gray[4][40], ' smoothed:', smooth[4][40]);
 ```
 
@@ -13266,8 +13333,8 @@ const direction = gpu.createKernel(function (gray) {
   constants: { last: 63 },
 });
 
-const mag = magnitude(gray);
-const dir = direction(gray);
+const mag = await magnitude(gray);
+const dir = await direction(gray);
 console.log('on a vertical edge — magnitude:', mag[20][8], ' angle:', dir[20][8]);
 console.log('on a horizontal edge — magnitude:', mag[8][20], ' angle:', dir[8][20]);
 ```
@@ -13409,7 +13476,7 @@ const suppress = gpu.createKernel(function (mag, dir) {
   constants: { last: 63 },
 });
 
-const thin = suppress(mag, dir);
+const thin = await suppress(mag, dir);
 
 let before = 0;
 let after = 0;
@@ -13511,7 +13578,7 @@ const classify = gpu.createKernel(function (thin) {
   constants: { low: 0.3, high: 0.7 },
 });
 
-const labels = classify(thin);
+const labels = await classify(thin);
 
 let strong = 0;
 let weak = 0;
@@ -13600,7 +13667,7 @@ when the centre is weak, so it can never mark itself.
 let state = classified;
 let passes = 0;
 for (let i = 0; i < 40; i++) {
-  const next = grow(state);
+  const next = await grow(state);
   passes++;
   state = next;
   if (unchanged(next, state)) break;
@@ -13674,12 +13741,12 @@ function unchanged(a, b) {
 
 // TODO: one pass is not hysteresis. A weak pixel three steps from a strong one
 // needs three passes to hear about it — keep going until a pass changes nothing.
-let state = grow(classified);
+let state = await grow(classified);
 const passes = 1;
 
 console.log('settled after', passes, 'passes');
 
-const edges = finish(state);
+const edges = await finish(state);
 let count = 0;
 for (let y = 0; y < 64; y++) {
   for (let x = 0; x < 64; x++) count += edges[y][x];
@@ -13724,9 +13791,14 @@ flags, so that every stage hands its result back to JavaScript and the next one 
 again, and run it once more: about **120 ms**. Same kernels, same arithmetic,
 same 72 launches — the extra 75 ms is bus traffic and nothing else. (Both
 figures carry roughly 35 ms of one-time shader compilation. Time the chain on its own,
-without that, and it is **10 ms pipelined against 70 ms round-tripping** — a
-clean seven times.) Eight deletions and two clicks: run that experiment rather than take
-this paragraph's word for it.
+without that, and on the WebGL backend it is **10 ms pipelined against 70–100 ms
+round-tripping** depending on the machine — seven to ten times either way.) Eight
+deletions and two clicks: run that experiment rather than take this paragraph's word for
+it. One note on the console while you do: on this task *auto* reports
+*WebGL* rather than its usual mix, because the comparison only means anything if
+both runs use the same backend — strip the pipelining and the stages start handing back
+plain arrays, which WebGPU would happily take over, and you would be measuring two changes
+at once instead of one.
 
 **Benchmark** agrees from the other direction, reporting the GPU
 **7–8× faster** than the CPU backend here — roughly 2 ms against 15 ms. Know
@@ -13777,14 +13849,14 @@ nine stages into a chain that runs `grow` 64 times.
 ## Hint 1 — the chain, stage by stage
 
 ```js
-const gray = luminance(photo);
-const smooth = blurY(blurX(gray));
-const thin = suppress(magnitude(smooth), direction(smooth));
-let state = classify(thin);
+const gray = await luminance(photo);
+const smooth = await blurY(await blurX(gray));
+const thin = await suppress(await magnitude(smooth), await direction(smooth));
+let state = await classify(thin);
 for (let i = 0; i < PASSES; i++) {
-  state = grow(state);
+  state = await grow(state);
 }
-const edges = finish(state);
+const edges = await finish(state);
 ```
 
 Both gradient kernels read *smooth*. Handing them `gray` instead is
@@ -13964,12 +14036,12 @@ const finish = gpu.createKernel(function (state) {
 
 // TODO: the chain. Two mistakes are already in it — the gradient stages are
 // reading the UNSMOOTHED luminance, and the hysteresis runs exactly once.
-const gray = luminance(photo);
-const smooth = blurY(blurX(gray));
-const thin = suppress(magnitude(gray), direction(gray));
-let state = classify(thin);
-state = grow(state);
-const edges = finish(state);
+const gray = await luminance(photo);
+const smooth = await blurY(await blurX(gray));
+const thin = await suppress(await magnitude(gray), await direction(gray));
+let state = await classify(thin);
+state = await grow(state);
+const edges = await finish(state);
 
 let count = 0;
 for (let y = 0; y < 384; y++) {
@@ -14142,7 +14214,7 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-const map = ssd(scene, patch);
+const map = await ssd(scene, patch);
 const hit = bestMatch(map);
 console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
 ```
@@ -14265,8 +14337,8 @@ function bestMatch(map) {
 const TRUE_X = 58;
 const TRUE_Y = 21;
 
-const plainMap = ssd(scene, patch);
-const brightMap = ssd(brightScene, patch);
+const plainMap = await ssd(scene, patch);
+const brightMap = await ssd(brightScene, patch);
 
 // TODO: log the best position on each map.
 // TODO: log brightMap's score at the true position, and the score its winner
@@ -14425,7 +14497,7 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-const map = ncc(brightScene, patch);
+const map = await ncc(brightScene, patch);
 const hit = bestMatch(map);
 console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
 ```
@@ -14589,7 +14661,7 @@ function bestMatch(map) {
   return { x: bx, y: by, score: best };
 }
 
-const hit = bestMatch(ncc(brightScene, patchCentered, patchNorm));
+const hit = bestMatch(await ncc(brightScene, patchCentered, patchNorm));
 console.log('best match at x =', hit.x, ' y =', hit.y, ' score =', hit.score);
 ```
 
@@ -14675,7 +14747,7 @@ for (let y = 0; y < map.length; y++) {
 three lines:
 
 ```js
-const map = ncc(brightScene, t.centered, t.norm);
+const map = await ncc(brightScene, t.centered, t.norm);
 const hit = bestMatch(map);
 console.log(label, hit.x, hit.y, hit.score,
   hit.score >= THRESHOLD);
@@ -14746,15 +14818,15 @@ function bestMatch(map) {
   return { x: 0, y: 0, score: map[0][0] };
 }
 
-function report(label, template) {
+async function report(label, template) {
   const t = prepare(template);
-  const hit = bestMatch(ncc(brightScene, t.centered, t.norm));
+  const hit = bestMatch(await ncc(brightScene, t.centered, t.norm));
   // TODO: log the label, the position, the score, and whether the score
   // clears THRESHOLD.
 }
 
-report('patch:        ', patch);
-report('rotatedPatch: ', rotatedPatch);
+await report('patch:        ', patch);
+await report('rotatedPatch: ', rotatedPatch);
 ```
 
 ---
@@ -14921,7 +14993,7 @@ const derivatives = gpu.createKernel(function (frameA, frameB) {
   constants: { last: 63 },
 });
 
-const d = derivatives(frameA, frameB);
+const d = await derivatives(frameA, frameB);
 console.log('Ix at (45, 30):', d[0][30][45]);
 console.log('Iy at (45, 30):', d[1][30][45]);
 console.log('It at (45, 30):', d[2][30][45]);
@@ -15024,7 +15096,7 @@ const normalFlow = gpu.createKernel(function (derivs) {
   output: [64, 64, 2],
 });
 
-const flow = normalFlow(derivs);
+const flow = await normalFlow(derivs);
 console.log('true motion: (4, 0)');
 console.log('estimated at (30, 21):', flow[0][21][30], flow[1][21][30]);
 ```
@@ -15182,7 +15254,7 @@ const lucasKanade = gpu.createKernel(function (derivs) {
   constants: { last: 63, eps: 1e-6 },
 });
 
-const flow = lucasKanade(derivs);
+const flow = await lucasKanade(derivs);
 console.log('textured region, true motion is (1, 1):', flow[0][30][45], flow[1][30][45]);
 console.log('flat region:', flow[0][10][6], flow[1][10][6]);
 ```
@@ -15298,7 +15370,7 @@ const confidence = gpu.createKernel(function (derivs) {
   constants: { last: 63 },
 });
 
-const map = confidence(derivs);
+const map = await confidence(derivs);
 console.log('flat band:', map[20][6]);
 console.log('stripe band:', map[20][24]);
 console.log('textured band:', map[30][45]);
@@ -15420,7 +15492,7 @@ const paintFlow = gpu.createKernel(function (flow) {
   constants: { maxFlow: 1.5 },
 });
 
-paintFlow(flow);
+await paintFlow(flow);
 render(paintFlow.canvas);
 ```
 
@@ -15517,7 +15589,7 @@ there: a non-pipeline kernel's *return value* is the readback. Add
 expression:
 
 ```js
-out.push(tone(denoise(luminance(frames[i]))));
+out.push(await tone(await denoise(await luminance(frames[i]))));
 ```
 
 ## Hint 3 — the budget arithmetic
@@ -15581,9 +15653,9 @@ for (let i = 0; i < frames.length; i++) {
   // TODO: each of these three stages ends in a download and the next one
   // re-uploads. Only the LAST stage should come back to JavaScript — make
   // the first two pipeline kernels.
-  const lum = luminance(frames[i]);
-  const clean = denoise(lum);
-  out.push(tone(clean));
+  const lum = await luminance(frames[i]);
+  const clean = await denoise(lum);
+  out.push(await tone(clean));
 }
 
 const totalMs = performance.now() - t0;
@@ -15717,12 +15789,12 @@ const blend = gpu.createKernel(function (frame, previous) {
   // the error message tell you the missing setting.
 });
 
-let state = seed(frames[0]);
+let state = await seed(frames[0]);
 for (let i = 1; i < frames.length; i++) {
-  state = blend(frames[i], state); // last frame's output, straight back in
+  state = await blend(frames[i], state); // last frame's output, straight back in
 }
 
-const smoothed = state.toArray ? state.toArray() : state;
+const smoothed = state.toArray ? await state.toArray() : state;
 console.log('smoothed center:', smoothed[32][32].toFixed(4));
 ```
 
@@ -15862,7 +15934,7 @@ const masks = [];
 // and which frame belongs in `previous`?
 for (let i = 0; i < frames.length; i++) {
   const previous = frames[i];
-  masks.push(cleanup(motion(frames[i], previous)));
+  masks.push(await cleanup(await motion(frames[i], previous)));
 }
 
 console.log('motion masks:', masks.length);
@@ -16015,11 +16087,11 @@ const foreground = gpu.createKernel(function (frame, model) {
   constants: { threshold: 0.12 },
 });
 
-let model = seedModel(frames[0]);
+let model = await seedModel(frames[0]);
 let mask = null;
 for (let i = 1; i < frames.length; i++) {
-  mask = foreground(frames[i], model); // detect against the model as it stands
-  model = learn(frames[i], model);     // then let it learn this frame
+  mask = await foreground(frames[i], model); // detect against the model as it stands
+  model = await learn(frames[i], model);     // then let it learn this frame
 }
 
 let count = 0;
@@ -16216,13 +16288,13 @@ const compose = gpu.createKernel(function (frame, mask) {
 }, { output: [64, 64], graphical: true, constants: { last: 63 } });
 
 // Build the model from every frame but the last, then filter the last one.
-let model = seedModel(frames[0]);
+let model = await seedModel(frames[0]);
 for (let i = 1; i < frames.length - 1; i++) {
-  model = learn(frames[i], model);
+  model = await learn(frames[i], model);
 }
 
 const live = frames[frames.length - 1];
-compose(live, feather(softMask(live, model)));
+await compose(live, await feather(await softMask(live, model)));
 render(compose.canvas);
 ```
 
@@ -16262,8 +16334,8 @@ const filter = gpu.createKernel(function (feed) {
 
 document.body.appendChild(filter.canvas);
 
-function tick() {
-  filter(video);                // the current video frame, uploaded for you
+async function tick() {
+  await filter(video);          // the current video frame, uploaded for you
   requestAnimationFrame(tick);  // ~16.7 ms later, again
 }
 requestAnimationFrame(tick);
@@ -16312,7 +16384,7 @@ counter:
 
 ```js
 if (model === null) {
-  model = seedModel(image);
+  model = await seedModel(image);
 }
 ```
 
@@ -16327,9 +16399,9 @@ than a first frame that lights up completely.
 ## Hint 3 — the three lines
 
 ```js
-if (model === null) model = seedModel(image);
-const mask = detect(image, model);
-model = learn(image, model);
+if (model === null) model = await seedModel(image);
+const mask = await detect(image, model);
+model = await learn(image, model);
 return mask;
 ```
 
@@ -16377,18 +16449,18 @@ let model = null;
 
 // One frame in, one mask out. On a page this is what requestAnimationFrame
 // calls, with the <video> element in place of `image`.
-function onFrame(image) {
+async function onFrame(image) {
   // TODO: seed the model from the FIRST frame only — this line runs on
   // every frame, so the model is reborn each time and nothing is ever new.
-  model = seedModel(image);
-  const mask = detect(image, model);
+  model = await seedModel(image);
+  const mask = await detect(image, model);
   // TODO: let the model learn this frame, after detecting against it.
   return mask;
 }
 
 // requestAnimationFrame's stand-in: the sequence, one frame at a time.
 for (let i = 0; i < frames.length; i++) {
-  const mask = onFrame(frames[i]);
+  const mask = await onFrame(frames[i]);
   let moving = 0;
   for (let y = 0; y < 64; y++) {
     for (let x = 0; x < 64; x++) moving += mask[y][x];
@@ -16470,7 +16542,7 @@ audio.createMediaStreamSource(stream).connect(analyser);
 
 const buffer = new Float32Array(analyser.fftSize);
 analyser.getFloatTimeDomainData(buffer);   // ← 2048 real samples
-kernel(buffer);
+await kernel(buffer);
 ```
 
 ## Figures
@@ -16533,7 +16605,7 @@ const synth = gpu.createKernel(function (tones) {
   constants: { sampleRate: 256, parts: 3 },
 });
 
-const signal = synth(tones);
+const signal = await synth(tones);
 console.log('samples:', signal.length);
 console.log('first four:', signal[0], signal[1], signal[2], signal[3]);
 ```
@@ -16656,13 +16728,13 @@ const sample = gpu.createKernel(function (pair) {
   constants: { sampleRate: 256, phase: 0.9 },
 });
 
-const folded = fold(freqs);
+const folded = await fold(freqs);
 console.log('folded:', Array.from(folded));
 
 const alias = folded[3];   // freqs[3] is the 200 Hz tone
 console.log('200 Hz sampled at 256 Hz comes back as', alias, 'Hz');
 
-const rows = sample([200, alias]);
+const rows = await sample([200, alias]);
 console.log('plane 0:', rows[0][0], rows[0][1], rows[0][2], rows[0][3]);
 console.log('plane 1:', rows[1][0], rows[1][1], rows[1][2], rows[1][3]);
 ```
@@ -16781,7 +16853,7 @@ const rebuild = gpu.createKernel(function (samples) {
   constants: { up: 4, n: 64, a: 8, width: 17 },
 });
 
-const curve = rebuild(samples);
+const curve = await rebuild(samples);
 console.log('reconstructed points:', curve.length);
 console.log('on top of sample 10:', curve[40], 'vs', samples[10]);
 ```
@@ -16890,7 +16962,7 @@ const quantise = gpu.createKernel(function (signal, bits) {
 });
 
 for (const bits of [4, 6, 8, 10, 12]) {
-  const planes = quantise(signal, bits);
+  const planes = await quantise(signal, bits);
   let sigPower = 0;
   let errPower = 0;
   for (let i = 0; i < signal.length; i++) {
@@ -17013,7 +17085,7 @@ const decimate = gpu.createKernel(function (signal, tones) {
   constants: { sampleRate: 256, factor: 4, parts: 3 },
 });
 
-const planes = decimate(signal, tones);
+const planes = await decimate(signal, tones);
 console.log('kept:', planes[0].length, 'samples at', 256 / 4, 'Hz');
 console.log('first four kept:     ', planes[0][0], planes[0][1], planes[0][2], planes[0][3]);
 console.log('first four predicted:', planes[1][0], planes[1][1], planes[1][2], planes[1][3]);
@@ -17115,8 +17187,8 @@ acc += signal[i] * Math.cos(angle);
 bin — call it again with a different number:
 
 ```js
-console.log('bin 8:', bin(signal, 8)[0]);
-console.log('bin 20:', bin(signal, 20)[0]);
+console.log('bin 8:', (await bin(signal, 8))[0]);
+console.log('bin 20:', (await bin(signal, 20))[0]);
 ```
 
 ## Same idea elsewhere
@@ -17142,9 +17214,9 @@ const bin = gpu.createKernel(function (signal, k) {
   constants: { n: 256 },
 });
 
-console.log('bin 8  (the loud tone):', bin(signal, 8)[0]);
-console.log('bin 20 (the quiet one):', bin(signal, 20)[0]);
-console.log('bin 13 (nothing there):', bin(signal, 13)[0]);
+console.log('bin 8  (the loud tone):', (await bin(signal, 8))[0]);
+console.log('bin 20 (the quiet one):', (await bin(signal, 20))[0]);
+console.log('bin 13 (nothing there):', (await bin(signal, 13))[0]);
 ```
 
 ---
@@ -17223,7 +17295,7 @@ fixing here where there is only one bin to look at.
 With `output: [1, 2]` the result is two rows of one value:
 
 ```js
-const out = bin8(tone);
+const out = await bin8(tone);
 const re = out[0][0];
 const im = out[1][0];
 console.log('magnitude:', Math.sqrt(re * re + im * im));
@@ -17264,8 +17336,8 @@ function report(name, out) {
   console.log(name, 'real:', re, 'imaginary:', im);
 }
 
-report('tone       ', bin8(tone));
-report('shiftedTone', bin8(shiftedTone));
+report('tone       ', await bin8(tone));
+report('shiftedTone', await bin8(shiftedTone));
 ```
 
 ---
@@ -17327,7 +17399,7 @@ and widen the output to `[256, 2]`. That is the whole diff.
 `output: [256, 2]` comes back as two rows of 256:
 
 ```js
-const spectrum = dft(signal);
+const spectrum = await dft(signal);
 const re = spectrum[0][k];
 const im = spectrum[1][k];
 ```
@@ -17370,7 +17442,7 @@ const dft = gpu.createKernel(function (signal) {
   constants: { n: 256 },
 });
 
-const spectrum = dft(signal);
+const spectrum = await dft(signal);
 console.log('bin 10 — real:', spectrum[0][10], 'imaginary:', spectrum[1][10]);
 
 // TODO: scan bins 1…128, and for every bin whose magnitude clears 20,
@@ -17416,7 +17488,7 @@ audio.createMediaStreamSource(stream).connect(analyser);
 
 const samples = new Float32Array(analyser.fftSize);
 analyser.getFloatTimeDomainData(samples);
-const magnitudes = magnitude(Array.from(samples)); // ← this task's kernel
+const magnitudes = await magnitude(Array.from(samples)); // ← this task's kernel
 ```
 
 ## Figures
@@ -17513,8 +17585,8 @@ const phase = gpu.createKernel(function (signal) {
   constants: { n: 256 },
 });
 
-const mag = magnitude(signal);
-const ph = phase(signal);
+const mag = await magnitude(signal);
+const ph = await phase(signal);
 console.log('peak bin 12:', mag[12], 'phase', ph[12]);
 
 // TODO: compare mag[k] with mag[256 - k] across the bottom half, and log how
@@ -17638,8 +17710,8 @@ const idft = gpu.createKernel(function (spectrum) {
   constants: { n: 256 },
 });
 
-const spectrum = dft(signal);
-const back = idft(spectrum);
+const spectrum = await dft(signal);
+const back = await idft(spectrum);
 
 let worst = 0;
 let matched = 0;
@@ -17805,9 +17877,9 @@ const halfDft = gpu.createKernel(function (x, offset) {
   return im;
 }, { output: [4, 2], constants: { m: 4 } });
 
-const X = dft8(signal);
-const E = halfDft(signal, 0);
-const O = halfDft(signal, 1);
+const X = await dft8(signal);
+const E = await halfDft(signal, 0);
+const O = await halfDft(signal, 1);
 console.log('E real:', E[0]);
 console.log('O real:', O[0]);
 
@@ -17963,10 +18035,10 @@ const butterfly = gpu.createKernel(function (spectrum, half) {
   return ai;
 }, { output: [8, 2] });
 
-const once = butterfly(spectrum, 1);
+const once = await butterfly(spectrum, 1);
 console.log('after half = 1, real:', once[0]);
 console.log('after half = 1, imag:', once[1]);
-console.log('after half = 2, real:', butterfly(spectrum, 2)[0]);
+console.log('after half = 2, real:', (await butterfly(spectrum, 2))[0]);
 ```
 
 ---
@@ -18083,7 +18155,7 @@ const scramble = gpu.createKernel(function (x) {
   return 0;
 }, { output: [16, 2], constants: { bits: 4 } });
 
-const ordered = scramble(signal);
+const ordered = await scramble(signal);
 console.log('original: ', signal);
 console.log('scrambled:', ordered[0]);
 console.log('imaginary:', ordered[1]);
@@ -18153,9 +18225,9 @@ Each pass consumes the previous result and produces a new one, so a single
 variable is all the bookkeeping needed:
 
 ```js
-let buffer = scramble(signal);
+let buffer = await scramble(signal);
 for (let s = 0; s < schedule.length; s++) {
-  buffer = butterfly(buffer, schedule[s]);
+  buffer = await butterfly(buffer, schedule[s]);
 }
 ```
 
@@ -18229,7 +18301,7 @@ console.log('passes:', schedule.length);
 console.log('schedule:', JSON.stringify(schedule));
 
 // TODO: scramble once, then run one butterfly pass per schedule entry.
-let buffer = scramble(signal);
+let buffer = await scramble(signal);
 
 console.log('bin 5 magnitude: ', Math.hypot(buffer[0][5], buffer[1][5]));
 console.log('bin 12 magnitude:', Math.hypot(buffer[0][12], buffer[1][12]));
@@ -18277,8 +18349,11 @@ array, so the spectrum crosses back to the CPU once instead of fourteen times. M
 that single change takes the FFT from 8.2 ms to 1.5 ms.
 
 With both things settled — enough arithmetic that it outweighs the launches, and no
-copies that buy nothing — the race is not close. On the machine this was written on, in
-gpu mode: the FFT in **1.5 ms**, the definition in **3.5 ms**.
+copies that buy nothing — the race is not close. On the machine these notes were written
+on the FFT comes in somewhere between **1 and 2 ms**, and the definition takes
+**three to five times as long** — nearer the top of that range on WebGPU,
+which **Auto** picks, than on WebGL, because a thirteen-launch ladder gains
+less from the newer backend than one big arithmetic sweep does.
 Run it and read your own two numbers off the console. Then switch **Mode**
 from Auto to CPU, where there is no launch overhead left and nothing but the operation
 count decides it, and watch the gap open past **35×** — against a naive
@@ -18359,10 +18434,11 @@ const gpu = new GPU({ mode });
 const n = 8192;                 // log2(8192) = 13 butterfly passes
 
 // The naive transform reads the WHOLE signal once for every bin it produces, so
-// a full spectrum is n * n work. A GPU eats that; one CPU thread needs about two
-// seconds of it. So on the CPU backend the definition is asked for a 1,024-bin
-// slice instead — an 8x head start, and it loses anyway.
-const bins = mode === 'gpu' ? n : 1024;
+// a full spectrum is n * n work. Every GPU backend eats that; one CPU thread
+// needs about two seconds of it. So the CPU backend — and only it — is asked for
+// a 1,024-bin slice instead: an 8x head start, and it loses anyway. The question
+// is "am I the slow single-threaded backend?", so the test is mode === 'cpu'.
+const bins = mode === 'cpu' ? 1024 : n;
 
 // ---- the fast one, complete (tasks 3 and 4), with ONE change
 // Every pass hands the next one a TEXTURE instead of a JavaScript array. Copying
@@ -18408,15 +18484,18 @@ const onePass = function (spectrum, half) {
 const evenPass = gpu.createKernel(onePass, stage);
 const oddPass = gpu.createKernel(onePass, stage);
 
-function fft(samples) {
-  let buffer = scramble(samples);
+// Every stage is awaited IN ORDER. Each pass reads the texture the previous one
+// wrote, so the ladder is strictly sequential — firing all thirteen and awaiting
+// them together would hand a pass a half-finished input.
+async function fft(samples) {
+  let buffer = await scramble(samples);
   let pass = 0;
   for (let half = 1; half < n; half *= 2) {
-    buffer = (pass++ % 2 === 0 ? evenPass : oddPass)(buffer, half);
+    buffer = await (pass++ % 2 === 0 ? evenPass : oddPass)(buffer, half);
   }
   // one read back, at the very end. The CPU backend has no textures and has
   // handed back a plain array already, so there is nothing to convert there.
-  return buffer.toArray ? buffer.toArray() : buffer;
+  return buffer.toArray ? await buffer.toArray() : buffer;
 }
 
 // ---- the slow one
@@ -18433,15 +18512,18 @@ const dft = gpu.createKernel(function (x) {
 
 // Warm both up before timing: the first call compiles a shader, and a GPU handed
 // its first work of the day is still spinning its clocks up.
-fft(signal);
-dft(signal);
-fft(signal);
-dft(signal);
+await fft(signal);
+await dft(signal);
+await fft(signal);
+await dft(signal);
 
+// Each timed call is AWAITED inside its own brackets. A kernel call returns a
+// promise, so timing an unawaited one would measure how long it took to queue
+// the work rather than how long the work took.
 const t0 = performance.now();
-const fast = fft(signal);
+const fast = await fft(signal);
 const t1 = performance.now();
-const slow = dft(signal);
+const slow = await dft(signal);
 const t2 = performance.now();
 
 let worst = 0;
@@ -18522,7 +18604,7 @@ The real part keeps its sign. Only the imaginary part turns over.
 ## Hint 2 — the whole inverse, one line
 
 ```js
-const recovered = conjugate(fft(conjugate(spectrum, 1)), 1 / n);
+const recovered = await conjugate(await fft(await conjugate(spectrum, 1)), 1 / n);
 ```
 
 Inside out: conjugate, transform, conjugate again and scale. The
@@ -18585,9 +18667,10 @@ const butterfly = gpu.createKernel(function (spectrum, half) {
   return ai - ti;
 }, { output: [n, 2] });
 
-function fft(planes) {
-  let buffer = scramble(planes);
-  for (let half = 1; half < n; half *= 2) buffer = butterfly(buffer, half);
+async function fft(planes) {
+  let buffer = await scramble(planes);
+  // one pass at a time: each reads what the last one wrote
+  for (let half = 1; half < n; half *= 2) buffer = await butterfly(buffer, half);
   return buffer;
 }
 
@@ -18599,7 +18682,7 @@ const conjugate = gpu.createKernel(function (spectrum, scale) {
 
 // A real signal becomes two planes: the samples, and an empty imaginary plane.
 const planes = [Float32Array.from(signal), new Float32Array(n)];
-const spectrum = fft(planes);
+const spectrum = await fft(planes);
 console.log('bin 24 magnitude:', Math.hypot(spectrum[0][24], spectrum[1][24]));
 
 // TODO: conjugate, transform, conjugate and scale by 1 / n.
@@ -18753,16 +18836,18 @@ const magnitude = gpu.createKernel(function (spec) {
   return 0;
 }, { output: [256] });
 
-function report(label, signal) {
-  const mag = magnitude(spectrum(signal));
+// Every kernel call is awaited: gpu.js's async mode hands one back a Promise
+// whichever backend it picks, so the helper that calls them is async too.
+async function report(label, signal) {
+  const mag = await magnitude(await spectrum(signal));
   // TODO: peak      = the largest magnitude in bins 0…128
   //       amplitude = 2 * peak / 256
   //       busy      = how many of bins 0…128 exceed 0.01 * peak
   console.log(label, 'amplitude:', 0, 'busy bins:', 0);
 }
 
-report('onBin ', onBin);
-report('offBin', offBin);
+await report('onBin ', onBin);
+await report('offBin', offBin);
 ```
 
 ---
@@ -18857,15 +18942,15 @@ const wrappedStep = gpu.createKernel(function (signal) {
   return 0;
 }, { output: [256], constants: { n: 256 } });
 
-function report(label, signal) {
-  const step = wrappedStep(signal);
+async function report(label, signal) {
+  const step = await wrappedStep(signal);
   // TODO: seam    = Math.abs(step[255])
   //       biggest = the largest Math.abs(step[i]) over all 256 cells
   console.log(label, 'seam:', 0, 'biggest step:', 0);
 }
 
-report('onBin ', onBin);
-report('offBin', offBin);
+await report('onBin ', onBin);
+await report('offBin', offBin);
 ```
 
 ---
@@ -18937,7 +19022,7 @@ The taper goes on the samples, so it has to run *before* the
 transform sees them:
 
 ```js
-const tapered = measure(magnitude(spectrum(hann(offBin))));
+const tapered = measure(await magnitude(await spectrum(await hann(offBin))));
 ```
 
 If the number you get back is the rectangular one again, the windowed signal
@@ -19011,11 +19096,11 @@ function measure(mag) {
   return { db: 20 * Math.log10(worst / peak), amplitude: 2 * peak / 256 };
 }
 
-const plain = measure(magnitude(spectrum(rect(offBin))));
+const plain = measure(await magnitude(await spectrum(await rect(offBin))));
 console.log('rect  leak:', plain.db, 'dB');
 
 // TODO: taper offBin with hann FIRST, then transform the windowed samples.
-const tapered = measure(magnitude(spectrum(rect(offBin))));
+const tapered = measure(await magnitude(await spectrum(await rect(offBin))));
 console.log('hann  leak:', tapered.db, 'dB   amplitude:', tapered.amplitude);
 ```
 
@@ -19159,8 +19244,8 @@ const blackman = gpu.createKernel(function (signal) {
   return signal[i];
 }, { output: [256], constants: { n: 256 } });
 
-function analyse(windowed) {
-  const mag = paddedMagnitude(paddedSpectrum(windowed));
+async function analyse(windowed) {
+  const mag = await paddedMagnitude(await paddedSpectrum(windowed));
   const peakAt = 32 * 4;        // the tone sits on bin 32, 4 grid points per bin
   const peak = mag[peakAt];
 
@@ -19177,12 +19262,15 @@ function analyse(windowed) {
   return { bins, db: 20 * Math.log10(worst / peak) };
 }
 
-for (const [label, windowed] of [
-  ['rect    ', rect(signal)],
-  ['hann    ', hann(signal)],
-  ['blackman', blackman(signal)],
-]) {
-  const r = analyse(windowed);
+// Each window runs, and is awaited, before the next one starts.
+const rows = [
+  ['rect    ', await rect(signal)],
+  ['hann    ', await hann(signal)],
+  ['blackman', await blackman(signal)],
+];
+
+for (const [label, windowed] of rows) {
+  const r = await analyse(windowed);
   console.log(label, 'main lobe:', r.bins, 'bins   peak side lobe:', r.db, 'dB');
 }
 ```
@@ -19258,7 +19346,7 @@ Every window kernel here is "sample × taper", so a signal of ones makes it
 return the taper:
 
 ```js
-const w = hann(flat);            // flat = new Array(256).fill(1)
+const w = await hann(flat);      // flat = new Array(256).fill(1)
 let sumW = 0;
 let sumW2 = 0;
 for (let i = 0; i < w.length; i++) {
@@ -19267,7 +19355,7 @@ for (let i = 0; i < w.length; i++) {
 }
 ```
 
-Which also gives the rectangular case for free: `rect(flat)` is 256
+Which also gives the rectangular case for free: `await rect(flat)` is 256
 ones, so its `sumW` is 256.
 
 ## Hint 3 — what you should see
@@ -19333,12 +19421,12 @@ const amplitudeSpectrum = gpu.createKernel(function (spec, sumW) {
 
 const flat = new Array(256).fill(1);
 
-function report(label, window, windowed) {
+async function report(label, window, windowed) {
   // TODO: sumW = the sum of the window, sumW2 = the sum of its squares
   const sumW = 256;
   const sumW2 = 256;
 
-  const amp = amplitudeSpectrum(spectrum(windowed), sumW);
+  const amp = await amplitudeSpectrum(await spectrum(windowed), sumW);
   let peak = 0;
   for (let k = 0; k <= 128; k++) if (amp[k] > peak) peak = amp[k];
 
@@ -19346,9 +19434,9 @@ function report(label, window, windowed) {
   return { sumW, sumW2 };
 }
 
-report('rect    ', rect(flat), rect(signal));
-const h = report('hann    ', hann(flat), hann(signal));
-report('blackman', blackman(flat), blackman(signal));
+await report('rect    ', await rect(flat), await rect(signal));
+const h = await report('hann    ', await hann(flat), await hann(signal));
+await report('blackman', await blackman(flat), await blackman(signal));
 console.log('hann gains — coherent:', h.sumW / 256, 'noise:', h.sumW2 / 256);
 ```
 
@@ -19542,8 +19630,8 @@ const mulSpectra = gpu.createKernel(function (a, b) {
   return ai * bi;
 }, { output: [64, 2] });
 
-const slow = directConv(signal, filt);
-const fast = idft(mulSpectra(dft(signal), dft(filt)));
+const slow = await directConv(signal, filt);
+const fast = await idft(await mulSpectra(await dft(signal), await dft(filt)));
 
 let worst = 0;
 let leftover = 0;
@@ -19704,7 +19792,7 @@ const lowPass = gpu.createKernel(function (spec) {
   return spec[1][k];
 }, { output: [256, 2], constants: { n: 256, cut: 20 } });
 
-const filtered = idft(lowPass(dft(wave)));
+const filtered = await idft(await lowPass(await dft(wave)));
 
 let peak = filtered[0][0];
 let leftover = 0;
@@ -19861,7 +19949,7 @@ const rollOff = gpu.createKernel(function (spec) {
   return spec[1][k] * h;
 }, { output: [256, 2], constants: { n: 256, sigma: 12 } });
 
-const filtered = idft(rollOff(dft(wave)));
+const filtered = await idft(await rollOff(await dft(wave)));
 
 let peak = filtered[0][0];
 for (let i = 0; i < 256; i++) peak = Math.max(peak, filtered[0][i]);
@@ -20030,7 +20118,7 @@ const gate = gpu.createKernel(function (spec) {
   return im;
 }, { output: [256, 2], constants: { gate: 30 } });
 
-const cleaned = idft(gate(dft(noisy)));
+const cleaned = await idft(await gate(await dft(noisy)));
 
 function snr(test) {
   let signal = 0;
@@ -20208,7 +20296,10 @@ const pad = gpu.createKernel(function (src) {
   return src[this.thread.x];
 }, { output: [PAD], constants: { src: SRC } });
 
-const result = idft(mulSpectra(dft(pad(sig)), dft(pad(filt))));
+const result = await idft(await mulSpectra(
+  await dft(await pad(sig)),
+  await dft(await pad(filt))
+));
 
 let worst = 0;
 const compared = Math.min(40, result[0].length);
@@ -20368,8 +20459,8 @@ function peakBin(mag) {
   return best;
 }
 
-const magAB = magnitudes(spectrum(orderAB));
-const magBA = magnitudes(spectrum(orderBA));
+const magAB = magnitudes(await spectrum(orderAB));
+const magBA = magnitudes(await spectrum(orderBA));
 
 let worst = 0;
 for (let k = 0; k < 256; k++) worst = Math.max(worst, Math.abs(magAB[k] - magBA[k]));
@@ -20508,7 +20599,7 @@ const spectrogram = gpu.createKernel(function (signal) {
   constants: { win: WIN, hop: HOP },
 });
 
-const spec = spectrogram(signal);
+const spec = await spectrogram(signal);
 console.log('spectrogram:', spec.length, 'bins ×', spec[0].length, 'frames');
 
 // signal is a chirp — a tone sliding steadily upward — so the loudest bin
@@ -20673,8 +20764,8 @@ function clickFrames(spec) {
   return n;
 }
 
-const shortPic = shortSpec(signal);
-const longPic = longSpec(signal);
+const shortPic = await shortSpec(signal);
+const longPic = await longSpec(signal);
 
 console.log('short window:', tonePeaks(shortPic, 64), 'tone peaks,', clickFrames(shortPic), 'frames of click');
 console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames(longPic), 'frames of click');
@@ -20786,7 +20877,7 @@ const spectrogram = gpu.createKernel(function (signal) {
   constants: { win: WIN, hop: HOP },
 });
 
-const spec = spectrogram(signal);
+const spec = await spectrogram(signal);
 
 // How wide is the range you are about to map?
 let peak = 0;
@@ -20825,7 +20916,7 @@ const paint = gpu.createKernel(function (spec, peak) {
   constants: { range: 60 },
 });
 
-paint(spec, peak);
+await paint(spec, peak);
 render(paint.canvas);
 ```
 
@@ -20868,9 +20959,9 @@ audio.createMediaStreamSource(stream).connect(tap);
 const gpu = new GPU();
 const spectrogram = gpu.createKernel(/* the kernel you already wrote */);
 
-tap.port.onmessage = event => {
-  const spec = spectrogram(event.data);   // event.data is the ring buffer
-  paint(spec, peakOf(spec));
+tap.port.onmessage = async event => {
+  const spec = await spectrogram(event.data);   // event.data is the ring buffer
+  await paint(spec, peakOf(spec));
 };
 ```
 
@@ -20980,8 +21071,8 @@ const ridge = gpu.createKernel(function (spec) {
   constants: { bins: BINS },
 });
 
-const spec = spectrogram(signal);
-const line = ridge(spec);
+const spec = await spectrogram(signal);
+const line = await ridge(spec);
 console.log('ridge bins:', Array.from(line).join(' '));
 
 // TODO: turn the slope into hertz per second and log it.
@@ -21122,7 +21213,7 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: 512 },
 });
 
-const r = correlate(signal);
+const r = await correlate(signal);
 console.log('r[0], the signal against itself:', r[0]);
 
 // TODO: scan lags 8…255 for the biggest value, then
@@ -21210,7 +21301,7 @@ audio.createMediaStreamSource(mic).connect(analyser);
 
 const frame = new Float32Array(analyser.fftSize);
 analyser.getFloatTimeDomainData(frame);
-const r = correlate(frame);   // the same kernel, real audio
+const r = await correlate(frame);   // the same kernel, real audio
 ```
 
 None of that runs here, and not for a policy reason: your code executes inside a Web
@@ -21247,7 +21338,7 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: 512 },
 });
 
-const r = correlate(signal);
+const r = await correlate(signal);
 
 let p = 8;
 for (let lag = 8; lag < 255; lag++) {
@@ -21390,7 +21481,7 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: 512 },
 });
 
-const rho = correlate(signal);
+const rho = await correlate(signal);
 console.log('rho[0] (should be exactly 1):', rho[0]);
 
 // TODO: walk from lag 8 and take the FIRST local peak that reaches 0.8.
@@ -21480,7 +21571,7 @@ becomes the thing you are waiting for.
 The result is two rows, not two columns:
 
 ```js
-const spec = spectrum(signal);
+const spec = await spectrum(signal);
 const mag = Math.hypot(spec[0][bin], spec[1][bin]);
 ```
 
@@ -21542,8 +21633,8 @@ const correlate = gpu.createKernel(function (signal) {
   constants: { n: 512 },
 });
 
-const spec = spectrum(signal);
-const rho = correlate(signal);
+const spec = await spectrum(signal);
+const rho = await correlate(signal);
 
 // The autocorrelation's verdict — the first peak over the threshold, as before.
 let period = -1;
@@ -21664,9 +21755,9 @@ plausible and wrong.
 ## Hint 2 — four lines of wiring
 
 ```js
-const spec = transform(padded(), -1);
-const p = power(spec);
-const back = readBack(transform(p, +1));
+const spec = await transform(padded(), -1);
+const p = await power(spec);
+const back = await readBack(await transform(p, +1));
 for (let lag = 0; lag < 16384; lag++) {
   out[lag] = back[0][lag] / 32768;
 }
@@ -21683,12 +21774,16 @@ division is the piece that is missing.
 The first call to anything here compiles a shader, so throw it away:
 
 ```js
-correlate(signal); viaFFT();          // warm up, discard
+await correlate(signal); await viaFFT();   // warm up, discard
 
 let t0 = Date.now();
-for (let i = 0; i < 5; i++) correlate(signal);
+for (let i = 0; i < 5; i++) await correlate(signal);
 console.log('brute force:', (Date.now() - t0) / 5, 'ms');
 ```
+
+Every call is `await`ed, including the five inside the loop: a kernel call
+hands back a promise, so timing an unawaited one measures how long it took to
+*queue* the work rather than how long the work took.
 
 Both routes end in exactly one download — `correlate` returns an array,
 `viaFFT` calls `readBack` once — so neither is being timed with
@@ -21780,15 +21875,18 @@ const power = gpu.createKernel(function (spec) {
 }, { output: [32768, 2], ...LADDER });
 
 // A pipelined kernel returns a gpu.js Texture; the CPU backend has no textures
-// and returns the array itself. This is the one download either route makes.
-function readBack(result) {
-  return result.toArray ? result.toArray() : result;
+// and returns the array itself. This is the one download either route makes,
+// and toArray() is awaited like every other GPU call.
+async function readBack(result) {
+  return result.toArray ? await result.toArray() : result;
 }
 
-// The ladder: 15 passes, the stride doubling each time.
-function transform(data, sign) {
+// The ladder: 15 passes, the stride doubling each time. Every pass is
+// AWAITED before the next one starts — each reads the texture the last one
+// wrote, so firing them all off together would corrupt the transform.
+async function transform(data, sign) {
   let cur = data;
-  for (let ns = 1; ns < 32768; ns *= 2) cur = fftPass(cur, ns, sign);
+  for (let ns = 1; ns < 32768; ns *= 2) cur = await fftPass(cur, ns, sign);
   return cur;
 }
 
@@ -21802,14 +21900,15 @@ function padded() {
   return [re, im];
 }
 
-function viaFFT() {
+async function viaFFT() {
   const out = new Float32Array(16384);
   // TODO: transform → power → inverse transform → readBack → divide by 32768.
+  // Every kernel call is awaited, and in order.
   return out;
 }
 
-const brute = correlate(signal);
-const fast = viaFFT();
+const brute = await correlate(signal);
+const fast = await viaFFT();
 
 let maxDiff = 0;
 for (let lag = 0; lag < 16384; lag++) {
@@ -21923,7 +22022,7 @@ const gradient = gpu.createKernel(function () {
   graphical: true,
 });
 
-gradient();
+await gradient();
 render(gradient.canvas);
 ```
 
@@ -22002,7 +22101,7 @@ const board = gpu.createKernel(function () {
   graphical: true,
 });
 
-board();
+await board();
 render(board.canvas);
 ```
 
@@ -22086,7 +22185,7 @@ const plot = gpu.createKernel(function () {
   graphical: true,
 });
 
-plot();
+await plot();
 render(plot.canvas);
 ```
 
@@ -22174,7 +22273,7 @@ const ripples = gpu.createKernel(function () {
   graphical: true,
 });
 
-ripples();
+await ripples();
 render(ripples.canvas);
 ```
 
@@ -22278,7 +22377,7 @@ const distanceField = gpu.createKernel(function (xMin, yMin, step) {
   return this.thread.x;
 }, { output: [64, 64] });
 
-const field = distanceField(-2, -2, 4 / 64);
+const field = await distanceField(-2, -2, 4 / 64);
 console.log('cell [32][32] sits at the origin:', field[32][32]);
 console.log('corner cell [0][0]:', field[0][0]);
 ```
@@ -22379,7 +22478,7 @@ const mandelbrot = gpu.createKernel(function (xMin, yMin, step) {
   return count;
 }, { output: [64, 64] });
 
-const counts = mandelbrot(-2.2, -1.6, 3.2 / 64);
+const counts = await mandelbrot(-2.2, -1.6, 3.2 / 64);
 console.log('c = 0, deep inside the set:', counts[32][44]);
 console.log('far corner, escapes at once:', counts[0][0]);
 ```
@@ -22466,7 +22565,7 @@ const paint = gpu.createKernel(function (xMin, yMin, step) {
   this.color(1, 0, 1, 1);
 }, { output: [128, 128], graphical: true });
 
-paint(-2.2, -1.6, 3.2 / 128);
+await paint(-2.2, -1.6, 3.2 / 128);
 render(paint.canvas);
 ```
 
@@ -22560,7 +22659,7 @@ const smoothField = gpu.createKernel(function (xMin, yMin, step) {
   return count;
 }, { output: [64, 64] });
 
-const field = smoothField(3, 1, 0.01);
+const field = await smoothField(3, 1, 0.01);
 console.log('a fractional escape value:', field[0][0]);
 ```
 
@@ -22665,7 +22764,7 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   constants: { xMin: -1.6, yMin: -1.6, step: 0.025 },
 });
 
-julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
+await julia(-0.7269, 0.1889); // try 0.285 + 0.01i, or -0.8 + 0.156i
 render(julia.canvas);
 ```
 
@@ -22780,7 +22879,7 @@ const census = gpu.createKernel(function (grid) {
   return count;
 }, { output: [16, 16] });
 
-const counts = census(grid);
+const counts = await census(grid);
 console.log('cell (8, 8) sees', counts[8][8], 'live neighbors');
 ```
 
@@ -22862,7 +22961,7 @@ const step = gpu.createKernel(function (world) {
   return self;
 }, { output: [16, 16] });
 
-const next = step(world);
+const next = await step(world);
 console.log('before:', world[7].join(''));
 console.log('after :', Array.from(next[7]).join(''));
 ```
@@ -22884,7 +22983,7 @@ Interactive version: https://gpu.rocks/learn/cellular-automata-407c2c34/2
 One tick is a snapshot; a world is a movie. A kernel has no memory of the previous
 frame — **time lives in JavaScript**. The result of a 2D kernel is an array of
 rows, which is exactly the shape the kernel accepts as input, so
-`current = step(current)` is the whole time machine: output becomes input,
+`current = await step(current)` is the whole time machine: output becomes input,
 forever.
 
 Your test subject is the **R-pentomino** — five innocent-looking cells that
@@ -22905,7 +23004,7 @@ generations by feeding each output back in — logging
 ## Requirements
 
 - Complete the kernel: the same B3/S23 rule you wrote last task
-- Loop 6 times in plain JavaScript, reassigning: `current = step(current)`
+- Loop 6 times in plain JavaScript, reassigning: `current = await step(current)`
 - After each step, total the live cells in plain JS (kernel output rows are ordinary arrays)
 - Log each generation exactly as `'gen ' + g + ': ' + alive + ' alive'`, g from 1 to 6
 
@@ -22915,7 +23014,7 @@ generations by feeding each output back in — logging
 
 ```js
 for (let g = 1; g <= 6; g++) {
-  current = step(current);
+  current = await step(current);
   // …
 }
 ```
@@ -22958,7 +23057,7 @@ const step = gpu.createKernel(function (world) {
 }, { output: [16, 16] });
 
 // world starts as the R-pentomino: five cells, endless trouble.
-// TODO: run 6 generations. Each time around: current = step(current),
+// TODO: run 6 generations. Each time around: current = await step(current),
 // count the live cells in plain JS, then log exactly:
 //   console.log('gen ' + g + ': ' + alive + ' alive');
 let current = world;
@@ -23054,9 +23153,9 @@ const paint = gpu.createKernel(function (cells) {
 // world starts as a glider in the top-left. Fly, little guy.
 let current = world;
 for (let g = 0; g < 8; g++) {
-  current = step(current);
+  current = await step(current);
 }
-paint(current);
+await paint(current);
 render(paint.canvas);
 ```
 
@@ -23144,8 +23243,8 @@ const evolve = gpu.createKernel(function (world, born, stay) {
 }, { output: [16, 16] });
 
 // The same world, two different laws of physics:
-const life = evolve(world, lifeBorn, lifeStay);
-const high = evolve(world, highlifeBorn, lifeStay);
+const life = await evolve(world, lifeBorn, lifeStay);
+const high = await evolve(world, highlifeBorn, lifeStay);
 
 let differ = 0;
 for (let y = 0; y < 16; y++) {
@@ -23265,7 +23364,7 @@ const laplacian = gpu.createKernel(function (field) {
   return 0;
 }, { output: [32, 32], constants: { size: 32 } });
 
-const result = laplacian(field);
+const result = await laplacian(field);
 console.log('at a bump:', result[16][16]);
 ```
 
@@ -23372,8 +23471,8 @@ const stepV = gpu.createKernel(function (u, v) {
   return vc;
 }, { output: [32, 32], constants: { size: 32, dv: 0.1, f: 0.035, k: 0.06, dt: 1 } });
 
-const newU = stepU(u0, v0);
-const newV = stepV(u0, v0);
+const newU = await stepU(u0, v0);
+const newV = await stepV(u0, v0);
 console.log('center after one step — U:', newU[16][16], ' V:', newV[16][16]);
 ```
 
@@ -23410,7 +23509,7 @@ both kernels always reading the same snapshot.
 ## Requirements
 
 - Loop exactly `STEPS` (100) times in plain JavaScript
-- Call `stepU(u, v)` and `stepV(u, v)` with the *same* `u` and `v`
+- Call `await stepU(u, v)` and `await stepV(u, v)` with the *same* `u` and `v`
 - Only after both calls, replace `u` and `v` with the new grids
 
 ## Hint 1 — why the starter is wrong
@@ -23418,8 +23517,8 @@ both kernels always reading the same snapshot.
 The starter does
 
 ```js
-u = stepU(u, v);
-v = stepV(u, v);
+u = await stepU(u, v);
+v = await stepV(u, v);
 ```
 
 — by the
@@ -23429,8 +23528,8 @@ temporaries before assigning either.
 ## Hint 2 — the loop body
 
 ```js
-const nextU = stepU(u, v);
-const nextV = stepV(u, v);
+const nextU = await stepU(u, v);
+const nextV = await stepV(u, v);
 u = nextU;
 v = nextV;
 ```
@@ -23485,8 +23584,8 @@ let v = seedV;
 
 // TODO: run STEPS steps. This single "step" has TWO bugs: it only runs
 // once, and stepV reads the u we just overwrote — future food!
-u = stepU(u, v);
-v = stepV(u, v);
+u = await stepU(u, v);
+v = await stepV(u, v);
 
 console.log('center V after', STEPS, 'steps:', v[24][24]);
 ```
@@ -23590,13 +23689,13 @@ const paint = gpu.createKernel(function (v) {
 let u = seedU;
 let v = seedV;
 for (let i = 0; i < 200; i++) {
-  const nextU = stepU(u, v);
-  const nextV = stepV(u, v);
+  const nextU = await stepU(u, v);
+  const nextV = await stepV(u, v);
   u = nextU;
   v = nextV;
 }
 
-paint(v);
+await paint(v);
 render(paint.canvas);
 ```
 
@@ -23697,7 +23796,7 @@ const sliceSDF = gpu.createKernel(function (cx, cy, r) {
   return 0;
 }, { output: [64, 64] });
 
-const field = sliceSDF(0, 0, 1);
+const field = await sliceSDF(0, 0, 1);
 console.log('center (inside, should be -1):', field[32][32]);
 console.log('far corner (outside):', field[0][0]);
 ```
@@ -23780,7 +23879,7 @@ const metaField = gpu.createKernel(function (sep, r, k) {
   return Math.min(d1, d2);
 }, { output: [64, 64] });
 
-const field = metaField(0.7, 0.5, 0.4);
+const field = await metaField(0.7, 0.5, 0.4);
 console.log('midpoint (should dip to 0.1):', field[32][32]);
 ```
 
@@ -23885,7 +23984,7 @@ const marchScene = gpu.createKernel(function (sep, r, k) {
   else this.color(0.02, 0.03, 0.06, 1);
 }, { output: [64, 64], graphical: true });
 
-marchScene(0.55, 0.5, 0.3);
+await marchScene(0.55, 0.5, 0.3);
 render(marchScene.canvas);
 ```
 
@@ -24000,7 +24099,7 @@ const showNormals = gpu.createKernel(function (sep, r, k) {
   }
 }, { output: [64, 64], graphical: true });
 
-showNormals(0.55, 0.5, 0.3);
+await showNormals(0.55, 0.5, 0.3);
 render(showNormals.canvas);
 ```
 
@@ -24111,7 +24210,7 @@ const shadeScene = gpu.createKernel(function (sep, r, k, lx, ly, lz) {
 }, { output: [64, 64], graphical: true });
 
 // light direction: up-left of the camera, pointing at the scene
-shadeScene(0.55, 0.5, 0.3, -0.6, 0, -0.8);
+await shadeScene(0.55, 0.5, 0.3, -0.6, 0, -0.8);
 render(shadeScene.canvas);
 ```
 
@@ -24242,7 +24341,7 @@ const finalScene = gpu.createKernel(function (sep, r, k, lx, ly, lz, shadowOn) {
 }, { output: [64, 64], graphical: true });
 
 // light swung low to the left — the left lobe should shade the neck
-finalScene(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
+await finalScene(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
 render(finalScene.canvas);
 ```
 

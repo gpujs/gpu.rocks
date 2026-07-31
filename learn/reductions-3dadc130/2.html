@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Partial Sums: Divide the Work · Reductions — GPU.js Learn</title>
     <meta name="description" content="Goal: compute 64 strided partial sums on the GPU, then total the 64 partials in JavaScript and log the grand total.">
@@ -167,7 +167,7 @@
             <code>x + 128</code>, … so its <code>i</code>-th element sits at index
             <code>i * 64 + x</code>.</p></details>
 <details><summary>Hint 2 — the loop body</summary><pre><code>sum += data[i * this.constants.threads + this.thread.x];</code></pre></details>
-<details><summary>Hint 3 — finishing in JS</summary><p>After <code>const partial = partials(data);</code> a plain loop does it:</p>
+<details><summary>Hint 3 — finishing in JS</summary><p>After <code>const partial = await partials(data);</code> a plain loop does it:</p>
 <pre><code>let total = 0;
 for (let i = 0; i &lt; partial.length; i++) {
   total += partial[i];

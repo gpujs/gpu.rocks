@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Note That Isn't There · Autocorrelation &amp; Pitch — GPU.js Learn</title>
     <meta name="description" content="Goal: write the two-plane DFT kernel, find the loudest bin and its frequency, and log it beside the answer the (already written) autocorrelation gives.">
@@ -195,7 +195,7 @@ return im;</code></pre>
             a buffer 32 times longer, which is where the O(n²) stops being a remark and
             becomes the thing you are waiting for.</p></details>
 <details><summary>Hint 2 — reading two planes back</summary><p>The result is two rows, not two columns:</p>
-<pre><code>const spec = spectrum(signal);
+<pre><code>const spec = await spectrum(signal);
 const mag = Math.hypot(spec[0][bin], spec[1][bin]);</code></pre>
 <p>Plane first, bin second — <code>output: [n, 2]</code> is indexed <code>[y][x]</code>
             like any other 2D output.</p></details>

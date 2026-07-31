@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Your First Kernel · Hello, Kernel — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the kernel so that 16 threads each return the number 42 — your first parallel program.">
@@ -157,6 +157,11 @@
         <p>That cell count is the <code>output</code> option: <code>output: [16]</code> means
         &ldquo;give me 16 cells&rdquo;, so 16 threads run and their 16 return values come back to you
         collected into one array.</p>
+        <p>One habit to pick up right now, because it runs through the whole course: <strong>calling a
+        kernel is asynchronous</strong>. The call hands you a promise while the GPU gets on with the
+        work, so you write <code>await</code> in front of it and receive the finished result —
+        <code>const result = await answer();</code>. Building the kernel with
+        <code>createKernel</code> stays ordinary and synchronous; only the <em>call</em> is awaited.</p>
 <figure><figcaption>one function, sixteen launches — the loop you never wrote</figcaption></figure>
 <div class="ssg-goal"><strong>Goal:</strong> finish the kernel so that <strong>16 threads</strong> each return
         the number <code>42</code> — your first parallel program.</div>
@@ -171,7 +176,7 @@
 }, {
   output: [16],
 })</code></pre>
-<p>Calling it returns an array of sixteen 42s.</p></details>
+<p>And <code>await answer()</code> gives you an array of sixteen 42s.</p></details>
 <h2>Same idea elsewhere</h2>Launching N copies of one function is <em>the</em> primitive of every GPU API:
         CUDA spells it <code>kernel&lt;&lt;&lt;blocks, threads&gt;&gt;&gt;()</code>, WebGPU calls it
         a compute <code>dispatch</code>, Metal dispatches threadgroups. gpu.js just hides the

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Whole Sort · Radix Sort — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the destinations kernel and drive three passes over keys , then log the smallest, middle and largest of the result.">
@@ -173,10 +173,10 @@
             counts your rank inside it, exactly as in task 1 but restricted to your own digit:</p>
 <pre><code>if (d === mine &amp;&amp; j &lt; this.thread.x) rank++;</code></pre></details>
 <details><summary>Hint 2 — the driver</summary><pre><code>for (let place = 1; place &lt;= 256; place *= 16) {
-  const counts = histogram(values, place);
-  const starts = offsets(counts);
-  const dest = destinations(values, place, starts);
-  values = gather(values, dest);
+  const counts = await histogram(values, place);
+  const starts = await offsets(counts);
+  const dest = await destinations(values, place, starts);
+  values = await gather(values, dest);
 }</code></pre>
 <p>Three iterations, and every line of it inside the loop.</p></details>
 <details><summary>Hint 3 — why low digit first</summary><p>Each pass makes its own digit the primary sort key and demotes everything the

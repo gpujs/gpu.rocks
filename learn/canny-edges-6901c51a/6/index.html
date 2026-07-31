@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Five Stages, Zero Round Trips · The Canny Edge Pipeline — GPU.js Learn</title>
     <meta name="description" content="Goal: make every stage but the last a pipeline kernel, give the hysteresis kernel immutable: true so it can eat its own output, and wire the nine stages into…">
@@ -171,9 +171,14 @@
         again, and run it once more: about <strong>120 ms</strong>. Same kernels, same arithmetic,
         same 72 launches — the extra 75 ms is bus traffic and nothing else. (Both
         figures carry roughly 35 ms of one-time shader compilation. Time the chain on its own,
-        without that, and it is <strong>10 ms pipelined against 70 ms round-tripping</strong> — a
-        clean seven times.) Eight deletions and two clicks: run that experiment rather than take
-        this paragraph's word for it.</p>
+        without that, and on the WebGL backend it is <strong>10 ms pipelined against 70–100 ms
+        round-tripping</strong> depending on the machine — seven to ten times either way.) Eight
+        deletions and two clicks: run that experiment rather than take this paragraph's word for
+        it. One note on the console while you do: on this task <em>auto</em> reports
+        <em>WebGL</em> rather than its usual mix, because the comparison only means anything if
+        both runs use the same backend — strip the pipelining and the stages start handing back
+        plain arrays, which WebGPU would happily take over, and you would be measuring two changes
+        at once instead of one.</p>
         <p><strong>Benchmark</strong> agrees from the other direction, reporting the GPU
         <strong>7–8× faster</strong> than the CPU backend here — roughly 2 ms against 15 ms. Know
         what that button does before you quote it, though: it replays each of the nine kernels
@@ -211,14 +216,14 @@
         nine stages into a chain that runs <code>grow</code> 64 times.</div>
 
 <h2>Requirements</h2><ul><li>Add <code>pipeline: true</code> to all eight intermediate kernels; leave <code>finish</code> plain — its return <em>is</em> the one readback you want</li><li>Add <code>immutable: true</code> to <code>grow</code>, which reads the texture it is writing</li><li>Feed <code>magnitude</code> and <code>direction</code> the <strong>smoothed</strong> map, not the raw luminance</li><li>Run <code>grow</code> exactly <code>PASSES</code> times, then log <code>console.log('edge pixels:', count)</code></li></ul>
-<details><summary>Hint 1 — the chain, stage by stage</summary><pre><code>const gray = luminance(photo);
-const smooth = blurY(blurX(gray));
-const thin = suppress(magnitude(smooth), direction(smooth));
-let state = classify(thin);
+<details><summary>Hint 1 — the chain, stage by stage</summary><pre><code>const gray = await luminance(photo);
+const smooth = await blurY(await blurX(gray));
+const thin = await suppress(await magnitude(smooth), await direction(smooth));
+let state = await classify(thin);
 for (let i = 0; i &lt; PASSES; i++) {
-  state = grow(state);
+  state = await grow(state);
 }
-const edges = finish(state);</code></pre>
+const edges = await finish(state);</code></pre>
 <p>Both gradient kernels read <em>smooth</em>. Handing them <code>gray</code> instead is
             the starter's first deliberate mistake, and it puts the noise straight back in.</p></details>
 <details><summary>Hint 2 — which flags, where</summary><p><code>pipeline: true</code> on <code>luminance</code>, <code>blurX</code>,

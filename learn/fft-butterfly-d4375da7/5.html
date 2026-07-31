@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Same Answer, Two Centuries Apart · The FFT Butterfly — GPU.js Learn</title>
     <meta name="description" content="Goal: write the naive DFT kernel, confirm it agrees with the FFT bin by bin, and log the two operation counts and both timings.">
@@ -175,8 +175,11 @@
         array, so the spectrum crosses back to the CPU once instead of fourteen times. Measured,
         that single change takes the FFT from 8.2 ms to 1.5 ms.</p>
         <p>With both things settled — enough arithmetic that it outweighs the launches, and no
-        copies that buy nothing — the race is not close. On the machine this was written on, in
-        gpu mode: the FFT in <strong>1.5 ms</strong>, the definition in <strong>3.5 ms</strong>.
+        copies that buy nothing — the race is not close. On the machine these notes were written
+        on the FFT comes in somewhere between <strong>1 and 2 ms</strong>, and the definition takes
+        <strong>three to five times as long</strong> — nearer the top of that range on WebGPU,
+        which <strong>Auto</strong> picks, than on WebGL, because a thirteen-launch ladder gains
+        less from the newer backend than one big arithmetic sweep does.
         Run it and read your own two numbers off the console. Then switch <strong>Mode</strong>
         from Auto to CPU, where there is no launch overhead left and nothing but the operation
         count decides it, and watch the gap open past <strong>35×</strong> — against a naive

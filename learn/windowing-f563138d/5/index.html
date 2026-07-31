@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Give the Amplitude Back · Windowing &amp; Spectral Leakage — GPU.js Learn</title>
     <meta name="description" content="Goal: build a calibrated amplitude spectrum and recover the true amplitude of one tone through all three windows.">
@@ -182,14 +182,14 @@ const im = spec[1][this.thread.x];
 return 2 * Math.sqrt(re * re + im * im) / sumW;</code></pre></details>
 <details><summary>Hint 2 — the window, from the window kernel</summary><p>Every window kernel here is "sample × taper", so a signal of ones makes it
             return the taper:</p>
-<pre><code>const w = hann(flat);            // flat = new Array(256).fill(1)
+<pre><code>const w = await hann(flat);      // flat = new Array(256).fill(1)
 let sumW = 0;
 let sumW2 = 0;
 for (let i = 0; i &lt; w.length; i++) {
   sumW += w[i];
   sumW2 += w[i] * w[i];
 }</code></pre>
-<p>Which also gives the rectangular case for free: <code>rect(flat)</code> is 256
+<p>Which also gives the rectangular case for free: <code>await rect(flat)</code> is 256
             ones, so its <code>sumW</code> is 256.</p></details>
 <details><summary>Hint 3 — what you should see</summary><p>Three raw peaks — <code>76.8</code>, <code>38.4</code>,
             <code>32.256</code> — and one amplitude, <code>0.600</code>, three times over.

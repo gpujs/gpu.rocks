@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: The Same Curve, via the FFT · Autocorrelation &amp; Pitch — GPU.js Learn</title>
     <meta name="description" content="Goal: write the power-spectrum kernel, wire up the transform → power → inverse transform route, show its answer matches brute force, and time both.">
@@ -216,9 +216,9 @@ return 0;</code></pre>
 <p>Note <code>re * re + im * im</code> and not <code>Math.sqrt(...)</code>. The theorem wants
             the magnitude <em>squared</em>; a square root here produces a curve that is smooth,
             plausible and wrong.</p></details>
-<details><summary>Hint 2 — four lines of wiring</summary><pre><code>const spec = transform(padded(), -1);
-const p = power(spec);
-const back = readBack(transform(p, +1));
+<details><summary>Hint 2 — four lines of wiring</summary><pre><code>const spec = await transform(padded(), -1);
+const p = await power(spec);
+const back = await readBack(await transform(p, +1));
 for (let lag = 0; lag &lt; 16384; lag++) {
   out[lag] = back[0][lag] / 32768;
 }</code></pre>
@@ -228,11 +228,14 @@ for (let lag = 0; lag &lt; 16384; lag++) {
             <code>[0]</code>. If instead every value comes out exactly 32768 times too big, the
             division is the piece that is missing.</p></details>
 <details><summary>Hint 3 — timing it honestly</summary><p>The first call to anything here compiles a shader, so throw it away:</p>
-<pre><code>correlate(signal); viaFFT();          // warm up, discard
+<pre><code>await correlate(signal); await viaFFT();   // warm up, discard
 
 let t0 = Date.now();
-for (let i = 0; i &lt; 5; i++) correlate(signal);
+for (let i = 0; i &lt; 5; i++) await correlate(signal);
 console.log('brute force:', (Date.now() - t0) / 5, 'ms');</code></pre>
+<p>Every call is <code>await</code>ed, including the five inside the loop: a kernel call
+            hands back a promise, so timing an unawaited one measures how long it took to
+            <em>queue</em> the work rather than how long the work took.</p>
 <p>Both routes end in exactly one download — <code>correlate</code> returns an array,
             <code>viaFFT</code> calls <code>readBack</code> once — so neither is being timed with
             its homework left on the GPU. The <strong>Benchmark</strong> button will still disagree

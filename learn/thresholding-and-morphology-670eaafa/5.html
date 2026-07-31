@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Opening and Closing: Order Is the Answer · Thresholding &amp; Morphology — GPU.js Learn</title>
     <meta name="description" content="Goal: build an opening, a closing and a two-pass opening from the given kernels, and report what each one changed with the exact labels the starter uses.">
@@ -170,9 +170,9 @@
 <div class="ssg-goal"><strong>Goal:</strong> build an opening, a closing and a two-pass opening from the
         given kernels, and report what each one changed with the exact labels the starter uses.</div>
 
-<h2>Requirements</h2><ul><li>Opening is <code>dilate(erode(mask))</code>; closing is <code>erode(dilate(mask))</code></li><li>The two-pass opening runs both erosions before either dilation</li><li>Write the <code>removed</code> kernel: <code>1</code> where <code>before</code> is foreground and <code>after</code> is not</li><li>Log the three counts with the labels already in the starter</li></ul>
+<h2>Requirements</h2><ul><li>Opening is <code>await dilate(await erode(mask))</code>; closing is <code>await erode(await dilate(mask))</code></li><li>The two-pass opening runs both erosions before either dilation</li><li>Write the <code>removed</code> kernel: <code>1</code> where <code>before</code> is foreground and <code>after</code> is not</li><li>Log the three counts with the labels already in the starter</li></ul>
 <details><summary>Hint 1 — chaining kernels</summary><p>A kernel's result is an ordinary 2D array, so it goes straight back into
-            another kernel: <code>dilate(erode(mask))</code> is the whole opening. Every pass is
+            another kernel: <code>await dilate(await erode(mask))</code> is the whole opening. Every pass is
             a separate launch, which is exactly how a real pipeline does it (and Pipelines &amp;
             Textures shows how to keep the intermediate on the GPU).</p></details>
 <details><summary>Hint 2 — which is which</summary><p>Read the name outwards. An <em>opening</em> opens gaps up: it must start by

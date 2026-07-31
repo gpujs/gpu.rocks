@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Cross the Line · The Heat Equation &amp; Stability — GPU.js Learn</title>
     <meta name="description" content="Goal: work out dtMax , then run the same eighty-step simulation twice — once safely inside the limit, once past it — and watch the console. The stepping loop…">
@@ -179,8 +179,8 @@
             out of the centre, so the centre keeps <code>1 − 2·dims·α</code>. Set that to zero,
             substitute <code>α = D·dt/dx²</code>, and solve for <code>dt</code>.</p></details>
 <details><summary>Hint 2 — the two runs</summary><pre><code>const dtMax = dx * dx / (2 * D * DIMS);
-run('SAFE', 0.4 * dtMax);
-run('PAST THE LINE', 1.6 * dtMax);</code></pre></details>
+await run('SAFE', 0.4 * dtMax);
+await run('PAST THE LINE', 1.6 * dtMax);</code></pre></details>
 <h2>Same idea elsewhere</h2>Every production explicit solver computes this number and refuses to exceed it:
         CFL conditions in fluid codes, the diffusion-number check in a thermal simulation, the
         substepping loop in a cloth or fluid solver on the GPU. It is also why GPU simulations

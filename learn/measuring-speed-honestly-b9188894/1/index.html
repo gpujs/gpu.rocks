@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The First Call Is a Lie · Measuring Speed Honestly — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the kernel, then use Date.now() to time the first call and the warmed-up average separately — and log both.">
@@ -152,23 +152,28 @@
 <h1>The First Call Is a Lie</h1>
 <p>The first time you invoke a kernel, gpu.js does far more than run it: it
         <strong>transpiles</strong> your JavaScript function to shader code, hands it to the GPU
-        driver to <strong>compile and link</strong>, allocates textures — and <em>then</em> runs it.
-        The second call skips straight to the run.</p>
-        <p>So timing the first call measures the compiler, not your kernel. It can be 100× slower
-        than the steady state, and it happens exactly once. Every honest benchmark
-        <strong>warms up first</strong> and throws that first measurement away.</p>
+        driver to <strong>compile and link</strong>, allocates buffers — and <em>then</em> runs it.
+        In <code>auto</code> mode there is more still: that first call is also where gpu.js asks the
+        browser for a WebGPU adapter and rebuilds your kernel for it, so the backend swap happens
+        inside the first <code>await</code> too. Every call after it skips straight to the run.</p>
+        <p>So timing the first call measures the compiler, not your kernel. How wide the gap looks
+        depends on the backend and on what the driver has already cached: on this page the first
+        call typically costs a few times a warm one on WebGPU and ten times or more on WebGL, and on
+        a big kernel with a cold shader cache it is wider still. What never changes is that it
+        happens exactly once — which is why every honest benchmark <strong>warms up first</strong>
+        and throws that first measurement away.</p>
 <figure><figcaption>the first call buys the compiler — time the calls after it</figcaption></figure>
 <div class="ssg-goal"><strong>Goal:</strong> finish the kernel, then use <code>Date.now()</code> to time the
         <em>first</em> call and the <em>warmed-up</em> average separately — and log both.</div>
 
-<h2>Requirements</h2><ul><li>Finish the kernel: return <code>Math.sin(x / 100) * 100</code> where <code>x</code> is this thread's index</li><li>Time the first call with <code>Date.now()</code> and log it: <code>first call: N ms</code></li><li>Call the kernel 10 more times in one timed block and log the average: <code>warm call: N ms</code></li></ul>
+<h2>Requirements</h2><ul><li>Finish the kernel: return <code>Math.sin(x / 100) * 100</code> where <code>x</code> is this thread's index</li><li>Time the first call with <code>Date.now()</code> and log it: <code>first call: N ms</code></li><li>Await 10 more calls in one timed block and log the average: <code>warm call: N ms</code></li></ul>
 <details><summary>Hint 1 — the stopwatch pattern</summary><p>Snapshot the clock, do the work, subtract:</p>
 <pre><code>const t0 = Date.now();
 // … the work …
 console.log('first call:', Date.now() - t0, 'ms');</code></pre></details>
 <details><summary>Hint 2 — averaging the warm calls</summary><p>One stopwatch around a loop of 10 calls, then divide:</p>
 <pre><code>t0 = Date.now();
-for (let i = 0; i &lt; 10; i++) wave();
+for (let i = 0; i &lt; 10; i++) await wave();
 console.log('warm call:', (Date.now() - t0) / 10, 'ms');</code></pre></details>
 <h2>Same idea elsewhere</h2>Every platform has a version of this pause: CUDA JIT-compiles PTX at first launch
         (then caches it), WebGPU builds the shader in <code>createComputePipeline</code>, Metal

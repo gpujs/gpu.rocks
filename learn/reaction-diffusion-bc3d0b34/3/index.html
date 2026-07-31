@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Feed It Back: 100 Steps · Reaction–Diffusion — GPU.js Learn</title>
     <meta name="description" content="Goal: run 100 Gray–Scott steps from the seeded grids seedU / seedV , feeding each step's outputs into the next — both kernels always reading the same snapshot.">
@@ -163,15 +163,15 @@
         <code>seedU</code> / <code>seedV</code>, feeding each step's outputs into the next —
         both kernels always reading the same snapshot.</div>
 
-<h2>Requirements</h2><ul><li>Loop exactly <code>STEPS</code> (100) times in plain JavaScript</li><li>Call <code>stepU(u, v)</code> and <code>stepV(u, v)</code> with the <em>same</em> <code>u</code> and <code>v</code></li><li>Only after both calls, replace <code>u</code> and <code>v</code> with the new grids</li></ul>
+<h2>Requirements</h2><ul><li>Loop exactly <code>STEPS</code> (100) times in plain JavaScript</li><li>Call <code>await stepU(u, v)</code> and <code>await stepV(u, v)</code> with the <em>same</em> <code>u</code> and <code>v</code></li><li>Only after both calls, replace <code>u</code> and <code>v</code> with the new grids</li></ul>
 <details><summary>Hint 1 — why the starter is wrong</summary><p>The starter does</p>
-<pre><code>u = stepU(u, v);
-v = stepV(u, v);</code></pre>
+<pre><code>u = await stepU(u, v);
+v = await stepV(u, v);</code></pre>
 <p>— by the
             second call, <code>u</code> is already next step's grid. Stash both results in
             temporaries before assigning either.</p></details>
-<details><summary>Hint 2 — the loop body</summary><pre><code>const nextU = stepU(u, v);
-const nextV = stepV(u, v);
+<details><summary>Hint 2 — the loop body</summary><pre><code>const nextU = await stepU(u, v);
+const nextV = await stepV(u, v);
 u = nextU;
 v = nextV;</code></pre>
 <p>Four lines, inside

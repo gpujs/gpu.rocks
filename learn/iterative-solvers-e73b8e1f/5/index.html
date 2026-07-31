@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Race · Iterative Linear Solvers — GPU.js Learn</title>
     <meta name="description" content="Goal: fill in the red-black loop, and read the two sweep counts off the console — Jacobi should need about 275 sweeps and red-black about 170.">
@@ -167,10 +167,16 @@
 
 <h2>Requirements</h2><ul><li>Drive red-black with the same <code>sweepsToTolerance</code> helper the Jacobi baseline uses</li><li>One red-black sweep is <code>black(red(u))</code> — both halves, in that order</li><li>Count sweeps, not half-sweeps</li></ul>
 <details><summary>Hint 1 — the helper already does the counting</summary><p><code>sweepsToTolerance</code> takes one argument: a function that turns a grid
-            into the next grid. Jacobi's is <code>u =&gt; sweep(u)</code>. Red-black's is one
-            sweep — both halves — expressed the same way.</p></details>
-<details><summary>Hint 2 — the one-liner</summary><pre><code>const redBlackSweeps = sweepsToTolerance(u =&gt; black(red(u)));</code></pre>
-<p>Both halves inside one call, so the helper counts a full sweep each time it runs it.</p></details>
+            into the next grid. Because a kernel call is awaited, that function is
+            <code>async</code> — Jacobi's is <code>async u =&gt; await sweep(u)</code>, and the
+            helper awaits whatever it returns. Red-black's is one sweep — both halves — expressed
+            the same way.</p></details>
+<details><summary>Hint 2 — the one-liner</summary><pre><code>const redBlackSweeps = await sweepsToTolerance(
+  async u =&gt; await black(await red(u))
+);</code></pre>
+<p>Both halves inside one call, so the helper counts a full sweep each time it runs it. Both
+            <code>await</code>s matter: the outer one hands the helper a grid, and the inner one is
+            what makes the black half read the red half's output instead of a Promise.</p></details>
 <h2>Same idea elsewhere</h2>The shape of this measurement is the one that transfers, more than the numbers:
         an iterative solver is judged on iterations-to-tolerance, and a GPU implementation is
         judged on that <em>times</em> the cost of an iteration. Red-black buys fewer sweeps for one

@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Find the Cutoff Instead · Top-K Selection — GPU.js Learn</title>
     <meta name="description" content="Goal: count in parallel, bisect in JavaScript, and log the cutoff that exactly 10 of the 65,536 scores clear.">
@@ -186,7 +186,7 @@
             value that <code>k + 1</code> scores clear.</p></details>
 <details><summary>Hint 3 — the whole driver</summary><pre><code>while (hi - lo &gt; 0.5) {
   const mid = (lo + hi) / 2;
-  if (total(countAbove(scores, mid)) &gt;= K) lo = mid;
+  if (total(await countAbove(scores, mid)) &gt;= K) lo = mid;
   else hi = mid;
 }
 const cutoff = Math.floor(lo);</code></pre>

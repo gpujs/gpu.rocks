@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Going Live, Honestly · Video Filters — GPU.js Learn</title>
     <meta name="description" content="Goal: finish onFrame so the filter seeds its model from the first frame only, then detects and learns on every frame after it.">
@@ -170,8 +170,8 @@ const filter = gpu.createKernel(function (feed) {
 
 document.body.appendChild(filter.canvas);
 
-function tick() {
-  filter(video);                // the current video frame, uploaded for you
+async function tick() {
+  await filter(video);          // the current video frame, uploaded for you
   requestAnimationFrame(tick);  // ~16.7 ms later, again
 }
 requestAnimationFrame(tick);</code></pre>
@@ -207,15 +207,15 @@ requestAnimationFrame(tick);</code></pre>
             answer. So "is this the first frame?" has to be a property of the filter, not of a loop
             counter:</p>
 <pre><code>if (model === null) {
-  model = seedModel(image);
+  model = await seedModel(image);
 }</code></pre>
 <p>Which is why <code>model</code> starts as <code>null</code> rather than as a texture.</p></details>
 <details><summary>Hint 2 — what the first frame should report</summary><p>Seeded from itself, the frame agrees with the model everywhere, so the mask is
             empty and the count is <code>0</code>. That is the correct answer, and it is much better
             than a first frame that lights up completely.</p></details>
-<details><summary>Hint 3 — the three lines</summary><pre><code>if (model === null) model = seedModel(image);
-const mask = detect(image, model);
-model = learn(image, model);
+<details><summary>Hint 3 — the three lines</summary><pre><code>if (model === null) model = await seedModel(image);
+const mask = await detect(image, model);
+model = await learn(image, model);
 return mask;</code></pre>
 <p>Detect, then learn. Reversing them lets each frame teach the model about itself before you
             ask the model what is new.</p></details>

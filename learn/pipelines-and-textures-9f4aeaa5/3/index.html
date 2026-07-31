@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>toArray() Is a Tollbooth · Pipelines &amp; Textures — GPU.js Learn</title>
     <meta name="description" content="Goal: refactor the chain so stages 1 and 2 keep their results on the GPU, the final stage returns numbers, and the output is bit-for-bit the same idea — just…">
@@ -165,9 +165,9 @@
         the GPU, the final stage returns numbers, and the output is bit-for-bit the same idea —
         just without the round trips.</div>
 
-<h2>Requirements</h2><ul><li>Make <code>normalize</code> and <code>gamma</code> pipeline kernels</li><li>Leave <code>smooth</code> as a plain kernel — the one download you actually want</li><li>Do not change the chain: <code>smooth(gamma(normalize(signal)))</code> stays as-is</li></ul>
+<h2>Requirements</h2><ul><li>Make <code>normalize</code> and <code>gamma</code> pipeline kernels</li><li>Leave <code>smooth</code> as a plain kernel — the one download you actually want</li><li>Do not change the chain: <code>await smooth(await gamma(await normalize(signal)))</code> stays as-is</li></ul>
 <details><summary>Hint 1 — where is the readback hiding?</summary><p>There's no <code>.toArray()</code> in the starter, but the readbacks are
-            still there: a non-pipeline kernel's <em>return value</em> is the readback.
+            still there: a non-pipeline kernel's <em>awaited return value</em> is the readback.
             Count them: normalize downloads, gamma re-uploads and downloads, smooth re-uploads.</p></details>
 <details><summary>Hint 2 — a two-line diff</summary><p>Add <code>pipeline: true</code> to the settings of <code>normalize</code>
             and <code>gamma</code>. That's the entire refactor — the chain line already does

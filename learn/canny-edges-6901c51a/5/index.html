@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Hysteresis: Run It Until Nothing Changes · The Canny Edge Pipeline — GPU.js Learn</title>
     <meta name="description" content="Goal: write the propagation kernel, then run it in a loop until a pass changes nothing, logging how many passes that took.">
@@ -188,7 +188,7 @@ for (let dy = -1; dy &lt;= 1; dy++) {
 <details><summary>Hint 2 — the loop</summary><pre><code>let state = classified;
 let passes = 0;
 for (let i = 0; i &lt; 40; i++) {
-  const next = grow(state);
+  const next = await grow(state);
   passes++;
   state = next;
   if (unchanged(next, state)) break;

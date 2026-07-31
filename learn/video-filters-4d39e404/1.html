@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Sixteen Milliseconds · Video Filters — GPU.js Learn</title>
     <meta name="description" content="Goal: hoist the three kernels out of the frame loop, keep the two intermediate stages on the GPU, and report the per-frame cost against the 16.7 ms budget.">
@@ -186,7 +186,7 @@
             there: a non-pipeline kernel's <em>return value</em> is the readback. Add
             <code>pipeline: true</code> to the first two stages and the chain collapses to one
             expression:</p>
-<pre><code>out.push(tone(denoise(luminance(frames[i]))));</code></pre></details>
+<pre><code>out.push(await tone(await denoise(await luminance(frames[i]))));</code></pre></details>
 <details><summary>Hint 3 — the budget arithmetic</summary><p>One frame at 60 fps is <code>1000 / 60 = 16.7</code> ms. So:</p>
 <pre><code>const perFrame = totalMs / frames.length;
 const fps = 1000 / perFrame;</code></pre>

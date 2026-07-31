@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <script type="module" crossorigin src="/assets/index-T0DrNSMB.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Put It Together: 128 Bodies · N-Body Gravity — GPU.js Learn</title>
     <meta name="description" content="Goal: write the simulation loop — ten ticks of accel → stepVel → stepPos , carrying the new arrays forward each time.">
@@ -163,10 +163,11 @@
 <div class="ssg-goal"><strong>Goal:</strong> write the simulation loop — ten ticks of
         <code>accel → stepVel → stepPos</code>, carrying the new arrays forward each time.</div>
 
-<h2>Requirements</h2><ul><li>Each tick: accelerations first — <code>accel(px, py, mass, SOFT)</code></li><li>Unpack the pairs, then <code>stepVel(vx, vy, ax, ay, DT)</code>, then <code>stepPos</code> with the <em>new</em> velocities</li><li>Reassign <code>px, py, vx, vy</code> so the next tick starts from the new state</li><li>Run exactly <code>STEPS</code> ticks, then log body 0's final position</li></ul>
-<details><summary>Hint 1 — the shape of one tick</summary><p>Inside the loop: call <code>accel</code>, unpack its pairs into
-            <code>ax, ay</code> arrays (the <code>unpack</code> helper is right there), call
-            <code>stepVel</code>, unpack, call <code>stepPos</code>, unpack.</p></details>
+<h2>Requirements</h2><ul><li>Each tick: accelerations first — <code>await accel(px, py, mass, SOFT)</code></li><li>Unpack the pairs, then <code>await stepVel(vx, vy, ax, ay, DT)</code>, then <code>await stepPos</code> with the <em>new</em> velocities — awaited one after another, because each reads the one before it</li><li>Reassign <code>px, py, vx, vy</code> so the next tick starts from the new state</li><li>Run exactly <code>STEPS</code> ticks, then log body 0's final position</li></ul>
+<details><summary>Hint 1 — the shape of one tick</summary><p>Inside the loop: <code>await accel</code>, unpack its pairs into
+            <code>ax, ay</code> arrays (the <code>unpack</code> helper is right there),
+            <code>await stepVel</code>, unpack, <code>await stepPos</code>, unpack. One at a
+            time — the next call needs the previous one's numbers.</p></details>
 <details><summary>Hint 2 — carrying the state</summary><p>End every tick by overwriting the state:</p>
 <pre><code>vx = newVx;
 vy = newVy;
@@ -175,9 +176,9 @@ py = newPy;</code></pre>
 <p>— next tick's
             <code>accel</code> must see the moved bodies, or time never advances.</p></details>
 <details><summary>Hint 3 — the whole loop</summary><pre><code>for (let step = 0; step &lt; STEPS; step++) {
-  const [ax, ay] = unpack(accel(px, py, mass, SOFT));
-  const [nvx, nvy] = unpack(stepVel(vx, vy, ax, ay, DT));
-  const [npx, npy] = unpack(stepPos(px, py, nvx, nvy, DT));
+  const [ax, ay] = unpack(await accel(px, py, mass, SOFT));
+  const [nvx, nvy] = unpack(await stepVel(vx, vy, ax, ay, DT));
+  const [npx, npy] = unpack(await stepPos(px, py, nvx, nvy, DT));
   px = npx; py = npy; vx = nvx; vy = nvy;
 }</code></pre></details>
 <h2>Same idea elsewhere</h2>A host loop launching device kernels in sequence is the universal skeleton of GPU
