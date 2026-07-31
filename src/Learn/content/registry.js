@@ -225,6 +225,18 @@ export function validateContent(modules, trackMeta) {
           );
         }
       }
+
+      // Hint TITLES are rendered as JSX text (<summary>{hint.title}</summary>),
+      // so React escapes them and any markup shows up as literal tags to the
+      // learner. Hint BODIES are trusted HTML and may contain markup.
+      (Array.isArray(task.hints) ? task.hints : []).forEach((hint, h) => {
+        if (hint && typeof hint.title === 'string' && /<[a-z/][^>]*>/i.test(hint.title)) {
+          problems.push(
+            `${where} task ${step}: hint ${h + 1} title contains HTML — titles render as ` +
+              `plain text, so the tags would be shown to the learner: ${JSON.stringify(hint.title)}`
+          );
+        }
+      });
     });
   });
 

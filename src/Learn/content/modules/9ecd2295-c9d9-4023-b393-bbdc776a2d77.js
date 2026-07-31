@@ -1455,7 +1455,9 @@ console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames
 const v = Math.max(0, Math.min(1, 1 + db / this.constants.range));</code></pre>`,
         },
         {
-          title: 'Hint 3 — why the <code>1e-9</code>',
+          // Plain text: the app renders hint titles as JSX text, so any markup
+          // here is escaped and the learner sees the tags themselves.
+          title: 'Hint 3 — why the 1e-9',
           body: `<p><code>log₁₀(0)</code> is <code>-Infinity</code>, and <code>-Infinity / 60</code>
             stays infinite: one silent cell would paint <code>NaN</code>, which lands on screen as
             whatever the driver felt like. The tiny floor costs nothing (it is 180 dB down) and

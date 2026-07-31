@@ -46,6 +46,14 @@ import {
   moduleTaskMeta,
 } from '../src/routeMeta.js';
 import { loadContent } from './contentLoader.mjs';
+import {
+  STATIC_STYLE,
+  buildLlmsFull,
+  buildLlmsTxt,
+  loadFigureMeta,
+  pageMarkdown,
+  proseHtml,
+} from './staticContent.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -70,12 +78,12 @@ function fail(message) {
 // in no track by title) already carrying uuid/version/slug/shortId. Invalid
 // content throws here with every problem listed.
 
-async function loadModules() {
+async function loadRegistry() {
   try {
-    return (await loadContent(root)).modules;
+    return await loadContent(root);
   } catch (e) {
     fail(e.message);
-    return [];
+    return null;
   }
 }
 
@@ -210,31 +218,56 @@ if (/og:|twitter:|rel="canonical"|<title>/.test(template)) {
   fail('template still contains page-specific head tags after stripping');
 }
 
-function renderPage(block) {
-  return template.replace('</head>', `${block}\n  </head>`);
+const ROOT_DIV = /<div id="root">\s*<\/div>/;
+if (!ROOT_DIV.test(template)) fail('could not find an empty <div id="root"> to fill');
+
+// Each page gets its head tags AND a static prose body inside #root. The
+// client uses createRoot (src/index.jsx), which discards container children on
+// first render, so the prose is what a crawler or a JS-less visitor reads and
+// what a slow connection shows while the bundle arrives — it is never
+// hydrated. See scripts/staticContent.mjs for why this is not React SSR.
+function renderPage(block, prose) {
+  const html = template.replace('</head>', `${block}\n  </head>`);
+  return prose ? html.replace(ROOT_DIV, `<div id="root">${prose}</div>`) : html;
 }
 
-const modules = await loadModules();
+const registry = await loadRegistry();
+const modules = registry.modules;
+const tracks = registry.tracks;
+const orphans = registry.orphanModules || [];
+const figureMeta = await loadFigureMeta(root);
+const staticCtx = { figureMeta, siteRoutes: SITE_ROUTES };
 
 const pages = [];
 const seenPaths = new Set();
-function addPage(meta, jsonLd) {
+function addPage(meta, jsonLd, content) {
   const { path, title, description } = meta || {};
   if (!path || !/^\/[a-z0-9\-/]*$/i.test(path)) fail(`bad route path: ${JSON.stringify(path)}`);
   if (!title || !String(title).trim()) fail(`empty title for ${path}`);
   if (!description || !String(description).trim()) fail(`empty description for ${path}`);
   if (seenPaths.has(path)) fail(`duplicate route path: ${path}`);
   seenPaths.add(path);
-  pages.push({ path, title, description, jsonLd });
+  pages.push({ path, title, description, jsonLd, content: content || { kind: 'site' } });
 }
 
 for (const route of SITE_ROUTES) addPage(route);
-addPage(learnHomeMeta(), courseLd(modules));
+const learnMeta = learnHomeMeta();
+addPage(learnMeta, courseLd(modules), {
+  kind: 'learn-home',
+  tracks,
+  orphans,
+  meta: learnMeta,
+});
 for (const mod of modules) {
-  addPage(moduleMeta(mod), moduleLd(mod));
+  addPage(moduleMeta(mod), moduleLd(mod), { kind: 'module', module: mod });
   mod.tasks.forEach((task, i) => {
     const meta = moduleTaskMeta(mod, task, i + 1);
-    addPage(meta, taskLd(mod, task, i + 1, meta));
+    addPage(meta, taskLd(mod, task, i + 1, meta), {
+      kind: 'task',
+      module: mod,
+      task,
+      step: i + 1,
+    });
   });
 }
 
@@ -245,8 +278,16 @@ for (const mod of modules) {
 // http:// Location when the CDN fetches the origin over plain HTTP, and that
 // https→http downgrade hop loops forever in strict webviews (Telegram).
 let written = 0;
+let markdownBytes = 0;
 for (const page of pages) {
-  const html = renderPage(headBlock(page, page.jsonLd));
+  // Every page advertises its Markdown twin, so a client that prefers text
+  // can find it from the HTML without knowing the convention.
+  const mdPath = (page.path === '/' ? '/index' : page.path) + '.md';
+  const head =
+    headBlock(page, page.jsonLd) +
+    `\n    <link rel="alternate" type="text/markdown" href="${esc(ORIGIN + mdPath)}">` +
+    `\n    ${STATIC_STYLE}`;
+  const html = renderPage(head, proseHtml(page, staticCtx));
   const outDir = page.path === '/' ? dist : join(dist, page.path.slice(1));
   if (existsSync(outDir) && !statSync(outDir).isDirectory()) {
     fail(`output path collides with an existing file: ${outDir}`);
@@ -256,8 +297,23 @@ for (const page of pages) {
   if (page.path !== '/') {
     writeFileSync(join(dist, `${page.path.slice(1)}.html`), html);
   }
+
+  const markdown = pageMarkdown(page, staticCtx);
+  const mdFile = join(dist, mdPath.slice(1));
+  mkdirSync(dirname(mdFile), { recursive: true });
+  writeFileSync(mdFile, markdown);
+  markdownBytes += Buffer.byteLength(markdown);
   written++;
 }
+
+// llms.txt — the llmstxt.org index — and llms-full.txt, the whole site as one
+// document. Both are Markdown, both point at the .md twins written above.
+writeFileSync(
+  join(dist, 'llms.txt'),
+  buildLlmsTxt({ siteRoutes: SITE_ROUTES, tracks, orphans, learnMeta })
+);
+const llmsFull = buildLlmsFull(pages, staticCtx);
+writeFileSync(join(dist, 'llms-full.txt'), llmsFull);
 
 // 404.html — app shell fallback for unknown paths (GH Pages serves it with a
 // 404 status). Generic title, noindex, no canonical/OG: it must never be
@@ -292,8 +348,13 @@ const buildId = createHash('sha256').update(assetNames.join('\n')).digest('hex')
 writeFileSync(join(dist, 'version.json'), `${JSON.stringify({ build: buildId }, null, 2)}\n`);
 
 const taskCount = modules.reduce((sum, mod) => sum + mod.tasks.length, 0);
+const kb = bytes => `${Math.round(bytes / 1024)} KB`;
 console.log(
   `prerender: wrote ${written} pages (${SITE_ROUTES.length} site + 1 learn + ` +
     `${modules.length} modules + ${taskCount} tasks), 404.html (noindex), ` +
     `sitemap.xml (${pages.length} URLs), version.json (build ${buildId})`
+);
+console.log(
+  `prerender: static prose in every #root, ${written} .md twins (${kb(markdownBytes)}), ` +
+    `llms.txt, llms-full.txt (${kb(Buffer.byteLength(llmsFull))})`
 );

@@ -141,11 +141,20 @@ jobs:
               echo "https://gpu.rocks/$dir/"
             fi
           done | sort -u > /tmp/purge-urls.txt
+          # The Markdown twins (<route>.md) and the llms.txt pair carry the same
+          # prose as the HTML and are just as un-hashed, so they go stale the
+          # same way. dist/api is excluded for the reason above (it ships its
+          # own README.md).
+          find dist -name '*.md' -not -path 'dist/api/*' | while read -r file; do
+            echo "https://gpu.rocks/${file#dist/}"
+          done | sort -u >> /tmp/purge-urls.txt
           printf '%s\n' \
             "https://gpu.rocks/404.html" \
             "https://gpu.rocks/sitemap.xml" \
-            "https://gpu.rocks/robots.txt" >> /tmp/purge-urls.txt
-          echo "purging $(wc -l < /tmp/purge-urls.txt) HTML URLs (assets left warm)"
+            "https://gpu.rocks/robots.txt" \
+            "https://gpu.rocks/llms.txt" \
+            "https://gpu.rocks/llms-full.txt" >> /tmp/purge-urls.txt
+          echo "purging $(wc -l < /tmp/purge-urls.txt) HTML + Markdown URLs (assets left warm)"
           split -l 30 /tmp/purge-urls.txt /tmp/purge-batch-
           failed=0
           for batch in /tmp/purge-batch-*; do

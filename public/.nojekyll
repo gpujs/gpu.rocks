@@ -1,0 +1,4 @@
+# GitHub Pages must serve dist/ verbatim.
+# Without this, Pages runs the tree through Jekyll, whose rules about what to
+# process, rename or skip (anything starting with _, front-matter Markdown) we
+# would be silently depending on — and prerender now emits 215 .md files.
