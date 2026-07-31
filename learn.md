@@ -31,6 +31,10 @@ Heavy math, thousands of threads at once
 - [Matrix Multiply](https://gpu.rocks/learn/matrix-multiply-972e080b.md) — The canonical GPGPU workload: from naive triple loop to a kernel that scales. (5 tasks)
 - [Monte Carlo Methods](https://gpu.rocks/learn/monte-carlo-methods-9ea19810.md) — Estimate π, price an option, integrate the un-integrable — with a million random samples. (4 tasks)
 - [N-Body Gravity](https://gpu.rocks/learn/n-body-gravity-5de47751.md) — Every particle pulls on every other: an O(n²) problem the GPU eats for breakfast. (5 tasks)
+- [ODE Integrators](https://gpu.rocks/learn/ode-integrators-62f4a3ff.md) — Euler, midpoint, RK4 and velocity Verlet — measured against a closed form, one thread per trajectory. (6 tasks)
+- [Iterative Linear Solvers](https://gpu.rocks/learn/iterative-solvers-e73b8e1f.md) — Jacobi, Gauss-Seidel, and why colouring a grid like a chessboard turns a sequential algorithm parallel. (5 tasks)
+- [The Heat Equation & Stability](https://gpu.rocks/learn/heat-and-stability-514063bb.md) — Why a correct-looking simulation explodes — the step-size limit, and the implicit step that ignores it. (5 tasks)
+- [Gradient Descent](https://gpu.rocks/learn/gradient-descent-c94c3f22.md) — Fit a line by walking downhill — the gradient as a reduction, the learning rate as a stability limit, and 1,024 searches in one launch. (5 tasks)
 
 ## Computer Vision
 

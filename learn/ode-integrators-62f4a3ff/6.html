@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        var path = window.location.pathname;
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
+        }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
+      <title>Payoff: RK4 Drifts, Verlet Does Not · ODE Integrators — GPU.js Learn</title>
+    <meta name="description" content="Goal: finish the velocity-Verlet energy kernel, then log each method's final energy and the smallest value Verlet ever reaches.">
+    <link rel="canonical" href="https://gpu.rocks/learn/ode-integrators-62f4a3ff/6">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GPU.js">
+    <meta property="og:url" content="https://gpu.rocks/learn/ode-integrators-62f4a3ff/6">
+    <meta property="og:title" content="Payoff: RK4 Drifts, Verlet Does Not · ODE Integrators — GPU.js Learn">
+    <meta property="og:description" content="Goal: finish the velocity-Verlet energy kernel, then log each method's final energy and the smallest value Verlet ever reaches.">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="GPU.js jellyfish logo — GPU accelerated JavaScript">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Payoff: RK4 Drifts, Verlet Does Not · ODE Integrators — GPU.js Learn">
+    <meta name="twitter:description" content="Goal: finish the velocity-Verlet energy kernel, then log each method's final energy and the smallest value Verlet ever reaches.">
+    <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Payoff: RK4 Drifts, Verlet Does Not","description":"Goal: finish the velocity-Verlet energy kernel, then log each method's final energy and the smallest value Verlet ever reaches.","url":"https://gpu.rocks/learn/ode-integrators-62f4a3ff/6","position":6,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"ODE Integrators","url":"https://gpu.rocks/learn/ode-integrators-62f4a3ff","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/ode-integrators-62f4a3ff/6.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
+  </head>
+  <body>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/ode-integrators-62f4a3ff">ODE Integrators</a></nav>
+<p class="ssg-eyebrow">Task 6 of 6</p>
+<h1>Payoff: RK4 Drifts, Verlet Does Not</h1>
+<p>Eighty-one orbits at <code>dt = 0.5</code>, every trajectory released from
+        <code>x = 0</code> with <code>v = 1</code>. That start makes the bookkeeping free:
+        <code>E₀ = ½</code>, so the energy as a multiple of its starting value is exactly
+        <code>x² + v²</code>.</p>
+        <p>The launch is the interesting part. Thread <em>x</em> integrates
+        <code>this.thread.x + 1</code> steps — one thread takes a single step, the last takes all
+        1,024, and between them the 1,024 threads trace the <strong>whole energy history</strong>
+        of the run. Every prefix computed independently, from scratch, at the same time. Nothing
+        is shared, so nothing has to be sequenced.</p>
+        <p>RK4 is the most accurate thing you have written: after eighty-one orbits its phase is
+        0.24 radians behind the truth, where Verlet's has slipped nearly a whole orbit. Watch
+        what its energy does anyway — and remember that midpoint, second order and perfectly
+        respectable, ends this same run with about eight million times the energy it started
+        with.</p>
+<figure><figcaption>the accurate method leaks; the symplectic one ripples and stays</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> finish the velocity-Verlet energy kernel, then log each
+        method's final energy and the smallest value Verlet ever reaches.</div>
+
+<h2>Requirements</h2><ul><li>Thread <em>x</em> runs <code>this.thread.x + 1</code> steps — the loop bound is the thread index</li><li>Start every trajectory at <code>x = 0</code>, <code>v = 1</code> and step with velocity Verlet</li><li>Return <code>x * x + v * v</code> — the energy as a multiple of where it started</li><li><code>console.log</code> both final energies and the minimum of the Verlet curve</li></ul>
+<details><summary>Hint 1 — the trip count</summary><p><code>for (let s = 0; s &lt; this.thread.x + 1; s++)</code>. gpu.js compiles a
+            bound it cannot fold at build time into a <code>loopMaxIterations</code> loop with an
+            early exit, which is why the kernel declares
+            <code>loopMaxIterations: 1024</code>.</p></details>
+<details><summary>Hint 2 — why x² + v² is the energy ratio</summary><p><code>E = (x² + v²)/2</code> and every trajectory starts at
+            <code>(0, 1)</code>, so <code>E₀ = ½</code> and <code>E/E₀ = x² + v²</code>. A value
+            of 1 means the energy is exactly where it began.</p></details>
+<details><summary>Hint 3 — what to look for in JavaScript</summary><p>Scan for the smallest value on each curve, and read the last one:</p>
+<pre><code>let low = Infinity;
+for (let i = 0; i &lt; verletCurve.length; i++) {
+  if (verletCurve[i] &lt; low) low = verletCurve[i];
+}</code></pre>
+          <p>RK4's minimum <em>is</em> its final value — it never goes back up.</p></details>
+<h2>Same idea elsewhere</h2>Two lessons travel. The launch shape — a thread per prefix, wildly unequal work,
+        the wavefront running until its slowest lane finishes — is the load-imbalance problem every
+        CUDA, ROCm, WebGPU and Metal programmer eventually has to lay out differently. And the
+        result is why orbital-mechanics and molecular-dynamics codes on those platforms pick
+        symplectic integrators: over a long run you are not choosing the method with the smallest
+        error per step, you are choosing the one whose error does not have a direction.
+<h2>All tasks in ODE Integrators</h2>
+<ol class="ssg-tasks"><li><a href="/learn/ode-integrators-62f4a3ff/1">One Thread, One Whole Trajectory</a></li><li><a href="/learn/ode-integrators-62f4a3ff/2">Halve the Step, Halve the Error</a></li><li><a href="/learn/ode-integrators-62f4a3ff/3">Look Before You Leap</a></li><li><a href="/learn/ode-integrators-62f4a3ff/4">Four Slopes, Weighted</a></li><li><a href="/learn/ode-integrators-62f4a3ff/5">Velocity Verlet: the Symplectic Step</a></li><li><a href="/learn/ode-integrators-62f4a3ff/6">Payoff: RK4 Drifts, Verlet Does Not</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/ode-integrators-62f4a3ff/5">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
+  </body>
+</html>

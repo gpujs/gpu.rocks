@@ -117,6 +117,10 @@ Heavy math, thousands of threads at once
 - [Matrix Multiply](https://gpu.rocks/learn/matrix-multiply-972e080b.md) — The canonical GPGPU workload: from naive triple loop to a kernel that scales. (5 tasks)
 - [Monte Carlo Methods](https://gpu.rocks/learn/monte-carlo-methods-9ea19810.md) — Estimate π, price an option, integrate the un-integrable — with a million random samples. (4 tasks)
 - [N-Body Gravity](https://gpu.rocks/learn/n-body-gravity-5de47751.md) — Every particle pulls on every other: an O(n²) problem the GPU eats for breakfast. (5 tasks)
+- [ODE Integrators](https://gpu.rocks/learn/ode-integrators-62f4a3ff.md) — Euler, midpoint, RK4 and velocity Verlet — measured against a closed form, one thread per trajectory. (6 tasks)
+- [Iterative Linear Solvers](https://gpu.rocks/learn/iterative-solvers-e73b8e1f.md) — Jacobi, Gauss-Seidel, and why colouring a grid like a chessboard turns a sequential algorithm parallel. (5 tasks)
+- [The Heat Equation & Stability](https://gpu.rocks/learn/heat-and-stability-514063bb.md) — Why a correct-looking simulation explodes — the step-size limit, and the implicit step that ignores it. (5 tasks)
+- [Gradient Descent](https://gpu.rocks/learn/gradient-descent-c94c3f22.md) — Fit a line by walking downhill — the gradient as a reduction, the learning rate as a stability limit, and 1,024 searches in one launch. (5 tasks)
 
 ## Computer Vision
 
@@ -8177,6 +8181,2726 @@ console.log('after', STEPS, 'ticks, body 0 is at', px[0], py[0]);
 Interactive version: https://gpu.rocks/learn/n-body-gravity-5de47751/5
 
 [Previous task](https://gpu.rocks/learn/n-body-gravity-5de47751/4.md)
+
+---
+
+<!-- https://gpu.rocks/learn/ode-integrators-62f4a3ff -->
+
+# ODE Integrators
+
+*Module of the free GPU.js GPGPU course · 6 tasks*
+
+Euler, midpoint, RK4 and velocity Verlet — measured against a closed form, one thread per trajectory.
+
+## Tasks
+
+1. [One Thread, One Whole Trajectory](https://gpu.rocks/learn/ode-integrators-62f4a3ff/1.md)
+2. [Halve the Step, Halve the Error](https://gpu.rocks/learn/ode-integrators-62f4a3ff/2.md)
+3. [Look Before You Leap](https://gpu.rocks/learn/ode-integrators-62f4a3ff/3.md)
+4. [Four Slopes, Weighted](https://gpu.rocks/learn/ode-integrators-62f4a3ff/4.md)
+5. [Velocity Verlet: the Symplectic Step](https://gpu.rocks/learn/ode-integrators-62f4a3ff/5.md)
+6. [Payoff: RK4 Drifts, Verlet Does Not](https://gpu.rocks/learn/ode-integrators-62f4a3ff/6.md)
+
+---
+
+Interactive version: https://gpu.rocks/learn/ode-integrators-62f4a3ff
+
+---
+
+<!-- https://gpu.rocks/learn/ode-integrators-62f4a3ff/1 -->
+
+# One Thread, One Whole Trajectory
+
+*Task 1 of 6 · [ODE Integrators](https://gpu.rocks/learn/ode-integrators-62f4a3ff.md) · GPU.js Learn*
+
+A mass on a spring, in one line: the acceleration always points back at the
+origin, `a = −x`. That is the entire physics of this module. It is
+deliberately the dullest force there is, because the subject here is the
+**clock**, not the force — N-Body Gravity owns interesting forces.
+
+What the spring buys is that we already know the answer, exactly and forever:
+
+```js
+x(t) = x₀·cos t + v₀·sin t
+E    = (x² + v²) / 2, constant
+```
+
+So every number a solver produces can be subtracted from the truth, and "how wrong
+is this?" stops being a feeling. And the GPU shape flips. N-Body's tick loop runs in
+JavaScript, one launch per step, because every body needs every other body's
+*new* position before the next tick — that is a barrier. These trajectories
+never speak to each other, so the loop moves **inside** the kernel: one
+launch, one thread, one entire trajectory, a thousand at a time.
+
+## Figures
+
+- **the clock moved inside the kernel — one launch, one thread, one whole trajectory**
+
+## Goal
+
+**Goal:** fill in one explicit-Euler step, so each thread integrates
+its own oscillator for 200 steps and returns the final `x`.
+
+## Requirements
+
+- The time loop stays *inside* the kernel — `this.constants.steps` iterations, one thread per trajectory
+- Explicit Euler commits to the start of the step: take `a = −x` first
+- Advance `x` by the step-start `v · dt`, and `v` by `a · dt`
+- Return this thread's final `x`
+
+## Hint 1 — what one step is
+
+Three lines. The acceleration first, because `x` is about to
+change under it:
+
+```js
+const a = -x;
+x = x + v * dt;
+v = v + a * dt;
+```
+
+## Hint 2 — why that order
+
+Explicit Euler uses *only* step-start values. Writing
+`v` first and then moving `x` with the **new**
+`v` is a different method — semi-implicit Euler, the one N-Body Gravity
+steps with. It is better, and it is task 5's business. Here we want the naive one,
+because its badness is the lesson.
+
+## Hint 3 — no arrays inside the loop
+
+`x` and `v` are plain `let` locals. The
+arrays are read once, before the loop, to start this thread off — after that the
+whole trajectory lives in two registers.
+
+## Same idea elsewhere
+
+One thread per independent problem is how GPUs are pointed at ODEs everywhere:
+CUDA and HIP ensemble solvers give each thread one particle's trajectory, WebGPU compute
+does the same for particle systems, and the "batched" families in cuBLAS and cuSOLVER
+exist because thousands of small independent problems are the shape this hardware likes
+best. The kernel is the solver; the launch is the ensemble.
+
+## Starter code
+
+```js
+// One thread owns one WHOLE trajectory: the time loop is inside the kernel.
+const gpu = new GPU({ mode });
+const STEPS = 200;
+const DT = 0.025;                 // 200 × 0.025 = t = 5
+const T_END = STEPS * DT;
+
+const trajectory = gpu.createKernel(function (startX, startV, dt) {
+  let x = startX[this.thread.x];
+  let v = startV[this.thread.x];
+  for (let s = 0; s < this.constants.steps; s++) {
+    // TODO: one explicit-Euler step.
+    //   a = -x first, then x moves by v * dt and v changes by a * dt —
+    //   both using the values from the START of the step.
+  }
+  return x;
+}, {
+  output: [1024],
+  constants: { steps: STEPS },
+});
+
+const finalX = trajectory(startX, startV, DT);
+
+console.log('trajectory 0 ended at', finalX[0]);
+console.log('the exact answer is  ', startX[0] * Math.cos(T_END) + startV[0] * Math.sin(T_END));
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/ode-integrators-62f4a3ff/1
+
+[Next task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/2.md)
+
+---
+
+<!-- https://gpu.rocks/learn/ode-integrators-62f4a3ff/2 -->
+
+# Halve the Step, Halve the Error
+
+*Task 2 of 6 · [ODE Integrators](https://gpu.rocks/learn/ode-integrators-62f4a3ff.md) · GPU.js Learn*
+
+Euler is wrong. The useful question is *how* wrong, and what more steps
+buy you. Explicit Euler is a **first-order** method: its error at a fixed
+end time is proportional to `dt`. Halve the step, halve the error. Pay
+twice, get twice — which is a terrible exchange rate, and you can only find that out
+by measuring it.
+
+Measuring needs the same trajectories run at several step sizes, which is what the
+second output axis is for. `output: [256, 4]` launches a grid:
+`this.thread.x` picks the trajectory, `this.thread.y` picks the
+**refinement level** — 50, 100, 200 or 400 steps, every level covering the
+same `t = 0…5`, so `dt` is `5 / n`. One launch, the
+whole convergence study.
+
+Notice what that does to the loop: the trip count now differs from thread to thread.
+gpu.js compiles a non-constant bound as a fixed `loopMaxIterations` loop with
+an early exit, so the 50-step threads still march through all 400 iterations alongside
+their neighbours. That is not a gpu.js quirk — lockstep hardware behaves that way
+everywhere.
+
+## Goal
+
+**Goal:** return each thread's absolute error against the closed form,
+then average each row in JavaScript and log what each halving of `dt` bought.
+
+## Requirements
+
+- Take the step count from the level: `levelSteps[this.thread.y]`, and `dt = this.constants.tEnd / n`
+- Integrate `n` explicit-Euler steps, exactly as in the last task
+- Return the *absolute* error against `startX·cos(tEnd) + startV·sin(tEnd)`
+- In JavaScript: average each row, then `console.log` the three ratios `means[level − 1] / means[level]`
+
+## Hint 1 — which step size is mine?
+
+The row index *is* the level:
+
+```js
+const n = levelSteps[this.thread.y];
+const dt = this.constants.tEnd / n;
+```
+
+Every row ends at the same time; only the number of steps it took to get there
+differs.
+
+## Hint 2 — the truth to subtract
+
+`Math.cos` and `Math.sin` both work inside kernels:
+
+```js
+const exact = startX[this.thread.x] * Math.cos(this.constants.tEnd)
+            + startV[this.thread.x] * Math.sin(this.constants.tEnd);
+return Math.abs(x - exact);
+```
+
+`Math.abs` matters: without it half the trajectories report a positive
+error and half a negative one, and the row average cancels to nearly nothing.
+
+## Hint 3 — the JavaScript half
+
+A 2D kernel returns rows, so `errors[level]` is a whole row of
+trajectory errors:
+
+```js
+const means = [];
+for (let level = 0; level < errors.length; level++) {
+  let total = 0;
+  for (let i = 0; i < errors[level].length; i++) total += errors[level][i];
+  means.push(total / errors[level].length);
+}
+for (let level = 1; level < means.length; level++) {
+  console.log((means[level - 1] / means[level]).toFixed(3));
+}
+```
+
+## Same idea elsewhere
+
+Running an entire convergence study as one dispatch is the GPU-native form of a
+parameter sweep, and 2D launch grids are how every platform spells it — CUDA's
+`dim3` grid, WebGPU's dispatch dimensions, Metal's threadgroup grid. The
+divergence lesson travels too: a warp, a wavefront or a subgroup runs its loop until the
+*last* lane is finished, so a per-thread trip count is a hint about work, never a
+promise about time.
+
+## Starter code
+
+```js
+// x = trajectory, y = refinement level. 256 oscillators × 4 step sizes,
+// every level covering the same t = 0…5. One launch, one whole study.
+const gpu = new GPU({ mode });
+
+const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
+  // TODO: this row's step count and step size
+  const n = 1;
+  const dt = 1;
+
+  let x = startX[this.thread.x];
+  let v = startV[this.thread.x];
+  for (let s = 0; s < n; s++) {
+    const a = -x;
+    x = x + v * dt;
+    v = v + a * dt;
+  }
+
+  // TODO: the exact answer is startX·cos(tEnd) + startV·sin(tEnd).
+  // Return how far this trajectory ended up from it — an absolute distance.
+  return x;
+}, {
+  output: [256, 4],
+  constants: { tEnd: 5 },
+  loopMaxIterations: 400,          // the largest level; a bigger one would be truncated
+});
+
+const errors = errorOf(startX, startV, levelSteps);
+console.log('levels:', errors.length, '× trajectories:', errors[0].length);
+
+// TODO: average each row into means[], log each one, then log the ratios
+// means[level - 1] / means[level] — that number is the method's order.
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/ode-integrators-62f4a3ff/2
+
+[Previous task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/1.md) · [Next task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/3.md)
+
+---
+
+<!-- https://gpu.rocks/learn/ode-integrators-62f4a3ff/3 -->
+
+# Look Before You Leap
+
+*Task 3 of 6 · [ODE Integrators](https://gpu.rocks/learn/ode-integrators-62f4a3ff.md) · GPU.js Learn*
+
+Euler's mistake is committing. It reads the slope at the start of the step and
+then pretends that slope holds all the way across. The **midpoint method**
+(RK2) makes the obvious repair: take a trial *half*-step, read the slope
+*there*, throw the trial away, and take the real full step using that better
+slope.
+
+Two force evaluations per step instead of one, and the error goes from first order to
+**second**: halve `dt` and the error drops by *four*.
+Same instrument as the last task; only the number at the bottom changes.
+
+The step sizes are coarser here — 25 to 200 steps, not 50 to 400 — and that is worth
+knowing rather than glossing. A convergence study only reads true inside a window. Too
+coarse and the leading error term is not yet dominant; too fine and the error sinks into
+the rounding noise of the float32 the WebGL backend computes in, and the ratio starts
+reporting arithmetic instead of mathematics.
+
+## Figures
+
+- **the trial half-step is thrown away; only the slope it found is kept**
+
+## Goal
+
+**Goal:** replace the Euler step with a midpoint step, and watch the
+ratio go from 2 to 4.
+
+## Requirements
+
+- Trial half-step from the start: `midX = x + v·(dt/2)` and `midV = v + a·(dt/2)`, with `a = −x`
+- Take the real step with the *midpoint* slopes: `x += midV·dt` and `v += (−midX)·dt`
+- Both updates use midpoint values — leaving either one on the start-of-step slope drops you back to first order
+
+## Hint 1 — what the trial step is for
+
+Nothing about `midX` and `midV` survives the step. They
+exist only to answer one question — *what is the slope halfway across?* — and
+the answer is `midV` for the position and `−midX` for the
+velocity.
+
+## Hint 2 — which slope goes where
+
+The state is `(x, v)` and its derivative is
+`(v, −x)`. So the midpoint *velocity* drives the position, and the
+midpoint *position* drives the velocity. Crossing those over is the single
+easiest way to get this wrong.
+
+## Hint 3 — the whole step
+
+```js
+const half = dt / 2;
+const a = -x;
+const midX = x + v * half;
+const midV = v + a * half;
+x = x + midV * dt;
+v = v + -midX * dt;
+```
+
+## Same idea elsewhere
+
+A multi-stage integrator has to hold several copies of the state at once, and on a
+GPU that is register pressure — the resource that decides how many threads a streaming
+multiprocessor can keep in flight. CUDA calls it occupancy, WebGPU and Metal have the same
+constraint under different names. It is a real reason production codes sometimes prefer a
+cheap scheme with a smaller step to an elegant one with a bigger footprint.
+
+## Starter code
+
+```js
+// The same instrument, a better step. 256 oscillators × 4 step sizes.
+const gpu = new GPU({ mode });
+
+const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
+  const n = levelSteps[this.thread.y];
+  const dt = this.constants.tEnd / n;
+
+  let x = startX[this.thread.x];
+  let v = startV[this.thread.x];
+  for (let s = 0; s < n; s++) {
+    // TODO: one MIDPOINT step.
+    //   half-step to (midX, midV), read the slope there,
+    //   then take the full step with THAT slope.
+    const a = -x;
+    x = x + v * dt;
+    v = v + a * dt;
+  }
+
+  const exact = startX[this.thread.x] * Math.cos(this.constants.tEnd)
+              + startV[this.thread.x] * Math.sin(this.constants.tEnd);
+  return Math.abs(x - exact);
+}, {
+  output: [256, 4],
+  constants: { tEnd: 5 },
+  loopMaxIterations: 200,
+});
+
+const errors = errorOf(startX, startV, levelSteps);
+
+// average the trajectories at each step size, then see what each halving bought
+const means = [];
+for (let level = 0; level < errors.length; level++) {
+  let total = 0;
+  for (let i = 0; i < errors[level].length; i++) total += errors[level][i];
+  means.push(total / errors[level].length);
+  console.log(levelSteps[level] + ' steps: mean error ' + means[level].toFixed(6));
+}
+for (let level = 1; level < means.length; level++) {
+  console.log('halving dt divided the error by ' + (means[level - 1] / means[level]).toFixed(3));
+}
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/ode-integrators-62f4a3ff/3
+
+[Previous task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/2.md) · [Next task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/4.md)
+
+---
+
+<!-- https://gpu.rocks/learn/ode-integrators-62f4a3ff/4 -->
+
+# Four Slopes, Weighted
+
+*Task 4 of 6 · [ODE Integrators](https://gpu.rocks/learn/ode-integrators-62f4a3ff.md) · GPU.js Learn*
+
+Classical RK4 samples the slope four times per step — once at the start, twice
+at the middle (the second one using the first one's estimate), once at the end — and
+combines them `(k₁ + 2·k₂ + 2·k₃ + k₄) / 6`. Four evaluations,
+**fourth** order: halving `dt` divides the error by
+*sixteen*.
+
+Which is why this task's step sizes look absurd. The coarsest level crosses
+`t = 0…5` in **five** steps — a full radian each — and it is
+still more accurate than 400 Euler steps. Run RK4 at Euler's finest setting instead and
+its error would be around 10⁻⁹, roughly a thousand times below what float32 can resolve
+next to a value of order 1; the study would measure rounding, not convergence. Three
+levels is what fits between "not yet asymptotic" and "already noise" — take one more
+halving and the ratio stops being a clean 16.
+
+## Goal
+
+**Goal:** write the RK4 step and watch the ratio jump to ≈16.
+
+## Requirements
+
+- Four slope pairs: `k1` at the start, `k2` and `k3` at the midpoint, `k4` at the end
+- `k2` and `k3` step out by `dt/2`; `k4` by the full `dt`
+- Each probe builds on the *previous* one — `k3` from `k2`, `k4` from `k3`
+- Combine with weights `1, 2, 2, 1` over `6`
+
+## Hint 1 — the derivative of the state
+
+The state is `(x, v)`, so every slope is a pair: the derivative
+of `x` is `v`, and the derivative of `v` is
+`−x`. That gives `k1x = v` and `k1v = −x`, and
+every later probe is the same rule evaluated at a shifted state.
+
+## Hint 2 — the middle two
+
+`k2` is the slope half a step along `k1`;
+`k3` is the slope half a step along `k2`:
+
+```js
+const k2x = v + k1v * half;
+const k2v = -(x + k1x * half);
+const k3x = v + k2v * half;
+const k3v = -(x + k2x * half);
+```
+
+Building `k3` from `k1` again is the classic slip, and it
+costs you two whole orders.
+
+## Hint 3 — the combination
+
+```js
+x = x + (dt / 6) * (k1x + 2 * k2x + 2 * k3x + k4x);
+v = v + (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v);
+```
+
+The middle pair carries twice the weight, and the six is what the weights sum
+to.
+
+## Same idea elsewhere
+
+RK4 trades memory traffic for arithmetic: four evaluations of the derivative per
+step, all of them on values already sitting in registers. That is exactly the bargain GPUs
+reward — arithmetic is nearly free, and the force evaluation in a real simulation is
+usually memory-bound, so fewer, bigger, better steps often beat more cheap ones. It is the
+same arithmetic-intensity argument that drives kernel fusion in CUDA, WebGPU and Metal.
+
+## Starter code
+
+```js
+// Only THREE levels here, and they are brutally coarse: 5, 10, 20 steps
+// to cross t = 0…5. Fourth order needs big steps to stay visible above float32.
+const gpu = new GPU({ mode });
+
+const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
+  const n = levelSteps[this.thread.y];
+  const dt = this.constants.tEnd / n;
+
+  let x = startX[this.thread.x];
+  let v = startV[this.thread.x];
+  for (let s = 0; s < n; s++) {
+    const half = dt / 2;
+    // TODO: four slope pairs — k1 at the start, k2 and k3 at the midpoint
+    // (each from the previous one), k4 at the end — then combine them
+    // with weights 1, 2, 2, 1 over 6.
+    const k1x = v;
+    const k1v = -x;
+    x = x + k1x * dt;
+    v = v + k1v * dt;
+  }
+
+  const exact = startX[this.thread.x] * Math.cos(this.constants.tEnd)
+              + startV[this.thread.x] * Math.sin(this.constants.tEnd);
+  return Math.abs(x - exact);
+}, {
+  output: [256, 3],
+  constants: { tEnd: 5 },
+  loopMaxIterations: 20,
+});
+
+const errors = errorOf(startX, startV, levelSteps);
+
+// average the trajectories at each step size, then see what each halving bought
+const means = [];
+for (let level = 0; level < errors.length; level++) {
+  let total = 0;
+  for (let i = 0; i < errors[level].length; i++) total += errors[level][i];
+  means.push(total / errors[level].length);
+  console.log(levelSteps[level] + ' steps: mean error ' + means[level].toFixed(6));
+}
+for (let level = 1; level < means.length; level++) {
+  console.log('halving dt divided the error by ' + (means[level - 1] / means[level]).toFixed(3));
+}
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/ode-integrators-62f4a3ff/4
+
+[Previous task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/3.md) · [Next task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/5.md)
+
+---
+
+<!-- https://gpu.rocks/learn/ode-integrators-62f4a3ff/5 -->
+
+# Velocity Verlet: the Symplectic Step
+
+*Task 5 of 6 · [ODE Integrators](https://gpu.rocks/learn/ode-integrators-62f4a3ff.md) · GPU.js Learn*
+
+**Velocity Verlet** reads like Euler with one extra term. Move the
+position with a quadratic instead of a straight line, then update the velocity using the
+*average* of the accelerations at the two ends of the step:
+
+```js
+x ← x + v·dt + ½·a·dt²
+v ← v + ½·(a + a_new)·dt        where a_new = −x_new
+```
+
+It is second order — the same exponent midpoint gave you, so the instrument you have
+been using *cannot tell them apart* by exponent alone. (It is about four times
+more accurate than midpoint at the same step size, and a real implementation carries
+`a_new` into the next step as its `a`, so it costs one force
+evaluation per step against midpoint's two. Here `a = −x` is free, so the code
+below just recomputes it.)
+
+What it has that midpoint does not is invisible in a single step and decisive over a
+million. The Verlet step is an exactly area-preserving map of the `(x, v)`
+plane — **symplectic** — and for this oscillator it conserves
+`(1 − dt²/4)·x² + v²` exactly, forever, in a way no accumulation of steps can
+erode. Measure the order here. The next task is where that sentence starts to matter.
+
+## Goal
+
+**Goal:** write the velocity Verlet step. The ratio should be ≈4
+again — and the errors themselves about four times smaller than midpoint's.
+
+## Requirements
+
+- Position first, with the quadratic term: `x += v·dt + 0.5·a·dt·dt` where `a = −x` at the start of the step
+- Then recompute the acceleration at the NEW position: `aNext = −x`
+- Velocity from the average of the two: `v += 0.5·(a + aNext)·dt`
+
+## Hint 1 — order of operations
+
+`a` is captured before `x` moves; `aNext` is
+read after. The velocity update needs both, so it has to come last.
+
+## Hint 2 — the extra term
+
+`0.5 * a * dt * dt` is the constant-acceleration formula from
+first-year mechanics. Dropping it leaves a scheme that still looks plausible and is
+back to first order.
+
+## Hint 3 — the whole step
+
+```js
+const a = -x;
+x = x + v * dt + 0.5 * a * dt * dt;
+const aNext = -x;
+v = v + 0.5 * (a + aNext) * dt;
+```
+
+## Same idea elsewhere
+
+Velocity Verlet, not RK4, is what every production molecular-dynamics code on a GPU
+actually ships — GROMACS, LAMMPS, HOOMD-blue and OpenMM all step with Verlet or leapfrog on
+CUDA, HIP and Metal. It is not because they cannot afford RK4's four evaluations. It is
+because a run of a hundred million steps is judged on whether the energy stayed put, and
+that is a property of the *shape* of the update, not of its order.
+
+## Starter code
+
+```js
+// Same instrument again. Same order as midpoint — and something else.
+const gpu = new GPU({ mode });
+
+const errorOf = gpu.createKernel(function (startX, startV, levelSteps) {
+  const n = levelSteps[this.thread.y];
+  const dt = this.constants.tEnd / n;
+
+  let x = startX[this.thread.x];
+  let v = startV[this.thread.x];
+  for (let s = 0; s < n; s++) {
+    // TODO: one velocity-Verlet step.
+    //   x moves with v·dt AND the ½·a·dt² term,
+    //   then v updates on the AVERAGE of a and the new a.
+    const a = -x;
+    x = x + v * dt;
+    v = v + a * dt;
+  }
+
+  const exact = startX[this.thread.x] * Math.cos(this.constants.tEnd)
+              + startV[this.thread.x] * Math.sin(this.constants.tEnd);
+  return Math.abs(x - exact);
+}, {
+  output: [256, 4],
+  constants: { tEnd: 5 },
+  loopMaxIterations: 200,
+});
+
+const errors = errorOf(startX, startV, levelSteps);
+
+// average the trajectories at each step size, then see what each halving bought
+const means = [];
+for (let level = 0; level < errors.length; level++) {
+  let total = 0;
+  for (let i = 0; i < errors[level].length; i++) total += errors[level][i];
+  means.push(total / errors[level].length);
+  console.log(levelSteps[level] + ' steps: mean error ' + means[level].toFixed(6));
+}
+for (let level = 1; level < means.length; level++) {
+  console.log('halving dt divided the error by ' + (means[level - 1] / means[level]).toFixed(3));
+}
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/ode-integrators-62f4a3ff/5
+
+[Previous task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/4.md) · [Next task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/6.md)
+
+---
+
+<!-- https://gpu.rocks/learn/ode-integrators-62f4a3ff/6 -->
+
+# Payoff: RK4 Drifts, Verlet Does Not
+
+*Task 6 of 6 · [ODE Integrators](https://gpu.rocks/learn/ode-integrators-62f4a3ff.md) · GPU.js Learn*
+
+Eighty-one orbits at `dt = 0.5`, every trajectory released from
+`x = 0` with `v = 1`. That start makes the bookkeeping free:
+`E₀ = ½`, so the energy as a multiple of its starting value is exactly
+`x² + v²`.
+
+The launch is the interesting part. Thread *x* integrates
+`this.thread.x + 1` steps — one thread takes a single step, the last takes all
+1,024, and between them the 1,024 threads trace the **whole energy history**
+of the run. Every prefix computed independently, from scratch, at the same time. Nothing
+is shared, so nothing has to be sequenced.
+
+RK4 is the most accurate thing you have written: after eighty-one orbits its phase is
+0.24 radians behind the truth, where Verlet's has slipped nearly a whole orbit. Watch
+what its energy does anyway — and remember that midpoint, second order and perfectly
+respectable, ends this same run with about eight million times the energy it started
+with.
+
+## Figures
+
+- **the accurate method leaks; the symplectic one ripples and stays**
+
+## Goal
+
+**Goal:** finish the velocity-Verlet energy kernel, then log each
+method's final energy and the smallest value Verlet ever reaches.
+
+## Requirements
+
+- Thread *x* runs `this.thread.x + 1` steps — the loop bound is the thread index
+- Start every trajectory at `x = 0`, `v = 1` and step with velocity Verlet
+- Return `x * x + v * v` — the energy as a multiple of where it started
+- `console.log` both final energies and the minimum of the Verlet curve
+
+## Hint 1 — the trip count
+
+`for (let s = 0; s < this.thread.x + 1; s++)`. gpu.js compiles a
+bound it cannot fold at build time into a `loopMaxIterations` loop with an
+early exit, which is why the kernel declares
+`loopMaxIterations: 1024`.
+
+## Hint 2 — why x² + v² is the energy ratio
+
+`E = (x² + v²)/2` and every trajectory starts at
+`(0, 1)`, so `E₀ = ½` and `E/E₀ = x² + v²`. A value
+of 1 means the energy is exactly where it began.
+
+## Hint 3 — what to look for in JavaScript
+
+Scan for the smallest value on each curve, and read the last one:
+
+```js
+let low = Infinity;
+for (let i = 0; i < verletCurve.length; i++) {
+  if (verletCurve[i] < low) low = verletCurve[i];
+}
+```
+
+RK4's minimum *is* its final value — it never goes back up.
+
+## Same idea elsewhere
+
+Two lessons travel. The launch shape — a thread per prefix, wildly unequal work,
+the wavefront running until its slowest lane finishes — is the load-imbalance problem every
+CUDA, ROCm, WebGPU and Metal programmer eventually has to lay out differently. And the
+result is why orbital-mechanics and molecular-dynamics codes on those platforms pick
+symplectic integrators: over a long run you are not choosing the method with the smallest
+error per step, you are choosing the one whose error does not have a direction.
+
+## Starter code
+
+```js
+// 1,024 steps of dt = 0.5 — about eighty-one orbits.
+// Thread x integrates x + 1 of them, so the 1,024 threads together
+// trace the whole energy history, every prefix computed from scratch.
+const gpu = new GPU({ mode });
+const DT = 0.5;
+
+// RK4, exactly as you wrote it two tasks ago, reporting energy instead of error.
+const rk4Energy = gpu.createKernel(function (dt) {
+  let x = 0;
+  let v = 1;
+  for (let s = 0; s < this.thread.x + 1; s++) {
+    const half = dt / 2;
+    const k1x = v;
+    const k1v = -x;
+    const k2x = v + k1v * half;
+    const k2v = -(x + k1x * half);
+    const k3x = v + k2v * half;
+    const k3v = -(x + k2x * half);
+    const k4x = v + k3v * dt;
+    const k4v = -(x + k3x * dt);
+    x = x + (dt / 6) * (k1x + 2 * k2x + 2 * k3x + k4x);
+    v = v + (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v);
+  }
+  return x * x + v * v;
+}, { output: [1024], loopMaxIterations: 1024 });
+
+const verletEnergy = gpu.createKernel(function (dt) {
+  let x = 0;
+  let v = 1;
+  // TODO: run this.thread.x + 1 velocity-Verlet steps and return
+  // the energy as a multiple of its starting value: x * x + v * v.
+  return 1;
+}, { output: [1024], loopMaxIterations: 1024 });
+
+const rk4Curve = rk4Energy(DT);
+const verletCurve = verletEnergy(DT);
+
+// TODO: log both final energies, and the smallest value the Verlet curve reaches.
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/ode-integrators-62f4a3ff/6
+
+[Previous task](https://gpu.rocks/learn/ode-integrators-62f4a3ff/5.md)
+
+---
+
+<!-- https://gpu.rocks/learn/iterative-solvers-e73b8e1f -->
+
+# Iterative Linear Solvers
+
+*Module of the free GPU.js GPGPU course · 5 tasks*
+
+Jacobi, Gauss-Seidel, and why colouring a grid like a chessboard turns a sequential algorithm parallel.
+
+## Tasks
+
+1. [One Sweep of Jacobi](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/1.md)
+2. [Watch the Residual Fall](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/2.md)
+3. [Colour the Board](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/3.md)
+4. [Two Halves Make a Sweep](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/4.md)
+5. [The Race](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/5.md)
+
+---
+
+Interactive version: https://gpu.rocks/learn/iterative-solvers-e73b8e1f
+
+---
+
+<!-- https://gpu.rocks/learn/iterative-solvers-e73b8e1f/1 -->
+
+# One Sweep of Jacobi
+
+*Task 1 of 5 · [Iterative Linear Solvers](https://gpu.rocks/learn/iterative-solvers-e73b8e1f.md) · GPU.js Learn*
+
+A square metal plate, its edges clamped at fixed temperatures. What does the
+inside settle to? Not "what happens next" — the answer once nothing happens any more.
+That steady state solves `∇²u = 0`, and the 5-point stencil turns it into one
+tiny equation per interior cell: **every cell equals the average of its four
+neighbours**. Nine hundred equations, nine hundred unknowns, all tangled together.
+
+Nobody inverts that matrix. You guess, and improve the guess. **Jacobi's
+method** is that made literal: set every interior cell to the average of its
+neighbours *as they were before this sweep*, and repeat. Because every cell reads
+the previous iterate and nothing else, all 1,024 threads are independent — it is the pure
+*gather* Thinking in Parallel calls the shape that always parallelises, and one
+whole sweep is one kernel call.
+
+The edges never move: they are the known values that pin the answer down. (Reaction–Diffusion
+steps this same stencil *forward in time*; here we are solving for the state where
+time has stopped.)
+
+## Figures
+
+- **everyone reads yesterday — which is exactly why everyone can go at once**
+
+## Goal
+
+**Goal:** finish the sweep kernel — interior cells return the average of
+their four neighbours in `u`, boundary cells return their own value unchanged.
+
+## Requirements
+
+- Boundary cells — `x` or `y` equal to `0` or `size − 1` — return `u[y][x]` untouched
+- Interior cells return `(left + right + up + down) / 4`: four neighbours, no centre
+- Read only `u` — no cell may see a value written during this sweep
+
+## Hint 1 — the edges come first
+
+Guard the boundary before you do any arithmetic, so the neighbour reads below
+can never leave the grid:
+
+```js
+if (x === 0 || y === 0 || x === this.constants.size - 1
+    || y === this.constants.size - 1) {
+  return u[y][x];
+}
+```
+
+## Hint 2 — the four neighbours
+
+Only ever vary *one* coordinate at a time: `u[y][x - 1]` and
+`u[y][x + 1]` along the row, `u[y - 1][x]` and
+`u[y + 1][x]` down the column. The centre `u[y][x]` is not part
+of a Jacobi average.
+
+## Hint 3 — the whole return
+
+```js
+return (u[y][x - 1] + u[y][x + 1]
+      + u[y - 1][x] + u[y + 1][x]) / 4;
+```
+
+## Same idea elsewhere
+
+Jacobi is the starting point of every multigrid solver on every platform — a CUDA
+or WGSL version of this kernel is line-for-line the same gather, with a buffer swap where
+your JavaScript assignment is. It is also why "matrix-free" is a phrase: nobody stores the
+900×900 matrix this stencil stands for, because the kernel *is* the matrix.
+
+## Starter code
+
+```js
+// One Jacobi sweep: every interior cell becomes the average of its four
+// neighbours, read from the grid as it was BEFORE this sweep.
+const gpu = new GPU({ mode });
+
+const sweep = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  // TODO 1: the boundary is held fixed — return u[y][x] for any cell whose
+  //         x or y is 0 or this.constants.size - 1.
+  // TODO 2: every other cell returns the average of its four neighbours:
+  //         u[y][x - 1], u[y][x + 1], u[y - 1][x], u[y + 1][x].
+  return u[y][x];
+}, { output: [32, 32], constants: { size: 32 } });
+
+const next = sweep(guess);
+console.log('centre before:', guess[16][16], '→ after:', next[16][16]);
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/iterative-solvers-e73b8e1f/1
+
+[Next task](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/2.md)
+
+---
+
+<!-- https://gpu.rocks/learn/iterative-solvers-e73b8e1f/2 -->
+
+# Watch the Residual Fall
+
+*Task 2 of 5 · [Iterative Linear Solvers](https://gpu.rocks/learn/iterative-solvers-e73b8e1f.md) · GPU.js Learn*
+
+Iterating is easy; knowing when to stop is the skill. The honest measure is the
+**residual**: take the current guess, put it back into the equation, and see
+how badly it is violated. For "every cell equals the average of its four neighbours" that
+is the 5-point Laplacian — `left + right + up + down − 4·centre` — the same
+stencil Reaction–Diffusion uses to diffuse, borrowed here as a scorecard. Zero where the
+equation holds, large where it does not.
+
+Boundary cells have no equation to violate: they are given, not solved. Their residual
+is `0` by definition rather than by accident, and saying so in the kernel keeps
+the edge from polluting the score forever.
+
+A grid of numbers is not a progress report, so collapse it to one: the root-mean-square
+over the grid. Totalling a grid *on* the GPU is the halving ladder Reductions
+builds; at 1,024 cells the read-back is cheaper than the ladder, so this sum happens in
+plain JavaScript.
+
+## Goal
+
+**Goal:** complete the `residual` kernel and the
+`rmsOf` helper. The sweep loop is already wired and will print the residual
+every 10 sweeps — you should watch it fall by a factor of about 36.
+
+## Requirements
+
+- The kernel returns `0` for boundary cells
+- Interior cells return `left + right + up + down − 4·centre` — a sum, with no division
+- `rmsOf(grid)` returns `Math.sqrt(sum of every cell squared / (32 × 32))`
+
+## Hint 1 — the kernel is the stencil, unaveraged
+
+Same five reads as the Jacobi sweep, assembled differently: the update divides
+the neighbour sum by 4, the residual subtracts `4 × centre` from it.
+
+```js
+return u[y][x - 1] + u[y][x + 1] + u[y - 1][x]
+     + u[y + 1][x] - 4 * u[y][x];
+```
+
+## Hint 2 — the reduction is ordinary JavaScript
+
+`residual(u)` hands back a plain 2D array of numbers, so:
+
+```js
+let sum = 0;
+for (let y = 0; y < 32; y++) {
+  for (let x = 0; x < 32; x++) sum += grid[y][x] * grid[y][x];
+}
+return Math.sqrt(sum / (32 * 32));
+```
+
+Square, mean, root — in that order. Divide by every cell in the grid, not just the
+interior ones.
+
+## Same idea elsewhere
+
+Every production solver stops on a residual, not on a sweep count, and every one
+of them argues about how often to measure it: the norm needs a reduction across the whole
+device and then a read-back to the host, which is a synchronisation point in CUDA, WebGPU
+and MPI alike. Checking every iteration can cost more than the iterations do — the usual
+answer is exactly what this task does, sample it every few sweeps.
+
+## Starter code
+
+```js
+// How wrong is the current guess? Plug it back into the equation.
+const gpu = new GPU({ mode });
+const SWEEPS = 60;
+
+const sweep = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  if (x === 0 || y === 0 || x === this.constants.size - 1 || y === this.constants.size - 1) {
+    return u[y][x];
+  }
+  return (u[y][x - 1] + u[y][x + 1] + u[y - 1][x] + u[y + 1][x]) / 4;
+}, { output: [32, 32], constants: { size: 32 } });
+
+const residual = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  // TODO 1: a boundary cell has no equation to violate — return 0.
+  // TODO 2: every other cell returns
+  //         left + right + up + down - 4 * centre.
+  return 1;
+}, { output: [32, 32], constants: { size: 32 } });
+
+function rmsOf(grid) {
+  // TODO 3: square every cell, take the mean over all 32 × 32 of them,
+  //         then the square root.
+  return 0;
+}
+
+let u = plate;
+for (let k = 0; k <= SWEEPS; k++) {
+  if (k % 10 === 0) console.log('sweep', k, '— RMS residual', rmsOf(residual(u)));
+  u = sweep(u);
+}
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/iterative-solvers-e73b8e1f/2
+
+[Previous task](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/1.md) · [Next task](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/3.md)
+
+---
+
+<!-- https://gpu.rocks/learn/iterative-solvers-e73b8e1f/3 -->
+
+# Colour the Board
+
+*Task 3 of 5 · [Iterative Linear Solvers](https://gpu.rocks/learn/iterative-solvers-e73b8e1f.md) · GPU.js Learn*
+
+Jacobi throws information away. Halfway through a sweep plenty of neighbours
+already have better values, and Jacobi ignores every one of them because it reads only the
+old grid. **Gauss-Seidel** is the fix a human would reach for: walk the cells
+in order and always use the newest value available. It converges about twice as fast — and
+it is *sequential by construction*. Cell 500 cannot start until cell 499 has
+finished. There is no thread ordering on a GPU and no way to make one thread wait for
+another, so the textbook algorithm is simply not on the menu.
+
+The fix is a chessboard. The 5-point stencil only ever reads the four direct
+neighbours, and on a chessboard every direct neighbour of a red square is black. So call a
+cell **red** when `(x + y)` is even and **black** when
+it is odd, and update all the reds at once: no red cell reads another red cell, so there is
+nothing left to order. Then update all the blacks, reading the reds that were just
+written — which is exactly the "use the newest value" that made Gauss-Seidel fast. One
+sequential pass becomes two data-parallel half-sweeps.
+
+This task is the red half. Every thread still writes only its own cell, so black cells
+are not "skipped" — they gather *themselves*, unchanged, ready for the half-sweep
+that is about to need them exactly as they are.
+
+## Figures
+
+- **a red cell's four neighbours are all black, so no red waits on a red**
+
+## Goal
+
+**Goal:** write the red half-sweep — cells with `(x + y) % 2 === 0`
+take their neighbours' average, and every other cell (black cells and the whole boundary)
+comes through untouched.
+
+## Requirements
+
+- Boundary cells return `u[y][x]`
+- Keep the parity in a *number*: `const parity = (x + y) % 2;` — a boolean in a kernel variable does not compile on WebGL
+- Cells with parity `1` (black) return `u[y][x]` unchanged
+- Cells with parity `0` (red) return `(left + right + up + down) / 4`
+
+## Hint 1 — the trap this task is built around
+
+The natural spelling is a boolean, and it is the one thing gpu.js cannot do:
+
+```js
+const isRed = (x + y) % 2 === 0;   // throws on WebGL
+```
+
+The GL backend has no way to store a `bool` in a kernel variable, so it fails
+at shader-compile time with *cannot convert from 'bool' to 'lowp float'* — and
+the CPU backend runs it happily, which is how this reaches production. Keep the number:
+
+```js
+const parity = (x + y) % 2;        // 0 or 1
+if (parity !== 0) return u[y][x];
+```
+
+## Hint 2 — three exits, one average
+
+The kernel is a stack of guards: boundary first, then the wrong colour, then
+the arithmetic. Whichever way a thread leaves, it writes exactly one cell — its own.
+
+## Hint 3 — the whole body
+
+```js
+if (x === 0 || y === 0 || x === this.constants.size - 1
+    || y === this.constants.size - 1) {
+  return u[y][x];
+}
+const parity = (x + y) % 2;
+if (parity !== 0) return u[y][x];
+return (u[y][x - 1] + u[y][x + 1]
+      + u[y - 1][x] + u[y + 1][x]) / 4;
+```
+
+## Same idea elsewhere
+
+Red-black ordering — and its multi-colour generalisation — is the standard way to
+put a Gauss-Seidel or SOR smoother on a GPU: CUDA and WGSL do exactly this, one dispatch
+per colour, and unstructured meshes get their colours from a graph-colouring pass first.
+The idea generalises past solvers: a colour is simply a set of updates guaranteed not to
+depend on each other, which is the same permission slip a wavefront or a task-graph level
+hands out.
+
+## Starter code
+
+```js
+// The red half-sweep: update the cells where (x + y) is even,
+// and pass everything else through untouched.
+const gpu = new GPU({ mode });
+
+const red = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  if (x === 0 || y === 0 || x === this.constants.size - 1 || y === this.constants.size - 1) {
+    return u[y][x];
+  }
+  // TODO 1: compute the parity as a NUMBER — const parity = (x + y) % 2;
+  //         (a boolean in a kernel variable will not compile on WebGL)
+  // TODO 2: parity 1 is black — return u[y][x] unchanged.
+  // TODO 3: parity 0 is red — return the four neighbours' average.
+  return u[y][x];
+}, { output: [32, 32], constants: { size: 32 } });
+
+const afterRed = red(guess);
+console.log('a red cell [16][16]:', guess[16][16], '→', afterRed[16][16]);
+console.log('a black cell [16][17]:', guess[16][17], '→', afterRed[16][17]);
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/iterative-solvers-e73b8e1f/3
+
+[Previous task](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/2.md) · [Next task](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/4.md)
+
+---
+
+<!-- https://gpu.rocks/learn/iterative-solvers-e73b8e1f/4 -->
+
+# Two Halves Make a Sweep
+
+*Task 4 of 5 · [Iterative Linear Solvers](https://gpu.rocks/learn/iterative-solvers-e73b8e1f.md) · GPU.js Learn*
+
+The red half alone is not a sweep — half the grid has not been touched. The black
+half is the same kernel with its parity test flipped, and the ordering that matters is in
+the *chaining*: `black(red(u))`. The black cells read the grid the red
+half produced, so they see this sweep's reds, not last sweep's. That single fact is all
+that separates Gauss-Seidel from Jacobi.
+
+Write `black(u)` instead and both halves read the same old grid. The code
+still runs, the answer still looks plausible, and you have written Jacobi with an extra
+kernel launch — which is the most expensive way to be wrong in this module, because
+nothing about the output shouts.
+
+## Goal
+
+**Goal:** write the black half-sweep and chain the two halves into one
+full red-black Gauss-Seidel sweep.
+
+## Requirements
+
+- The black kernel is the red kernel with its parity test flipped: cells with `(x + y) % 2 === 1` update, everything else passes through
+- Create the red kernel first and the black kernel second
+- One full sweep is `black(red(u))` — the black half reads what the red half wrote
+- The boundary is untouched by both halves
+
+## Hint 1 — the black kernel
+
+Copy the red kernel and change one character:
+
+```js
+const parity = (x + y) % 2;
+if (parity !== 1) return u[y][x];
+```
+
+Still a number, never a boolean — the WebGL backend rejects
+`const isBlack = …` exactly as it rejects `isRed`.
+
+## Hint 2 — the chain is the lesson
+
+```js
+const afterRed = red(guess);
+const afterBoth = black(afterRed);   // NOT black(guess)
+```
+
+Or, in one line: `black(red(guess))`.
+
+## Same idea elsewhere
+
+Two dispatches with a dependency between them is the ordinary shape of GPU work:
+WebGPU inserts a barrier between compute passes, CUDA orders them on a stream, Vulkan wants
+an explicit pipeline barrier. What you cannot do — on any of them — is order threads
+*inside* one dispatch, which is exactly why the sequential Gauss-Seidel had to be
+split into two of them in the first place.
+
+## Starter code
+
+```js
+// One full red-black sweep = the red half, then the black half
+// reading what the red half just wrote.
+const gpu = new GPU({ mode });
+
+const red = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  if (x === 0 || y === 0 || x === this.constants.size - 1 || y === this.constants.size - 1) {
+    return u[y][x];
+  }
+  // parity as a NUMBER — gpu.js cannot keep a boolean in a kernel variable
+  const parity = (x + y) % 2;
+  if (parity !== 0) return u[y][x];
+  return (u[y][x - 1] + u[y][x + 1] + u[y - 1][x] + u[y + 1][x]) / 4;
+}, { output: [32, 32], constants: { size: 32 } });
+
+const black = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  if (x === 0 || y === 0 || x === this.constants.size - 1 || y === this.constants.size - 1) {
+    return u[y][x];
+  }
+  // TODO 1: same shape as the red kernel, with the parity test flipped —
+  //         cells where (x + y) % 2 is 1 take the neighbours' average.
+  return u[y][x];
+}, { output: [32, 32], constants: { size: 32 } });
+
+const afterRed = red(guess);
+// TODO 2: finish the sweep. The black half must read afterRed, not guess.
+const afterSweep = afterRed;
+
+console.log('a black cell [16][17]:', guess[16][17], '→', afterSweep[16][17]);
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/iterative-solvers-e73b8e1f/4
+
+[Previous task](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/3.md) · [Next task](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/5.md)
+
+---
+
+<!-- https://gpu.rocks/learn/iterative-solvers-e73b8e1f/5 -->
+
+# The Race
+
+*Task 5 of 5 · [Iterative Linear Solvers](https://gpu.rocks/learn/iterative-solvers-e73b8e1f.md) · GPU.js Learn*
+
+Everything is wired: the Jacobi sweep, both halves of the red-black sweep, and
+the residual. Same plate, same starting guess of zero, same finish line — an RMS residual
+below `0.0005`. Count sweeps.
+
+"The same work per sweep" is the claim worth being careful about. One Jacobi sweep
+updates all 900 interior cells once. One red-black sweep updates all 900 once too, in two
+halves — the same averages, split across two kernel launches instead of one, with half the
+threads in each launch copying themselves. Sweeps are what we are comparing; the extra
+launch is what it costs. (A production kernel launches only the cells of one colour and
+pays nothing for the copies.)
+
+The residual is sampled every 5 sweeps rather than every sweep: the read-back is the
+expensive part of this loop, and five sweeps barely move the number.
+
+## Figures
+
+- **same finish line, same work per sweep — 170 sweeps against 275**
+
+## Goal
+
+**Goal:** fill in the red-black loop, and read the two sweep counts off
+the console — Jacobi should need about 275 sweeps and red-black about 170.
+
+## Requirements
+
+- Drive red-black with the same `sweepsToTolerance` helper the Jacobi baseline uses
+- One red-black sweep is `black(red(u))` — both halves, in that order
+- Count sweeps, not half-sweeps
+
+## Hint 1 — the helper already does the counting
+
+`sweepsToTolerance` takes one argument: a function that turns a grid
+into the next grid. Jacobi's is `u => sweep(u)`. Red-black's is one
+sweep — both halves — expressed the same way.
+
+## Hint 2 — the one-liner
+
+```js
+const redBlackSweeps = sweepsToTolerance(u => black(red(u)));
+```
+
+Both halves inside one call, so the helper counts a full sweep each time it runs it.
+
+## Same idea elsewhere
+
+The shape of this measurement is the one that transfers, more than the numbers:
+an iterative solver is judged on iterations-to-tolerance, and a GPU implementation is
+judged on that *times* the cost of an iteration. Red-black buys fewer sweeps for one
+extra dispatch, which is a trade you make on nearly every platform; the same ledger decides
+whether SOR's relaxation factor, a Chebyshev acceleration or a full multigrid V-cycle is
+worth its complexity. Multigrid is where this ends up — and its inner smoother is the
+red-black sweep you just wrote.
+
+## Starter code
+
+```js
+// Both solvers, one finish line. Jacobi's loop is done — write red-black's.
+const gpu = new GPU({ mode });
+
+const sweep = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  if (x === 0 || y === 0 || x === this.constants.size - 1 || y === this.constants.size - 1) {
+    return u[y][x];
+  }
+  return (u[y][x - 1] + u[y][x + 1] + u[y - 1][x] + u[y + 1][x]) / 4;
+}, { output: [32, 32], constants: { size: 32 } });
+
+const red = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  if (x === 0 || y === 0 || x === this.constants.size - 1 || y === this.constants.size - 1) {
+    return u[y][x];
+  }
+  // parity as a NUMBER — gpu.js cannot keep a boolean in a kernel variable
+  const parity = (x + y) % 2;
+  if (parity !== 0) return u[y][x];
+  return (u[y][x - 1] + u[y][x + 1] + u[y - 1][x] + u[y + 1][x]) / 4;
+}, { output: [32, 32], constants: { size: 32 } });
+
+const black = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  if (x === 0 || y === 0 || x === this.constants.size - 1 || y === this.constants.size - 1) {
+    return u[y][x];
+  }
+  // parity as a NUMBER — gpu.js cannot keep a boolean in a kernel variable
+  const parity = (x + y) % 2;
+  if (parity !== 1) return u[y][x];
+  return (u[y][x - 1] + u[y][x + 1] + u[y - 1][x] + u[y + 1][x]) / 4;
+}, { output: [32, 32], constants: { size: 32 } });
+
+const residual = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  if (x === 0 || y === 0 || x === this.constants.size - 1 || y === this.constants.size - 1) {
+    return 0;
+  }
+  return u[y][x - 1] + u[y][x + 1] + u[y - 1][x] + u[y + 1][x] - 4 * u[y][x];
+}, { output: [32, 32], constants: { size: 32 } });
+
+function rmsOf(grid) {
+  let sum = 0;
+  for (let y = 0; y < 32; y++) {
+    for (let x = 0; x < 32; x++) sum += grid[y][x] * grid[y][x];
+  }
+  return Math.sqrt(sum / (32 * 32));
+}
+
+const TOL = 0.0005;
+const CHECK_EVERY = 5;
+const MAX_SWEEPS = 400;
+
+// Sweeps until the RMS residual drops below TOL, checking every 5 sweeps.
+// `step` turns one grid into the next.
+function sweepsToTolerance(step) {
+  let u = plate;
+  let sweeps = 0;
+  while (sweeps < MAX_SWEEPS) {
+    if (rmsOf(residual(u)) < TOL) break;
+    for (let i = 0; i < CHECK_EVERY; i++) {
+      u = step(u);
+      sweeps++;
+    }
+  }
+  return sweeps;
+}
+
+const jacobiSweeps = sweepsToTolerance(u => sweep(u));
+console.log('jacobi: converged in', jacobiSweeps, 'sweeps');
+
+// TODO: one red-black sweep is the red half followed by the black half,
+//       and the black half has to read what the red half just wrote.
+const redBlackSweeps = sweepsToTolerance(u => u);
+console.log('red-black: converged in', redBlackSweeps, 'sweeps');
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/iterative-solvers-e73b8e1f/5
+
+[Previous task](https://gpu.rocks/learn/iterative-solvers-e73b8e1f/4.md)
+
+---
+
+<!-- https://gpu.rocks/learn/heat-and-stability-514063bb -->
+
+# The Heat Equation & Stability
+
+*Module of the free GPU.js GPGPU course · 5 tasks*
+
+Why a correct-looking simulation explodes — the step-size limit, and the implicit step that ignores it.
+
+## Tasks
+
+1. [One Explicit Step](https://gpu.rocks/learn/heat-and-stability-514063bb/1.md)
+2. [Cross the Line](https://gpu.rocks/learn/heat-and-stability-514063bb/2.md)
+3. [Sixteen Step Sizes at Once](https://gpu.rocks/learn/heat-and-stability-514063bb/3.md)
+4. [Solve, Don’t Step](https://gpu.rocks/learn/heat-and-stability-514063bb/4.md)
+5. [Stable Is Not Accurate](https://gpu.rocks/learn/heat-and-stability-514063bb/5.md)
+
+---
+
+Interactive version: https://gpu.rocks/learn/heat-and-stability-514063bb
+
+---
+
+<!-- https://gpu.rocks/learn/heat-and-stability-514063bb/1 -->
+
+# One Explicit Step
+
+*Task 1 of 5 · [The Heat Equation & Stability](https://gpu.rocks/learn/heat-and-stability-514063bb.md) · GPU.js Learn*
+
+The heat equation is the simplest interesting PDE there is:
+`∂u/∂t = D·∇²u`. Every point drifts toward the average of what surrounds
+it, at a rate set by the diffusivity `D`. Discretise the right-hand side
+with the 5-point stencil — `left + right + up + down − 4·centre`, divided
+by `dx²`, which Reaction–Diffusion derives in full — take a plain
+forward-Euler step in time, and the whole solver is one line:
+
+```js
+u' = u + α·(left + right + up + down − 4u)
+with  α = D·dt/dx²
+```
+
+That single dimensionless number `α`, the **diffusion
+number**, is what this module is about. Collect the terms and the step turns
+out not to be an addition at all. It is an *average*:
+
+```js
+u' = (1 − 4α)·u
+     + α·left + α·right + α·up + α·down
+```
+
+Five weights that add to exactly one. Notice the shape of that centre weight,
+`1 − 4α` — the next task is about what happens when it goes negative.
+
+## Figures
+
+- **five weights that add to one — while the middle one is positive**
+
+## Goal
+
+**Goal:** compute the diffusion number `α` from
+`D`, `dt` and `dx`, and return one explicit step of
+`field`.
+
+## Requirements
+
+- Compute `ALPHA = D * dt / (dx * dx)` in JavaScript — it reaches the kernel as a constant
+- The kernel returns this cell’s new value: the old one plus `α` times the Laplacian
+- The stencil and its wrap-around edges are already written — the world is a torus
+
+## Hint 1 — dx is squared
+
+`α = D·dt/dx²` — the cell spacing appears *squared*, because a
+second derivative is a difference of differences. With `D = 8`,
+`dt = 0.2` and `dx = 4` that comes to `0.1`.
+
+## Hint 2 — the whole return
+
+`lap` and `c` are already in scope, so the body is one line:
+
+```js
+return c + this.constants.alpha * lap;
+```
+
+## Same idea elsewhere
+
+This three-line update is, almost character for character, the innermost loop of
+every explicit finite-difference solver on every platform: a CUDA kernel with one thread
+per cell, a WGSL compute shader reading and writing a storage texture, a Metal kernel
+tiling the grid into threadgroups. What differs between them is memory layout and how the
+halo is exchanged — never the arithmetic.
+
+## Starter code
+
+```js
+// One forward-Euler step of the heat equation on a 48×48 torus.
+const gpu = new GPU({ mode });
+
+const D = 8;     // diffusivity
+const dx = 4;    // cell spacing
+const dt = 0.2;  // time step
+
+// TODO: the diffusion number, alpha = D * dt / dx²
+const ALPHA = 0;
+
+const step = gpu.createKernel(function (u) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  // the 5-point stencil, wrapped at the edges (a torus, as in Reaction–Diffusion)
+  let xl = x - 1; if (xl < 0) xl = this.constants.size - 1;
+  let xr = x + 1; if (xr > this.constants.size - 1) xr = 0;
+  let yd = y - 1; if (yd < 0) yd = this.constants.size - 1;
+  let yu = y + 1; if (yu > this.constants.size - 1) yu = 0;
+  const c = u[y][x];
+  const lap = u[y][xl] + u[y][xr] + u[yd][x] + u[yu][x] - 4 * c;
+  // TODO: return the new value — the old one plus alpha times the Laplacian
+  return c;
+}, {
+  output: [48, 48],
+  constants: { size: 48, alpha: ALPHA },
+});
+
+const next = step(field);
+console.log('alpha:', ALPHA, ' centre weight 1 - 4*alpha:', 1 - 4 * ALPHA);
+console.log('a hot cell on the block edge, was 1, is now:', next[24][20]);
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/heat-and-stability-514063bb/1
+
+[Next task](https://gpu.rocks/learn/heat-and-stability-514063bb/2.md)
+
+---
+
+<!-- https://gpu.rocks/learn/heat-and-stability-514063bb/2 -->
+
+# Cross the Line
+
+*Task 2 of 5 · [The Heat Equation & Stability](https://gpu.rocks/learn/heat-and-stability-514063bb.md) · GPU.js Learn*
+
+Nothing about the kernel you just wrote is wrong. Hand it a step size that is
+slightly too big and it will still compute exactly what you asked for — and the field
+will be at 10²⁴ in eighty steps.
+
+Look again at that centre weight, `1 − 4α`. At `α = 0.1` it is
+`+0.6`, the new value really is an average of five old ones, and an average
+can never leave the range of the things it averaged. At `α = 0.4` it is
+`−0.6`, and "average" has become a lie: a cell that sits above its
+neighbours is now pushed *further* above them every step. In
+`dims` dimensions the centre weight is `1 − 2·dims·α`, so the
+tipping point is `α = 1/(2·dims)` — which, written in the quantities you
+actually control, is the limit every explicit solver lives under:
+
+```js
+dt  ≤  dx² / (2 · D · dims)
+       dims = 2 on a 2D grid
+```
+
+Past it, the fastest pattern the grid can hold — a checkerboard of alternating hot
+and cold cells — is multiplied by `|1 − 8α|` every step instead of damped.
+At `α = 0.4` that is **2.2× per step**, and there is always
+some checkerboard in there, if only from rounding. Ten steps: ×2,700. Eighty steps:
+the run below.
+
+## Figures
+
+- **the fastest pattern the grid can hold, flipping and growing, every step**
+
+## Goal
+
+**Goal:** work out `dtMax`, then run the same eighty-step
+simulation twice — once safely inside the limit, once past it — and watch the console.
+The stepping loop is written for you: N-Body already made a meal of *how* to
+advance a simulation, and the only thing that matters here is how far each step goes.
+
+## Requirements
+
+- Compute `dtMax = dx * dx / (2 * D * DIMS)` — it is `0.5` for this grid
+- Call `run` once at `0.4 * dtMax` and once at `1.6 * dtMax`
+- Leave `STEPS` at 80 — the trace prints the hottest cell every 20 steps
+
+## Hint 1 — where the numbers come from
+
+Each of the `2 · dims` neighbours takes an `α`-sized bite
+out of the centre, so the centre keeps `1 − 2·dims·α`. Set that to zero,
+substitute `α = D·dt/dx²`, and solve for `dt`.
+
+## Hint 2 — the two runs
+
+```js
+const dtMax = dx * dx / (2 * D * DIMS);
+run('SAFE', 0.4 * dtMax);
+run('PAST THE LINE', 1.6 * dtMax);
+```
+
+## Same idea elsewhere
+
+Every production explicit solver computes this number and refuses to exceed it:
+CFL conditions in fluid codes, the diffusion-number check in a thermal simulation, the
+substepping loop in a cloth or fluid solver on the GPU. It is also why GPU simulations
+so often become *launch-bound* — halving `dx` to sharpen a picture
+quarters the legal `dt`, so the same second of simulated time costs four
+times as many kernel launches.
+
+## Starter code
+
+```js
+// Two runs of the same simulation. Only the step size differs.
+const gpu = new GPU({ mode });
+
+const D = 8;      // diffusivity
+const dx = 4;     // cell spacing
+const DIMS = 2;   // a 2D grid: four neighbours
+const STEPS = 80;
+
+// TODO: the explicit stability limit — dt ≤ dx² / (2 · D · dims)
+const dtMax = 0;
+
+// max |u| over the field, written so a NaN cannot hide: every comparison with
+// NaN is false, so `if (a > m)` would skip it. `!(a <= m)` is true for NaN.
+function hottest(u) {
+  let m = 0;
+  for (let y = 0; y < u.length; y++) {
+    for (let x = 0; x < u[y].length; x++) {
+      const a = Math.abs(u[y][x]);
+      if (!(a <= m)) m = a;
+    }
+  }
+  return m;
+}
+
+function run(label, dt) {
+  const alpha = D * dt / (dx * dx);
+  const step = gpu.createKernel(function (u) {
+    const x = this.thread.x;
+    const y = this.thread.y;
+    let xl = x - 1; if (xl < 0) xl = this.constants.size - 1;
+    let xr = x + 1; if (xr > this.constants.size - 1) xr = 0;
+    let yd = y - 1; if (yd < 0) yd = this.constants.size - 1;
+    let yu = y + 1; if (yu > this.constants.size - 1) yu = 0;
+    const c = u[y][x];
+    const lap = u[y][xl] + u[y][xr] + u[yd][x] + u[yu][x] - 4 * c;
+    return c + this.constants.alpha * lap;
+  }, { output: [48, 48], constants: { size: 48, alpha } });
+
+  console.log(label, '— dt =', dt, ' alpha =', alpha, ' centre weight =', 1 - 4 * alpha);
+  let u = seed;
+  for (let i = 1; i <= STEPS; i++) {
+    u = step(u);
+    if (i % 20 === 0) console.log('   step', i, '→ hottest |u| =', hottest(u));
+  }
+  return u;
+}
+
+console.log('stability limit: dt <=', dtMax);
+
+// TODO: run twice — at 0.4 * dtMax, then at 1.6 * dtMax
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/heat-and-stability-514063bb/2
+
+[Previous task](https://gpu.rocks/learn/heat-and-stability-514063bb/1.md) · [Next task](https://gpu.rocks/learn/heat-and-stability-514063bb/3.md)
+
+---
+
+<!-- https://gpu.rocks/learn/heat-and-stability-514063bb/3 -->
+
+# Sixteen Step Sizes at Once
+
+*Task 3 of 5 · [The Heat Equation & Stability](https://gpu.rocks/learn/heat-and-stability-514063bb.md) · GPU.js Learn*
+
+You have been told where the line is. Now measure it — and measure it the way
+a GPU makes cheap: not by running sixteen simulations one after another, but by
+running **all sixteen in the same kernel launch**.
+
+The grid below is 64 columns by 16 rows, and each row is its own universe: a
+64-cell ring, seeded with one hot cell, stepped with *its own*
+`dts[row]`. Nothing couples the rows, so the Laplacian here is the 1D one,
+`left + right − 2·centre`, along `x` only. Reach for the
+familiar 5-point stencil and row 3's instability leaks into row 4.
+
+Rings are one-dimensional, so `dims = 1` and the limit moves:
+`dt ≤ dx²/(2·D·1) = 1`, twice what it was on the 2D grid. That factor is
+not decoration — it is the number of neighbours taking a bite out of the centre. After
+90 steps the answer is unmissable: the stable rows have flattened to a few hundredths,
+and the row on the other side of the line is at 10³.
+
+## Goal
+
+**Goal:** step all sixteen rings 90 times, then report the largest
+`dt` whose row is still under 1 — and compare it with
+`dx²/(2·D·1)`.
+
+## Requirements
+
+- The kernel forms *this row’s* diffusion number from `dts[this.thread.y]`
+- The Laplacian runs along `x` only: `left + right − 2·centre` — rows must not read each other
+- After 90 steps, find each row’s largest `|u|`; a row survived if that is below 1
+- Log the largest surviving `dt` on a line that says `measured`, and the predicted limit beside it
+
+## Hint 1 — which dt is mine?
+
+`this.thread.y` is the row, so `dts[this.thread.y]` is this
+ring's step size. Turn it into a diffusion number the same way as before:
+
+```js
+const a = this.constants.diff * dts[r]
+  / (this.constants.dx * this.constants.dx);
+```
+
+## Hint 2 — one dimension, two neighbours
+
+`return u[r][x] + a * (u[r][xl] + u[r][xr] - 2 * u[r][x]);` — note the
+`2`, not `4`. Only the row index `r` never varies.
+
+## Hint 3 — scanning the rows afterwards
+
+Plain JavaScript on the finished grid:
+
+```js
+for (let r = 0; r < ROWS; r++) {
+  let m = 0;
+  for (let x = 0; x < CELLS; x++) {
+    const a = Math.abs(u[r][x]);
+    if (!(a <= m)) m = a;   // so a NaN cannot hide
+  }
+  if (m < 1 && dts[r] > measured) {
+    measured = dts[r];
+  }
+}
+```
+
+## Same idea elsewhere
+
+Sweeping a parameter by giving it an axis of the launch grid is the GPU's answer
+to "try them all": CUDA codes run a batch of independent problems as extra blocks, WebGPU
+dispatches a third workgroup dimension over configurations, and every autotuner on every
+platform is this shape. It is also how a solver picks its own step size in production —
+run the candidate, look at what came back, and back off.
+
+## Starter code
+
+```js
+// Sixteen simulations in one grid: row r is a 64-cell ring with its own dt.
+const gpu = new GPU({ mode });
+
+const D = 8;
+const dx = 4;
+const CELLS = 64;
+const ROWS = 16;
+const STEPS = 90;
+
+const step = gpu.createKernel(function (u, dts) {
+  const x = this.thread.x;
+  const r = this.thread.y;
+  let xl = x - 1; if (xl < 0) xl = this.constants.cells - 1;
+  let xr = x + 1; if (xr > this.constants.cells - 1) xr = 0;
+  // TODO: this row's diffusion number, then ONE 1D step of ring r:
+  //   a = diff * dts[r] / (dx * dx)     (both live in this.constants)
+  //   u[r][x] + a * (left + right - 2 * centre)
+  return u[r][x];
+}, {
+  output: [64, 16],
+  constants: { cells: 64, diff: 8, dx: 4 },
+});
+
+let u = seed;
+for (let i = 0; i < STEPS; i++) u = step(u, dts);
+
+// TODO: for each row print the largest |u| left, and keep the largest dt
+// whose row stayed below 1.
+let measured = 0;
+
+console.log('measured limit: dt <=', measured);
+console.log('predicted:      dt <=', dx * dx / (2 * D * 1));
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/heat-and-stability-514063bb/3
+
+[Previous task](https://gpu.rocks/learn/heat-and-stability-514063bb/2.md) · [Next task](https://gpu.rocks/learn/heat-and-stability-514063bb/4.md)
+
+---
+
+<!-- https://gpu.rocks/learn/heat-and-stability-514063bb/4 -->
+
+# Solve, Don’t Step
+
+*Task 4 of 5 · [The Heat Equation & Stability](https://gpu.rocks/learn/heat-and-stability-514063bb.md) · GPU.js Learn*
+
+The whole problem is that the explicit step evaluates the Laplacian on the field
+it is leaving. Evaluate it on the field it is *arriving* at instead — that is
+backward Euler — and the step size limit vanishes entirely. Unconditionally stable, at
+any `dt`, forever.
+
+The catch is visible the moment you write it down. The unknown is on both sides:
+
+```js
+u' = u + α·∇²u'
+⟺  (1 + 4α)·u' − α·(neighbours of u') = u
+```
+
+That is not a formula you evaluate, it is a **linear system** — one
+equation per cell, 1,024 of them on this grid, all coupled. Solve it the way GPUs
+like: rearrange each equation for its own cell, then iterate.
+
+```js
+u'[c] = ( u[c] + α·(neighbours of u') )
+        / (1 + 4α)
+```
+
+Every cell reads only the *previous* iterate, so all 1,024 can be computed at
+once — that is a **Jacobi sweep**, and the Iterative Solvers module takes it
+much further (red-black ordering, residuals, why it beats Gauss–Seidel on a GPU). Here
+25 sweeps is plenty, because the `1` in `1 + 4α` makes this system
+diagonally dominant and easy. One thing must not slip: `u` on the right is the
+*old time level* and never changes during the solve. Only the guess moves.
+
+## Figures
+
+- **one word changes — 'new' — and the step becomes a system of equations**
+
+## Goal
+
+**Goal:** write the Jacobi sweep, then iterate it 25 times to take a
+single implicit step at `dt = 2` — four times the explicit limit.
+
+## Requirements
+
+- The sweep returns `(uOld[y][x] + α · (four neighbours of *guess*)) / (1 + 4α)`
+- The centre term comes from `uOld`; only the four neighbours come from `guess`
+- Iterate `SWEEPS` times, passing the *same* `seed` as `uOld` every time
+
+## Hint 1 — where the division comes from
+
+Collect the unknown cell on the left of
+`u' = u + α·(l + r + up + dn − 4u')`: the `−4α·u'` moves over as
+`+4α·u'`, giving `(1 + 4α)·u' = u + α·(l + r + up + dn)`. Divide.
+
+## Hint 2 — the sweep body
+
+```js
+const neighbours = guess[y][xl] + guess[y][xr]
+  + guess[yd][x] + guess[yu][x];
+return (uOld[y][x] + this.constants.alpha * neighbours)
+  / (1 + 4 * this.constants.alpha);
+```
+
+## Hint 3 — why the starter’s loop is wrong
+
+`sweep(guess, guess)` replaces the right-hand side with the current
+iterate every sweep, which throws away the one piece of information that makes this a
+*time step*. It still converges — to `∇²u = 0`, a flat field. The
+fix is one word: `guess = sweep(seed, guess);`
+
+## Same idea elsewhere
+
+"The implicit step is a linear solve" is the fork in the road for every
+production simulator: implicit thermal and structural codes hand
+`(I − αL)` to a Krylov solver with a preconditioner, and GPU fluid solvers
+run exactly this Jacobi (or a multigrid V-cycle) for the pressure projection every
+frame. cuSPARSE, rocSPARSE and every WebGPU fluid demo you have seen are all standing
+on this one rearrangement.
+
+## Starter code
+
+```js
+// Backward Euler: the new field appears on BOTH sides of the equation.
+// Solve it with Jacobi sweeps — every cell reads the previous iterate.
+const gpu = new GPU({ mode });
+
+const D = 8;
+const dx = 4;
+const dt = 2;                       // 4× the explicit limit of 0.5
+const ALPHA = D * dt / (dx * dx);   // = 1
+const SWEEPS = 25;
+
+const sweep = gpu.createKernel(function (uOld, guess) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  let xl = x - 1; if (xl < 0) xl = this.constants.size - 1;
+  let xr = x + 1; if (xr > this.constants.size - 1) xr = 0;
+  let yd = y - 1; if (yd < 0) yd = this.constants.size - 1;
+  let yu = y + 1; if (yu > this.constants.size - 1) yu = 0;
+  // TODO: one Jacobi sweep —
+  //   (uOld[y][x] + alpha * (the four neighbours of GUESS)) / (1 + 4 * alpha)
+  return guess[y][x];
+}, {
+  output: [32, 32],
+  constants: { size: 32, alpha: ALPHA },
+});
+
+function hottest(u) {
+  let m = 0;
+  for (let y = 0; y < u.length; y++) {
+    for (let x = 0; x < u[y].length; x++) {
+      const a = Math.abs(u[y][x]);
+      if (!(a <= m)) m = a;
+    }
+  }
+  return m;
+}
+
+function total(u) {
+  let s = 0;
+  for (let y = 0; y < u.length; y++) for (let x = 0; x < u[y].length; x++) s += u[y][x];
+  return s;
+}
+
+let guess = seed;
+for (let k = 0; k < SWEEPS; k++) {
+  // TODO: the right-hand side is the OLD field and never changes during a
+  // solve. This passes the current iterate instead, which throws the time
+  // step away and converges to a flat field.
+  guess = sweep(guess, guess);
+}
+
+console.log('hottest after one implicit step:', hottest(guess));
+console.log('total heat (unchanged at 36):', total(guess));
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/heat-and-stability-514063bb/4
+
+[Previous task](https://gpu.rocks/learn/heat-and-stability-514063bb/3.md) · [Next task](https://gpu.rocks/learn/heat-and-stability-514063bb/5.md)
+
+---
+
+<!-- https://gpu.rocks/learn/heat-and-stability-514063bb/5 -->
+
+# Stable Is Not Accurate
+
+*Task 5 of 5 · [The Heat Equation & Stability](https://gpu.rocks/learn/heat-and-stability-514063bb.md) · GPU.js Learn*
+
+Time to put the two schemes on the same clock. Both runs below finish at
+`T = 16`: the explicit one in small steps of `0.2`, the implicit
+one in steps of `2` — ten times larger, and four times past the explicit
+limit. A third run takes the explicit scheme at the implicit step size, for the pleasure
+of watching it fail in eight steps.
+
+The two survivors will not agree. Backward Euler is *first-order* accurate,
+just like forward Euler, so a ten-times-larger step carries a ten-times-larger error —
+it damps sharp features harder than the real equation does. Expect the two fields to
+differ by a few percent of the peak. That is the honest trade, and it is worth stating
+plainly: **unconditional stability is not accuracy**. What implicit
+stepping buys you is the right to choose `dt` for the accuracy you need,
+rather than having it dictated by the smallest cell in your mesh.
+
+Nor is it free. Each implicit step here costs 25 sweeps, so the coarse run makes
+`8 × 25 = 200` kernel launches against the fine run's 80 — implicit
+*loses* the launch count at this size. It wins when the explicit limit gets
+brutal: refine `dx` by 10× and the explicit run needs 100× the steps, while
+the implicit one needs the same eight and a slightly harder solve.
+
+## Goal
+
+**Goal:** finish the Jacobi sweep with `α` arriving as an
+argument, work out how many steps of each size reach `T`, and run all three.
+
+## Requirements
+
+- The sweep is the one from the last task, but `alpha` is a kernel *argument*, not a constant
+- `smallSteps` and `bigSteps` are the counts that reach `T = 16` at `dt = 0.2` and `dt = 2`
+- Run all three: explicit at the small step, implicit at the big one, explicit at the big one
+- Log the hottest cell of each, and the largest gap between the two survivors
+
+## Hint 1 — alpha as an argument
+
+Only the spelling changes: a plain `alpha` where the constant used to
+be, and the caller passes it. Everything else is last task's body:
+
+```js
+return (uOld[y][x] + alpha * neighbours)
+  / (1 + 4 * alpha);
+```
+
+## Hint 2 — how many steps?
+
+Steps × step size = elapsed time, so it is `T / dt`:
+`16 / 0.2 = 80` and `16 / 2 = 8`.
+
+## Same idea elsewhere
+
+Choosing a scheme by what limits it — accuracy or stability — is the daily work
+of numerical simulation everywhere: stiff chemistry and implicit thermal solvers pay for
+a linear solve per step because the explicit alternative would need millions of them,
+while explicit codes dominate wave propagation and particle work, where the stability
+step is close to the accuracy step anyway. On a GPU the arithmetic is nearly free, so
+the calculus is really about launches and memory traffic per unit of simulated time.
+
+## Starter code
+
+```js
+// Same physics, same finish time, two step sizes.
+const gpu = new GPU({ mode });
+
+const D = 8;
+const dx = 4;
+const T = 16;           // finish time
+const DT_SMALL = 0.2;   // 0.4× the explicit limit (0.5)
+const DT_BIG = 2;       // 4×   the explicit limit
+const SWEEPS = 25;
+
+const explicitStep = gpu.createKernel(function (u, alpha) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  let xl = x - 1; if (xl < 0) xl = this.constants.size - 1;
+  let xr = x + 1; if (xr > this.constants.size - 1) xr = 0;
+  let yd = y - 1; if (yd < 0) yd = this.constants.size - 1;
+  let yu = y + 1; if (yu > this.constants.size - 1) yu = 0;
+  const c = u[y][x];
+  return c + alpha * (u[y][xl] + u[y][xr] + u[yd][x] + u[yu][x] - 4 * c);
+}, { output: [32, 32], constants: { size: 32 } });
+
+const sweep = gpu.createKernel(function (uOld, guess, alpha) {
+  const x = this.thread.x;
+  const y = this.thread.y;
+  let xl = x - 1; if (xl < 0) xl = this.constants.size - 1;
+  let xr = x + 1; if (xr > this.constants.size - 1) xr = 0;
+  let yd = y - 1; if (yd < 0) yd = this.constants.size - 1;
+  let yu = y + 1; if (yu > this.constants.size - 1) yu = 0;
+  // TODO: last task's sweep, with alpha coming in as an argument
+  return guess[y][x];
+}, { output: [32, 32], constants: { size: 32 } });
+
+function hottest(u) {
+  let m = 0;
+  for (let y = 0; y < u.length; y++) {
+    for (let x = 0; x < u[y].length; x++) {
+      const a = Math.abs(u[y][x]);
+      if (!(a <= m)) m = a;
+    }
+  }
+  return m;
+}
+
+function gap(a, b) {
+  let m = 0;
+  for (let y = 0; y < a.length; y++) {
+    for (let x = 0; x < a[y].length; x++) {
+      const d = Math.abs(a[y][x] - b[y][x]);
+      if (!(d <= m)) m = d;
+    }
+  }
+  return m;
+}
+
+function runExplicit(dt, steps) {
+  const alpha = D * dt / (dx * dx);
+  let u = seed;
+  for (let i = 0; i < steps; i++) u = explicitStep(u, alpha);
+  return u;
+}
+
+function runImplicit(dt, steps) {
+  const alpha = D * dt / (dx * dx);
+  let u = seed;
+  for (let i = 0; i < steps; i++) {
+    let guess = u;
+    for (let k = 0; k < SWEEPS; k++) guess = sweep(u, guess, alpha);
+    u = guess;
+  }
+  return u;
+}
+
+// TODO: how many steps of each size land exactly on time T?
+const smallSteps = 0;
+const bigSteps = 0;
+
+const fine = runExplicit(DT_SMALL, smallSteps);
+const coarse = runImplicit(DT_BIG, bigSteps);
+const doomed = runExplicit(DT_BIG, bigSteps);
+
+console.log('explicit, dt =', DT_SMALL, 'x', smallSteps, 'steps → hottest', hottest(fine));
+console.log('implicit, dt =', DT_BIG, 'x', bigSteps, 'steps → hottest', hottest(coarse));
+console.log('explicit at dt =', DT_BIG, '→ hottest', hottest(doomed));
+console.log('largest gap between the two survivors:', gap(fine, coarse));
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/heat-and-stability-514063bb/5
+
+[Previous task](https://gpu.rocks/learn/heat-and-stability-514063bb/4.md)
+
+---
+
+<!-- https://gpu.rocks/learn/gradient-descent-c94c3f22 -->
+
+# Gradient Descent
+
+*Module of the free GPU.js GPGPU course · 5 tasks*
+
+Fit a line by walking downhill — the gradient as a reduction, the learning rate as a stability limit, and 1,024 searches in one launch.
+
+## Tasks
+
+1. [The Loss You Can Check](https://gpu.rocks/learn/gradient-descent-c94c3f22/1.md)
+2. [The Gradient Is a Reduction](https://gpu.rocks/learn/gradient-descent-c94c3f22/2.md)
+3. [Take the Step](https://gpu.rocks/learn/gradient-descent-c94c3f22/3.md)
+4. [How Big a Step? Ask 256 at Once](https://gpu.rocks/learn/gradient-descent-c94c3f22/4.md)
+5. [A Thousand Starts, Three Answers](https://gpu.rocks/learn/gradient-descent-c94c3f22/5.md)
+
+---
+
+Interactive version: https://gpu.rocks/learn/gradient-descent-c94c3f22
+
+---
+
+<!-- https://gpu.rocks/learn/gradient-descent-c94c3f22/1 -->
+
+# The Loss You Can Check
+
+*Task 1 of 5 · [Gradient Descent](https://gpu.rocks/learn/gradient-descent-c94c3f22.md) · GPU.js Learn*
+
+Fitting is optimisation. Pick a model — here the straight line
+`y = m·x + c` — pick a single number that says how badly it fits, then go
+looking for the parameters that make that number small. The number is the
+**loss**; for least squares it is the mean squared residual. Gradient
+descent has a reputation as the engine inside model training, but underneath it is
+nothing more than a numerical method for walking downhill, and that is all this
+module asks of it.
+
+Look at what the loss actually *is*:
+
+```js
+L(m, c) = (1/n) · Σ (m·xᵢ + c − yᵢ)²
+```
+
+A sum over every data point, divided by n — a **reduction**, the same
+many-in-one-out shape the Reductions module builds its halving ladder for. So the first
+kernel here is a partial-sum kernel with the squaring fused into the read: 64 threads,
+64 points each, one pass over memory.
+
+These 4,096 points were built so that every claim in this module is checkable to the
+last digit. The best-fitting line is exactly `y = 3x + 4`, the lowest
+reachable loss is exactly `0.5`, and the whole surface is
+`L(m, c) = (m − 3)² + (c − 4)² + 0.5`. From `m = c = 0`, then,
+the loss must read `25.5`.
+
+## Goal
+
+**Goal:** finish the partial-sum kernel so it accumulates
+**squared** residuals, then divide the grand total by 4,096 and log the
+loss at `m = 0, c = 0` — it should be `25.5`.
+
+## Requirements
+
+- Each of the 64 threads walks its strided slice: `i * this.constants.threads + this.thread.x`
+- The residual of point `at` is `m * xs[at] + c - ys[at]`
+- Accumulate its *square* — squaring happens as the value is read, not in a second pass
+- Divide the total of the 64 partials by 4096 before logging
+
+## Hint 1 — read once, square immediately
+
+Name the residual, then square the name — no second pass over the data:
+
+```js
+const r = m * xs[at] + c - ys[at];
+sum += r * r;
+```
+
+## Hint 2 — mean, not total
+
+The 64 partials add up to `Σ r²` over all 4,096 points. The loss
+is the *mean* squared residual, so the last step is
+`total / 4096`. Forget it and you get 104,448 instead of 25.5.
+
+## Same idea elsewhere
+
+Every training loop on every platform begins with exactly this: a per-example
+loss, summed and averaged. CUB and Thrust reduce it with a tree, a WGSL compute shader
+does it with workgroup shared memory and subgroup adds. Fusing the square into the read
+rather than running a separate squaring pass is `thrust::transform_reduce`
+in one line, and it halves the memory traffic.
+
+## Starter code
+
+```js
+// 4,096 points, 64 threads, 64 points each — strided, so neighbouring
+// threads read neighbouring points at every step of the loop.
+const gpu = new GPU({ mode });
+
+const lossPartials = gpu.createKernel(function (xs, ys, m, c) {
+  let sum = 0;
+  for (let i = 0; i < this.constants.chunk; i++) {
+    const at = i * this.constants.threads + this.thread.x;
+    // TODO: the residual of point `at` is m * xs[at] + c - ys[at].
+    // Accumulate its SQUARE into sum.
+    sum += 0;
+  }
+  return sum;
+}, {
+  output: [64],
+  constants: { threads: 64, chunk: 64 },
+});
+
+const partials = lossPartials(xs, ys, 0, 0);
+
+let total = 0;
+for (let i = 0; i < partials.length; i++) total += partials[i];
+
+// TODO: the loss is the MEAN squared residual — divide by 4096.
+console.log('loss at m = 0, c = 0:', total);
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/gradient-descent-c94c3f22/1
+
+[Next task](https://gpu.rocks/learn/gradient-descent-c94c3f22/2.md)
+
+---
+
+<!-- https://gpu.rocks/learn/gradient-descent-c94c3f22/2 -->
+
+# The Gradient Is a Reduction
+
+*Task 2 of 5 · [Gradient Descent](https://gpu.rocks/learn/gradient-descent-c94c3f22.md) · GPU.js Learn*
+
+To walk downhill you need the direction of steepest *ascent* — the
+**gradient** — and then you go the other way. Differentiating the loss is
+two lines of calculus, and for a model this small there is no reason to reach for
+anything cleverer than writing them out:
+
+```js
+rᵢ      = m·xᵢ + c − yᵢ
+∂L/∂m  = (2/n) · Σ rᵢ · xᵢ
+∂L/∂c  = (2/n) · Σ rᵢ
+```
+
+Two sums, over the same residuals, in the same order. There is no reason to walk the
+data twice: one kernel computes both, holding each residual in a register and pushing it
+into two accumulators. What comes back is a 2D output — `output: [64, 2]`,
+64 threads wide and 2 rows tall — where **row 0** holds the
+`Σ r·x` partials and **row 1** the `Σ r` partials.
+
+Notice where the branch that picks the row goes: *after* the loop, never
+inside it. Every thread then runs the identical straight-line body and only the last
+statement differs. At `m = c = 0` the gradient must come out
+`(−6, −8)`, because on this data `∇L = (2(m − 3), 2(c − 4))`.
+
+## Figures
+
+- **read each residual once, spend it twice**
+
+## Goal
+
+**Goal:** fill in the two accumulators and the row selection, then
+assemble the gradient in JavaScript and log it — `(−6, −8)` at
+`m = 0, c = 0`.
+
+## Requirements
+
+- `sm` accumulates `r * xs[at]`, `sc` accumulates `r`
+- Row 0 of the output returns `sm`, row 1 returns `sc` — branch on `this.thread.y` *after* the loop
+- Total each row in JavaScript and multiply by `2 / 4096`
+- Log both components
+
+## Hint 1 — one residual, two homes
+
+Read the residual once and use it twice, exactly as the fused loss kernel
+reused it:
+
+```js
+const r = m * xs[at] + c - ys[at];
+sm += r * xs[at];
+sc += r;
+```
+
+## Hint 2 — which row am I?
+
+`this.thread.y` is 0 for the first row and 1 for the second. Put
+the choice after the loop so the loop body stays identical for every thread:
+
+```js
+if (this.thread.y === 0) {
+  return sm;
+}
+return sc;
+```
+
+## Hint 3 — the 2/n out front
+
+A 2D result is indexed `rows[y][x]`, so `rows[0]` is
+the 64 slope partials and `rows[1]` the 64 intercept partials. Both
+totals then need the same scaling: `(2 * total) / 4096`.
+
+## Same idea elsewhere
+
+Accumulating several statistics in one pass over the data is standard practice
+everywhere: a CUDA kernel keeps both partials in registers across a single grid-stride
+loop, CUB instantiates one `BlockReduce` per accumulator but reads the tile
+once, and WGSL does the same with two workgroup arrays. The 2D output is just gpu.js's
+spelling of *one launch, two results*.
+
+## Starter code
+
+```js
+// One walk over the data, two sums out of it.
+// Row 0 → the Σ r·x partials, row 1 → the Σ r partials.
+const gpu = new GPU({ mode });
+
+const gradPartials = gpu.createKernel(function (xs, ys, m, c) {
+  let sm = 0;
+  let sc = 0;
+  for (let i = 0; i < this.constants.chunk; i++) {
+    const at = i * this.constants.threads + this.thread.x;
+    const r = m * xs[at] + c - ys[at];
+    // TODO: sm accumulates the residual weighted by x, sc the residual itself.
+    sm += 0;
+    sc += 0;
+  }
+  // TODO: row 0 of the output is sm, row 1 is sc. Branch on this.thread.y.
+  return sm;
+}, {
+  output: [64, 2],
+  constants: { threads: 64, chunk: 64 },
+});
+
+const rows = gradPartials(xs, ys, 0, 0);
+
+let sumMx = 0;
+let sumC = 0;
+for (let i = 0; i < 64; i++) {
+  sumMx += rows[0][i];
+  sumC += rows[1][i];
+}
+
+// TODO: both components carry a factor of 2/n. n is 4096.
+const gm = sumMx;
+const gc = sumC;
+console.log('gradient at m = 0, c = 0:', gm, gc);
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/gradient-descent-c94c3f22/2
+
+[Previous task](https://gpu.rocks/learn/gradient-descent-c94c3f22/1.md) · [Next task](https://gpu.rocks/learn/gradient-descent-c94c3f22/3.md)
+
+---
+
+<!-- https://gpu.rocks/learn/gradient-descent-c94c3f22/3 -->
+
+# Take the Step
+
+*Task 3 of 5 · [Gradient Descent](https://gpu.rocks/learn/gradient-descent-c94c3f22.md) · GPU.js Learn*
+
+The whole algorithm, now: stand somewhere, ask which way is up, move the other
+way, repeat.
+
+```js
+m ← m − η · ∂L/∂m
+c ← c − η · ∂L/∂c
+```
+
+η is the **learning rate** — how far you move per step. Both kernels
+below are already written (task 1's loss, task 2's gradient), and the driving loop lives
+in JavaScript, exactly as the halving ladder's driver does: the arithmetic that touches
+all 4,096 points stays on the GPU, and the two numbers that say where you are stay on
+the host.
+
+Sixty steps at `η = 0.1` from `(0, 0)` land on
+`(3, 4)` to five decimal places, and the loss falls
+`25.5 → 0.79 → 0.503 → 0.5` along the way. Watch where it stops:
+**0.5**, not zero. The scatter in this data is real, and no straight line
+can explain it away — the optimum is where the loss stops falling, not where it
+vanishes.
+
+## Goal
+
+**Goal:** write the two lines that move `m` and
+`c` one step downhill, and land on `y = 3x + 4` with a final loss
+of `0.5`.
+
+## Requirements
+
+- Step *against* the gradient — subtract, do not add
+- Scale each step by `rate`: `m = m - rate * g[0]`
+- Use the averaged gradient `gradientAt()` returns, not a raw sum
+- The logged final slope and intercept should read `3` and `4`
+
+## Hint 1 — which way is downhill?
+
+The gradient points in the direction the loss *increases* fastest.
+At `(0, 0)` it is `(−6, −8)`, so downhill is
+`(+6, +8)`, and `m − 0.1·(−6) = 0.6` is the first step. That
+minus sign is the whole difference between fitting and exploding.
+
+## Hint 2 — the two lines
+
+```js
+m = m - rate * g[0];
+c = c - rate * g[1];
+```
+
+Both parameters move on the *same* gradient — the one measured before either of
+them changed.
+
+## Same idea elsewhere
+
+Host-driven, device-computed is how a real optimiser runs: a Python training
+loop issues CUDA kernels one step at a time, a WebGPU trainer records one dispatch per
+step. Parameters are small and data is not, so the parameters live where the control
+flow is — and the 60 round trips you just paid are exactly the cost real frameworks
+fight by fusing whole steps into one launch.
+
+## Starter code
+
+```js
+// Both kernels are already written. The algorithm is yours.
+const gpu = new GPU({ mode });
+
+const gradPartials = gpu.createKernel(function (xs, ys, m, c) {
+  let sm = 0;
+  let sc = 0;
+  for (let i = 0; i < this.constants.chunk; i++) {
+    const at = i * this.constants.threads + this.thread.x;
+    const r = m * xs[at] + c - ys[at];
+    sm += r * xs[at];
+    sc += r;
+  }
+  if (this.thread.y === 0) {
+    return sm;
+  }
+  return sc;
+}, { output: [64, 2], constants: { threads: 64, chunk: 64 } });
+
+const lossPartials = gpu.createKernel(function (xs, ys, m, c) {
+  let sum = 0;
+  for (let i = 0; i < this.constants.chunk; i++) {
+    const at = i * this.constants.threads + this.thread.x;
+    const r = m * xs[at] + c - ys[at];
+    sum += r * r;
+  }
+  return sum;
+}, { output: [64], constants: { threads: 64, chunk: 64 } });
+
+function gradientAt(m, c) {
+  const rows = gradPartials(xs, ys, m, c);
+  let sumMx = 0;
+  let sumC = 0;
+  for (let i = 0; i < 64; i++) {
+    sumMx += rows[0][i];
+    sumC += rows[1][i];
+  }
+  return [(2 * sumMx) / 4096, (2 * sumC) / 4096];
+}
+
+function lossAt(m, c) {
+  const partials = lossPartials(xs, ys, m, c);
+  let total = 0;
+  for (let i = 0; i < 64; i++) total += partials[i];
+  return total / 4096;
+}
+
+const rate = 0.1;
+let m = 0;
+let c = 0;
+
+for (let step = 1; step <= 60; step++) {
+  const g = gradientAt(m, c);
+  // TODO: move m and c one step DOWNHILL.
+  // g[0] is dL/dm and g[1] is dL/dc — both point UPHILL.
+
+  if (step % 10 === 0) console.log('step', step, '· loss', lossAt(m, c));
+}
+
+console.log('fitted slope:', m);
+console.log('fitted intercept:', c);
+console.log('final loss:', lossAt(m, c));
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/gradient-descent-c94c3f22/3
+
+[Previous task](https://gpu.rocks/learn/gradient-descent-c94c3f22/2.md) · [Next task](https://gpu.rocks/learn/gradient-descent-c94c3f22/4.md)
+
+---
+
+<!-- https://gpu.rocks/learn/gradient-descent-c94c3f22/4 -->
+
+# How Big a Step? Ask 256 at Once
+
+*Task 4 of 5 · [Gradient Descent](https://gpu.rocks/learn/gradient-descent-c94c3f22.md) · GPU.js Learn*
+
+Where did `η = 0.1` come from? Nowhere. It was a guess, and guesses
+are where gradient descent goes wrong: too small and you never arrive, too large and you
+do not merely overshoot — you **diverge**, because the step lands you
+further from the minimum than you started and the next one is longer still.
+
+There is an exact limit. One step turns the error `e = θ − θ*` into
+`(I − η·H)·e`, where `H` is the matrix of second derivatives, so
+the walk shrinks the error only while `η < 2 / λ_max`. On this data
+`H = 2I`, which makes `λ_max = 2` and the limit exactly
+`η < 1` — and `η = 1/2` the rate that lands on the answer in a
+single step. (A step size with a hard ceiling is not a quirk of optimisation. Explicit
+time-stepping of a diffusion has one too, for the same eigenvalue reason.)
+
+Believing that is optional; measuring it costs one launch. Give each of 256 threads
+its own learning rate, let each run a complete 80-step descent on its own copy of
+`m` and `c`, and read all 256 final losses back at once. This is
+the axis flip that makes hyperparameter search a GPU problem: earlier tasks were
+parallel *over data points*, and here the data is small (64 points, the identical
+loss surface) while the *runs* are many — so the threads go one per run, and each
+one walks its own slice of the data by itself.
+
+## Figures
+
+- **too short to arrive, exactly right, or thrown out of the bowl**
+
+## Goal
+
+**Goal:** give each thread its own learning rate and its own descent,
+and return the final loss — so that rates `1/8` and `1/2` come
+back at `0.5`, rate `1` sits at `25.5` forever, and
+rate `3/2` is off the scale.
+
+## Requirements
+
+- Each thread reads exactly one rate: `rates[this.thread.x]`
+- The step is scaled by that rate *and* by `this.constants.gradScale` (the 2/n)
+- Return the mean squared residual after the last step, not `m` or `c`
+- Log the losses at rates `1/8`, `1/2`, `1` and `3/2`
+
+## Hint 1 — one thread, one rate
+
+This is the same "which element is mine?" question every kernel asks, and
+the answer is the same: `const rate = rates[this.thread.x];`. Leave it as
+`rates[0]` and all 256 threads run the identical experiment.
+
+## Hint 2 — the step
+
+```js
+m = m - rate * this.constants.gradScale * gm;
+c = c - rate * this.constants.gradScale * gc;
+```
+
+`gradScale` is `2 / 64`, precomputed in JavaScript — two integer
+constants would divide as integers in the shader and give you zero.
+
+## Hint 3 — reading the result
+
+The final losses tell a story in three parts: a band in the middle that
+reached `0.5`, a few rates at the bottom still crawling towards it, and
+everything past `η = 1` heading for infinity. The one at exactly
+`η = 1` is the strangest: it neither converges nor explodes, because
+`|1 − η·λ| = 1` means the error flips sign and keeps its size.
+
+## Same idea elsewhere
+
+Sweeping hyperparameters one per thread is the small, cheap version of what a
+tuner does with whole models across a cluster — and when the per-run state fits in
+registers there is no reason to leave the GPU between runs at all. The design decision
+is which axis to parallelise: over data when the data is big, over runs when the runs
+are many. Same kernel language, opposite layout.
+
+## Starter code
+
+```js
+// 256 threads. 256 learning rates. One complete descent each.
+// The dataset is 64 points from the same line — the same loss surface,
+// L(m, c) = (m − 3)² + (c − 4)² + 0.5, at a size that fits in a loop.
+const gpu = new GPU({ mode });
+
+const sweep = gpu.createKernel(function (xs, ys, rates) {
+  // TODO: this thread owns exactly ONE of the 256 learning rates.
+  const rate = rates[0];
+
+  let m = 0;
+  let c = 0;
+  for (let s = 0; s < this.constants.steps; s++) {
+    let gm = 0;
+    let gc = 0;
+    for (let i = 0; i < this.constants.points; i++) {
+      const r = m * xs[i] + c - ys[i];
+      gm += r * xs[i];
+      gc += r;
+    }
+    // TODO: the step is missing this thread's rate.
+    m = m - this.constants.gradScale * gm;
+    c = c - this.constants.gradScale * gc;
+  }
+
+  let loss = 0;
+  for (let i = 0; i < this.constants.points; i++) {
+    const r = m * xs[i] + c - ys[i];
+    loss += r * r;
+  }
+  return loss * this.constants.invPoints;
+}, {
+  output: [256],
+  constants: { points: 64, steps: 80, gradScale: 2 / 64, invPoints: 1 / 64 },
+});
+
+const finalLoss = sweep(xs, ys, rates);
+
+let converged = 0;
+for (let k = 0; k < finalLoss.length; k++) {
+  if (finalLoss[k] < 1) converged++;
+}
+
+console.log('rate 1/8 → loss', finalLoss[15]);
+console.log('rate 1/2 → loss', finalLoss[63]);
+console.log('rate 1   → loss', finalLoss[127]);
+console.log('rate 3/2 → loss', finalLoss[191]);
+console.log('rates that got under loss 1:', converged, 'of 256');
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/gradient-descent-c94c3f22/4
+
+[Previous task](https://gpu.rocks/learn/gradient-descent-c94c3f22/3.md) · [Next task](https://gpu.rocks/learn/gradient-descent-c94c3f22/5.md)
+
+---
+
+<!-- https://gpu.rocks/learn/gradient-descent-c94c3f22/5 -->
+
+# A Thousand Starts, Three Answers
+
+*Task 5 of 5 · [Gradient Descent](https://gpu.rocks/learn/gradient-descent-c94c3f22.md) · GPU.js Learn*
+
+Everything so far worked because the loss was a bowl: one minimum, and every
+road leads to it. Most surfaces are not bowls. Here is one that is not — a single
+parameter `w`, and a slope written out by hand, the way every gradient in
+this module has been:
+
+```js
+f'(w) = w⁵ − 5w³ + 4w
+      = w · (w² − 1) · (w² − 4)
+```
+
+Five roots: `−2, −1, 0, 1, 2`. Three are valleys (`−2`,
+`0`, `+2`) and two are ridges (`±1`). Gradient descent
+can see none of this. It reads the slope under its feet and steps, so
+*where it ends up is decided entirely by where it began* — and the borders
+between the three answers sit exactly at `w = ±1`.
+
+Which is a question with 1,024 answers and 1,024 threads to answer it: one start
+each, 200 steps each, one launch. The step size is fixed at `0.02`, well
+under the `2/24 ≈ 0.083` the curvature at `w = ±2` allows. Watch
+what comes back: `starts[300] = −1.0352` finishes at `−2` and
+`starts[320] = −0.9375` finishes at `0` — two runs a tenth of a
+unit apart, ending two whole units apart.
+
+## Figures
+
+- **the answer you get is the valley you started in**
+
+## Goal
+
+**Goal:** give each thread its own starting point, step it 200 times
+against the slope, and return where it stopped — `308` threads should land
+near `−2`, `409` near `0` and `307` near
+`+2`.
+
+## Requirements
+
+- Each thread reads its own start: `starts[this.thread.x]`
+- The slope is `w⁵ − 5w³ + 4w` — write it out with plain multiplications
+- Step against it: `w = w - this.constants.rate * slope`
+- Count how many threads finished in each of the three valleys and log the three counts
+
+## Hint 1 — the slope, spelled out
+
+No `Math.pow` needed, and no autodiff either — the derivative of
+a polynomial is a polynomial:
+
+```js
+const slope = w * w * w * w * w - 5 * w * w * w + 4 * w;
+```
+
+## Hint 2 — the update is the same one
+
+Identical to the line fit, with one parameter instead of two:
+`w = w - this.constants.rate * slope;`. That is the entire algorithm; the
+surface changed, not the method.
+
+## Hint 3 — counting the basins
+
+Every thread finishes within a rounding error of `−2`,
+`0` or `+2`, so a two-way split on the returned value is
+enough:
+
+```js
+if (ends[k] < -1) left++;
+else if (ends[k] < 1) middle++;
+else right++;
+```
+
+## Same idea elsewhere
+
+Random-restart optimisation is a working tool, not a curiosity — basin hopping,
+multi-start least squares, ensembles of annealing runs all do this, and every one of
+them is embarrassingly parallel, which is why CUDA and Metal implementations launch
+thousands of restarts at a time. The GPU does not make any single walk faster; it makes
+a thousand of them fit in one launch.
+
+## Starter code
+
+```js
+// f'(w) = w⁵ − 5w³ + 4w. Three valleys at −2, 0, +2;
+// two ridges at ±1. 1,024 starts, one per thread.
+const gpu = new GPU({ mode });
+
+const walk = gpu.createKernel(function (starts) {
+  // TODO: this thread owns ONE starting point.
+  let w = starts[0];
+
+  for (let s = 0; s < this.constants.steps; s++) {
+    // TODO: the slope of the surface at w is w⁵ − 5w³ + 4w.
+    const slope = 0;
+    w = w - this.constants.rate * slope;
+  }
+  return w;
+}, {
+  output: [1024],
+  constants: { steps: 200, rate: 0.02 },
+});
+
+const ends = walk(starts);
+
+let left = 0;
+let middle = 0;
+let right = 0;
+for (let k = 0; k < ends.length; k++) {
+  if (ends[k] < -1) left++;
+  else if (ends[k] < 1) middle++;
+  else right++;
+}
+
+console.log('landed near -2:', left, '| near 0:', middle, '| near +2:', right);
+console.log('start', starts[300], '→', ends[300]);
+console.log('start', starts[320], '→', ends[320]);
+```
+
+---
+
+Interactive version: https://gpu.rocks/learn/gradient-descent-c94c3f22/5
+
+[Previous task](https://gpu.rocks/learn/gradient-descent-c94c3f22/4.md)
 
 ---
 

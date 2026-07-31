@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        var path = window.location.pathname;
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
+        }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
+      <title>A Thousand Starts, Three Answers · Gradient Descent — GPU.js Learn</title>
+    <meta name="description" content="Goal: give each thread its own starting point, step it 200 times against the slope, and return where it stopped — 308 threads should land near −2 , 409 near 0…">
+    <link rel="canonical" href="https://gpu.rocks/learn/gradient-descent-c94c3f22/5">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GPU.js">
+    <meta property="og:url" content="https://gpu.rocks/learn/gradient-descent-c94c3f22/5">
+    <meta property="og:title" content="A Thousand Starts, Three Answers · Gradient Descent — GPU.js Learn">
+    <meta property="og:description" content="Goal: give each thread its own starting point, step it 200 times against the slope, and return where it stopped — 308 threads should land near −2 , 409 near 0…">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="GPU.js jellyfish logo — GPU accelerated JavaScript">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="A Thousand Starts, Three Answers · Gradient Descent — GPU.js Learn">
+    <meta name="twitter:description" content="Goal: give each thread its own starting point, step it 200 times against the slope, and return where it stopped — 308 threads should land near −2 , 409 near 0…">
+    <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"A Thousand Starts, Three Answers","description":"Goal: give each thread its own starting point, step it 200 times against the slope, and return where it stopped — 308 threads should land near −2 , 409 near 0…","url":"https://gpu.rocks/learn/gradient-descent-c94c3f22/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Gradient Descent","url":"https://gpu.rocks/learn/gradient-descent-c94c3f22","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/gradient-descent-c94c3f22/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
+  </head>
+  <body>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/gradient-descent-c94c3f22">Gradient Descent</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>A Thousand Starts, Three Answers</h1>
+<p>Everything so far worked because the loss was a bowl: one minimum, and every
+        road leads to it. Most surfaces are not bowls. Here is one that is not — a single
+        parameter <code>w</code>, and a slope written out by hand, the way every gradient in
+        this module has been:</p>
+<pre><code>f'(w) = w⁵ − 5w³ + 4w
+      = w · (w² − 1) · (w² − 4)</code></pre>
+        <p>Five roots: <code>−2, −1, 0, 1, 2</code>. Three are valleys (<code>−2</code>,
+        <code>0</code>, <code>+2</code>) and two are ridges (<code>±1</code>). Gradient descent
+        can see none of this. It reads the slope under its feet and steps, so
+        <em>where it ends up is decided entirely by where it began</em> — and the borders
+        between the three answers sit exactly at <code>w = ±1</code>.</p>
+        <p>Which is a question with 1,024 answers and 1,024 threads to answer it: one start
+        each, 200 steps each, one launch. The step size is fixed at <code>0.02</code>, well
+        under the <code>2/24 ≈ 0.083</code> the curvature at <code>w = ±2</code> allows. Watch
+        what comes back: <code>starts[300] = −1.0352</code> finishes at <code>−2</code> and
+        <code>starts[320] = −0.9375</code> finishes at <code>0</code> — two runs a tenth of a
+        unit apart, ending two whole units apart.</p>
+<figure><figcaption>the answer you get is the valley you started in</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> give each thread its own starting point, step it 200 times
+        against the slope, and return where it stopped — <code>308</code> threads should land
+        near <code>−2</code>, <code>409</code> near <code>0</code> and <code>307</code> near
+        <code>+2</code>.</div>
+
+<h2>Requirements</h2><ul><li>Each thread reads its own start: <code>starts[this.thread.x]</code></li><li>The slope is <code>w⁵ − 5w³ + 4w</code> — write it out with plain multiplications</li><li>Step against it: <code>w = w - this.constants.rate * slope</code></li><li>Count how many threads finished in each of the three valleys and log the three counts</li></ul>
+<details><summary>Hint 1 — the slope, spelled out</summary><p>No <code>Math.pow</code> needed, and no autodiff either — the derivative of
+            a polynomial is a polynomial:</p>
+<pre><code>const slope = w * w * w * w * w - 5 * w * w * w + 4 * w;</code></pre></details>
+<details><summary>Hint 2 — the update is the same one</summary><p>Identical to the line fit, with one parameter instead of two:
+            <code>w = w - this.constants.rate * slope;</code>. That is the entire algorithm; the
+            surface changed, not the method.</p></details>
+<details><summary>Hint 3 — counting the basins</summary><p>Every thread finishes within a rounding error of <code>−2</code>,
+            <code>0</code> or <code>+2</code>, so a two-way split on the returned value is
+            enough:</p>
+<pre><code>if (ends[k] &lt; -1) left++;
+else if (ends[k] &lt; 1) middle++;
+else right++;</code></pre></details>
+<h2>Same idea elsewhere</h2>Random-restart optimisation is a working tool, not a curiosity — basin hopping,
+        multi-start least squares, ensembles of annealing runs all do this, and every one of
+        them is embarrassingly parallel, which is why CUDA and Metal implementations launch
+        thousands of restarts at a time. The GPU does not make any single walk faster; it makes
+        a thousand of them fit in one launch.
+<h2>All tasks in Gradient Descent</h2>
+<ol class="ssg-tasks"><li><a href="/learn/gradient-descent-c94c3f22/1">The Loss You Can Check</a></li><li><a href="/learn/gradient-descent-c94c3f22/2">The Gradient Is a Reduction</a></li><li><a href="/learn/gradient-descent-c94c3f22/3">Take the Step</a></li><li><a href="/learn/gradient-descent-c94c3f22/4">How Big a Step? Ask 256 at Once</a></li><li><a href="/learn/gradient-descent-c94c3f22/5">A Thousand Starts, Three Answers</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/gradient-descent-c94c3f22/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
+  </body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      // The site was hash-routed until mid-2026, so old links look like
+      // gpu.rocks/#/learn/1-2/3. Rewrite them onto real paths before the app
+      // boots. replaceState only — never location.replace: a real navigation
+      // here loops forever in webviews that re-open the originally requested
+      // URL on instant redirects (seen in Telegram's in-app browser). Every
+      // path serves this same shell, so the SPA boots correctly on the
+      // rewritten URL with no network round-trip at all. Plain in-page
+      // anchors don't start with "#/" and are left alone.
+      (function () {
+        var hash = window.location.hash;
+        var path = window.location.pathname;
+        var target = null;
+        if (hash.length > 1 && hash.charAt(1) === '/') {
+          target = hash.slice(1) + window.location.search;
+        } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+          // GitHub Pages 301-redirects directory URLs to a trailing slash
+          // (/learn → /learn/). Strip it so the address bar shows the
+          // canonical path.
+          target = path.replace(/\/+$/, '') + window.location.search + hash;
+        }
+        if (target !== null) {
+          try {
+            window.history.replaceState(null, '', target);
+          } catch (e) {
+            // sandboxed webview without history access — boot on the URL as-is
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Boot-failure reporter. If the app never mounts (in-app browsers are
+      // the usual culprits — see the Telegram blank-page report), show what
+      // went wrong instead of a silent dark page. ES5 on purpose: this must
+      // run on engines too old for the main bundle, which is exactly when a
+      // syntax-level failure would otherwise be invisible.
+      (function () {
+        var firstError = null;
+        function remember(message) {
+          if (!firstError && message) firstError = String(message).slice(0, 300);
+        }
+        window.addEventListener('error', function (e) {
+          remember(e.message || (e.target && e.target.src && 'failed to load ' + e.target.src));
+          window.__firstBootError = firstError;
+        }, true);
+        // On-device inspector for webviews that can't be attached to Safari's
+        // remote Web Inspector (Telegram et al opt out of WKWebView
+        // inspectability). Open any page with ?debug to get console/network
+        // panels rendered in-page. Self-hosted, loaded only on demand.
+        if (/[?&]debug\b/.test(window.location.search)) {
+          var eruda = document.createElement('script');
+          eruda.src = '/debug/eruda.js';
+          eruda.onload = function () {
+            window.eruda.init();
+            if (firstError) console.error('boot error before inspector loaded:', firstError);
+          };
+          document.head.appendChild(eruda);
+        }
+        window.addEventListener('unhandledrejection', function (e) {
+          remember(e.reason && (e.reason.message || e.reason));
+        });
+        function check(finalTry) {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return; // mounted — all good
+          if (!firstError && !finalTry) { setTimeout(function () { check(true); }, 8000); return; }
+          var panel = document.createElement('div');
+          panel.setAttribute('style',
+            'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;' +
+            'background:#171040;color:#f6f7f8;border:1px solid #ff79c6;border-radius:10px;' +
+            'padding:14px 16px;font:14px/1.5 -apple-system,system-ui,sans-serif;');
+          panel.innerHTML =
+            '<b>This page failed to start.</b><br>' +
+            (firstError
+              ? '<code style="font-size:12px;word-break:break-all;color:#ff79c6;">' +
+                firstError.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</code><br>'
+              : '') +
+            'If you are in an in-app browser (Telegram, Instagram…), try ' +
+            '“Open in Browser” from its menu. ' +
+            '<a href="https://github.com/gpujs/gpu.rocks/issues/31" style="color:#20a4f3;">Report this</a>';
+          document.body.appendChild(panel);
+        }
+        setTimeout(function () { check(false); }, 7000);
+      })();
+    </script>
+    <!-- Dev-server defaults only: scripts/prerender.mjs strips these from the
+         built shell and injects the full per-route set (routeMeta.js values). -->
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="/manifest.json" />
+    <script type="module" crossorigin src="/assets/index-dBpFsWBf.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
+      <title>The Race · Iterative Linear Solvers — GPU.js Learn</title>
+    <meta name="description" content="Goal: fill in the red-black loop, and read the two sweep counts off the console — Jacobi should need about 275 sweeps and red-black about 170.">
+    <link rel="canonical" href="https://gpu.rocks/learn/iterative-solvers-e73b8e1f/5">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GPU.js">
+    <meta property="og:url" content="https://gpu.rocks/learn/iterative-solvers-e73b8e1f/5">
+    <meta property="og:title" content="The Race · Iterative Linear Solvers — GPU.js Learn">
+    <meta property="og:description" content="Goal: fill in the red-black loop, and read the two sweep counts off the console — Jacobi should need about 275 sweeps and red-black about 170.">
+    <meta property="og:image" content="https://gpu.rocks/img/ogimage.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="GPU.js jellyfish logo — GPU accelerated JavaScript">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="The Race · Iterative Linear Solvers — GPU.js Learn">
+    <meta name="twitter:description" content="Goal: fill in the red-black loop, and read the two sweep counts off the console — Jacobi should need about 275 sweeps and red-black about 170.">
+    <meta name="twitter:image" content="https://gpu.rocks/img/ogimage.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"The Race","description":"Goal: fill in the red-black loop, and read the two sweep counts off the console — Jacobi should need about 275 sweeps and red-black about 170.","url":"https://gpu.rocks/learn/iterative-solvers-e73b8e1f/5","position":5,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Iterative Linear Solvers","url":"https://gpu.rocks/learn/iterative-solvers-e73b8e1f","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/iterative-solvers-e73b8e1f/5.md">
+    <style>
+    #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
+      font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      color:#1c1e21}
+    #ssg-prose h1{font-size:1.9rem;line-height:1.2;margin:.4rem 0 .8rem}
+    #ssg-prose h2{font-size:1.15rem;margin:2rem 0 .6rem}
+    #ssg-prose h3{font-size:1rem;margin:1.4rem 0 .4rem}
+    #ssg-prose code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
+      background:rgba(127,127,127,.14);padding:.1em .35em;border-radius:4px}
+    #ssg-prose pre{overflow-x:auto;background:rgba(127,127,127,.12);padding:.9rem 1rem;
+      border-radius:8px}
+    #ssg-prose pre code{background:none;padding:0}
+    #ssg-prose .ssg-crumbs,#ssg-prose .ssg-eyebrow{font-size:.8rem;letter-spacing:.04em;
+      text-transform:uppercase;opacity:.7}
+    #ssg-prose figcaption{font-size:.9rem;opacity:.75;border-left:2px solid currentColor;
+      padding-left:.7rem;margin:.6rem 0}
+    #ssg-prose .ssg-goal{border-left:3px solid #5d8fd6;padding-left:.9rem;margin:1.2rem 0}
+    #ssg-prose .ssg-note{margin-top:2.5rem;font-size:.9rem;opacity:.7}
+    #ssg-prose a{color:#2a6ebb}
+    @media(prefers-color-scheme:dark){
+      #ssg-prose{color:#e6e6e6}
+      #ssg-prose a{color:#7fb3f0}
+    }
+  </style>
+  </head>
+  <body>
+    <!-- Not "you need JavaScript" any more: scripts/prerender.mjs bakes the
+         full text of every page into #root below, so this page reads without
+         JS. Only the interactive parts need it. -->
+    <noscript>The text of this page is below. Running code — the editor, the
+      GPU kernel runner and your saved progress — needs JavaScript.</noscript>
+    <div id="root"><div id="ssg-prose">
+<nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/iterative-solvers-e73b8e1f">Iterative Linear Solvers</a></nav>
+<p class="ssg-eyebrow">Task 5 of 5</p>
+<h1>The Race</h1>
+<p>Everything is wired: the Jacobi sweep, both halves of the red-black sweep, and
+        the residual. Same plate, same starting guess of zero, same finish line — an RMS residual
+        below <code>0.0005</code>. Count sweeps.</p>
+        <p>"The same work per sweep" is the claim worth being careful about. One Jacobi sweep
+        updates all 900 interior cells once. One red-black sweep updates all 900 once too, in two
+        halves — the same averages, split across two kernel launches instead of one, with half the
+        threads in each launch copying themselves. Sweeps are what we are comparing; the extra
+        launch is what it costs. (A production kernel launches only the cells of one colour and
+        pays nothing for the copies.)</p>
+        <p>The residual is sampled every 5 sweeps rather than every sweep: the read-back is the
+        expensive part of this loop, and five sweeps barely move the number.</p>
+<figure><figcaption>same finish line, same work per sweep — 170 sweeps against 275</figcaption></figure>
+<div class="ssg-goal"><strong>Goal:</strong> fill in the red-black loop, and read the two sweep counts off
+        the console — Jacobi should need about 275 sweeps and red-black about 170.</div>
+
+<h2>Requirements</h2><ul><li>Drive red-black with the same <code>sweepsToTolerance</code> helper the Jacobi baseline uses</li><li>One red-black sweep is <code>black(red(u))</code> — both halves, in that order</li><li>Count sweeps, not half-sweeps</li></ul>
+<details><summary>Hint 1 — the helper already does the counting</summary><p><code>sweepsToTolerance</code> takes one argument: a function that turns a grid
+            into the next grid. Jacobi's is <code>u =&gt; sweep(u)</code>. Red-black's is one
+            sweep — both halves — expressed the same way.</p></details>
+<details><summary>Hint 2 — the one-liner</summary><pre><code>const redBlackSweeps = sweepsToTolerance(u =&gt; black(red(u)));</code></pre>
+<p>Both halves inside one call, so the helper counts a full sweep each time it runs it.</p></details>
+<h2>Same idea elsewhere</h2>The shape of this measurement is the one that transfers, more than the numbers:
+        an iterative solver is judged on iterations-to-tolerance, and a GPU implementation is
+        judged on that <em>times</em> the cost of an iteration. Red-black buys fewer sweeps for one
+        extra dispatch, which is a trade you make on nearly every platform; the same ledger decides
+        whether SOR's relaxation factor, a Chebyshev acceleration or a full multigrid V-cycle is
+        worth its complexity. Multigrid is where this ends up — and its inner smoother is the
+        red-black sweep you just wrote.
+<h2>All tasks in Iterative Linear Solvers</h2>
+<ol class="ssg-tasks"><li><a href="/learn/iterative-solvers-e73b8e1f/1">One Sweep of Jacobi</a></li><li><a href="/learn/iterative-solvers-e73b8e1f/2">Watch the Residual Fall</a></li><li><a href="/learn/iterative-solvers-e73b8e1f/3">Colour the Board</a></li><li><a href="/learn/iterative-solvers-e73b8e1f/4">Two Halves Make a Sweep</a></li><li><a href="/learn/iterative-solvers-e73b8e1f/5">The Race</a></li></ol>
+<nav class="ssg-pager"><a href="/learn/iterative-solvers-e73b8e1f/4">← previous task</a></nav>
+<p class="ssg-note">This page is an interactive exercise — the editor, the GPU runner and your saved progress need JavaScript. The text above is the full brief.</p>
+</div></div>
+  </body>
+</html>
