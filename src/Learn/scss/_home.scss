@@ -54,14 +54,17 @@
     padding: 0 1.5rem 3rem;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1.1rem;
+    gap: 1.1rem 2.2rem;
   }
 
+  // Deliberately NOT a card. These three are the page telling you what the
+  // course is; the module cards below are things you click. Giving them the
+  // same surface and border made them read as a fourth track you had somehow
+  // missed. A hairline above each column keeps the row structured without
+  // pretending to be interactive.
   .hl {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 1.3rem 1.4rem;
+    padding: 1rem .2rem 0 0;
+    border-top: 1px solid var(--line);
   }
 
   .hl h3 {
