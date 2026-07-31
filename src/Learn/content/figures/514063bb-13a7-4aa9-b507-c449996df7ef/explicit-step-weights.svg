@@ -1,0 +1,27 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="The explicit step drawn as a weighted average: each of the four neighbours carries weight alpha and the centre carries one minus four alpha. At alpha equals 0.1 the five weights are 0.1, 0.1, 0.6, 0.1 and 0.1, which add to exactly one.">
+  <text x="10" y="14" class="lbl-up">FIVE WEIGHTS, ONE AVERAGE</text>
+
+  <!-- the stencil, labelled with its weights rather than its values -->
+  <g text-anchor="middle" style="font-size:10px">
+    <rect x="62" y="22" width="36" height="28" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="80" y="40">α</text>
+    <rect x="14" y="54" width="36" height="28" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="32" y="72">α</text>
+    <rect x="54" y="54" width="52" height="28" rx="4" fill="none" stroke="var(--pink)" stroke-width="2"/><text x="80" y="72">1 − 4α</text>
+    <rect x="110" y="54" width="36" height="28" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="128" y="72">α</text>
+    <rect x="62" y="86" width="36" height="28" rx="4" fill="none" stroke="var(--blue)" stroke-width="1.5"/><text x="80" y="104">α</text>
+  </g>
+
+  <!-- the same five weights, evaluated -->
+  <path class="arrow" d="M152 68 H 164" stroke-width="1.5"/>
+  <path class="arrowhead" d="M170 68 l -7 -4 v 8 z"/>
+  <rect x="176" y="46" width="152" height="44" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="252" y="64" text-anchor="middle" class="formula">α = 0.1</text>
+  <text x="252" y="80" text-anchor="middle" class="formula">0.1+0.1+0.6+0.1+0.1</text>
+
+  <path class="arrow" d="M332 68 H 344" stroke-width="1.5"/>
+  <path class="arrowhead" d="M350 68 l -7 -4 v 8 z"/>
+  <rect x="356" y="54" width="60" height="28" rx="8" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <text x="386" y="72" text-anchor="middle" style="font-size:10px" fill="var(--teal)">= 1</text>
+  <text x="386" y="100" text-anchor="middle" class="lbl">always</text>
+
+  <text x="14" y="140" class="lbl">no weight below zero → the new value stays inside the old five</text>
+</svg>

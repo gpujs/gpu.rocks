@@ -1,0 +1,47 @@
+<svg viewBox="0 0 440 168" role="img" aria-label="A curve with three valleys at w equals minus two, zero and plus two, separated by ridges at plus and minus one. A row of 1,024 starting points sits above it; 308 of them roll into the left valley, 409 into the middle one and 307 into the right one, and two starts a hair apart on either side of a ridge roll away from each other into different valleys.">
+  <text x="10" y="13" class="lbl-up">1,024 STARTS · THREE ANSWERS</text>
+
+  <!-- the starting points, one per thread -->
+  <g fill="var(--blue)">
+    <circle cx="47" cy="24" r="2"/><circle cx="64.4" cy="24" r="2"/><circle cx="81.8" cy="24" r="2"/>
+    <circle cx="99.2" cy="24" r="2"/><circle cx="116.6" cy="24" r="2"/><circle cx="134" cy="24" r="2"/>
+    <circle cx="151.4" cy="24" r="2"/><circle cx="168.8" cy="24" r="2"/><circle cx="186.2" cy="24" r="2"/>
+    <circle cx="203.6" cy="24" r="2"/><circle cx="221" cy="24" r="2"/><circle cx="238.4" cy="24" r="2"/>
+    <circle cx="255.8" cy="24" r="2"/><circle cx="273.2" cy="24" r="2"/><circle cx="290.6" cy="24" r="2"/>
+    <circle cx="308" cy="24" r="2"/><circle cx="325.4" cy="24" r="2"/><circle cx="342.8" cy="24" r="2"/>
+    <circle cx="360.2" cy="24" r="2"/><circle cx="377.6" cy="24" r="2"/><circle cx="395" cy="24" r="2"/>
+  </g>
+
+  <!-- the ridges: the borders between the three answers -->
+  <text x="150" y="42" text-anchor="middle" class="lbl" style="font-size:9px">ridge</text>
+  <text x="290" y="42" text-anchor="middle" class="lbl" style="font-size:9px">ridge</text>
+  <g stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 4" opacity=".6">
+    <line x1="150" y1="48" x2="150" y2="126"/>
+    <line x1="290" y1="48" x2="290" y2="126"/>
+  </g>
+
+  <!-- f(w) = w⁶/6 − 5w⁴/4 + 2w² -->
+  <path d="M45 46.2 L53.8 83.3 L62.5 104.8 L71.3 115.2 L80 118 L88.8 116 L97.5 111.4 L106.3 105.8 L115 100.3 L123.8 95.7 L132.5 92.3 L141.3 90.3 L150 89.6 L158.8 90.2 L167.5 91.6 L176.3 93.6 L185 95.8 L193.8 98 L202.5 99.7 L211.3 100.8 L220 101.2 L228.8 100.8 L237.5 99.7 L246.3 98 L255 95.8 L263.8 93.6 L272.5 91.6 L281.3 90.2 L290 89.6 L298.8 90.3 L307.5 92.3 L316.3 95.7 L325 100.3 L333.8 105.8 L342.5 111.4 L351.3 116 L360 118 L368.8 115.2 L377.5 104.8 L386.3 83.3 L395 46.2"
+    fill="none" stroke="var(--line)" stroke-width="1.6" stroke-linejoin="round"/>
+
+  <!-- two starts on opposite sides of one ridge, rolling apart -->
+  <circle cx="138" cy="91" r="2.8" fill="var(--pink)"/>
+  <circle cx="163" cy="91" r="2.8" fill="var(--pink)"/>
+  <path d="M134 94 Q114 101 88 114" fill="none" stroke="var(--pink)" stroke-width="1.3"/>
+  <path d="M83 116 L 90.6 112.7 L 88.2 107.6 Z" fill="var(--pink)"/>
+  <path d="M167 94 Q188 100 209 100.4" fill="none" stroke="var(--pink)" stroke-width="1.3"/>
+  <path d="M215 100.6 L 207.6 104.4 L 207.8 98.7 Z" fill="var(--pink)"/>
+
+  <!-- where they all end up -->
+  <g fill="var(--teal)">
+    <circle cx="80" cy="118" r="3.4"/><circle cx="220" cy="101.2" r="3.4"/><circle cx="360" cy="118" r="3.4"/>
+  </g>
+  <g class="lbl" text-anchor="middle">
+    <text x="80" y="134">w = −2</text><text x="220" y="134">w = 0</text><text x="360" y="134">w = +2</text>
+  </g>
+  <g text-anchor="middle" style="font-size:10px" fill="var(--teal)">
+    <text x="80" y="147">308 threads</text><text x="220" y="147">409</text><text x="360" y="147">307</text>
+  </g>
+
+  <text x="220" y="164" text-anchor="middle" class="formula">f′(w) = w · (w² − 1) · (w² − 4)</text>
+</svg>

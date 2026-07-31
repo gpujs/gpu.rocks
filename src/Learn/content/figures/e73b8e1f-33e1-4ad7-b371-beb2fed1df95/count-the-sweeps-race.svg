@@ -1,0 +1,60 @@
+<svg viewBox="0 0 440 172" role="img" aria-label="Two convergence curves on a logarithmic scale of RMS residual against sweep number. Both start at 0.099 and fall steeply, then flatten. The dashed red-black curve crosses the 0.0005 tolerance line at 170 sweeps; the solid Jacobi curve does not cross it until 275 sweeps.">
+  <text x="10" y="14" class="lbl-up">RMS RESIDUAL PER SWEEP · LOG SCALE</text>
+
+  <!-- recessive gridlines: one decade apart -->
+  <g stroke="var(--line)" stroke-width="1" opacity=".6">
+    <path d="M56 36 H 360"/>
+    <path d="M56 70 H 360"/>
+    <path d="M56 104 H 360"/>
+  </g>
+  <g class="lbl" text-anchor="end">
+    <text x="50" y="39">1e-1</text>
+    <text x="50" y="73">1e-2</text>
+    <text x="50" y="107">1e-3</text>
+  </g>
+
+  <!-- axes -->
+  <g stroke="var(--muted)" stroke-width="1.2" fill="none">
+    <path d="M56 30 V 142"/>
+    <path d="M56 142 H 366"/>
+  </g>
+  <g class="lbl" text-anchor="middle">
+    <text x="56" y="154">0</text>
+    <text x="157" y="154">100</text>
+    <text x="259" y="154">200</text>
+    <text x="360" y="154">300</text>
+    <text x="208" y="168">sweeps</text>
+  </g>
+
+  <!-- the finish line -->
+  <path d="M56 114.2 H 360" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="3 3" fill="none"/>
+  <text x="62" y="111" class="lbl">tolerance 5e-4</text>
+
+  <!-- jacobi: the baseline, solid -->
+  <polyline fill="none" stroke="var(--muted)" stroke-width="2" stroke-linejoin="round"
+    points="56.0,36.2 66.1,66.4 76.3,74.7 86.4,79.9 96.5,83.7 106.7,86.7 116.8,89.2 126.9,91.4 137.1,93.3 147.2,95.0 157.3,96.6 167.5,98.0 177.6,99.4 187.7,100.6 197.9,101.8 208.0,103.0 218.1,104.1 228.3,105.1 238.4,106.1 248.5,107.1 258.7,108.1 268.8,109.0 278.9,109.9 289.1,110.8 299.2,111.7 309.3,112.5 319.5,113.3 329.6,114.2 339.7,115.0 349.9,115.8 360.0,116.6"/>
+
+  <!-- red-black: dashed as well as coloured, so the two never rely on hue alone -->
+  <polyline fill="none" stroke="var(--blue)" stroke-width="2" stroke-linejoin="round" stroke-dasharray="7 3"
+    points="56.0,36.2 66.1,69.3 76.3,78.4 86.4,84.0 96.5,88.1 106.7,91.4 116.8,94.2 126.9,96.7 137.1,98.9 147.2,101.0 157.3,102.9 167.5,104.7 177.6,106.5 187.7,108.2 197.9,109.8 208.0,111.5 218.1,113.1 228.3,114.6 238.4,116.2 248.5,117.7 258.7,119.3 268.8,120.8 278.9,122.3 289.1,123.9 299.2,125.4 309.3,126.9 319.5,128.4 329.6,130.0 339.7,131.5 349.9,133.0 360.0,134.5"/>
+
+  <g fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 3">
+    <path d="M228.3 114.2 V 142"/>
+    <path d="M334.7 114.2 V 142"/>
+  </g>
+
+  <!-- the two crossings, the only numbers on the plot. Each label sits on a
+       surface-coloured plate so it is never read through a curve behind it. -->
+  <circle cx="228.3" cy="114.2" r="4" fill="var(--surface)" stroke="var(--blue)" stroke-width="2"/>
+  <circle cx="334.7" cy="114.2" r="4" fill="var(--surface)" stroke="var(--muted)" stroke-width="2"/>
+  <g fill="var(--surface)">
+    <rect x="212" y="121" width="26" height="13" rx="3"/>
+    <rect x="326" y="121" width="26" height="13" rx="3"/>
+  </g>
+  <text x="225" y="131" text-anchor="middle" style="font-size:10px" fill="var(--blue)">170</text>
+  <text x="339" y="131" text-anchor="middle" style="font-size:10px">275</text>
+
+  <!-- direct labels, so identity is never colour alone -->
+  <text x="366" y="120" class="lbl">jacobi</text>
+  <text x="366" y="138" class="lbl">red-black</text>
+</svg>

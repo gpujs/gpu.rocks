@@ -49,6 +49,17 @@ const tracks = [
       '972e080b-a2a9-4151-ac98-d1d9caf7b6b9', // Matrix Multiply
       '9ea19810-b622-4611-a049-9daa49021ca2', // Monte Carlo Methods
       '5de47751-c27a-47ca-ad4a-17f875176788', // N-Body Gravity
+      // N-Body keeps its tick loop in JS because every particle must see the
+      // same instant; these trajectories are independent, so the loop moves
+      // inside the thread. That contrast is why ODE Integrators sits here.
+      '62f4a3ff-b240-4f1a-9f00-2d0f0d2e4dfc', // ODE Integrators
+      // Solvers before Heat: an implicit step IS a linear solve, and the heat
+      // module's implicit task leans on the Jacobi sweep taught here.
+      'e73b8e1f-33e1-4ad7-b371-beb2fed1df95', // Iterative Linear Solvers
+      '514063bb-13a7-4aa9-b507-c449996df7ef', // The Heat Equation & Stability
+      // Last: its learning-rate ceiling is the same stability argument one
+      // dimension over, which only lands once Heat has made it.
+      'c94c3f22-2b9b-46ef-bad3-4a62fcd1935a', // Gradient Descent
     ],
   },
   {

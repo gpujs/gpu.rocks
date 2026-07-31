@@ -1,0 +1,51 @@
+<svg viewBox="0 0 440 168" role="img" aria-label="A grid coloured like a chessboard: cells where x plus y is even are labelled R, the rest B. Arrows from one R cell show that all four of its direct neighbours are B cells, so every R can update at the same time. The first half-sweep updates every R reading only B values; the second updates every B reading the R values just written.">
+  <text x="10" y="14" class="lbl-up">(X + Y) % 2 — TWO COLOURS, NO ORDERING</text>
+  <text x="24" y="30" class="lbl">R = parity 0, B = parity 1</text>
+
+  <!-- black cells (parity 1): passive -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="40" y="38" width="16" height="16" rx="2"/><rect x="72" y="38" width="16" height="16" rx="2"/><rect x="104" y="38" width="16" height="16" rx="2"/><rect x="24" y="54" width="16" height="16" rx="2"/><rect x="56" y="54" width="16" height="16" rx="2"/><rect x="88" y="54" width="16" height="16" rx="2"/><rect x="120" y="54" width="16" height="16" rx="2"/><rect x="40" y="70" width="16" height="16" rx="2"/><rect x="104" y="70" width="16" height="16" rx="2"/><rect x="24" y="86" width="16" height="16" rx="2"/><rect x="120" y="86" width="16" height="16" rx="2"/><rect x="40" y="102" width="16" height="16" rx="2"/><rect x="104" y="102" width="16" height="16" rx="2"/><rect x="24" y="118" width="16" height="16" rx="2"/><rect x="56" y="118" width="16" height="16" rx="2"/><rect x="88" y="118" width="16" height="16" rx="2"/><rect x="120" y="118" width="16" height="16" rx="2"/><rect x="40" y="134" width="16" height="16" rx="2"/><rect x="72" y="134" width="16" height="16" rx="2"/><rect x="104" y="134" width="16" height="16" rx="2"/>
+  </g>
+
+  <!-- red cells (parity 0): the colour this half-sweep updates -->
+  <g fill="var(--blue)" fill-opacity=".15" stroke="var(--blue)" stroke-width="1.2">
+    <rect x="24" y="38" width="16" height="16" rx="2"/><rect x="56" y="38" width="16" height="16" rx="2"/><rect x="88" y="38" width="16" height="16" rx="2"/><rect x="120" y="38" width="16" height="16" rx="2"/><rect x="40" y="54" width="16" height="16" rx="2"/><rect x="72" y="54" width="16" height="16" rx="2"/><rect x="104" y="54" width="16" height="16" rx="2"/><rect x="24" y="70" width="16" height="16" rx="2"/><rect x="56" y="70" width="16" height="16" rx="2"/><rect x="88" y="70" width="16" height="16" rx="2"/><rect x="120" y="70" width="16" height="16" rx="2"/><rect x="40" y="86" width="16" height="16" rx="2"/><rect x="104" y="86" width="16" height="16" rx="2"/><rect x="24" y="102" width="16" height="16" rx="2"/><rect x="56" y="102" width="16" height="16" rx="2"/><rect x="88" y="102" width="16" height="16" rx="2"/><rect x="120" y="102" width="16" height="16" rx="2"/><rect x="40" y="118" width="16" height="16" rx="2"/><rect x="72" y="118" width="16" height="16" rx="2"/><rect x="104" y="118" width="16" height="16" rx="2"/><rect x="24" y="134" width="16" height="16" rx="2"/><rect x="56" y="134" width="16" height="16" rx="2"/><rect x="88" y="134" width="16" height="16" rx="2"/><rect x="120" y="134" width="16" height="16" rx="2"/>
+  </g>
+
+  <!-- the four cells this one is allowed to read: all of them B -->
+  <g fill="none" stroke="var(--teal)" stroke-width="1.8">
+    <rect x="72" y="70" width="16" height="16" rx="2"/>
+    <rect x="56" y="86" width="16" height="16" rx="2"/>
+    <rect x="88" y="86" width="16" height="16" rx="2"/>
+    <rect x="72" y="102" width="16" height="16" rx="2"/>
+  </g>
+
+  <!-- follow this one -->
+  <rect x="72" y="86" width="16" height="16" rx="2" fill="var(--pink)" fill-opacity=".18" stroke="var(--pink)" stroke-width="2"/>
+
+  <!-- the letters, so the two colours are never colour alone -->
+  <g text-anchor="middle" style="font-size:8px">
+    <text x="32" y="49">R</text><text x="48" y="49">B</text><text x="64" y="49">R</text><text x="80" y="49">B</text><text x="96" y="49">R</text><text x="112" y="49">B</text><text x="128" y="49">R</text>
+    <text x="32" y="65">B</text><text x="48" y="65">R</text><text x="64" y="65">B</text><text x="80" y="65">R</text><text x="96" y="65">B</text><text x="112" y="65">R</text><text x="128" y="65">B</text>
+    <text x="32" y="81">R</text><text x="48" y="81">B</text><text x="64" y="81">R</text><text x="80" y="81">B</text><text x="96" y="81">R</text><text x="112" y="81">B</text><text x="128" y="81">R</text>
+    <text x="32" y="97">B</text><text x="48" y="97">R</text><text x="64" y="97">B</text><text x="80" y="97">R</text><text x="96" y="97">B</text><text x="112" y="97">R</text><text x="128" y="97">B</text>
+    <text x="32" y="113">R</text><text x="48" y="113">B</text><text x="64" y="113">R</text><text x="80" y="113">B</text><text x="96" y="113">R</text><text x="112" y="113">B</text><text x="128" y="113">R</text>
+    <text x="32" y="129">B</text><text x="48" y="129">R</text><text x="64" y="129">B</text><text x="80" y="129">R</text><text x="96" y="129">B</text><text x="112" y="129">R</text><text x="128" y="129">B</text>
+    <text x="32" y="145">R</text><text x="48" y="145">B</text><text x="64" y="145">R</text><text x="80" y="145">B</text><text x="96" y="145">R</text><text x="112" y="145">B</text><text x="128" y="145">R</text>
+  </g>
+
+  <path class="arrow" d="M144 94 H 154" stroke-width="1.4"/>
+  <path class="arrowhead" d="M160 94 l -7 -4 v 8 z"/>
+
+  <!-- the two half-sweeps -->
+  <rect x="168" y="48" width="252" height="32" rx="8" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+  <text x="182" y="68" style="font-size:10px" fill="var(--blue)">half-sweep 1 · all R, reading only B</text>
+
+  <path class="arrow" d="M294 82 v 12" stroke-width="1.4"/>
+  <path class="arrowhead" d="M294 100 l -4 -7 h 8 z"/>
+
+  <rect x="168" y="104" width="252" height="32" rx="8" fill="none" stroke="var(--teal)" stroke-width="1.5"/>
+  <text x="182" y="124" style="font-size:10px" fill="var(--teal)">half-sweep 2 · all B, reading the NEW R</text>
+
+  <text x="168" y="154" class="lbl">neither colour ever reads its own</text>
+</svg>

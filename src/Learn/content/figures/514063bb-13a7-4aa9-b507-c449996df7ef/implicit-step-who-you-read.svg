@@ -1,0 +1,49 @@
+<svg viewBox="0 0 440 176" role="img" aria-label="Two panels. On the left, the explicit step: the new centre cell is computed from three cells of the old row and nothing else, so one pass finishes it. On the right, the implicit step: the new centre reads the old centre but also its own two new neighbours, so the unknowns sit on both sides of the equation and the step becomes a linear solve.">
+  <text x="14" y="14" class="lbl-up">EXPLICIT — ONE PASS</text>
+  <text x="248" y="14" class="lbl-up">IMPLICIT — A SOLVE</text>
+
+  <!-- explicit: the new value depends only on the old row -->
+  <text x="16" y="52" class="lbl">old</text>
+  <g fill="none" stroke="var(--line)">
+    <rect x="42" y="36" width="44" height="24" rx="4"/>
+    <rect x="92" y="36" width="44" height="24" rx="4"/>
+    <rect x="142" y="36" width="44" height="24" rx="4"/>
+  </g>
+  <g class="arrow" stroke-width="1.2" opacity=".8">
+    <path d="M64 60 C 64 88, 114 84, 114 104"/>
+    <path d="M114 60 V 104"/>
+    <path d="M164 60 C 164 88, 114 84, 114 104"/>
+  </g>
+  <path class="arrowhead" d="M114 110 l -4 -7 h 8 z"/>
+  <text x="16" y="126" class="lbl">new</text>
+  <g fill="none" stroke="var(--line)">
+    <rect x="42" y="110" width="44" height="24" rx="4"/>
+    <rect x="142" y="110" width="44" height="24" rx="4"/>
+  </g>
+  <rect x="92" y="110" width="44" height="24" rx="4" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <text x="114" y="160" text-anchor="middle" class="formula">u′ = f(u, u, u)</text>
+
+  <line x1="220" y1="26" x2="220" y2="164" class="cellline"/>
+
+  <!-- implicit: the new value also depends on its new neighbours -->
+  <text x="238" y="52" class="lbl">old</text>
+  <g fill="none" stroke="var(--line)">
+    <rect x="264" y="36" width="44" height="24" rx="4"/>
+    <rect x="314" y="36" width="44" height="24" rx="4"/>
+    <rect x="364" y="36" width="44" height="24" rx="4"/>
+  </g>
+  <path class="arrow" d="M336 60 V 104" stroke-width="1.2"/>
+  <path class="arrowhead" d="M336 110 l -4 -7 h 8 z"/>
+  <text x="238" y="126" class="lbl">new</text>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.4">
+    <rect x="264" y="110" width="44" height="24" rx="4"/>
+    <rect x="314" y="110" width="44" height="24" rx="4"/>
+    <rect x="364" y="110" width="44" height="24" rx="4"/>
+  </g>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.3">
+    <path d="M286 134 C 286 151, 336 153, 336 142"/>
+    <path d="M386 134 C 386 151, 336 153, 336 142"/>
+  </g>
+  <path d="M336 134 l -4 8 h 8 z" fill="var(--pink)"/>
+  <text x="336" y="172" text-anchor="middle" class="formula">u′ = f(u, u′, u′)</text>
+</svg>

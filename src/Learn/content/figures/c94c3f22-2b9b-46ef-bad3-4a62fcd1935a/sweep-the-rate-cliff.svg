@@ -1,0 +1,39 @@
+<svg viewBox="0 0 440 158" role="img" aria-label="The same bowl walked at three learning rates: a tiny rate takes many short steps and is still short of the minimum, one half lands on the minimum in a single step, and three halves throws each step past the minimum so the swings grow until the walk leaves the bowl.">
+  <text x="10" y="13" class="lbl-up">ONE RATE, THREE FATES</text>
+  <line x1="152" y1="24" x2="152" y2="136" class="cellline"/>
+  <line x1="288" y1="24" x2="288" y2="136" class="cellline"/>
+
+  <!-- panel 1 : too small -->
+  <path d="M27 49.9 Q85 150.1 143 49.9" fill="none" stroke="var(--line)"/>
+  <path d="M35 62.8 L40 69.9 L44.5 75.6 L48.5 80.2 L52.2 84 L55.5 87.1 L58.4 89.5"
+    fill="none" stroke="var(--blue)" stroke-width="1.2"/>
+  <g fill="var(--blue)">
+    <circle cx="35" cy="62.8" r="2.4"/><circle cx="44.5" cy="75.6" r="1.8"/>
+    <circle cx="52.2" cy="84" r="1.8"/><circle cx="58.4" cy="89.5" r="2.4"/>
+  </g>
+  <circle cx="85" cy="100" r="2.6" fill="none" stroke="var(--muted)"/>
+  <text x="85" y="118" text-anchor="middle" style="font-size:10px" fill="var(--blue)">η = 1/128</text>
+  <text x="85" y="131" text-anchor="middle" class="lbl">80 steps, still short</text>
+
+  <!-- panel 2 : just right -->
+  <path d="M162 49.9 Q220 150.1 278 49.9" fill="none" stroke="var(--line)"/>
+  <path d="M170 62.8 Q196 70 214 96" fill="none" stroke="var(--teal)" stroke-width="1.4"/>
+  <path d="M218 100 L 210.8 95.6 L 214.9 91.1 Z" fill="var(--teal)"/>
+  <circle cx="170" cy="62.8" r="2.4" fill="var(--teal)"/>
+  <circle cx="220" cy="100" r="3.2" fill="var(--teal)" fill-opacity=".35" stroke="var(--teal)"/>
+  <text x="220" y="118" text-anchor="middle" style="font-size:10px" fill="var(--teal)">η = 1/2</text>
+  <text x="220" y="131" text-anchor="middle" class="lbl">one step, done</text>
+
+  <!-- panel 3 : too large -->
+  <path d="M297 49.9 Q355 150.1 413 49.9" fill="none" stroke="var(--line)"/>
+  <path d="M325 86.6 L391 80.7 L312 72.5 L404 60.4" fill="none" stroke="var(--lred)" stroke-width="1.2"/>
+  <path d="M409 59.4 L 401.7 63.7 L 400.6 58.1 Z" fill="var(--lred)"/>
+  <g fill="var(--lred)">
+    <circle cx="325" cy="86.6" r="2.4"/><circle cx="391" cy="80.7" r="1.8"/><circle cx="312" cy="72.5" r="1.8"/>
+  </g>
+  <circle cx="355" cy="100" r="2.6" fill="none" stroke="var(--muted)"/>
+  <text x="355" y="118" text-anchor="middle" style="font-size:10px" fill="var(--lred)">η = 3/2</text>
+  <text x="355" y="131" text-anchor="middle" class="lbl">thrown out, for good</text>
+
+  <text x="220" y="151" text-anchor="middle" class="formula">stable while η &lt; 2 / λmax = 1</text>
+</svg>

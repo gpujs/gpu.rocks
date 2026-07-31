@@ -1,0 +1,41 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="One time step, three answers. The true solution curves gently upward. Euler's straight line, committed to the slope at the start of the step, overshoots well above it. A trial half-step reaches the midpoint of that same line, and the slope read there carries the full step much closer to the true curve.">
+  <text x="14" y="14" class="lbl-up">ONE STEP, THREE ANSWERS</text>
+
+  <!-- axis -->
+  <path d="M72 128 H 380" stroke="var(--line)" fill="none"/>
+  <g stroke="var(--line)" fill="none">
+    <path d="M72 128 v 5"/><path d="M222 128 v 5"/><path d="M372 128 v 5"/>
+  </g>
+  <g class="lbl" text-anchor="middle">
+    <text x="72" y="145">t</text>
+    <text x="222" y="145">t + dt/2</text>
+    <text x="372" y="145">t + dt</text>
+  </g>
+
+  <!-- Euler: the start slope, held all the way across -->
+  <path d="M72 114 L 372 36.8" fill="none" stroke="var(--amber)" stroke-width="1.5"/>
+  <circle cx="372" cy="36.8" r="3.2" fill="var(--amber)"/>
+  <text x="380" y="34" style="font-size:10px" fill="var(--amber)">1.56</text>
+  <text x="380" y="46" class="lbl">Euler</text>
+
+  <!-- the trial half-step lands on that same line, half way -->
+  <circle cx="222" cy="75.4" r="3.2" fill="none" stroke="var(--muted)" stroke-width="1.4"/>
+  <path d="M196 79.1 L 248 71.7" fill="none" stroke="var(--teal)" stroke-width="1.8"/>
+  <text x="76" y="46" class="lbl">trial half-step: read the slope here</text>
+  <path class="arrow" d="M200 50 Q 216 58 220 71" stroke-width="1.1"/>
+  <path d="M221 74 l -5.4 -5.6 l 7.5 -1.6 z" class="arrowhead"/>
+
+  <!-- midpoint: the whole step, taken on that slope -->
+  <path d="M72 114 L 372 71.5" fill="none" stroke="var(--teal)" stroke-width="1.6"/>
+  <circle cx="372" cy="71.5" r="3.2" fill="var(--teal)"/>
+  <text x="380" y="69" style="font-size:10px" fill="var(--teal)">1.13</text>
+  <text x="380" y="81" class="lbl">midpoint</text>
+
+  <!-- the truth -->
+  <path d="M72 114 L 84.5 110.8 L 97 107.8 L 109.5 104.9 L 122 102.2 L 134.5 99.6 L 147 97.1 L 159.5 94.8 L 172 92.7 L 184.5 90.8 L 197 89 L 209.5 87.5 L 222 86.1 L 234.5 84.9 L 247 83.9 L 259.5 83.1 L 272 82.5 L 284.5 82.1 L 297 81.9 L 309.5 81.8 L 322 82 L 334.5 82.4 L 347 83 L 359.5 83.8 L 372 84.8" fill="none" stroke="var(--ink)" stroke-width="2"/>
+  <circle cx="372" cy="84.8" r="3.2" fill="var(--ink)"/>
+  <text x="380" y="94" style="font-size:10px">0.96</text>
+  <text x="380" y="106" class="lbl">exact</text>
+  <circle cx="72" cy="114" r="3.5" fill="var(--ink)"/>
+  <text x="60" y="112" text-anchor="end" class="lbl">x, v</text>
+</svg>

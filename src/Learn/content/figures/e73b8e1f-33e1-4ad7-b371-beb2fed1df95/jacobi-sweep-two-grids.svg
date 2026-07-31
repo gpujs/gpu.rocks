@@ -1,0 +1,46 @@
+<svg viewBox="0 0 440 158" role="img" aria-label="A Jacobi sweep reads five values from the previous grid — the four neighbours of one cell — and writes their average into the same position of a new grid, so no thread ever reads a value written during this sweep. Boundary cells are copied across unchanged.">
+  <text x="10" y="14" class="lbl-up">READ THE OLD GRID, WRITE THE NEW ONE</text>
+
+  <text x="76" y="34" text-anchor="middle" class="lbl">grid k</text>
+  <text x="364" y="34" text-anchor="middle" class="lbl">grid k+1</text>
+
+  <!-- old grid: 5x5, boundary muted, the stencil in blue, the centre in pink -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="24" y="42" width="21" height="21" rx="3"/><rect x="45" y="42" width="21" height="21" rx="3"/><rect x="66" y="42" width="21" height="21" rx="3"/><rect x="87" y="42" width="21" height="21" rx="3"/><rect x="108" y="42" width="21" height="21" rx="3"/>
+    <rect x="24" y="63" width="21" height="21" rx="3"/><rect x="108" y="63" width="21" height="21" rx="3"/>
+    <rect x="24" y="84" width="21" height="21" rx="3"/><rect x="108" y="84" width="21" height="21" rx="3"/>
+    <rect x="24" y="105" width="21" height="21" rx="3"/><rect x="108" y="105" width="21" height="21" rx="3"/>
+    <rect x="24" y="126" width="21" height="21" rx="3"/><rect x="45" y="126" width="21" height="21" rx="3"/><rect x="66" y="126" width="21" height="21" rx="3"/><rect x="87" y="126" width="21" height="21" rx="3"/><rect x="108" y="126" width="21" height="21" rx="3"/>
+  </g>
+  <g fill="none" stroke="var(--line)">
+    <rect x="45" y="63" width="21" height="21" rx="3"/><rect x="87" y="63" width="21" height="21" rx="3"/>
+    <rect x="45" y="105" width="21" height="21" rx="3"/><rect x="87" y="105" width="21" height="21" rx="3"/>
+  </g>
+  <g fill="none" stroke="var(--blue)" stroke-width="1.6">
+    <rect x="66" y="63" width="21" height="21" rx="3"/>
+    <rect x="45" y="84" width="21" height="21" rx="3"/>
+    <rect x="87" y="84" width="21" height="21" rx="3"/>
+    <rect x="66" y="105" width="21" height="21" rx="3"/>
+  </g>
+  <rect x="66" y="84" width="21" height="21" rx="3" fill="none" stroke="var(--pink)" stroke-width="2"/>
+
+  <!-- the average -->
+  <path class="arrow" d="M134 94 H 148" stroke-width="1.4"/>
+  <path class="arrowhead" d="M154 94 l -7 -4 v 8 z"/>
+  <rect x="160" y="80" width="130" height="28" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="225" y="98" text-anchor="middle" class="formula">(l + r + u + d) / 4</text>
+  <path class="arrow" d="M294 94 H 306" stroke-width="1.4"/>
+  <path class="arrowhead" d="M312 94 l -7 -4 v 8 z"/>
+
+  <!-- new grid: only the one cell is filled, in teal -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="318" y="42" width="21" height="21" rx="3"/><rect x="339" y="42" width="21" height="21" rx="3"/><rect x="360" y="42" width="21" height="21" rx="3"/><rect x="381" y="42" width="21" height="21" rx="3"/><rect x="402" y="42" width="21" height="21" rx="3"/>
+    <rect x="318" y="63" width="21" height="21" rx="3"/><rect x="339" y="63" width="21" height="21" rx="3"/><rect x="360" y="63" width="21" height="21" rx="3"/><rect x="381" y="63" width="21" height="21" rx="3"/><rect x="402" y="63" width="21" height="21" rx="3"/>
+    <rect x="318" y="84" width="21" height="21" rx="3"/><rect x="339" y="84" width="21" height="21" rx="3"/><rect x="381" y="84" width="21" height="21" rx="3"/><rect x="402" y="84" width="21" height="21" rx="3"/>
+    <rect x="318" y="105" width="21" height="21" rx="3"/><rect x="339" y="105" width="21" height="21" rx="3"/><rect x="360" y="105" width="21" height="21" rx="3"/><rect x="381" y="105" width="21" height="21" rx="3"/><rect x="402" y="105" width="21" height="21" rx="3"/>
+    <rect x="318" y="126" width="21" height="21" rx="3"/><rect x="339" y="126" width="21" height="21" rx="3"/><rect x="360" y="126" width="21" height="21" rx="3"/><rect x="381" y="126" width="21" height="21" rx="3"/><rect x="402" y="126" width="21" height="21" rx="3"/>
+  </g>
+  <rect x="360" y="84" width="21" height="21" rx="3" fill="var(--teal)" fill-opacity=".2" stroke="var(--teal)" stroke-width="1.6"/>
+
+  <text x="24" y="154" class="lbl">edges are given — copied straight across, never solved</text>
+</svg>

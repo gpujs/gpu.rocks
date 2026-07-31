@@ -1,0 +1,42 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Two launch shapes. On the left, one kernel launch per time step, with a barrier between each launch while every body waits for its neighbours. On the right, a single launch in which one thread runs the entire two-hundred-step time loop by itself, a thousand of them at once.">
+  <text x="14" y="14" class="lbl-up">ONE LAUNCH PER STEP</text>
+  <text x="238" y="14" class="lbl-up">ONE LAUNCH, WHOLE TRAJECTORY</text>
+  <line x1="220" y1="22" x2="220" y2="140" class="cellline"/>
+
+  <!-- left: a launch per tick, barriers between -->
+  <g fill="none" stroke="var(--line)">
+    <rect x="44" y="28" width="18" height="14" rx="3"/><rect x="66" y="28" width="18" height="14" rx="3"/><rect x="88" y="28" width="18" height="14" rx="3"/><rect x="110" y="28" width="18" height="14" rx="3"/><rect x="132" y="28" width="18" height="14" rx="3"/>
+    <rect x="44" y="62" width="18" height="14" rx="3"/><rect x="66" y="62" width="18" height="14" rx="3"/><rect x="88" y="62" width="18" height="14" rx="3"/><rect x="110" y="62" width="18" height="14" rx="3"/><rect x="132" y="62" width="18" height="14" rx="3"/>
+    <rect x="44" y="96" width="18" height="14" rx="3"/><rect x="66" y="96" width="18" height="14" rx="3"/><rect x="88" y="96" width="18" height="14" rx="3"/><rect x="110" y="96" width="18" height="14" rx="3"/><rect x="132" y="96" width="18" height="14" rx="3"/>
+  </g>
+  <g class="lbl">
+    <text x="14" y="39">t₁</text>
+    <text x="14" y="73">t₂</text>
+    <text x="14" y="107">t₃</text>
+  </g>
+  <g stroke="var(--muted)" stroke-width="1.1" stroke-dasharray="3 3" fill="none" opacity=".75">
+    <path d="M40 51 H 154"/>
+    <path d="M40 85 H 154"/>
+  </g>
+  <g class="lbl">
+    <text x="158" y="54">wait</text>
+    <text x="158" y="88">wait</text>
+  </g>
+  <text x="14" y="132" class="lbl">the clock ticks in JavaScript</text>
+
+  <!-- right: one launch, the loop inside the thread -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.3">
+    <rect x="240" y="28" width="18" height="14" rx="3"/><rect x="262" y="28" width="18" height="14" rx="3"/>
+    <rect x="306" y="28" width="18" height="14" rx="3"/><rect x="328" y="28" width="18" height="14" rx="3"/><rect x="350" y="28" width="18" height="14" rx="3"/><rect x="372" y="28" width="18" height="14" rx="3"/><rect x="394" y="28" width="18" height="14" rx="3"/>
+  </g>
+  <rect x="284" y="28" width="18" height="14" rx="3" fill="var(--pink)" fill-opacity=".22" stroke="var(--pink)" stroke-width="1.6"/>
+  <text x="338" y="54" class="lbl">× 1,024 threads</text>
+  <path class="arrow" d="M293 44 V 56" stroke-width="1.2"/>
+  <path d="M293 60 l -4 -7 h 8 z" class="arrowhead"/>
+
+  <rect x="240" y="62" width="180" height="52" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+  <text x="250" y="79" class="formula">for s = 0 … 199:</text>
+  <text x="260" y="94" class="formula">a = −x;  x += v·dt</text>
+  <text x="260" y="108" class="formula">v += a·dt</text>
+  <text x="240" y="132" class="lbl">t = 0 … 5, no barrier</text>
+</svg>

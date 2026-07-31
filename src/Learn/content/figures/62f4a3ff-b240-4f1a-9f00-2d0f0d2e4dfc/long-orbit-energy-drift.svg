@@ -1,0 +1,32 @@
+<svg viewBox="0 0 440 150" role="img" aria-label="Energy relative to its starting value over 1,024 steps. The RK4 curve slides steadily downhill from 1.000 to 0.806. Velocity Verlet instead ripples 163 times inside a fixed band between 1.000 and 1.067, and its floor is exactly the energy it started with.">
+  <text x="14" y="14" class="lbl-up">E / E₀ OVER 1,024 STEPS</text>
+
+  <!-- the band velocity Verlet never leaves -->
+  <rect x="62" y="40.3" width="346" height="18.1" fill="var(--teal)" fill-opacity=".16"/>
+  <path d="M62 40.3 H 408" fill="none" stroke="var(--teal)" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <path d="M62 58.4 H 408" fill="none" stroke="var(--teal)" stroke-width="2"/>
+  <text x="70" y="35" style="font-size:10px" fill="var(--teal)">velocity Verlet — 163 ripples, none of them outside this band</text>
+
+  <!-- RK4 sliding downhill -->
+  <path d="M62.3 58.4 L 72.1 60.1 L 82.3 61.8 L 92.4 63.5 L 102.5 65.1 L 113 66.9 L 123.2 68.5 L 133.3 70.1 L 143.4 71.8 L 153.6 73.4 L 163.7 75 L 173.8 76.6 L 184 78.2 L 194.5 79.8 L 204.6 81.4 L 214.7 83 L 224.9 84.5 L 235 86 L 245.1 87.6 L 255.3 89.1 L 265.4 90.6 L 275.5 92.1 L 286 93.6 L 296.2 95.1 L 306.3 96.6 L 316.4 98.1 L 326.6 99.5 L 336.7 101 L 346.8 102.4 L 357 103.8 L 367.5 105.3 L 377.6 106.7 L 387.7 108.1 L 397.9 109.5 L 408 110.9" fill="none" stroke="var(--amber)" stroke-width="2"/>
+  <circle cx="408" cy="110.9" r="3.2" fill="var(--amber)"/>
+  <text x="112" y="118" style="font-size:10px" fill="var(--amber)">RK4 — a fifth of the energy, gone</text>
+
+  <!-- axes -->
+  <path d="M62 30 V 126" stroke="var(--line)" fill="none"/>
+  <path d="M62 126 H 408" stroke="var(--line)" fill="none"/>
+  <g class="lbl" text-anchor="end">
+    <text x="58" y="43.5">1.067</text>
+    <text x="58" y="61.5">1.000</text>
+    <text x="58" y="114">0.806</text>
+  </g>
+  <g stroke="var(--line)" fill="none">
+    <path d="M58 40.3 H 62"/><path d="M58 58.4 H 62"/><path d="M58 110.9 H 62"/>
+    <path d="M62 126 v 4"/><path d="M235 126 v 4"/><path d="M408 126 v 4"/>
+  </g>
+  <g class="lbl" text-anchor="middle">
+    <text x="62" y="142">0</text>
+    <text x="235" y="142">512</text>
+    <text x="408" y="142" text-anchor="end">1,024 steps ≈ 81 orbits</text>
+  </g>
+</svg>
