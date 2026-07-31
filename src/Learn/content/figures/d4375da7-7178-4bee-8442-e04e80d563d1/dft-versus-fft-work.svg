@@ -1,0 +1,47 @@
+<svg viewBox="0 0 440 200" role="img" aria-label="The work each transform does at n equals 512. The naive DFT is one pass over a 512 by 512 grid of terms, drawn as a filled square: 262,144 complex multiplies. The radix-2 FFT is nine passes of 256 butterflies, drawn as nine thin bars: 2,304 complex multiplies, 114 times less. A short table shows the ratio growing with n: 114 times at 512, 683 times at 4,096 and 8,192 times at 65,536.">
+  <text x="10" y="14" class="lbl-up">WHAT EACH ONE COSTS AT n = 512</text>
+
+  <!-- the naive DFT: one dense pass, n by n -->
+  <rect x="20" y="32" width="96" height="96" rx="3" fill="var(--amber)" fill-opacity=".16" stroke="var(--amber)" stroke-width="1.4"/>
+  <g stroke="var(--amber)" stroke-opacity=".35">
+    <path d="M32 32 V 128"/><path d="M44 32 V 128"/><path d="M56 32 V 128"/><path d="M68 32 V 128"/>
+    <path d="M80 32 V 128"/><path d="M92 32 V 128"/><path d="M104 32 V 128"/>
+    <path d="M20 44 H 116"/><path d="M20 56 H 116"/><path d="M20 68 H 116"/><path d="M20 80 H 116"/>
+    <path d="M20 92 H 116"/><path d="M20 104 H 116"/><path d="M20 116 H 116"/>
+  </g>
+  <text x="68" y="146" text-anchor="middle" style="font-size:10px" fill="var(--amber)">naive DFT</text>
+  <text x="68" y="160" text-anchor="middle" class="lbl">one pass, 512 × 512</text>
+  <text x="68" y="176" text-anchor="middle" class="formula">262,144</text>
+
+  <!-- the FFT: nine thin passes -->
+  <g fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.2">
+    <rect x="186" y="32" width="96" height="7" rx="2"/>
+    <rect x="186" y="43" width="96" height="7" rx="2"/>
+    <rect x="186" y="54" width="96" height="7" rx="2"/>
+    <rect x="186" y="65" width="96" height="7" rx="2"/>
+    <rect x="186" y="76" width="96" height="7" rx="2"/>
+    <rect x="186" y="87" width="96" height="7" rx="2"/>
+    <rect x="186" y="98" width="96" height="7" rx="2"/>
+    <rect x="186" y="109" width="96" height="7" rx="2"/>
+    <rect x="186" y="120" width="96" height="7" rx="2"/>
+  </g>
+  <text x="234" y="146" text-anchor="middle" style="font-size:10px" fill="var(--teal)">radix-2 FFT</text>
+  <text x="234" y="160" text-anchor="middle" class="lbl">nine passes, 256 each</text>
+  <text x="234" y="176" text-anchor="middle" class="formula">2,304</text>
+
+  <!-- the ratio between them -->
+  <path d="M124 80 H 178" stroke="var(--muted)" stroke-width="1"/>
+  <path d="M178 80 l -7 -3.5 v 7 z" fill="var(--muted)"/>
+  <text x="151" y="74" text-anchor="middle" class="lbl">114×</text>
+
+  <!-- and it keeps growing -->
+  <path d="M300 32 V 128" stroke="var(--line)" stroke-dasharray="3 4"/>
+  <text x="312" y="42" class="lbl">and the gap widens</text>
+  <g style="font-size:10px">
+    <text x="312" y="66">n = 512</text><text x="430" y="66" text-anchor="end" fill="var(--teal)">114×</text>
+    <text x="312" y="88">n = 4,096</text><text x="430" y="88" text-anchor="end" fill="var(--teal)">683×</text>
+    <text x="312" y="110">n = 65,536</text><text x="430" y="110" text-anchor="end" fill="var(--teal)">8,192×</text>
+  </g>
+  <text x="312" y="128" class="lbl">complex multiplies,</text>
+  <text x="312" y="140" class="lbl">DFT ÷ FFT</text>
+</svg>

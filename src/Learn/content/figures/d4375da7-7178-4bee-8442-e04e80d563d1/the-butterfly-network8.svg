@@ -1,0 +1,63 @@
+<svg viewBox="0 0 440 220" role="img" aria-label="The radix-2 butterfly network for eight samples: three stages of pairwise combinations at half-block distances 1, 2 and 4. Each butterfly crosses two wires, producing a plus w times b on one and a minus w times b on the other. Stage 1 uses only the twiddle W to the zero; stage 2 adds W squared; stage 3 uses W to the zero, one, two and three. The input arrives in bit-reversed order and the output leaves in bin order. The butterfly feeding output bin 5 is picked out: it pairs wires 1 and 5 with twiddle W to the one.">
+  <text x="10" y="14" class="lbl-up">THE BUTTERFLY NETWORK, n = 8</text>
+
+  <!-- stage headers -->
+  <g class="lbl" text-anchor="middle">
+    <text x="114" y="30">half = 1</text>
+    <text x="208" y="30">half = 2</text>
+    <text x="302" y="30">half = 4</text>
+    <text x="114" y="42">W⁰</text>
+    <text x="208" y="42">W⁰ W²</text>
+    <text x="302" y="42">W⁰ W¹ W² W³</text>
+  </g>
+
+  <!-- the eight wires -->
+  <g stroke="var(--line)">
+    <path d="M52 56 H 352"/><path d="M52 74 H 352"/><path d="M52 92 H 352"/><path d="M52 110 H 352"/>
+    <path d="M52 128 H 352"/><path d="M52 146 H 352"/><path d="M52 164 H 352"/><path d="M52 182 H 352"/>
+  </g>
+
+  <!-- input order (bit-reversed) and output bins -->
+  <g class="lbl" text-anchor="end">
+    <text x="46" y="59">x[0]</text><text x="46" y="77">x[4]</text><text x="46" y="95">x[2]</text><text x="46" y="113">x[6]</text>
+    <text x="46" y="131">x[1]</text><text x="46" y="149">x[5]</text><text x="46" y="167">x[3]</text><text x="46" y="185">x[7]</text>
+  </g>
+  <g class="lbl">
+    <text x="358" y="59">X[0]</text><text x="358" y="77">X[1]</text><text x="358" y="95">X[2]</text><text x="358" y="113">X[3]</text>
+    <text x="358" y="131">X[4]</text><text x="358" y="149">X[5]</text><text x="358" y="167">X[6]</text><text x="358" y="185">X[7]</text>
+  </g>
+
+  <!-- stage 1: half = 1, pairs (0,1) (2,3) (4,5) (6,7) -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.2">
+    <path d="M96 56 L 132 74"/><path d="M96 74 L 132 56"/>
+    <path d="M96 92 L 132 110"/><path d="M96 110 L 132 92"/>
+    <path d="M96 128 L 132 146"/><path d="M96 146 L 132 128"/>
+    <path d="M96 164 L 132 182"/><path d="M96 182 L 132 164"/>
+  </g>
+
+  <!-- stage 2: half = 2, pairs (0,2) (1,3) (4,6) (5,7) -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.2">
+    <path d="M190 56 L 226 92"/><path d="M190 92 L 226 56"/>
+    <path d="M190 74 L 226 110"/><path d="M190 110 L 226 74"/>
+    <path d="M190 128 L 226 164"/><path d="M190 164 L 226 128"/>
+    <path d="M190 146 L 226 182"/><path d="M190 182 L 226 146"/>
+  </g>
+
+  <!-- stage 3: half = 4, pairs (0,4) (2,6) (3,7) in blue, (1,5) picked out -->
+  <g fill="none" stroke="var(--blue)" stroke-width="1.2">
+    <path d="M284 56 L 320 128"/><path d="M284 128 L 320 56"/>
+    <path d="M284 92 L 320 164"/><path d="M284 164 L 320 92"/>
+    <path d="M284 110 L 320 182"/><path d="M284 182 L 320 110"/>
+  </g>
+  <g fill="none" stroke="var(--pink)" stroke-width="1.8">
+    <path d="M284 74 L 320 146"/><path d="M284 146 L 320 74"/>
+  </g>
+  <g fill="var(--pink)">
+    <circle cx="284" cy="74" r="2.6"/><circle cx="284" cy="146" r="2.6"/>
+    <circle cx="320" cy="74" r="2.6"/><circle cx="320" cy="146" r="2.6"/>
+  </g>
+  <text x="330" y="140" style="font-size:10px" fill="var(--pink)">W¹</text>
+
+  <text x="200" y="200" text-anchor="middle" class="lbl">every crossing is a + w·b on one wire and a − w·b on the other</text>
+  <text x="200" y="214" text-anchor="middle" class="formula">i = 5, half = 4 → pair (1, 5), r = 1 → X[5] = a − W¹·b</text>
+</svg>

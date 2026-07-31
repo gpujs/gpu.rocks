@@ -1,0 +1,31 @@
+<svg viewBox="0 0 440 216" role="img" aria-label="Convolving 32 samples with a 9-tap filter produces 40 samples of answer. In a 32-sample buffer the last 8 of those have nowhere to go, so they fold around and land on top of samples 0 to 7, corrupting them. Padding both buffers to 64 samples first leaves 24 samples of empty room after the answer, and nothing wraps.">
+  <text x="10" y="13" class="lbl-up">THE ANSWER IS LONGER THAN THE BUFFER</text>
+
+  <!-- ================= n = 32: the tail folds back ================= -->
+  <text x="14" y="36" class="lbl">n = 32 — no room for the tail</text>
+  <text x="233" y="36" text-anchor="middle" style="font-size:9px" fill="var(--lred)">buffer ends</text>
+
+  <!-- the 40 samples of answer, at 4.6 px each -->
+  <rect x="86" y="46" width="184" height="20" rx="3" fill="none" stroke="var(--line)"/>
+  <rect x="233" y="46" width="37" height="20" rx="3" fill="var(--lred)" fill-opacity=".14" stroke="var(--lred)" stroke-width="1.4" stroke-dasharray="4 3"/>
+  <rect x="86" y="46" width="37" height="20" rx="3" fill="var(--lred)" fill-opacity=".22" stroke="var(--lred)" stroke-width="1.5"/>
+  <path d="M233 42 V 70" fill="none" stroke="var(--lred)" stroke-width="1.1" stroke-dasharray="3 2"/>
+  <text x="80" y="60" text-anchor="end" class="lbl">answer</text>
+
+  <!-- the fold -->
+  <path d="M252 70 C 252 98, 104 98, 104 74" fill="none" stroke="var(--lred)" stroke-width="1.4"/>
+  <path d="M104 69 l -3.6 6.4 h 7.2 z" fill="var(--lred)"/>
+  <text x="178" y="118" text-anchor="middle" style="font-size:9px" fill="var(--lred)">the tail lands on the head</text>
+
+  <!-- ================= n = 64: room to spare ================= -->
+  <text x="14" y="146" class="lbl">n = 64 — the tail lands on padding</text>
+
+  <rect x="86" y="156" width="184" height="20" rx="3" fill="var(--teal)" fill-opacity=".14" stroke="var(--teal)" stroke-width="1.6"/>
+  <rect x="270" y="156" width="110" height="20" rx="3" fill="none" stroke="var(--line)" stroke-dasharray="4 3"/>
+  <text x="80" y="170" text-anchor="end" class="lbl">answer</text>
+
+  <text x="178" y="192" text-anchor="middle" style="font-size:9px" fill="var(--teal)">the same 40 samples</text>
+  <text x="325" y="192" text-anchor="middle" class="lbl">24 zeros</text>
+
+  <text x="220" y="210" text-anchor="middle" class="formula">pad to n ≥ 32 + 9 − 1 = 40, then round up to 64</text>
+</svg>

@@ -1,0 +1,46 @@
+<svg viewBox="0 0 320 210" role="img" aria-label="The bit-reversal permutation for eight elements, as a table. Index 0, binary 000, reversed 000, stays at 0. Index 1, binary 001, reversed 100, goes to 4. Index 2, 010, reversed 010, stays at 2. Index 3, 011, reversed 110, goes to 6. Index 4, 100, reversed 001, goes to 1. Index 5, 101, reversed 101, stays at 5. Index 6, 110, reversed 011, goes to 3. Index 7, 111, reversed 111, stays at 7. Indices 1 and 4 swap with each other, as do 3 and 6, so applying the permutation twice returns every element to where it started.">
+  <text x="10" y="14" class="lbl-up">READ THE INDEX BACKWARDS, n = 8</text>
+
+  <g class="lbl" text-anchor="middle">
+    <text x="30" y="36">i</text>
+    <text x="100" y="36">in binary</text>
+    <text x="182" y="36">reversed</text>
+    <text x="256" y="36">goes to</text>
+  </g>
+  <path d="M14 42 H 292" stroke="var(--line)"/>
+
+  <!-- the two rows that swap with each other -->
+  <rect x="14" y="60" width="278" height="16" rx="4" fill="var(--pink)" fill-opacity=".12"/>
+  <rect x="14" y="108" width="278" height="16" rx="4" fill="var(--pink)" fill-opacity=".12"/>
+
+  <g style="font-size:10px" text-anchor="middle">
+    <text x="30" y="56">0</text><text x="100" y="56">000</text><text x="182" y="56">000</text><text x="256" y="56">0</text>
+    <text x="30" y="72" fill="var(--pink)">1</text><text x="100" y="72" fill="var(--pink)">001</text><text x="182" y="72" fill="var(--pink)">100</text><text x="256" y="72" fill="var(--pink)">4</text>
+    <text x="30" y="88">2</text><text x="100" y="88">010</text><text x="182" y="88">010</text><text x="256" y="88">2</text>
+    <text x="30" y="104">3</text><text x="100" y="104">011</text><text x="182" y="104">110</text><text x="256" y="104">6</text>
+    <text x="30" y="120" fill="var(--pink)">4</text><text x="100" y="120" fill="var(--pink)">100</text><text x="182" y="120" fill="var(--pink)">001</text><text x="256" y="120" fill="var(--pink)">1</text>
+    <text x="30" y="136">5</text><text x="100" y="136">101</text><text x="182" y="136">101</text><text x="256" y="136">5</text>
+    <text x="30" y="152">6</text><text x="100" y="152">110</text><text x="182" y="152">011</text><text x="256" y="152">3</text>
+    <text x="30" y="168">7</text><text x="100" y="168">111</text><text x="182" y="168">111</text><text x="256" y="168">7</text>
+  </g>
+
+  <!-- the digits turning around, on the two highlighted rows -->
+  <g fill="none" stroke="var(--pink)" stroke-width="1.1">
+    <path d="M124 68 Q 148 58 160 68"/>
+    <path d="M124 116 Q 148 106 160 116"/>
+  </g>
+  <g fill="var(--pink)">
+    <path d="M162 69 l -6.5 -3.5 l 1 6 z"/>
+    <path d="M162 117 l -6.5 -3.5 l 1 6 z"/>
+  </g>
+
+  <!-- and the pair swaps with itself -->
+  <path d="M280 68 q 14 26 0 52" fill="none" stroke="var(--blue)" stroke-width="1.2"/>
+  <g fill="var(--blue)">
+    <path d="M280 68 l 5 3 l -6 3.5 z"/>
+    <path d="M280 120 l 5 -3 l -6 -3.5 z"/>
+  </g>
+
+  <text x="150" y="190" text-anchor="middle" class="formula">reverse twice → back to the start</text>
+  <text x="150" y="204" text-anchor="middle" class="lbl">so gather and scatter agree here</text>
+</svg>

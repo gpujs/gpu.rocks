@@ -1,0 +1,47 @@
+<svg viewBox="0 0 440 158" role="img" aria-label="A normalised autocorrelation curve over lags 0 to 255, peaking at every multiple of 40. Lag 0 scores exactly 1 and is struck out as meaningless; lag 40 is the answer; lag 80, twice the period, scores fractionally higher and is flagged as the octave trap.">
+  <text x="10" y="14" class="lbl-up">ONE CURVE, THREE TRAPS</text>
+
+  <!-- which peak is which -->
+  <text x="34" y="28" text-anchor="middle" style="font-size:9px" fill="var(--lred)">0</text>
+  <text x="91.7" y="28" text-anchor="middle" style="font-size:9px" fill="var(--teal)">40</text>
+  <text x="149.5" y="28" text-anchor="middle" style="font-size:9px" fill="var(--amber)">80</text>
+
+  <!-- the accept threshold and the zero line -->
+  <line x1="34" y1="44.4" x2="402" y2="44.4" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 3" opacity=".7"/>
+  <line x1="34" y1="70" x2="402" y2="70" class="cellline"/>
+  <text x="407" y="47" class="lbl" style="font-size:9px">0.8</text>
+  <text x="407" y="73" class="lbl" style="font-size:9px">0</text>
+
+  <path d="M34 38 L36.9 41.1 39.8 49 42.7 58.6 45.5 67.5 48.4 74.6 51.3 80 54.2 84 57.1 86.7 60 88.3 62.9 88.9 65.7 88.7 68.6 87.5 71.5 85.1 74.4 81.3 77.3 76 80.2 69.1 83.1 60.2 86 50.5 88.8 42.5 91.7 39.4 94.6 42.5 97.5 50.3 100.4 60 103.3 68.9 106.2 75.8 109 81 111.9 84.8 114.8 87.3 117.7 88.6 120.6 88.9 123.5 88.4 126.4 87 129.2 84.3 132.1 80.3 135 74.9 137.9 67.8 140.8 59 143.7 49.3 146.6 41.2 149.5 38 152.3 41.1 155.2 49 158.1 58.6 161 67.4 163.9 74.5 166.8 79.9 169.7 83.9 172.5 86.7 175.4 88.3 178.3 88.9 181.2 88.7 184.1 87.5 187 85.1 189.9 81.3 192.7 76.1 195.6 69.1 198.5 60.3 201.4 50.5 204.3 42.5 207.2 39.4 210.1 42.5 212.9 50.3 215.8 59.9 218.7 68.8 221.6 75.8 224.5 81 227.4 84.8 230.3 87.3 233.2 88.6 236 89 238.9 88.5 241.8 87 244.7 84.3 247.6 80.3 250.5 74.8 253.4 67.7 256.2 59 259.1 49.3 262 41.2 264.9 38 267.8 41.1 270.7 48.9 273.6 58.4 276.4 67.3 279.3 74.3 282.2 79.8 285.1 83.9 288 86.6 290.9 88.2 293.8 88.9 296.7 88.8 299.5 87.6 302.4 85.2 305.3 81.4 308.2 76.1 311.1 69.1 314 60.3 316.9 50.6 319.7 42.5 322.6 39.4 325.5 42.5 328.4 50.2 331.3 59.9 334.2 68.8 337.1 75.8 339.9 81 342.8 84.8 345.7 87.4 348.6 88.7 351.5 89 354.4 88.5 357.3 87.1 360.1 84.3 363 80.2 365.9 74.7 368.8 67.6 371.7 58.9 374.6 49.3 377.5 41.2 380.4 38 383.2 41.1 386.1 48.8 389 58.2 391.9 67 394.8 74.1 397.7 79.6 400.6 83.7 402 85.3"
+    fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-linejoin="round"/>
+
+  <!-- the three peaks that matter -->
+  <circle cx="34" cy="38" r="4.4" fill="none" stroke="var(--lred)" stroke-width="1.8"/>
+  <path d="M30.9 34.9 L37.1 41.1 M37.1 34.9 L30.9 41.1" stroke="var(--lred)" stroke-width="1.5"/>
+  <circle cx="91.7" cy="39.4" r="4.4" fill="var(--teal)"/>
+  <circle cx="149.5" cy="38" r="4.4" fill="none" stroke="var(--amber)" stroke-width="2"/>
+
+  <!-- lag axis -->
+  <g class="lbl" text-anchor="middle" style="font-size:9px">
+    <text x="34" y="105">0</text>
+    <text x="91.7" y="105">40</text>
+    <text x="149.5" y="105">80</text>
+    <text x="207.2" y="105">120</text>
+    <text x="264.9" y="105">160</text>
+    <text x="322.6" y="105">200</text>
+    <text x="380.4" y="105">240</text>
+  </g>
+  <text x="220" y="119" text-anchor="middle" class="lbl">lag in samples — every multiple of 40 is a real peak</text>
+
+  <!-- key -->
+  <g style="font-size:9px">
+    <circle cx="66" cy="133" r="3.6" fill="none" stroke="var(--lred)" stroke-width="1.6"/>
+    <text x="75" y="136" fill="var(--lred)">free</text>
+    <circle cx="150" cy="133" r="3.6" fill="var(--teal)"/>
+    <text x="159" y="136" fill="var(--teal)">the answer</text>
+    <circle cx="262" cy="133" r="3.6" fill="none" stroke="var(--amber)" stroke-width="1.8"/>
+    <text x="271" y="136" fill="var(--amber)">2× the period — the trap</text>
+  </g>
+
+  <text x="220" y="152" text-anchor="middle" class="formula">take the FIRST peak over the line, not the tallest</text>
+</svg>

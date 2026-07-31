@@ -1,0 +1,39 @@
+<svg viewBox="0 0 440 164" role="img" aria-label="The magnitude spectrum of a real signal, 256 bins wide. Peaks at bins 0, 12 and 33 in the lower half are matched by identical peaks at bins 244 and 223 in the upper half; an arc links bin 12 to bin 244. A dashed line at bin 128 splits the spectrum: bins 0 to 128 carry all the information, the rest repeats it backwards.">
+  <text x="10" y="13" class="lbl-up">THE TOP HALF IS A MIRROR</text>
+
+  <!-- k ↔ n − k -->
+  <text x="220" y="14" text-anchor="middle" style="font-size:9px" fill="var(--pink)">k ↔ n − k</text>
+  <path d="M47.9 34 Q 220 4 393.6 34" fill="none" stroke="var(--pink)" stroke-width="1.2" stroke-dasharray="3 2"/>
+  <path d="M47.9 38 l -3.6 -7 h 7.2 z" fill="var(--pink)"/>
+  <path d="M393.6 38 l -3.6 -7 h 7.2 z" fill="var(--pink)"/>
+
+  <!-- the bins that carry the information -->
+  <g fill="var(--teal)" fill-opacity=".3" stroke="var(--teal)" stroke-width="1.4">
+    <rect x="26.5" y="67" width="7" height="45" rx="1.5"/>
+    <rect x="44.4" y="40" width="7" height="72" rx="1.5"/>
+    <rect x="75.7" y="71.5" width="7" height="40.5" rx="1.5"/>
+  </g>
+
+  <!-- and the bins that only repeat them -->
+  <g fill="none" stroke="var(--muted)" stroke-width="1.2">
+    <rect x="358.8" y="71.5" width="7" height="40.5" rx="1.5"/>
+    <rect x="390.1" y="40" width="7" height="72" rx="1.5"/>
+  </g>
+
+  <path d="M220.7 30 V 116" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/>
+  <text x="226" y="44" class="lbl">n/2</text>
+
+  <path d="M26 112 H 414" class="arrow" stroke-width="1.2"/>
+  <g class="lbl" text-anchor="middle" style="font-size:8px">
+    <text x="30" y="124">0</text>
+    <text x="47.9" y="124">12</text>
+    <text x="79.2" y="124">33</text>
+    <text x="362.3" y="124">223</text>
+    <text x="393.6" y="124">244</text>
+  </g>
+
+  <path d="M30 132 v 6 H 220.7 v -6" fill="none" stroke="var(--teal)" stroke-width="1.3"/>
+  <path d="M222.7 132 v 6 H 410 v -6" fill="none" stroke="var(--muted)" stroke-width="1.1"/>
+  <text x="125" y="152" text-anchor="middle" style="font-size:9px" fill="var(--teal)">bins 0…128: everything</text>
+  <text x="316" y="152" text-anchor="middle" class="lbl">the same, backwards</text>
+</svg>

@@ -66,7 +66,25 @@ const tracks = [
     ],
   },
   {
+    // Placed after Computer Vision on purpose: this track's credits point back
+    // at it — frequency-domain filtering builds on Convolution & Filters, and
+    // the spectrogram's colour ramp on Colour Spaces — so the dependencies read
+    // backwards rather than forwards.
     number: 5,
+    title: 'Signal Processing',
+    tagline: 'Time in, frequency out — and the algorithm that made it practical',
+    modules: [
+      'ad14836c-62d4-4243-afd8-401694d13c75', // Sampling & Aliasing
+      '7b1e3f9b-baf5-4b75-9ad1-3c05f445a3db', // The DFT, Honestly
+      'd4375da7-7178-4bee-8442-e04e80d563d1', // The FFT Butterfly
+      'f563138d-cbb0-4aa5-b874-ff028b277677', // Windowing & Spectral Leakage
+      '8c225e10-d7d6-4473-8099-1c45f40a7668', // Filtering in the Frequency Domain
+      '9ecd2295-c9d9-4023-b393-bbdc776a2d77', // Spectrograms
+      'b159433f-d1bb-4ed5-8ae3-ef7a3db50f57', // Autocorrelation & Pitch
+    ],
+  },
+  {
+    number: 6,
     title: 'Computational Graphics',
     tagline: 'Pictures computed, not drawn',
     modules: [

@@ -1,0 +1,72 @@
+<svg viewBox="0 0 440 252" role="img" aria-label="A tone with a whole number of cycles in the window tiles end to end into one smooth wave and its spectrum is a single spike. A tone with half a cycle left over jumps at every seam where the copies meet, and its spectrum is smeared across every bin.">
+  <text x="10" y="13" class="lbl-up">THE DFT SEES YOUR WINDOW REPEATED, FOREVER</text>
+
+  <g stroke="var(--line)" stroke-dasharray="3 3">
+    <path d="M152 32 V 146"/>
+    <path d="M274 32 V 146"/>
+  </g>
+  <g class="lbl" text-anchor="middle">
+    <text x="91" y="29">copy 1</text>
+    <text x="213" y="29">copy 2</text>
+    <text x="335" y="29">copy 3</text>
+  </g>
+
+  <text x="8" y="58" class="lbl">8.0</text>
+  <path d="M30 38 L32 38.8 L34 41 L36 44.4 L38 48.7 L40 53.6 L42 58.5 L44 62.9 L46 66.5 L48 69 L50 70 L52 69.5 L54 67.5 L56 64.2 L58 60 L60 55.2 L62 50.3 L64 45.8 L66 42 L68 39.3 L70 38.1 L72 38.3 L74 40.1 L76 43.1 L78 47.2 L80 51.9 L82 56.9 L84 61.5 L86 65.5 L88 68.3 L90 69.8 L92 69.8 L94 68.3 L96 65.5 L98 61.5 L100 56.9 L102 51.9 L104 47.2 L106 43.1 L108 40.1 L110 38.3 L112 38.1 L114 39.3 L116 42 L118 45.8 L120 50.3 L122 55.2 L124 60 L126 64.2 L128 67.5 L130 69.5 L132 70 L134 69 L136 66.5 L138 62.9 L140 58.5 L142 53.6 L144 48.7 L146 44.4 L148 41 L150 38.8 L152 38 L154 38.8 L156 41 L158 44.4 L160 48.7 L162 53.6 L164 58.5 L166 62.9 L168 66.5 L170 69 L172 70 L174 69.5 L176 67.5 L178 64.2 L180 60 L182 55.2 L184 50.3 L186 45.8 L188 42 L190 39.3 L192 38.1 L194 38.3 L196 40.1 L198 43.1 L200 47.2 L202 51.9 L204 56.9 L206 61.5 L208 65.5 L210 68.3 L212 69.8 L214 69.8 L216 68.3 L218 65.5 L220 61.5 L222 56.9 L224 51.9 L226 47.2 L228 43.1 L230 40.1 L232 38.3 L234 38.1 L236 39.3 L238 42 L240 45.8 L242 50.3 L244 55.2 L246 60 L248 64.2 L250 67.5 L252 69.5 L254 70 L256 69 L258 66.5 L260 62.9 L262 58.5 L264 53.6 L266 48.7 L268 44.4 L270 41 L272 38.8 L274 38 L276 38.8 L278 41 L280 44.4 L282 48.7 L284 53.6 L286 58.5 L288 62.9 L290 66.5 L292 69 L294 70 L296 69.5 L298 67.5 L300 64.2 L302 60 L304 55.2 L306 50.3 L308 45.8 L310 42 L312 39.3 L314 38.1 L316 38.3 L318 40.1 L320 43.1 L322 47.2 L324 51.9 L326 56.9 L328 61.5 L330 65.5 L332 68.3 L334 69.8 L336 69.8 L338 68.3 L340 65.5 L342 61.5 L344 56.9 L346 51.9 L348 47.2 L350 43.1 L352 40.1 L354 38.3 L356 38.1 L358 39.3 L360 42 L362 45.8 L364 50.3 L366 55.2 L368 60 L370 64.2 L372 67.5 L374 69.5 L376 70 L378 69 L380 66.5 L382 62.9 L384 58.5 L386 53.6 L388 48.7 L390 44.4 L392 41 L394 38.8 L396 38" fill="none" stroke="var(--teal)" stroke-width="1.5"/>
+  <circle cx="152" cy="38" r="2.6" fill="var(--teal)"/>
+  <circle cx="274" cy="38" r="2.6" fill="var(--teal)"/>
+  <text x="402" y="57" style="font-size:9px" fill="var(--teal)">no seam</text>
+
+  <text x="8" y="124" class="lbl">8.5</text>
+  <path d="M30 104 L32 105 L34 108 L36 112.5 L38 117.9 L40 123.7 L42 128.9 L44 133 L46 135.5 L48 135.9 L50 134.3 L52 130.9 L54 126 L56 120.4 L58 114.7 L60 109.8 L62 106.1 L64 104.2 L66 104.3 L68 106.5 L70 110.4 L72 115.5 L74 121.2 L76 126.8 L78 131.5 L80 134.7 L82 136 L84 135.2 L86 132.5 L88 128.2 L90 122.9 L92 117.1 L94 111.8 L96 107.5 L98 104.8 L100 104 L102 105.3 L104 108.5 L106 113.2 L108 118.8 L110 124.5 L112 129.6 L114 133.5 L116 135.7 L118 135.8 L120 133.9 L122 130.2 L124 125.3 L126 119.6 L128 114 L130 109.1 L132 105.7 L134 104.1 L136 104.5 L138 107 L140 111.1 L142 116.3 L144 122.1 L146 127.5 L148 132 L150 135 L152 104 L154 105 L156 108 L158 112.5 L160 117.9 L162 123.7 L164 128.9 L166 133 L168 135.5 L170 135.9 L172 134.3 L174 130.9 L176 126 L178 120.4 L180 114.7 L182 109.8 L184 106.1 L186 104.2 L188 104.3 L190 106.5 L192 110.4 L194 115.5 L196 121.2 L198 126.8 L200 131.5 L202 134.7 L204 136 L206 135.2 L208 132.5 L210 128.2 L212 122.9 L214 117.1 L216 111.8 L218 107.5 L220 104.8 L222 104 L224 105.3 L226 108.5 L228 113.2 L230 118.8 L232 124.5 L234 129.6 L236 133.5 L238 135.7 L240 135.8 L242 133.9 L244 130.2 L246 125.3 L248 119.6 L250 114 L252 109.1 L254 105.7 L256 104.1 L258 104.5 L260 107 L262 111.1 L264 116.3 L266 122.1 L268 127.5 L270 132 L272 135 L274 104 L276 105 L278 108 L280 112.5 L282 117.9 L284 123.7 L286 128.9 L288 133 L290 135.5 L292 135.9 L294 134.3 L296 130.9 L298 126 L300 120.4 L302 114.7 L304 109.8 L306 106.1 L308 104.2 L310 104.3 L312 106.5 L314 110.4 L316 115.5 L318 121.2 L320 126.8 L322 131.5 L324 134.7 L326 136 L328 135.2 L330 132.5 L332 128.2 L334 122.9 L336 117.1 L338 111.8 L340 107.5 L342 104.8 L344 104 L346 105.3 L348 108.5 L350 113.2 L352 118.8 L354 124.5 L356 129.6 L358 133.5 L360 135.7 L362 135.8 L364 133.9 L366 130.2 L368 125.3 L370 119.6 L372 114 L374 109.1 L376 105.7 L378 104.1 L380 104.5 L382 107 L384 111.1 L386 116.3 L388 122.1 L390 127.5 L392 132 L394 135 L396 136" fill="none" stroke="var(--muted)" stroke-width="1.4"/>
+  <path d="M152 135.9 V 104" stroke="var(--lred)" stroke-width="2.2"/>
+  <text x="157" y="99" style="font-size:9px" fill="var(--lred)">jump</text>
+  <path d="M274 135.9 V 104" stroke="var(--lred)" stroke-width="2.2"/>
+  <text x="279" y="99" style="font-size:9px" fill="var(--lred)">jump</text>
+  <text x="402" y="123" style="font-size:9px" fill="var(--lred)">seam</text>
+
+  <text x="30" y="176" class="lbl-up">SPECTRUM</text>
+  <text x="248" y="176" class="lbl-up">SPECTRUM</text>
+  <path class="arrow" d="M30 228 H 202" stroke-width="1"/>
+  <path class="arrow" d="M248 228 H 420" stroke-width="1"/>
+  <g>
+    <rect x="34.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="44.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="54.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="64.6" y="186" width="2.8" height="42" rx="1" fill="var(--teal)" fill-opacity=".85" stroke="var(--teal)" stroke-width="1"/>
+    <rect x="74.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="84.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="94.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="104.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="114.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="124.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="134.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="144.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="154.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="164.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="174.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="184.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+    <rect x="194.6" y="227.3" width="2.8" height="0.7" rx="1" fill="var(--muted)" fill-opacity=".5"/>
+  </g>
+  <g>
+    <rect x="252.6" y="224.1" width="2.8" height="3.9" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="262.6" y="222.7" width="2.8" height="5.3" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="272.6" y="217.4" width="2.8" height="10.6" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="282.6" y="190.8" width="2.8" height="37.2" rx="1" fill="var(--lred)" fill-opacity=".85" stroke="var(--lred)" stroke-width="1"/>
+    <rect x="292.6" y="186" width="2.8" height="42" rx="1" fill="var(--lred)" fill-opacity=".85" stroke="var(--lred)" stroke-width="1"/>
+    <rect x="302.6" y="212.6" width="2.8" height="15.4" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="312.6" y="218" width="2.8" height="10" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="322.6" y="220.3" width="2.8" height="7.7" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="332.6" y="221.6" width="2.8" height="6.4" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="342.6" y="222.5" width="2.8" height="5.5" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="352.6" y="223" width="2.8" height="5" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="362.6" y="223.4" width="2.8" height="4.6" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="372.6" y="223.7" width="2.8" height="4.3" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="382.6" y="223.9" width="2.8" height="4.1" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="392.6" y="224" width="2.8" height="4" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="402.6" y="224.1" width="2.8" height="3.9" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+    <rect x="412.6" y="224.1" width="2.8" height="3.9" rx="1" fill="var(--lred)" fill-opacity=".4"/>
+  </g>
+  <text x="116" y="243" text-anchor="middle" style="font-size:9px" fill="var(--teal)">one bin</text>
+  <text x="334" y="243" text-anchor="middle" style="font-size:9px" fill="var(--lred)">every bin</text>
+</svg>

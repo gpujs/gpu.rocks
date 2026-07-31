@@ -1,0 +1,35 @@
+<svg viewBox="0 0 320 168" role="img" aria-label="Three measured correlation values at lags 18, 19 and 20 with a parabola fitted through them; the parabola's apex sits at lag 18.63, to the left of the tallest sample at lag 19.">
+  <text x="10" y="14" class="lbl-up">THE PEAK BETWEEN THE SAMPLES</text>
+
+  <!-- the fitted parabola -->
+  <path d="M50 64.5 L60.5 59.4 70.9 54.9 81.4 51.3 91.8 48.4 102.3 46.2 112.7 44.8 123.2 44.1 133.6 44.1 144.1 44.9 154.5 46.5 165 48.8 175.5 51.9 185.9 55.7 196.4 60.2 206.8 65.5 217.3 71.5 227.7 78.3 238.2 85.8 248.6 94.1 259.1 103.1 269.5 112.9 280 123.4"
+    fill="none" stroke="var(--pink)" stroke-width="1.6" stroke-linejoin="round"/>
+
+  <!-- axis -->
+  <line x1="40" y1="130" x2="292" y2="130" class="cellline"/>
+
+  <!-- the three integer samples we actually measured -->
+  <g stroke="var(--blue)" stroke-width="1.4">
+    <line x1="68.8" y1="130" x2="68.8" y2="55.8"/>
+    <line x1="162.7" y1="130" x2="162.7" y2="48.2"/>
+    <line x1="256.5" y1="130" x2="256.5" y2="100.8"/>
+  </g>
+  <g fill="var(--blue)">
+    <circle cx="68.8" cy="55.8" r="3"/>
+    <circle cx="162.7" cy="48.2" r="3"/>
+    <circle cx="256.5" cy="100.8" r="3"/>
+  </g>
+  <g class="lbl" text-anchor="middle" style="font-size:9px">
+    <text x="68.8" y="143">18</text>
+    <text x="162.7" y="143">19</text>
+    <text x="256.5" y="143">20</text>
+  </g>
+
+  <!-- the interpolated apex -->
+  <line x1="127.5" y1="44" x2="127.5" y2="130" stroke="var(--teal)" stroke-width="1.2" stroke-dasharray="4 3"/>
+  <circle cx="127.5" cy="44" r="3.4" fill="var(--teal)"/>
+  <text x="120" y="36" text-anchor="end" style="font-size:9px" fill="var(--teal)">18.63</text>
+  <text x="170" y="36" style="font-size:9px" fill="var(--blue)">tallest sample</text>
+
+  <text x="160" y="160" text-anchor="middle" class="formula">δ = ½(r₁₈ − r₂₀) / (r₁₈ − 2r₁₉ + r₂₀) = −0.37</text>
+</svg>

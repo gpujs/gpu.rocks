@@ -1,0 +1,50 @@
+<svg viewBox="0 0 440 206" role="img" aria-label="One bin of a transform, drawn as a dot product: a signal of sixteen samples, a test cosine at bin 2 below it, the sixteen products of the two as bars — almost all of them positive, because the test wave rises and falls with the signal — and the sum of those products collapsing into a single number, eight.">
+  <text x="10" y="13" class="lbl-up">ONE BIN = ONE DOT PRODUCT</text>
+
+  <!-- row 1: the signal -->
+  <text x="10" y="26" class="lbl">signal x[i]</text>
+  <path d="M34 50 H 318" class="arrow" stroke-dasharray="2 3"/>
+  <polyline points="40,33.6 58,45.8 76,49.4 94,54.7 112,67.2 130,60.7 148,44.8 166,43.3 184,40.2 202,35.7 220,50.6 238,63.8 256,59 274,57.8 292,55.2 310,38.2"
+    fill="none" stroke="var(--muted)" stroke-width="1.1" opacity=".55"/>
+  <g fill="var(--ink)">
+    <circle cx="40" cy="33.6" r="2.2"/><circle cx="58" cy="45.8" r="2.2"/><circle cx="76" cy="49.4" r="2.2"/><circle cx="94" cy="54.7" r="2.2"/>
+    <circle cx="112" cy="67.2" r="2.2"/><circle cx="130" cy="60.7" r="2.2"/><circle cx="148" cy="44.8" r="2.2"/><circle cx="166" cy="43.3" r="2.2"/>
+    <circle cx="184" cy="40.2" r="2.2"/><circle cx="202" cy="35.7" r="2.2"/><circle cx="220" cy="50.6" r="2.2"/><circle cx="238" cy="63.8" r="2.2"/>
+    <circle cx="256" cy="59" r="2.2"/><circle cx="274" cy="57.8" r="2.2"/><circle cx="292" cy="55.2" r="2.2"/><circle cx="310" cy="38.2" r="2.2"/>
+  </g>
+
+  <!-- row 2: the test wave for this bin -->
+  <text x="10" y="84" class="lbl">test wave cos(2π·k·i/n), k = 2</text>
+  <path d="M34 108 H 318" class="arrow" stroke-dasharray="2 3"/>
+  <path d="M40.0 93.0 L46.0 93.5 L52.0 95.0 L58.0 97.4 L64.0 100.5 L70.0 104.1 L76.0 108.0 L82.0 111.9 L88.0 115.5 L94.0 118.6 L100.0 121.0 L106.0 122.5 L112.0 123.0 L118.0 122.5 L124.0 121.0 L130.0 118.6 L136.0 115.5 L142.0 111.9 L148.0 108.0 L154.0 104.1 L160.0 100.5 L166.0 97.4 L172.0 95.0 L178.0 93.5 L184.0 93.0 L190.0 93.5 L196.0 95.0 L202.0 97.4 L208.0 100.5 L214.0 104.1 L220.0 108.0 L226.0 111.9 L232.0 115.5 L238.0 118.6 L244.0 121.0 L250.0 122.5 L256.0 123.0 L262.0 122.5 L268.0 121.0 L274.0 118.6 L280.0 115.5 L286.0 111.9 L292.0 108.0 L298.0 104.1 L304.0 100.5 L310.0 97.4"
+    fill="none" stroke="var(--pink)" stroke-width="1.6"/>
+  <g fill="var(--pink)">
+    <circle cx="40" cy="93" r="2.2"/><circle cx="58" cy="97.4" r="2.2"/><circle cx="76" cy="108" r="2.2"/><circle cx="94" cy="118.6" r="2.2"/>
+    <circle cx="112" cy="123" r="2.2"/><circle cx="130" cy="118.6" r="2.2"/><circle cx="148" cy="108" r="2.2"/><circle cx="166" cy="97.4" r="2.2"/>
+    <circle cx="184" cy="93" r="2.2"/><circle cx="202" cy="97.4" r="2.2"/><circle cx="220" cy="108" r="2.2"/><circle cx="238" cy="118.6" r="2.2"/>
+    <circle cx="256" cy="123" r="2.2"/><circle cx="274" cy="118.6" r="2.2"/><circle cx="292" cy="108" r="2.2"/><circle cx="310" cy="97.4" r="2.2"/>
+  </g>
+
+  <!-- row 3: one product per sample -->
+  <text x="10" y="142" class="lbl">products x[i] · cos(…)</text>
+  <path d="M34 166 H 318" class="arrow" stroke-dasharray="2 3"/>
+  <g fill="var(--blue)" fill-opacity=".75">
+    <rect x="35" y="146" width="10" height="20" rx="2"/><rect x="53" y="162.4" width="10" height="3.6" rx="2"/>
+    <rect x="71" y="166" width="10" height="1.2" rx="2"/><rect x="89" y="162" width="10" height="4" rx="2"/>
+    <rect x="107" y="145" width="10" height="21" rx="2"/><rect x="125" y="156.8" width="10" height="9.2" rx="2"/>
+    <rect x="143" y="166" width="10" height="1.2" rx="2"/><rect x="161" y="160.2" width="10" height="5.8" rx="2"/>
+    <rect x="179" y="154" width="10" height="12" rx="2"/><rect x="197" y="153.6" width="10" height="12.4" rx="2"/>
+    <rect x="215" y="166" width="10" height="1.2" rx="2"/><rect x="233" y="154" width="10" height="12" rx="2"/>
+    <rect x="251" y="155" width="10" height="11" rx="2"/><rect x="269" y="159.2" width="10" height="6.8" rx="2"/>
+    <rect x="287" y="166" width="10" height="1.2" rx="2"/><rect x="305" y="155.8" width="10" height="10.2" rx="2"/>
+  </g>
+
+  <!-- add them all up: one number -->
+  <path class="arrow" d="M324 160 H 341" stroke-width="1.3"/>
+  <path class="arrowhead" d="M346 160 l -7 -4 v 8 z"/>
+  <rect x="352" y="145" width="72" height="30" rx="8" fill="var(--teal)" fill-opacity=".18" stroke="var(--teal)" stroke-width="1.6"/>
+  <text x="388" y="164" text-anchor="middle" style="font-size:12px" fill="var(--teal)">Σ = 8</text>
+  <text x="388" y="188" text-anchor="middle" class="lbl">bin 2</text>
+
+  <text x="10" y="198" class="formula">bin k = Σ x[i] · cos(2π·k·i/n)</text>
+</svg>

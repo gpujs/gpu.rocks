@@ -1,0 +1,31 @@
+<svg viewBox="0 0 440 200" role="img" aria-label="The same signal drawn twice. With a 64-sample window the two tones merge into one thick horizontal band while the click stays a knife-edge vertical line two columns wide. With a 256-sample window the two tones separate into two thin bands but the same click is smeared across six columns. Sharpness in one axis is paid for out of the other.">
+  <text x="10" y="13" class="lbl-up">THE SAME SIGNAL, TWO WINDOW LENGTHS</text>
+
+  <text x="110" y="34" text-anchor="middle" style="font-size:10px">window 64</text>
+  <text x="330" y="34" text-anchor="middle" style="font-size:10px">window 256</text>
+
+  <!-- short window: one fat band, a knife-edge click -->
+  <rect x="30" y="107" width="160" height="18" fill="var(--teal)" fill-opacity=".38"/>
+  <rect x="100" y="44" width="20" height="108" fill="var(--amber)" fill-opacity=".45"/>
+  <path class="cellline" fill="none" d="M30 44v108M40 44v108M50 44v108M60 44v108M70 44v108M80 44v108M90 44v108M100 44v108M110 44v108M120 44v108M130 44v108M140 44v108M150 44v108M160 44v108M170 44v108M180 44v108M190 44v108M30 44h160M30 53h160M30 62h160M30 71h160M30 80h160M30 89h160M30 98h160M30 107h160M30 116h160M30 125h160M30 134h160M30 143h160M30 152h160"/>
+
+  <!-- long window: two clean bands, a smeared click -->
+  <rect x="250" y="98" width="160" height="9" fill="var(--teal)" fill-opacity=".55"/>
+  <rect x="250" y="125" width="160" height="9" fill="var(--teal)" fill-opacity=".40"/>
+  <rect x="300" y="44" width="60" height="108" fill="var(--amber)" fill-opacity=".45"/>
+  <path class="cellline" fill="none" d="M250 44v108M260 44v108M270 44v108M280 44v108M290 44v108M300 44v108M310 44v108M320 44v108M330 44v108M340 44v108M350 44v108M360 44v108M370 44v108M380 44v108M390 44v108M400 44v108M410 44v108M250 44h160M250 53h160M250 62h160M250 71h160M250 80h160M250 89h160M250 98h160M250 107h160M250 116h160M250 125h160M250 134h160M250 143h160M250 152h160"/>
+
+  <text x="14" y="54" class="lbl">bin</text>
+  <text x="234" y="54" class="lbl">bin</text>
+  <text x="110" y="167" text-anchor="middle" class="lbl">time →</text>
+  <text x="330" y="167" text-anchor="middle" class="lbl">time →</text>
+
+  <g text-anchor="middle" style="font-size:10px" fill="var(--teal)">
+    <text x="110" y="180">one blurred peak</text>
+    <text x="330" y="180">two clean peaks</text>
+  </g>
+  <g text-anchor="middle" class="lbl">
+    <text x="110" y="192">click pinned to 2 frames</text>
+    <text x="330" y="192">click smeared over 6</text>
+  </g>
+</svg>

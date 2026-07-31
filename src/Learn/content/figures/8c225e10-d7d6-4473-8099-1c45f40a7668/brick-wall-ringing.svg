@@ -1,0 +1,47 @@
+<svg viewBox="0 0 440 194" role="img" aria-label="On the left, a low-pass response drawn against frequency: a rectangle that is one inside plus or minus twenty bins and zero outside, with vertical cliffs at both edges. On the right, the same filter applied to a square wave in time: instead of a clean step the wave overshoots the target level by about nine percent of the jump and then keeps rippling above and below it. The cliff on the left is what causes the ringing on the right.">
+  <text x="10" y="13" class="lbl-up">A CLIFF IN FREQUENCY IS A RING IN TIME</text>
+
+  <!-- ================= frequency side ================= -->
+  <text x="14" y="32" class="lbl">the response you asked for</text>
+
+  <path class="arrow" stroke-width="1" d="M18 142 H 208"/>
+  <path class="arrow" stroke-width="1" d="M112 148 V 60" opacity=".45"/>
+
+  <!-- the brick wall -->
+  <path d="M67 142 V 66 H 157 V 142" fill="var(--blue)" fill-opacity=".12" stroke="var(--blue)" stroke-width="1.7"/>
+
+  <g class="lbl" text-anchor="middle">
+    <text x="67" y="156">−20</text>
+    <text x="112" y="156">0</text>
+    <text x="157" y="156">+20</text>
+  </g>
+  <text x="112" y="169" text-anchor="middle" class="lbl">bin index k</text>
+  <text x="59" y="62" text-anchor="middle" style="font-size:9px" fill="var(--blue)">1</text>
+  <text x="184" y="136" text-anchor="middle" style="font-size:9px" fill="var(--blue)">0</text>
+
+  <!-- ================= the hand-off ================= -->
+  <path class="arrow" stroke-width="1.1" d="M214 100 H 240"/>
+  <path class="arrowhead" d="M245 100 l -6 -3.4 v 6.8 z"/>
+  <text x="228" y="86" text-anchor="middle" class="lbl">inverse</text>
+
+  <!-- ================= time side ================= -->
+  <text x="252" y="32" class="lbl">the wave you get back</text>
+
+  <!-- the ideal square, for reference -->
+  <path d="M252 142 H 313.8 V 66 H 424" fill="none" stroke="var(--muted)" stroke-width="1.1" stroke-dasharray="3 3" opacity=".7"/>
+
+  <!-- the filtered wave, sample for sample -->
+  <polyline fill="none" stroke="var(--blue)" stroke-width="1.7" stroke-linejoin="round" points="252.0 138.9 257.4 140.6 262.8 143.1 268.1 145.8 273.5 148.0 278.9 149.0 284.3 148.2 289.6 145.1 295.0 139.5 300.4 131.4 305.8 121.3 311.1 109.9 316.5 98.1 321.9 86.7 327.3 76.6 332.6 68.5 338.0 62.9 343.4 59.8 348.8 59.0 354.1 60.0 359.5 62.2 364.9 64.9 370.3 67.4 375.6 69.1 381.0 70.0 386.4 69.8 391.8 68.7 397.1 67.2 402.5 65.5 407.9 64.1 413.3 63.2 418.6 63.1 424.0 63.6"/>
+
+  <!-- the overshoot -->
+  <path d="M348.8 59 V 66" fill="none" stroke="var(--lred)" stroke-width="1.6"/>
+  <circle cx="348.8" cy="59" r="2.6" fill="var(--lred)"/>
+  <path d="M351 57 C 358 50, 366 46, 372 46" fill="none" stroke="var(--lred)" stroke-width="1.1"/>
+  <text x="376" y="49" style="font-size:9px" fill="var(--lred)">≈ 9% of</text>
+  <text x="376" y="59" style="font-size:9px" fill="var(--lred)">the jump</text>
+
+  <path class="arrow" stroke-width="1" d="M252 152 H 424" opacity=".45"/>
+  <text x="338" y="169" text-anchor="middle" class="lbl">sample index</text>
+
+  <text x="220" y="188" text-anchor="middle" class="formula">a rectangle in one domain is a sinc in the other</text>
+</svg>
