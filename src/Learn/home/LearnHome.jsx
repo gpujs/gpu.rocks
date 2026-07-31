@@ -200,9 +200,9 @@ function LearnHome() {
           </h1>
           <p className="sub">
             A hands-on course in <strong>GPGPU</strong> — general-purpose computing on graphics
-            hardware — built on <strong>gpu.js</strong>. Write real kernels, run them on{' '}
-            <strong>your own GPU</strong>, and learn the mental model behind every parallel
-            computing platform.
+            hardware — built on <strong>gpu.js</strong> and powered by <strong>WebGPU</strong>.
+            Write real kernels, run them on <strong>your own GPU</strong>, and learn the mental
+            model behind every parallel computing platform.
           </p>
           <div className="cta-row">
             <Link to={firstModuleUrl} className="btn btn-primary">Start GPGPU 101</Link>
