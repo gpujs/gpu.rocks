@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: yarn
@@ -51,7 +51,7 @@ jobs:
         run: yarn test:smoke http://localhost:4173
 
       - name: Keep the tested build for the deploy job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist
@@ -70,9 +70,9 @@ jobs:
       group: deploy-gh-pages
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
