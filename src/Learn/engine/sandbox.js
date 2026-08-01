@@ -448,7 +448,7 @@ async function preflight(code, mode, task) {
 // later killed by the watchdog can still show what it managed to do.
 export async function executeRun(
   code,
-  { mode = 'auto', task, probe = false, onLog, controls: injectedControls } = {}
+  { mode = 'auto', task, probe = false, onLog, controls: injectedControls, cardCapture = false } = {}
 ) {
   await destroyPreviousRun();
 
@@ -663,8 +663,14 @@ export async function executeRun(
   // still surface as run errors, so they are raised inside the timed block.
   let inputsFailure = null;
   try {
-    if (task && typeof task.inputs === 'function') {
-      const inputs = task.inputs(utils) || {};
+    // cardInputs is the SAME data at card resolution — a bigger photo, a wider
+    // lattice — declared next to inputs in the content file so the two cannot
+    // drift apart. Only scripts/capture-module-renders.mjs ever asks for it;
+    // a learner always gets the lesson's own inputs.
+    const inputsFn =
+      cardCapture && task && typeof task.cardInputs === 'function' ? task.cardInputs : task && task.inputs;
+    if (typeof inputsFn === 'function') {
+      const inputs = inputsFn(utils) || {};
       for (const [name, value] of Object.entries(inputs)) {
         if (IDENT_RE.test(name)) globals[name] = value;
       }

@@ -454,6 +454,9 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
             mode: modeRef.current,
             task,
             controls: controlValuesRef.current,
+            // set only by scripts/capture-module-renders.mjs; asks the task for
+            // its card-resolution inputs. Never true for a learner.
+            cardCapture: window.__learnCardCapture === true,
           });
           setLogs(result.logs.map(decorateLog));
           if (result.controls && result.controls.length) setControls(result.controls);
@@ -477,6 +480,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
         mode: modeRef.current,
         task,
         controls: controlValuesRef.current,
+        cardCapture: window.__learnCardCapture === true,
       });
       // snapshot canvases immediately, before the browser composites the frame
       setLogs(result.logs.map(decorateLog));

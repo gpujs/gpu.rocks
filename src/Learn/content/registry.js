@@ -217,6 +217,17 @@ export function validateContent(modules, trackMeta) {
       // for more than the default 5 s run budget. Capped, because the guard
       // exists to stop a learner freezing the page — a task cannot opt out of
       // it, only widen it.
+      // cardInputs is the module-card capture's larger stand-in for inputs
+      // (scripts/capture-module-renders.mjs). It only makes sense alongside
+      // inputs, and a typo'd name would silently capture the lesson-size art.
+      if (task.cardInputs !== undefined) {
+        if (typeof task.cardInputs !== 'function') {
+          errors.push(`${where} task ${step}: cardInputs must be a function`);
+        } else if (typeof task.inputs !== 'function') {
+          errors.push(`${where} task ${step}: cardInputs without inputs — nothing to stand in for`);
+        }
+      }
+
       if (task.budgetMs !== undefined) {
         const asked = Number(task.budgetMs);
         if (!Number.isFinite(asked) || asked <= 0 || asked > 60000) {

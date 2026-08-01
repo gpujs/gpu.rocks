@@ -351,12 +351,12 @@ export function taskRefFor(task) {
 let mainRun = null; // { token, internal } — the fallback's retained run state
 let mainTokenSeq = 0;
 
-async function runOnMainThread(code, mode, task, controls) {
+async function runOnMainThread(code, mode, task, controls, cardCapture = false) {
   const sandbox = await loadMainThreadSandbox();
   if (!sandbox) {
     return failedResult(mode, { message: 'the execution engine could not be loaded' }, []);
   }
-  const internal = await sandbox.executeRun(code, { mode, task, controls });
+  const internal = await sandbox.executeRun(code, { mode, task, controls, cardCapture });
   const token = `main-${++mainTokenSeq}`;
   mainRun = { token, internal };
   const canvas = internal.canvas;
@@ -455,17 +455,19 @@ function failedResult(mode, error, logs) {
 
 // ---- runUserCode -----------------------------------------------------------
 
-export async function runUserCode(code, { mode = 'auto', task, controls } = {}) {
+export async function runUserCode(code, { mode = 'auto', task, controls, cardCapture = false } = {}) {
   try {
     const path = await ensureSandbox();
     const taskRef = taskRefFor(task);
     // A task that is not in the registry (hand-built in a console, say) cannot
     // be looked up by the worker — its inputs and tests are functions. Here.
-    if (path !== 'worker' || (task && !taskRef)) return await runOnMainThread(code, mode, task, controls);
+    if (path !== 'worker' || (task && !taskRef)) {
+      return await runOnMainThread(code, mode, task, controls, cardCapture);
+    }
 
     const gen = generation;
     const runBudget = watchdogFor(task, RUN_WATCHDOG_MS);
-    const reply = await call({ kind: 'run', code, mode, taskRef, controls }, runBudget);
+    const reply = await call({ kind: 'run', code, mode, taskRef, controls, cardCapture }, runBudget);
     if (reply.timedOut) return stoppedResult(mode, reply.logs, runBudget, 'run');
     if (reply.failed || !reply.result) return failedResult(mode, reply.error, reply.logs);
     return hydrate(reply.result, gen);

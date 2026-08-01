@@ -170,12 +170,16 @@ const SWATCHES = [
 
 const PATCH = SIZE / 8; // 8 px
 
-function swatchImage() {
-  const plain = new Array(SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    const row = new Array(SIZE);
-    for (let x = 0; x < SIZE; x++) {
-      row[x] = quantizePixel(SWATCHES[Math.floor(y / PATCH) * 8 + Math.floor(x / PATCH)]);
+// Takes a size so the module card can have the same chart with crisp edges
+// instead of a 64px one blown up (see cardInputs on task 2). The patch grid is
+// always 8x8, so at size === SIZE this is exactly what it always was.
+function swatchImage(size = SIZE) {
+  const patch = size / 8;
+  const plain = new Array(size);
+  for (let y = 0; y < size; y++) {
+    const row = new Array(size);
+    for (let x = 0; x < size; x++) {
+      row[x] = quantizePixel(SWATCHES[Math.floor(y / patch) * 8 + Math.floor(x / patch)]);
     }
     plain[y] = row;
   }
@@ -1024,6 +1028,9 @@ await paintHue(hues);
 render(paintHue.canvas);
 `,
       inputs: () => ({ chart: swatchImage() }),
+      // The catalogue card is this picture at ~300px; SIZE is the lesson's
+      // choice, not the card's. Same chart, four times the samples.
+      cardInputs: () => ({ chart: swatchImage(SIZE * 4) }),
       publicTests: [
         {
           name: 'a hue map, a saturation map and a painted canvas',

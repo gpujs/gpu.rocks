@@ -16,7 +16,7 @@
 // Protocol — request/response keyed by `id`:
 //   main → worker
 //     { id, kind: 'hello' }
-//     { id, kind: 'run',       code, mode, taskRef }
+//     { id, kind: 'run',       code, mode, taskRef, cardCapture? }
 //     { id, kind: 'tests',     runToken, taskRef }
 //     { id, kind: 'benchmark', code, taskRef }
 //   worker → main
@@ -72,6 +72,7 @@ async function handleRun(msg) {
     mode: msg.mode,
     task,
     controls: msg.controls,
+    cardCapture: msg.cardCapture,
     onLog: makeLogStreamer(msg.id),
   });
   const token = `run-${++tokenSeq}`;
