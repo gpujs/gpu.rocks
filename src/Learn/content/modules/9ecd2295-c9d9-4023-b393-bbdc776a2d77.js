@@ -76,6 +76,13 @@ const SIGNAL_N = 4288; // (FRAMES - 1) * HOP + WIN — the last frame ends exact
 // because a longer window would buy bins by spending time resolution, which is
 // the trade task 3 is about, and would change the picture rather than sharpen
 // it.)
+//
+// The ANIMATED card sweeps the window anyway — but as task 4's TAPER, not as
+// WIN, which is the whole reason the two were split. WIN stays 256 whatever the
+// dial says, so the transform length, the frame count and this signal length are
+// all untouched by the sweep; only the Hann bell inside each frame shortens.
+// Frequency resolution moves and the frequency axis does not, which is what
+// makes the trade legible instead of a picture rescaling itself.
 const CARD_HOP = HOP / 8; // 8 samples between frames instead of 64
 const CARD_FRAMES = 512;
 const CARD_N = (CARD_FRAMES - 1) * CARD_HOP + WIN; // 4344
@@ -524,6 +531,34 @@ const STFT_BODY = `const spectrogram = gpu.createKernel(function (signal) {
 }, {
   output: [FRAMES, BINS],
   constants: { win: WIN, hop: HOP },
+});`;
+
+// Task 4's copy of the same kernel, with the window length pulled out onto a
+// dial. Two lengths, not one: `win` is the TRANSFORM length and stays 256, so
+// bin b is always frequency b·SR/win and the frequency axis never moves; `taper`
+// is how many of those 256 samples the Hann bell actually covers, and the rest
+// are multiplied by nothing and contribute zero. That is zero-padding — librosa
+// spells it `n_fft` against `win_length` — and it is the only way to put task
+// 3's trade on a slider without the picture changing shape underneath it.
+// taper === win is byte-for-byte the kernel above, which is why the default
+// leaves this task exactly where it was.
+const STFT_TAPERED = `const spectrogram = gpu.createKernel(function (signal) {
+  const frame = this.thread.x;
+  const bin = this.thread.y;
+  const start = frame * this.constants.hop;
+  let re = 0;
+  let im = 0;
+  for (let t = 0; t < this.constants.taper; t++) {
+    const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / (this.constants.taper - 1));
+    const s = signal[start + t] * w;
+    const angle = (-2 * Math.PI * bin * t) / this.constants.win;
+    re += s * Math.cos(angle);
+    im += s * Math.sin(angle);
+  }
+  return Math.sqrt(re * re + im * im) / this.constants.win;
+}, {
+  output: [FRAMES, BINS],
+  constants: { win: WIN, hop: HOP, taper: TAPER },
 });`;
 
 const RAMP_SOURCE = `  // Already written: the ramp. Black → indigo → magenta → orange → cream.
@@ -1452,7 +1487,17 @@ console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames
         or the picture lies about which cell is louder — and the hue sweep is there for legibility,
         which is the case Colour Spaces argues at length. The ramp below is written for you: black →
         indigo → magenta → orange → cream. What is yours is the two lines above it, and the canvas
-        is 256×256, so each spectrogram cell paints a 4×2 block.</p>`,
+        is 256×256, so each spectrogram cell paints a 4×2 block.</p>
+        <p>One thing has moved since task 2: the window length is on a <strong>slider</strong>, and
+        the kernel now takes two lengths instead of one. <code>WIN</code> is the length of the
+        <em>transform</em> and stays 256, which is what pins bin <em>b</em> to
+        <em>b·SR/256</em> and stops the frequency axis sliding around under you. <code>TAPER</code>
+        is the length of the <em>window</em> — how much of that 256 the Hann bell covers, the rest
+        being zeros, which is exactly what <code>librosa</code> means by <code>win_length</code>
+        against <code>n_fft</code>. Solve the task at the default, where <code>TAPER === WIN</code>
+        and the kernel is task 2's to the last bit. Then drag it left and watch task 3 happen: the
+        harmonics swell into bands as the bins coarsen, and the plucks tighten into hard vertical
+        edges as time sharpens up.</p>`,
       goal: `<strong>Goal:</strong> finish the paint kernel — magnitude to decibels, decibels to a
         0…1 value — and render the result.`,
       requirements: [
@@ -1494,12 +1539,19 @@ const v = Math.max(0, Math.min(1, 1 + db / this.constants.range));</code></pre>`
 // that makes it legible. 64 frames × 128 bins onto a 256×256 canvas.
 const gpu = new GPU({ mode });
 
-const WIN = 256;
+const WIN = 256;   // the TRANSFORM length. Bin b is b * SR / WIN, always.
 const HOP = 64;
 const BINS = 128;
 const FRAMES = Math.floor((signal.length - WIN) / HOP) + 1;
 
-${STFT_BODY}
+// A dial, not a constant: slider() re-runs the whole program when you drag it.
+// TAPER is the WINDOW length — how many of the frame's 256 samples the Hann
+// bell actually covers; the rest are zeros. Left: coarse bins, sharp onsets.
+// Right: fine bins, smeared onsets. Task 3 measured that trade. This is the
+// handle on it, and it starts where the task was written: the full 256.
+const TAPER = slider('window', { min: 32, max: WIN, value: WIN, step: 16 });
+
+${STFT_TAPERED}
 
 const spec = await spectrogram(signal);
 
@@ -1541,12 +1593,19 @@ render(paint.canvas);
 // that makes it legible. 64 frames × 128 bins onto a 256×256 canvas.
 const gpu = new GPU({ mode });
 
-const WIN = 256;
+const WIN = 256;   // the TRANSFORM length. Bin b is b * SR / WIN, always.
 const HOP = 64;
 const BINS = 128;
 const FRAMES = Math.floor((signal.length - WIN) / HOP) + 1;
 
-${STFT_BODY}
+// A dial, not a constant: slider() re-runs the whole program when you drag it.
+// TAPER is the WINDOW length — how many of the frame's 256 samples the Hann
+// bell actually covers; the rest are zeros. Left: coarse bins, sharp onsets.
+// Right: fine bins, smeared onsets. Task 3 measured that trade. This is the
+// handle on it, and it starts where the task was written: the full 256.
+const TAPER = slider('window', { min: 32, max: WIN, value: WIN, step: 16 });
+
+${STFT_TAPERED}
 
 const spec = await spectrogram(signal);
 

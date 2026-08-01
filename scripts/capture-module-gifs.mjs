@@ -124,6 +124,207 @@ const CARD_ANIM = {
     ],
   },
 
+  // ---- swept dials the lesson now offers -------------------------------------
+
+  // Only the last four rungs. Until then every remaining jump is a multiple of
+  // two, so three quarters of the grid cannot reach its nearest seed and the
+  // diagram is a flat field of a few ids — thirteen near-identical frames for
+  // one good one. The tail is where it actually resolves: coarse cells sharpen
+  // into the exact diagram, and the last frame IS the still.
+  //
+  // Painted as the DIAGRAM, not the error field: paintErr reddens every wrong
+  // cell, which early on is most of them. Handed an all-zero mask
+  // (worse(truth, truth)) the same kernel paints the plain Voronoi.
+  //
+  // Per-frame palettes because the colours change wholesale across those four
+  // frames; one shared palette spent itself on the early field and tinted the
+  // NOT jump-flooding. Its sweep was built and measured at fourteen frames,
+  // then four, three and two, and every rung before the last is still a flat
+  // field of a few seed ids: jump flooding resolves ABRUPTLY, because the
+  // stride-1 pass is not a polish pass, it is the one that reaches odd-offset
+  // cells at all. Two frames is a flicker, not an animation, and the still is
+  // the best picture this module makes. The lesson keeps its passes dial.
+
+  // Progressive rendering IS the module, so the card renders inside the
+  // accumulation loop: the same picture getting quieter. The two accumulators
+  // and the RMS plot are left alone, so an animation frame is exactly the still
+  // at that sample count. Held frames at the end — the last ten frames of a
+  // 1/sqrt(n) fall are nearly identical anyway.
+  'path-tracing': {
+    width: 224,
+    fps: 6,
+    colors: 48,
+    lossy: 200,
+    edits: [
+      [/const FRAMES = slider\([^\n]*\n/, 'const FRAMES = 24;\n'],
+      [
+        '  ideal.push(errs[0] / Math.sqrt(f + 1));\n}',
+        '  ideal.push(errs[0] / Math.sqrt(f + 1));\n  await paint(accA);\n  render(paint.canvas);\n}',
+      ],
+      [
+        'await paint(accA);\nrender(paint.canvas);\nconsole.log(',
+        'for (let h = 0; h < 8; h++) render(paint.canvas);\nconsole.log(',
+      ],
+    ],
+  },
+
+  // The window length the lesson now puts on a dial — as TAPER, not WIN, so the
+  // transform length, the frame count and the signal length hold still and only
+  // the Hann bell inside each frame shortens. Frequency resolution moves, the
+  // frequency AXIS does not, which is the trade the module measures. Longest
+  // first, so frame 0 is the still; the way back down re-paints cached
+  // spectrograms, so each length is transformed once and the loop still closes.
+  spectrograms: {
+    width: 288,
+    fps: 5,
+    colors: 96,
+    lossy: 120,
+    edits: [
+      [/const TAPER = slider\([^\n]*\n/, 'const TAPERS = [256, 192, 128, 96, 64, 32];\n'],
+      [
+        'const spectrogram = gpu.createKernel(function (signal) {',
+        'const makeSpectrogram = TAPER => gpu.createKernel(function (signal) {',
+      ],
+      [
+        /const spec = await spectrogram\(signal\);[\s\S]*?console\.log\('ratio:[^\n]*\n/,
+        '// One STFT per window length, longest first. The way back down the\n' +
+          '// sweep re-paints these, so each length is transformed once, not twice.\n' +
+          'const specs = [];\n' +
+          'const peaks = [];\n' +
+          'for (const taper of TAPERS) {\n' +
+          '  const s = await makeSpectrogram(taper)(signal);\n' +
+          '  let p = 0;\n' +
+          '  for (let b = 0; b < BINS; b++) {\n' +
+          '    for (let f = 0; f < FRAMES; f++) if (s[b][f] > p) p = s[b][f];\n' +
+          '  }\n' +
+          '  specs.push(s);\n' +
+          '  peaks.push(p);\n' +
+          '}\n',
+      ],
+      [
+        'await paint(spec, peak);\nrender(paint.canvas);',
+        'for (let i = 0; i < specs.length; i++) {\n' +
+          '  await paint(specs[i], peaks[i]);\n' +
+          '  render(paint.canvas);\n' +
+          '}\n' +
+          '// back up the sweep, endpoints not repeated, so the loop closes\n' +
+          'for (let i = specs.length - 2; i >= 1; i--) {\n' +
+          '  await paint(specs[i], peaks[i]);\n' +
+          '  render(paint.canvas);\n' +
+          '}',
+      ],
+    ],
+  },
+
+  // The lobes drift apart until the neck snaps, then smin welds them into one
+  // blob and back. That IS the module. The ramp is a palindrome, so the last
+  // frame meets the first.
+  'ray-marched-metaballs': {
+    width: 288,
+    fps: 10,
+    colors: 64,
+    lossy: 150,
+    edits: [
+      [/const separation = slider\([^\n]*\n/, 'const FRAMES = 40;\n'],
+      [
+        'await finalScene(separation, 0.5, 0.3, -0.86, 0, -0.51, 1);\nrender(finalScene.canvas);',
+        'for (let f = 0; f < FRAMES; f++) {\n' +
+          '  // 1.0 -> 0.05 -> 1.0, so the last frame meets the first\n' +
+          '  const ramp = Math.abs(1 - (2 * f) / FRAMES);\n' +
+          '  await finalScene(0.05 + 0.95 * ramp, 0.5, 0.3, -0.86, 0, -0.51, 1);\n' +
+          '  render(finalScene.canvas);\n' +
+          '}',
+      ],
+    ],
+  },
+
+  // The seed square dissolving into coral, one paint every 16 of the 800 steps
+  // the card's finer lattice takes. Not a loop that closes — nothing in
+  // Gray-Scott comes back to its seed — but it starts from one.
+  'reaction-diffusion': {
+    width: 256,
+    fps: 10,
+    colors: 64,
+    lossy: 130,
+    edits: [
+      [/const steps = slider\([^\n]*\n/, 'const EVERY = 16;\n'],
+      [
+        'for (let i = 0; i < steps; i++) {\n' +
+          '  const nextU = await stepU(u, v);\n' +
+          '  const nextV = await stepV(u, v);\n' +
+          '  u = nextU;\n' +
+          '  v = nextV;\n' +
+          '}',
+        'for (let i = 0; i < 800; i++) {\n' +
+          '  if (i % EVERY === 0) {\n' +
+          '    await paint(v);\n' +
+          '    render(paint.canvas);\n' +
+          '  }\n' +
+          '  const nextU = await stepU(u, v);\n' +
+          '  const nextV = await stepV(u, v);\n' +
+          '  u = nextU;\n' +
+          '  v = nextV;\n' +
+          '}',
+      ],
+    ],
+  },
+
+  // The input IS a clip, so the sweep is the clip: one composite per frame
+  // rather than only the last. The model is trained once, so the backdrop does
+  // not flicker under the object. Out and back, so the object crosses, returns,
+  // and the loop closes — there are only eight distinct pictures.
+  'video-filters': {
+    width: 256,
+    fps: 5,
+    colors: 96,
+    lossy: 120,
+    edits: [
+      [/const frame = slider\([^\n]*\n/, ''],
+      [
+        'for (let i = 1; i < frame; i++) {\n' +
+          '  model = await learn(frames[i], model);\n' +
+          '}\n\n' +
+          'const live = frames[frame];\n' +
+          'await compose(live, await feather(await softMask(live, model)));\n' +
+          'render(compose.canvas);',
+        'for (let i = 1; i < frames.length - 1; i++) {\n' +
+          '  model = await learn(frames[i], model);\n' +
+          '}\n\n' +
+          'for (let f = 0; f < 2 * frames.length - 2; f++) {\n' +
+          '  const live = frames[f < frames.length ? f : 2 * frames.length - 2 - f];\n' +
+          '  await compose(live, await feather(await softMask(live, model)));\n' +
+          '  render(compose.canvas);\n' +
+          '}',
+      ],
+    ],
+  },
+
+  // Phase is exactly what a still throws away: rings standing still. Swept over
+  // one full period the crests travel outward and the last frame IS the first.
+  // The first edit is not optional — cardVariant scales the ring spacing for the
+  // 512px card but leaves the radians-to-pixels conversion alone, and a phase
+  // that only walked a quarter of a ring would not loop.
+  // smooth concentric gradients are the worst case for a 256-colour format:
+  // every ring edge dithers. Fewer colours and a heavier lossy pass cost almost
+  // nothing visible here and a third of the file.
+  'pixels-from-scratch': {
+    width: 256,
+    fps: 12,
+    colors: 32,
+    lossy: 200,
+    edits: [
+      ['r = r - phase / 0.35', 'r = r - phase / 0.0875'],
+      [/const phase = slider\([^\n]*\n/, 'const FRAMES = 36;\n'],
+      [
+        'await ripples(phase);\nrender(ripples.canvas);',
+        'for (let f = 0; f < FRAMES; f++) {\n' +
+          '  await ripples((2 * Math.PI * f) / FRAMES);\n' +
+          '  render(ripples.canvas);\n' +
+          '}',
+      ],
+    ],
+  },
+
   // ---- already animated, no rewrite needed -----------------------------------
   //
   // These three already render inside their driver loop, so the run the STILL
@@ -251,14 +452,36 @@ for (const slug of slugs) {
   }
 
   const W = CARD_ANIM[slug].width || 320;
-  const FPS = CARD_ANIM[slug].fps || 8;
+  const FPS = (CARD_ANIM[slug].ramp && CARD_ANIM[slug].ramp.fps) || CARD_ANIM[slug].fps || 8;
   const COLORS = CARD_ANIM[slug].colors || 96;
-  const LOSSY = String(CARD_ANIM[slug].lossy || 100);
+  const LOSSY = String(CARD_ANIM[slug].lossy === undefined ? 100 : CARD_ANIM[slug].lossy);
+  // bayer's crosshatch is cheap and fine on flat art; a smooth gradient needs an
+  // error-diffusion dither or it breaks into visible speckle
+  const DITHER = CARD_ANIM[slug].dither || 'bayer:bayer_scale=3';
   const tmp = join(OUT_DIR, `frames-${slug}`);
   rmSync(tmp, { recursive: true, force: true });
   mkdirSync(tmp, { recursive: true });
   const stride = CARD_ANIM[slug].stride || 1;
-  const kept = frames.filter((_, i) => i % stride === 0);
+  let picked = frames.filter((_, i) => i % stride === 0);
+  // `tail` keeps only the last n frames. Some runs are only worth watching at
+  // the end — see jump-flooding, whose diagram is a flat field of a few seed
+  // ids until the last couple of rungs and then resolves.
+  if (CARD_ANIM[slug].tail) picked = picked.slice(-CARD_ANIM[slug].tail);
+
+  // Ease-out: hold each frame longer than the last, so the run opens quickly
+  // and settles into its final state instead of plodding at a constant rate.
+  // Done by REPEATING frames at a higher base rate rather than by per-frame
+  // delays, because gifsicle -O3 merges identical neighbours back into one
+  // frame with the summed delay — the same result, and it survives the
+  // optimiser rather than being undone by it.
+  const ramp = CARD_ANIM[slug].ramp;
+  const kept = [];
+  picked.forEach((src, i) => {
+    const t = picked.length > 1 ? i / (picked.length - 1) : 0;
+    const reps = ramp ? Math.max(1, Math.round(ramp.from + (ramp.to - ramp.from) * t * t)) : 1;
+    for (let r = 0; r < reps; r++) kept.push(src);
+  });
+
   kept.forEach((src, i) => {
     writeFileSync(join(tmp, `f${String(i).padStart(3, '0')}.png`), Buffer.from(src.split(',')[1], 'base64'));
   });
@@ -269,11 +492,20 @@ for (const slug of slugs) {
   // one palette for the whole animation, not per frame: a per-frame palette
   // makes flat regions crawl, which on a card reads as noise
   const palette = join(tmp, 'palette.png');
+  // `single` gives each frame its own palette. Costs bytes, and is the only
+  // correct choice when an animation changes colour WHOLESALE: jump-flooding
+  // opens on a near-solid red error field and ends on a pastel Voronoi, and one
+  // global palette spent itself on the reds — the finished diagram came out
+  // tinted red and did not match its own still.
+  const perFrame = CARD_ANIM[slug].palette === 'single';
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', pattern,
-    '-vf', `scale=${W}:-1:flags=lanczos,palettegen=max_colors=${COLORS}:stats_mode=diff`, palette]);
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', pattern, '-i', palette,
-    '-lavfi', `scale=${W}:-1:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=3`, gif]);
-  execFileSync('gifsicle', ['-O3', `--lossy=${LOSSY}`, '-b', gif]);
+    '-vf', `scale=${W}:-1:flags=lanczos,palettegen=max_colors=${COLORS}:stats_mode=${perFrame ? 'single' : 'diff'}`,
+    perFrame ? palette.replace('.png', '%03d.png') : palette]);
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', pattern,
+    '-i', perFrame ? palette.replace('.png', '%03d.png') : palette,
+    '-lavfi', `scale=${W}:-1:flags=lanczos [x]; [x][1:v] paletteuse=dither=${DITHER}${perFrame ? ':new=1' : ''}`,
+    gif]);
+  execFileSync('gifsicle', LOSSY === '0' ? ['-O3', '-b', gif] : ['-O3', `--lossy=${LOSSY}`, '-b', gif]);
   // img2webp, not ffmpeg: the homebrew ffmpeg is built without libwebp, and
   // WebP is the whole point of the comparison — it is usually a fraction of the
   // GIF, which is what decides whether this can ship.
@@ -294,7 +526,7 @@ for (const slug of slugs) {
 
   const kb = f => (statSync(f).size / 1024).toFixed(0);
   console.log(
-    `  ok    ${slug.padEnd(24)} ${kept.length}/${frames.length} frames   gif ${kb(gif)} KB` +
+    `  ok    ${slug.padEnd(24)} ${picked.length}/${frames.length} frames   gif ${kb(gif)} KB` +
       (webpOk ? `   webp ${kb(webp)} KB` : '   webp unavailable')
   );
   rmSync(tmp, { recursive: true, force: true });

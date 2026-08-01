@@ -952,7 +952,12 @@ render(shadeScene.canvas);
         blocked, and slides smoothly between when it grazes — a free penumbra.</p>
         <p>The kernel takes a <code>shadowOn</code> switch so you can A/B it: with the light swung
         low to the left, the left lobe casts a soft-edged shadow across the neck of the blob. One
-        more march, and a scene with no triangles anywhere gets real cinematography.</p>`,
+        more march, and a scene with no triangles anywhere gets real cinematography.</p>
+        <p>The driver also hands you a <strong>separation</strong> slider, which is task 2's point
+        made in one gesture: the program is a pure function of its controls, so dragging it re-runs
+        the whole thing. Slide the two centres together and <code>smin</code> welds them into a
+        single blob; pull them apart and the neck thins, necks down, and snaps. Solve the task
+        first — it defaults to the <code>0.55</code> the scene has always used — then drag it.</p>`,
       goal: `<strong>Goal:</strong> add the shadow march — 32 steps from the hit point toward the
         light, penumbra factor <code>sh = Math.min(sh, 3.0 * d / st)</code> — and scale the diffuse
         term by it when <code>shadowOn</code> is 1.`,
@@ -1043,8 +1048,14 @@ const finalScene = gpu.createKernel(function (sep, r, k, lx, ly, lz, shadowOn) {
   }
 }, { output: [64, 64], graphical: true });
 
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is the gap between the two centres. Drag it to 0 and smin has nothing
+// left to blend; drag it past ~0.58 and the neck finally snaps and you have two
+// spheres again. Everything between is the whole module in one gesture.
+const separation = slider('separation', { min: 0, max: 1.1, value: 0.55, step: 0.01 });
+
 // light swung low to the left — the left lobe should shade the neck
-await finalScene(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
+await finalScene(separation, 0.5, 0.3, -0.86, 0, -0.51, 1);
 render(finalScene.canvas);
 `,
       solutionCode: `// One more march — from the surface toward the light — buys shadows.
@@ -1104,8 +1115,14 @@ const finalScene = gpu.createKernel(function (sep, r, k, lx, ly, lz, shadowOn) {
   }
 }, { output: [64, 64], graphical: true });
 
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is the gap between the two centres. Drag it to 0 and smin has nothing
+// left to blend; drag it past ~0.58 and the neck finally snaps and you have two
+// spheres again. Everything between is the whole module in one gesture.
+const separation = slider('separation', { min: 0, max: 1.1, value: 0.55, step: 0.01 });
+
 // light swung low to the left — the left lobe should shade the neck
-await finalScene(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
+await finalScene(separation, 0.5, 0.3, -0.86, 0, -0.51, 1);
 render(finalScene.canvas);
 `,
       publicTests: [

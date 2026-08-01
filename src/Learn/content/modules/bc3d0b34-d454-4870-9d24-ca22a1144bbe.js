@@ -787,8 +787,10 @@ console.log('center V after', STEPS, 'steps:', v[24][24]);
       // an ordinary array and `paint` receives one too — no texture crosses
       // backends, no hidden readback, and the pixels are byte-identical to a
       // pure-WebGL run.
-      intro: `<p>Payoff time. The whole simulation is wired below — 64×64 grid, 200 steps —
-        and it ends holding <code>v</code>, a grid of numbers with coral growing in it.
+      intro: `<p>Payoff time. The whole simulation is wired below — a 64×64 grid and a
+        <strong>steps</strong> dial saying how long to run it — 200 is the value that
+        turn the seed square into coral — and it ends holding <code>v</code>, a grid of numbers
+        with coral growing in it.
         Numbers deserve pixels: one graphical kernel, exactly like the painters in 3.1,
         turns the V field into the picture the module cover promised.</p>
         <p>The palette is fixed so we can test it: brightness
@@ -820,7 +822,7 @@ this.color(t, t * t, 0.25 + 0.75 * t, 1);</code></pre>`,
         seen on the web: WebGPU chains compute pipelines into a render pipeline whose fragment
         shader is your <code>paint</code>; Metal apps do the same with a compute encoder feeding
         a fragment function. The data never has to leave the card.`,
-      starterCode: `// 200 steps of Gray–Scott, then paint the V field. The sim is done —
+      starterCode: `// Gray–Scott on a dial, then paint the V field. The sim is done —
 // the painter is yours.
 const gpu = new GPU({ mode });
 
@@ -858,9 +860,15 @@ const paint = gpu.createKernel(function (v) {
   this.color(1, 0, 1, 1);
 }, { output: [64, 64], graphical: true });
 
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is how far the chemistry gets — 0 is the bare seed square, 1 is the
+// 200 steps that grow it into coral, 3 keeps going until the branches crowd
+// each other.
+const steps = slider('steps', { min: 0, max: 600, value: 200, step: 10 });
+
 let u = seedU;
 let v = seedV;
-for (let i = 0; i < 200; i++) {
+for (let i = 0; i < steps; i++) {
   const nextU = await stepU(u, v);
   const nextV = await stepV(u, v);
   u = nextU;
@@ -870,7 +878,7 @@ for (let i = 0; i < 200; i++) {
 await paint(v);
 render(paint.canvas);
 `,
-      solutionCode: `// 200 steps of Gray–Scott, then paint the V field. The sim is done —
+      solutionCode: `// Gray–Scott on a dial, then paint the V field. The sim is done —
 // the painter is yours.
 const gpu = new GPU({ mode });
 
@@ -907,9 +915,15 @@ const paint = gpu.createKernel(function (v) {
   this.color(t, t * t, 0.25 + 0.75 * t, 1);
 }, { output: [64, 64], graphical: true });
 
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is how far the chemistry gets — 0 is the bare seed square, 1 is the
+// 200 steps that grow it into coral, 3 keeps going until the branches crowd
+// each other.
+const steps = slider('steps', { min: 0, max: 600, value: 200, step: 10 });
+
 let u = seedU;
 let v = seedV;
-for (let i = 0; i < 200; i++) {
+for (let i = 0; i < steps; i++) {
   const nextU = await stepU(u, v);
   const nextV = await stepV(u, v);
   u = nextU;
@@ -939,6 +953,15 @@ render(paint.canvas);
       // the rates alone instead is not an option: measured, a 4x grid at the
       // lesson's rates and step count paints the seed square barely grown, not
       // the ring.
+      //
+      // Which is also why the dial above counts steps directly —
+      // instead of naming an absolute step count. The card's step count IS that
+      // literal 200, rewritten to 800 by CARD_SCALE (scripts/cardVariant.mjs),
+      // so the dial has to ride on it: `i < steps` with a dial defaulting to
+      // 200 would leave the card running 200 steps on a lattice that needs 800
+      // — the seed square barely grown, again. A multiple is the honest reading
+      // anyway, since the two lattices disagree about what one step is worth:
+      // 1 means "the whole reference run" in both.
       cardInputs: () => {
         const seed = makeSeedPair(128, 16);
         return { seedU: seed.u, seedV: seed.v };

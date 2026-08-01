@@ -130,7 +130,11 @@ export const CARD_SCALE = {
     ['du: 0.2', 'du: 0.8'],
     ['dv: 0.1', 'dv: 0.4'],
     [/dt: 1 }/g, 'dt: 0.25 }'],
-    ['i < 200', 'i < 800'],
+    // the step COUNT is the learner's dial now, so the card scales its default
+    // and its ceiling rather than a loop literal — 4x the steps for a lattice
+    // half the cell size, same as du/dv/dt above
+    ['value: 200, step: 10', 'value: 800, step: 40'],
+    ['max: 600', 'max: 2400'],
   ],
 
   // 96 is the LESSON's grid and the model's constants are measured in it, so

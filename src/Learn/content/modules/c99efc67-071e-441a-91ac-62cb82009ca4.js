@@ -1787,7 +1787,12 @@ console.log('total samples per pixel:', FRAMES * spp);
         of each other, the estimator is behaving exactly as theory says — and the shape of them is
         the bad news in the theory: halving the noise costs <em>four times</em> the samples. That
         single fact is why production renderers spend their effort on importance sampling and
-        denoisers instead of simply waiting longer.</p>`,
+        denoisers instead of simply waiting longer.</p>
+        <p>The <code>samples</code> dial is that trade in your hand. Drag it from 24 to 96 and the
+        whole run happens again with four times the paths per pixel: both curves grow, the picture
+        quietens, and the noise at the far end lands on half what 24 frames managed. Four times the
+        work for one halving — and this is the cheap end of the curve, where the frames are still
+        making a visible difference.</p>`,
       goal: `<strong>Goal:</strong> finish <code>sqDiff</code> — half the squared difference between
         the two runs at this pixel — and build the <code>1/√n</code> reference curve to plot
         against it.`,
@@ -1852,7 +1857,10 @@ const sqDiff = gpu.createKernel(function (a, b) {
 
 ${PAINT_KERNEL}
 
-const FRAMES = 24;
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is the sample budget, and 24 → 96 is exactly the four times theory
+// says buys you half the noise. The plot is where you check that it does.
+const FRAMES = slider('samples', { min: 24, max: 96, value: 24, step: 4 });
 let accA = await black();
 let accB = await black();
 const errs = [];
@@ -1906,7 +1914,10 @@ const sqDiff = gpu.createKernel(function (a, b) {
 
 ${PAINT_KERNEL}
 
-const FRAMES = 24;
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is the sample budget, and 24 → 96 is exactly the four times theory
+// says buys you half the noise. The plot is where you check that it does.
+const FRAMES = slider('samples', { min: 24, max: 96, value: 24, step: 4 });
 let accA = await black();
 let accB = await black();
 const errs = [];
@@ -2083,9 +2094,13 @@ plot({ measured: errs, 'errs[0] / √n': ideal }, {
             const entry = ctx.logs.find(l => l.plot);
             ctx.assert(entry, 'no chart in the console');
             const measured = entry.plot.series[0].values;
+            // The samples dial only ever ADDS frames, and frame f's error does
+            // not depend on how many come after it, so the first 24 plotted
+            // points are these 24 numbers whatever the dial is set to.
             ctx.assert(
-              measured.length === errs.length,
-              `the plotted series holds ${measured.length} points; 24 frames were accumulated`
+              measured.length >= errs.length,
+              `the plotted series holds ${measured.length} points; the loop accumulates at least ` +
+                `${errs.length} frames and plots one point per frame`
             );
             for (let i = 0; i < errs.length; i++) {
               ctx.assertClose(

@@ -22,11 +22,35 @@ export default new Map([
     "f514fd9c"
   ],
   [
+    "path-tracing",
+    "cc162c43"
+  ],
+  [
+    "pixels-from-scratch",
+    "3f7a20d0"
+  ],
+  [
+    "ray-marched-metaballs",
+    "5e32a627"
+  ],
+  [
+    "reaction-diffusion",
+    "7aacaa61"
+  ],
+  [
     "seam-carving",
     "feef14d9"
   ],
   [
     "sequence-alignment",
     "0948d1d4"
+  ],
+  [
+    "spectrograms",
+    "4a89287e"
+  ],
+  [
+    "video-filters",
+    "f63f99aa"
   ]
 ]);

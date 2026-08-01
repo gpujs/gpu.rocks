@@ -135,6 +135,21 @@ function rippleProbes(x, y, channel) {
   ].map(pair => [Math.min(1, pair[0]) * weight * 255, pair[1]]);
 }
 
+// Task 4's phase dial is prewired at 0, and every ripple expectation is measured
+// there — rippleRGB and rippleProbes both describe the wave at rest. A learner
+// who drags the dial and then hits Run would otherwise collect a fistful of
+// pixel failures topped with a confident, WRONG diagnosis (the probes would read
+// a travelled crest as a missing fade), so the phase-sensitive tests name what
+// actually happened. Silent for a solution that declares no dial at all.
+function phaseGuard(ctx) {
+  const dial = (ctx.controls || []).find(c => c.name === 'phase');
+  ctx.assert(
+    !dial || Math.abs(dial.value) < 1e-9,
+    `the phase dial is at ${dial ? dial.value : 0} — these tests measure the ripple at rest, so ` +
+      'slide it back to 0 before you Run'
+  );
+}
+
 export default {
   uuid: 'd2869039-3517-44a1-bf2a-a2885edf70ea',
   version: 1,
@@ -626,7 +641,15 @@ render(plot.canvas);
         they die out toward the edge; tint the channels and the flat canvas turns into water.
         One gotcha, handled in the starter: <code>this.thread.x</code> is an <em>integer</em> on
         the GPU, so promote it to a float (<code>this.thread.x / 1</code>) before subtracting the
-        fractional center — otherwise the GPU rounds your 63.5 away.</p>`,
+        fractional center — otherwise the GPU rounds your 63.5 away.</p>
+        <p>One more thing comes prewired: a <strong>dial</strong>.
+        <code>slider('phase', …)</code> returns the value this run is using and puts a control
+        under the console; move it and the whole program re-runs. Phase slides the radius the
+        cosine sees — one radian of it is <code>1 / 0.35</code> px of radius — so at 0 the rings
+        stand still, and anywhere else the same rings sit further out. Drag it and the crests
+        travel; at 2π every crest has moved out by exactly one ring, which is the picture you
+        started from. The fade is computed <em>before</em> the slide, on the true radius, so the
+        vignette never moves — only the water does.</p>`,
       goal: `<strong>Goal:</strong> finish the ripple kernel — a cosine wave over the radius,
         faded toward the edge, tinted blue: <code>this.color(0.4v, 0.75v, v, 1)</code>.`,
       requirements: [
@@ -634,6 +657,7 @@ render(plot.canvas);
         'Ripple: <code>wave = 0.5 + 0.5 * Math.cos(r * 0.35)</code>',
         'Fade: <code>fade = Math.max(0, 1 - r / 96)</code>, then <code>v = wave * fade</code>',
         'Blue tint: channels <code>0.4*v</code>, <code>0.75*v</code>, <code>v</code>',
+        'The <code>phase</code> dial is prewired — drag it to send the rings travelling, but Run at its default <code>0</code>, which is where these tests measure',
       ],
       hints: [
         {
@@ -644,24 +668,32 @@ render(plot.canvas);
         {
           title: 'Hint 2 — the last three lines',
           body: `<pre><code>const wave = 0.5 + 0.5 * Math.cos(r * 0.35);
-const v = wave * Math.max(0, 1 - r / 96);
-this.color(0.4 * v, 0.75 * v, v, 1);</code></pre>`,
+const v = wave * fade;
+this.color(0.4 * v, 0.75 * v, v, 1);</code></pre>
+<p>Use the <code>fade</code> the starter already computed rather than writing it again —
+it was measured on the true radius, before the phase slide.</p>`,
         },
       ],
       transfer: `Radius-and-angle reasoning is everywhere in GPU code: vignette and
         lens-distortion passes in Metal and WebGPU post-processing, CUDA and ROCm image warps
         that resample in polar space, every "tunnel" demo ever shipped. Center the coordinates,
-        transform them, color by the result — that opening move never changes.`,
+        transform them, color by the result — that opening move never changes. Nor does the next
+        one: add a phase to the transformed coordinate and the picture starts to move, which is
+        all the <code>time</code> uniform in an animated shader has ever done.`,
       starterCode: `// Change coordinates INSIDE the kernel: position → radius from center.
 const gpu = new GPU({ mode });
 
-const ripples = gpu.createKernel(function () {
+const ripples = gpu.createKernel(function (phase) {
   // thread ids are integers — "/ 1" promotes them to floats so the
   // half-pixel center stays exact on the GPU
   const dx = this.thread.x / 1 - 63.5;
   const dy = this.thread.y / 1 - 63.5;
-  const r = Math.sqrt(dx * dx + dy * dy);
+  let r = Math.sqrt(dx * dx + dy * dy);
   const fade = Math.max(0, 1 - r / 96);
+  // Prewired, and it stays put: the dial slides the radius the cosine will
+  // see, so the crests travel while the fade — measured one line up, on the
+  // TRUE radius — holds the vignette still.
+  r = r - phase / 0.35;
   // TODO: 1) ripple — wave = 0.5 + 0.5 * Math.cos(r * 0.35)
   //       2) combine — v = wave * fade
   //       3) tint    — this.color(0.4 * v, 0.75 * v, v, 1)
@@ -671,20 +703,29 @@ const ripples = gpu.createKernel(function () {
   graphical: true,
 });
 
-await ripples();
+// A dial, not a constant: slider() returns the value this run is using and puts
+// a control under the console, and moving it re-runs the whole program. The
+// tests measure the ripple at rest, so Run with phase back at its default 0.
+const phase = slider('phase', { min: 0, max: 6.28, value: 0, step: 0.01 });
+
+await ripples(phase);
 render(ripples.canvas);
 `,
       solutionCode: `// Change coordinates INSIDE the kernel: position → radius from center.
 const gpu = new GPU({ mode });
 
-const ripples = gpu.createKernel(function () {
+const ripples = gpu.createKernel(function (phase) {
   // thread ids are integers — "/ 1" promotes them to floats so the
   // half-pixel center stays exact on the GPU
   const dx = this.thread.x / 1 - 63.5;
   const dy = this.thread.y / 1 - 63.5;
-  const r = Math.sqrt(dx * dx + dy * dy);
-  const wave = 0.5 + 0.5 * Math.cos(r * 0.35);  // crest every ~18 px
+  let r = Math.sqrt(dx * dx + dy * dy);
   const fade = Math.max(0, 1 - r / 96);         // dim toward the edge
+  // A phase shift IS a shift in radius: one radian of the cosine is 1 / 0.35
+  // px of r. The fade above already read the true radius, so the vignette
+  // stays where it is and only the crests travel.
+  r = r - phase / 0.35;
+  const wave = 0.5 + 0.5 * Math.cos(r * 0.35);  // crest every ~18 px
   const v = wave * fade;
   this.color(0.4 * v, 0.75 * v, v, 1);
 }, {
@@ -692,7 +733,13 @@ const ripples = gpu.createKernel(function () {
   graphical: true,
 });
 
-await ripples();
+// A dial, not a constant: slider() returns the value this run is using and puts
+// a control under the console, and moving it re-runs the whole program. At 0 the
+// rings stand still; drag it and they travel outward, and at 2π every crest has
+// moved out by exactly one ring — the same picture again.
+const phase = slider('phase', { min: 0, max: 6.28, value: 0, step: 0.01 });
+
+await ripples(phase);
 render(ripples.canvas);
 `,
       publicTests: [
@@ -724,6 +771,7 @@ render(ripples.canvas);
         {
           name: 'crests and troughs land where <code>cos(0.35r)</code> puts them',
           run: async ctx => {
+            phaseGuard(ctx);
             const pixels = ctx.getPixels();
             // Buffer row 63 maps to thread y 63 or 64 — either way |dy| = 0.5,
             // so the expected color is identical. x=64: bright center.
@@ -746,6 +794,7 @@ render(ripples.canvas);
         {
           name: 'blue tint and edge fade: <code>b &gt; g &gt; r</code>, corners dark',
           run: async ctx => {
+            phaseGuard(ctx);
             const pixels = ctx.getPixels();
             // On the first bright ring (x≈81 on the center row) the tint
             // ordering must hold, with the exact 0.4 / 0.75 ratios.
@@ -781,6 +830,7 @@ render(ripples.canvas);
         {
           name: 'private test #1',
           run: async ctx => {
+            phaseGuard(ctx);
             const pixels = ctx.getPixels();
             // Full-grid check against the formula. rippleRGB depends only on
             // the distance to (63.5, 63.5), so it is flip-invariant and the

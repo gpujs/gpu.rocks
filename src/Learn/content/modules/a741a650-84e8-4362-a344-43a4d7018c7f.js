@@ -146,10 +146,12 @@ function floodPassJS(grid, k, variant) {
   return out;
 }
 
-// The whole ladder: k = 64, 32, … 1.
-function ladderJS(grid) {
+// The whole ladder: k = 64, 32, … 1. `passes` climbs down only part of it,
+// which is what task 6's dial does — the first n rungs of the full ladder ARE
+// the n-pass ladder, since each pass only ever reads the pass before it.
+function ladderJS(grid, passes = STRIDES.length) {
   let g = grid;
-  for (const k of STRIDES) g = floodPassJS(g, k);
+  for (const k of STRIDES.slice(0, passes)) g = floodPassJS(g, k);
   return g;
 }
 
@@ -1795,7 +1797,14 @@ console.log('sdf at the centre:', sdf[64][64], '- at a corner:', sdf[0][0]);
         cells out of 16,384 — 0.009%. This one manages 67. The standard patch, one extra pass at
         stride 1 ("JFA+1"), takes it to 55 — better, and still not exact. If you need exact, you
         need a different algorithm; what you get here is a fast answer with a bounded, measurable
-        error, and for a glow or an outline or a shatter pattern that is the right trade.</p>`,
+        error, and for a glow or an outline or a shatter pattern that is the right trade.</p>
+        <p>The <code>passes</code> dial stops the ladder short — one rung, or two, or all seven —
+        and re-runs the whole program each time you move it. Wrong cells come out red, so dragging
+        it puts the error curve and the picture side by side: the plot says how many, the diagram
+        says <em>where</em>. Six passes out of seven is not "nearly right", it is
+        <strong>12,292 wrong cells out of 16,384</strong>, because every jump left is a multiple of
+        2 and three quarters of the grid is an odd step away from every seed. The last rung is not
+        a polish pass. It is the one that reaches the cells in between at all.</p>`,
       goal: `<strong>Goal:</strong> write <code>worse(jfa, truth)</code> — 1 where the flooded seed
         is strictly farther than the true nearest one, 0 otherwise — and <code>countOnes</code> to
         total it.`,
@@ -1888,16 +1897,24 @@ function countOnes(grid) {
   return 0;
 }
 
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is how far down the ladder gets to climb. Seven rungs — 64 down to 1
+// — is the whole thing; stop earlier and the red is the error you did not pay
+// for, cell by cell.
+const passes = slider('passes', { min: 1, max: 7, value: 7, step: 1 });
+const finest = Math.pow(2, 7 - passes); // 7 passes reach stride 1, 1 pass stops at 64
+
 const truth = await exact(seedX, seedY);
 let grid = seedGrid;
 const wrong = [countOnes(await worse(grid, truth))];
 for (let k = 64; k >= 1; k = k / 2) {
+  if (k < finest) break;
   grid = await flood(grid, k);
   wrong.push(countOnes(await worse(grid, truth)));
 }
 
 plot(wrong, { title: 'cells not yet holding their nearest seed', log: true });
-console.log('after the ladder:', wrong[wrong.length - 1], 'of 16384 cells are wrong');
+console.log('after', wrong.length - 1, 'passes:', wrong[wrong.length - 1], 'of 16384 cells are wrong');
 
 const patched = await flood(grid, 1);
 console.log('after one extra stride-1 pass:', countOnes(await worse(patched, truth)));
@@ -1967,16 +1984,24 @@ function countOnes(grid) {
   return n;
 }
 
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is how far down the ladder gets to climb. Seven rungs — 64 down to 1
+// — is the whole thing; stop earlier and the red is the error you did not pay
+// for, cell by cell.
+const passes = slider('passes', { min: 1, max: 7, value: 7, step: 1 });
+const finest = Math.pow(2, 7 - passes); // 7 passes reach stride 1, 1 pass stops at 64
+
 const truth = await exact(seedX, seedY);
 let grid = seedGrid;
 const wrong = [countOnes(await worse(grid, truth))];
 for (let k = 64; k >= 1; k = k / 2) {
+  if (k < finest) break;
   grid = await flood(grid, k);
   wrong.push(countOnes(await worse(grid, truth)));
 }
 
 plot(wrong, { title: 'cells not yet holding their nearest seed', log: true });
-console.log('after the ladder:', wrong[wrong.length - 1], 'of 16384 cells are wrong');
+console.log('after', wrong.length - 1, 'passes:', wrong[wrong.length - 1], 'of 16384 cells are wrong');
 
 const patched = await flood(grid, 1);
 console.log('after one extra stride-1 pass:', countOnes(await worse(patched, truth)));
@@ -2103,28 +2128,37 @@ render(paintErr.canvas);
           },
         },
         {
-          name: 'the measured error — 67 cells, and 55 after one more pass — is reported',
+          name: 'the measured error — 67 cells at the full ladder, and 55 after one more pass — is reported',
           run: async ctx => {
             const sites = makeSites(ctx.utils, 24, 211);
             const seeded = seedGridOf(sites.xs, sites.ys);
             const truth = exactGridJS(sites.xs, sites.ys);
-            const done = ladderJS(seeded);
+            // The `passes` dial can stop the ladder short, so the numbers to
+            // expect are the ones for the ladder this run actually climbed.
+            // The plot is where that count is legible — one point per pass,
+            // plus the seed field it started from — so read it first and judge
+            // the console against it. At the dial's default (seven passes) this
+            // is exactly the old assertion: 67 cells, then 55.
+            const series = plottedSeries(ctx);
+            ctx.assert(
+              series && series.length >= 2 && series.length <= STRIDES.length + 1,
+              'leave the plot(wrong, …) line in place — it is the pass-by-pass version of the same ' +
+                'number, and it is what shows the diagram snapping into place on the last rung'
+            );
+            const passes = series.length - 1;
+            const done = ladderJS(seeded, passes);
             const after = wrongCells(done, truth);
             const patched = wrongCells(floodPassJS(done, 1), truth);
             const nums = loggedNumbers(ctx.logs);
+            const ladder =
+              passes === STRIDES.length ? 'the ladder' : `a ladder of ${passes} passes`;
             ctx.assert(
               nums.some(v => Math.abs(v - after) < 0.5),
-              `log how many cells the ladder gets wrong — expected ${after} in the console output`
+              `log how many cells ${ladder} gets wrong — expected ${after} in the console output`
             );
             ctx.assert(
               nums.some(v => Math.abs(v - patched) < 0.5),
               `log the count after the extra stride-1 pass too — expected ${patched}`
-            );
-            const series = plottedSeries(ctx);
-            ctx.assert(
-              series && series.length === STRIDES.length + 1,
-              'leave the plot(wrong, …) line in place — it is the pass-by-pass version of the same ' +
-                'number, and it is what shows the diagram snapping into place on the last rung'
             );
             ctx.assertClose(series[series.length - 1], after, 0.5, 'the last plotted count');
           },
