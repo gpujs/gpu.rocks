@@ -244,6 +244,10 @@
     color: var(--blue);
   }
 
+  .theme-glyph { display: none; }
+
+  .nav-burger { display: none; }
+
   .theme-btn {
     margin-left: 1rem;
     background: var(--surface-2);
@@ -496,5 +500,100 @@
     .kgrid span {
       transition: none;
     }
+  }
+
+  /* ---- phones: the nav was three rows (brand / links / theme) = 107px, an
+     eighth of the screen before any content. One row instead: the links strip
+     scrolls sideways if it has to, and the theme button drops to its glyph. */
+  @media (max-width: 720px) {
+    .nav {
+      gap: .7rem;
+      padding: .5rem .8rem;
+      flex-wrap: nowrap;
+    }
+
+    // the links live in the menu now, so the wordmark and tag come back
+    .nav { position: relative; }
+    .nav .brand { font-size: .95rem; flex: none; }
+
+    /* dims the page behind the open menu so the sheet reads as a layer, not
+       as more nav. Sits under the sheet and over everything else. */
+    .nav-scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: rgba(6, 3, 24, .55);
+      backdrop-filter: blur(2px);
+      animation: nav-scrim-in .16s ease;
+    }
+
+    @keyframes nav-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+
+    // the bar is 80%-opaque by design; over the scrim that reads as dimmed,
+    // which is wrong for the one thing still interactive. Opaque while open.
+    .nav.open {
+      position: relative;
+      z-index: 70;
+      background: var(--surface);
+    }
+
+    .nav-burger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: auto;
+      min-width: 2.4rem;
+      min-height: 2.1rem;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0;
+      box-shadow: none;
+    }
+
+    /* Collapsed by default; opened as a sheet under the bar. Deliberately NOT
+       a horizontally scrollable strip — that hid links behind a gesture and,
+       measured, keyboard focus would not scroll the last one into view. */
+    .nav .links { display: none; }
+
+    .nav.open .links {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 12px 24px -14px rgba(0, 0, 0, .55);
+      padding: .35rem .9rem .6rem;
+      font-size: .95rem;
+    }
+
+    .nav.open .links a {
+      padding: .62rem .2rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .nav.open .links a:last-child { border-bottom: none; }
+    .nav.open .links a.active { border-bottom: 1px solid var(--line); color: var(--pink); }
+    // an underline on the active link adds height to a nowrap row
+    .nav .links a.active { border-bottom: none; padding-bottom: 0; }
+
+    .theme-btn {
+      margin-left: .2rem;
+      flex: none;
+      padding: .3rem .55rem;
+      font-size: .95rem;
+      line-height: 1;
+    }
+
+    .theme-glyph { display: inline; }
+    .theme-word { display: none; }
   }
 }

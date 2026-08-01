@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useTheme } from '../ThemeContext';
 import { FEEDBACK_URL } from '../feedback';
@@ -27,13 +27,44 @@ function JellyLogo() {
 
 function LearnNav() {
   const { pref, cycleTheme } = useTheme();
+  // Phones collapse the links behind a menu button; above 720px the menu state
+  // is inert because the links are always shown and the button is hidden.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = e => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    // a tap anywhere else dismisses it, which is what every native menu does
+    const onDown = e => {
+      if (navRef.current && !navRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown);
+    };
+  }, [menuOpen]);
+
   return (
-    <nav className="nav">
-      <Link className="brand" to="/learn">
+    <>
+      {/* A real element, not a ::before on the nav: a pseudo-element's clicks
+          target the nav itself, so the tap-outside-to-close check above would
+          count the scrim as "inside" and the menu could only be closed by the
+          button. This one dims the page AND dismisses. */}
+      {menuOpen && (
+        <div className="nav-scrim" aria-hidden="true" onClick={() => setMenuOpen(false)} />
+      )}
+      <nav className={menuOpen ? 'nav open' : 'nav'} ref={navRef}>
+      <Link className="brand" to="/learn" aria-label="GPU.js Learn — course home">
         <JellyLogo />
-        GPU.js <span className="learn-tag">learn</span>
+        <span className="brand-word">GPU.js</span>{' '}
+        <span className="learn-tag">learn</span>
       </Link>
-      <div className="links">
+      <div className="links" id="nav-menu" onClick={() => setMenuOpen(false)}>
         <Link to="/">Home</Link>
         <Link to="/learn" className="active">Learn</Link>
         {/* the API reference is a real static directory, not an SPA route */}
@@ -49,10 +80,30 @@ function LearnNav() {
           <span aria-hidden="true">💬 </span>Feedback
         </a>
       </div>
-      <button type="button" className="theme-btn" onClick={cycleTheme}>
-        Theme: {capitalize(pref)}
+      <button
+        type="button"
+        className="nav-burger"
+        aria-expanded={menuOpen}
+        aria-controls="nav-menu"
+        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+        onClick={() => setMenuOpen(o => !o)}
+      >
+        <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
       </button>
-    </nav>
+      <button
+        type="button"
+        className="theme-btn"
+        onClick={cycleTheme}
+        aria-label={`Theme: ${capitalize(pref)} — tap to change`}
+      >
+        {/* phones show only the glyph; the word costs a whole nav row */}
+        <span className="theme-glyph" aria-hidden="true">
+          {pref === 'dark' ? '☾' : pref === 'light' ? '☀' : '◐'}
+        </span>
+        <span className="theme-word">Theme: {capitalize(pref)}</span>
+      </button>
+      </nav>
+    </>
   );
 }
 

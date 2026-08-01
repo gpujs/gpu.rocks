@@ -50,6 +50,13 @@
 
   .crumbbar .tcount {
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .crumb-slash { display: none; }
+
+  @media (max-width: 720px) {
+    .crumb-slash { display: inline; }
   }
 
   /* ============ toolbar ============ */
@@ -102,6 +109,10 @@
     color: var(--ink);
     cursor: pointer;
   }
+
+  .tb-icon { display: none; }
+
+  .tb-icon svg { display: block; }
 
   .tb-select .lbl {
     color: var(--muted);
@@ -1321,6 +1332,31 @@
      took 321px at 38vh, and the 1.4:1 editor/output split left the panel 72px
      of content — one and a half test rows. */
   @media (max-width: 720px) {
+    /* ---- crumb bar: 51px and wrapping, for a line whose first two thirds are
+       the least useful words in it. "Track 1 · GPGPU 101 / Module 1.1 —" goes;
+       what is left is the module title and 1/5, which is what you actually
+       navigate by. */
+    .crumbbar {
+      padding: .4rem .8rem;
+      gap: .5rem;
+      font-size: .75rem;
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+
+    .crumb-track,
+    .crumb-modno,
+    .crumb-taskword { display: none; }
+
+    .crumbbar b {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .crumbbar .taskdots { flex: none; }
+
     /* Each of Reset code / Exit module / Prev task / Next task wrapped onto two
        lines, which made the second toolbar row ~110px tall on a 390px phone.
        Dropping the second word fits each on one line; the full label survives
@@ -1332,13 +1368,85 @@
       padding: .45rem .8rem;
     }
 
+    /* Icons, so all seven controls fit one row instead of two. Each keeps an
+       explicit aria-label — the visible word becomes display:none, and hidden
+       text is excluded from the accessible name. 2.6rem square clears the 44px
+       touch-target guidance at this font size. */
+    .tb-icon { display: inline-flex; align-items: center; justify-content: center; }
+    .tb-word { display: none; }
+
     .tb-btn,
     .tb-next {
-      padding: .4rem .7rem;
+      // px, not rem: materialize sets its own min-width on buttons and a rem
+      // value here lost to it, leaving 36px targets
+      min-width: 40px;
+      min-height: 40px;
+      padding: .3rem .4rem;
+      font-size: 1rem;
+      line-height: 1.35;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .tb-run {
+      min-height: 40px;
+      padding: .3rem .7rem;
+      font-size: .82rem;
       white-space: nowrap;
     }
 
-    .tb-right { gap: .4rem; }
+    // the caret is decoration; dropping it buys a whole icon's width
+    // 40px lives on the LABEL, which is the visible box and must match the
+    // buttons exactly; the select then stretches to fill it, so the thing that
+    // opens the dropdown is still the whole control. Putting the 40 on the
+    // select instead made the label 42 — its own border sits outside it.
+    .tb-select {
+      min-height: 40px;
+      padding: 0 .5rem;
+      gap: 0;
+    }
+
+    .tb-select > span[aria-hidden] { display: none; }
+
+    // the select's own box was 18px tall inside a 40px label, so the real hit
+    // area was smaller than the control looked
+    .tb-select select { align-self: stretch; height: auto; min-height: 0; padding: 0; }
+
+    /* "All tests passed" sat inline and pushed the whole button row onto a
+       second line — undoing the fit it is celebrating. On phones it becomes a
+       toast that takes no layout space and dismisses itself. */
+    .pass-note {
+      position: fixed;
+      left: 50%;
+      bottom: 1.1rem;
+      transform: translateX(-50%);
+      z-index: 120;
+      white-space: nowrap;
+      background: var(--surface);
+      border: 1px solid var(--teal);
+      border-radius: 999px;
+      padding: .5rem 1.1rem;
+      font-size: .82rem;
+      box-shadow: 0 10px 26px -10px rgba(0, 0, 0, .55);
+      pointer-events: none;
+      animation: pass-toast 4.2s ease forwards;
+    }
+
+    @keyframes pass-toast {
+      0% { opacity: 0; transform: translate(-50%, .6rem); }
+      8% { opacity: 1; transform: translate(-50%, 0); }
+      88% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; visibility: hidden; transform: translate(-50%, .4rem); }
+    }
+
+    .tb-select { padding: .34rem .55rem; }
+
+    .tb-right {
+      gap: .35rem;
+      // it is a row of its own on a phone; let it use the full width rather
+      // than hugging the right edge under the Benchmark button
+      margin-left: auto;
+    }
 
     .brief {
       // Now that the brief has its own full screen, it does not need to be
@@ -1399,7 +1507,10 @@
     align-items: center;
     justify-content: center;
     padding: 1.2rem;
-    background: color-mix(in srgb, var(--ink) 50%, transparent);
+    // A fixed dark wash, not var(--ink): --ink is near-white in dark mode, so
+    // this used to dim by LIGHTENING and the page went milky behind the dialog.
+    // Same value as the nav menu's scrim, so every overlay reads alike.
+    background: rgba(6, 3, 24, .55);
     backdrop-filter: blur(3px);
   }
 
@@ -1473,6 +1584,23 @@
     }
   }
 
+  // Narrower than the celebration dialog: a yes/no question does not need the
+  // width of a module summary, and a tighter panel puts Cancel under the thumb.
+  .cmodal-confirm { max-width: 25rem; }
+
+  .tb-danger {
+    background: var(--surface-2);
+    border: 1px solid color-mix(in srgb, #e5484d 55%, var(--line));
+    color: #e5484d;
+    border-radius: 7px;
+    padding: .42rem .9rem;
+    font-size: .82rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .tb-danger:hover { background: color-mix(in srgb, #e5484d 12%, var(--surface-2)); }
+
   .cmodal-actions {
     display: flex;
     justify-content: flex-end;
@@ -1480,6 +1608,9 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    // it must still get out of the way — only the movement goes
+    .pass-note { animation: pass-toast 4.2s step-end forwards; }
+
     .cmodal {
       animation: none;
     }

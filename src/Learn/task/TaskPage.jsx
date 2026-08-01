@@ -45,6 +45,8 @@ import { taskInputDocs } from './inputDoc';
 import { starterCodeFor } from './starterPreamble';
 import ConsolePane from './ConsolePane';
 import CompletionModal from './CompletionModal';
+import ConfirmModal from './ConfirmModal';
+import { IconBench, IconExit, IconNext, IconPrev, IconReset } from './icons';
 import { highlightCodeBlocks } from './highlightCode';
 
 // ---- helpers ---------------------------------------------------------------
@@ -358,6 +360,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   const controlValuesRef = useRef({});
   const [report, setReport] = useState(null);
   const [bench, setBench] = useState(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [running, setRunning] = useState(false);
   const [benching, setBenching] = useState(false);
   const [tab, setTab] = useState('console');
@@ -377,6 +380,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   modeRef.current = mode;
   const busyRef = useRef(false);
   const saveTimer = useRef(null);
+  const resetBtnRef = useRef(null);
   const nextBtnRef = useRef(null);
   const consoleTabRef = useRef(null);
   const testsTabRef = useRef(null);
@@ -523,10 +527,12 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     }
   }, [task]);
 
-  const handleReset = useCallback(() => {
-    if (!window.confirm('Reset code to the starter? Your changes to this task will be lost.')) {
-      return;
-    }
+  // Asking happens in a real dialog (ConfirmModal), not window.confirm — see
+  // that file for why. The button that opened it gets focus back on cancel.
+  const handleReset = useCallback(() => setConfirmReset(true), []);
+
+  const doReset = useCallback(() => {
+    setConfirmReset(false);
     clearTimeout(saveTimer.current);
     saveTimer.current = null; // an explicit Reset must not be flushed back on unmount
     clearCode(taskId);
@@ -540,6 +546,11 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
     setReport(null);
     setBench(null);
   }, [starterCode, taskId]);
+
+  const cancelReset = useCallback(() => {
+    setConfirmReset(false);
+    if (resetBtnRef.current) resetBtnRef.current.focus();
+  }, []);
 
   // The next module WITHIN this module's track, or null — the registry already
   // refuses to cross a track boundary, and always returns null for an orphan.
@@ -646,15 +657,26 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
       <LearnNav />
 
       <div className="crumbbar">
-        {/* an orphan module has no track and no number: it says what it is */}
-        <span>{track ? `Track ${track.number} · ${track.title}` : 'Standalone module'}</span>
-        <span className="sep">/</span>
+        {/* an orphan module has no track and no number: it says what it is.
+            The track and the "Module n —" prefix are hidden on phones (see
+            _task.scss): they are the least useful words in the bar and they
+            were costing it a second line. */}
+        <span className="crumb-track">
+          {track ? `Track ${track.number} · ${track.title}` : 'Standalone module'}
+        </span>
+        <span className="sep crumb-track">/</span>
         <b>
-          {moduleNumber(module) ? `Module ${moduleNumber(module)} — ` : ''}
+          {moduleNumber(module) ? (
+            <span className="crumb-modno">{`Module ${moduleNumber(module)} — `}</span>
+          ) : ''}
           {module.title}
         </b>
         <span className="sep">/</span>
-        <span className="tcount">Task {taskNum} of {total}</span>
+        <span className="tcount">
+          <span className="crumb-taskword">Task </span>{taskNum}
+          <span className="crumb-taskword"> of </span>
+          <span className="crumb-slash">/</span>{total}
+        </span>
         <TaskDots total={total} doneCount={progress.done} currentIndex={taskIndex} />
       </div>
 
@@ -663,7 +685,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           {running ? '… Running' : '▶ Run'}
         </button>
         <label className="tb-select">
-          <span className="lbl">Mode</span>
+          <span className="lbl tb-word">Mode</span>
           <select
             value={mode}
             onChange={e => setMode(e.target.value)}
@@ -678,19 +700,27 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           </select>
           <span aria-hidden="true">▾</span>
         </label>
-        <button type="button" className="tb-btn" onClick={handleBenchmark} disabled={busy}>
-          {benching ? '⏱ Benchmarking…' : '⏱ Benchmark'}
+        <button type="button" className="tb-btn" onClick={handleBenchmark} disabled={busy} aria-label="Benchmark">
+          {benching ? '⏱ Benchmarking…' : <><span className="tb-icon" aria-hidden="true"><IconBench /></span><span className="tb-word">⏱ Benchmark</span></>}
         </button>
         <BenchChip bench={bench} />
         <div className="tb-right">
           {passedNow && <span className="pass-note">✓ All tests passed</span>}
-          <button type="button" className="tb-btn" onClick={handleReset} aria-label="Reset code">
-            Reset<span className="tb-word"> code</span>
+          <button
+            type="button"
+            className="tb-btn"
+            onClick={handleReset}
+            ref={resetBtnRef}
+            aria-label="Reset code"
+          >
+            <span className="tb-icon" aria-hidden="true"><IconReset /></span>
+            <span className="tb-word">Reset code</span>
           </button>
           {/* same wording as the completion modal's way out, so leaving a
               module reads the same whether you finished it or not */}
           <button type="button" className="tb-btn" onClick={handleAllModules} aria-label="Exit module">
-            Exit<span className="tb-word"> module</span>
+            <span className="tb-icon" aria-hidden="true"><IconExit /></span>
+            <span className="tb-word">Exit module</span>
           </button>
           <button
             type="button"
@@ -699,7 +729,8 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
             disabled={!prevEnabled}
             aria-label="Previous task"
           >
-            ← Prev<span className="tb-word"> task</span>
+            <span className="tb-icon" aria-hidden="true"><IconPrev /></span>
+            <span className="tb-word">Prev task</span>
           </button>
           <button
             type="button"
@@ -709,7 +740,8 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
             disabled={!nextEnabled}
             aria-label="Next task"
           >
-            Next<span className="tb-word"> task</span> →
+            <span className="tb-icon" aria-hidden="true"><IconNext /></span>
+            <span className="tb-word">Next task</span>
           </button>
         </div>
       </div>
@@ -821,6 +853,20 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           </div>
         </div>
       </div>
+
+      {confirmReset && (
+        <ConfirmModal
+          eyebrow="Reset code"
+          title="Discard your work on this task?"
+          body={
+            'Your code here is replaced with the starter and cannot be recovered. ' +
+            'Tasks you have already passed stay passed — this only affects the editor.'
+          }
+          confirmLabel="Reset code"
+          onConfirm={doReset}
+          onCancel={cancelReset}
+        />
+      )}
 
       {celebration && (
         <CompletionModal
