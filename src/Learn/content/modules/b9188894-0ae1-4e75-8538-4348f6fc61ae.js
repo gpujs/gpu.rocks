@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 1-5.
 //
-// Module 1.5 — Measuring Speed Honestly.
+// Measuring Speed Honestly.
 //
 // Four tasks: the compile-time trap in first-call timings → a per-call cost
 // that is mostly fixed toll, with the growing part tracking bytes rather than

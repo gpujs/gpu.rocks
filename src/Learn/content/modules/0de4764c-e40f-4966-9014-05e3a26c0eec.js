@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 3-2.
 //
-// Module 3.2 — Escape-Time Fractals.
+// Escape-Time Fractals.
 //
 // Five tasks: mapping pixels onto the complex plane → the Mandelbrot
 // escape-time loop → coloring by iteration count → smooth (fractional)

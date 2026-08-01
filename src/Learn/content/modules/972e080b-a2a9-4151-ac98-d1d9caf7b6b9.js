@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 2-1.
 //
-// Module 2.1 — Matrix Multiply.
+// Matrix Multiply.
 //
 // Five tasks: one dot product in one thread → the full 2D matmul grid →
 // rectangular shapes → transpose → a size-agnostic kernel using

@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 2-5.
 //
-// Module 2.5 — N-Body Gravity.
+// N-Body Gravity.
 //
 // Five tasks: inverse-square pull from one star → the O(n) inner loop that
 // makes it O(n²) → Plummer softening → a semi-implicit Euler tick → a full
@@ -630,8 +630,8 @@ console.log('acceleration on body 0:', acc[0][0], acc[0][1]);
         <p>Both updates are embarrassingly parallel — body <em>i</em> never looks at body
         <em>j</em> — so they're two tiny kernels. Between them, the <code>[vx, vy]</code> pairs
         come back to JavaScript and get unpacked into plain arrays for the next kernel. Clunky?
-        Yes. Instructive? Also yes — and track 2's pipeline module shows how to skip the round
-        trip.</p>`,
+        Yes. Instructive? Also yes — and <strong>Pipelines &amp; Textures</strong> shows how to skip
+        the round trip.</p>`,
       goal: `<strong>Goal:</strong> finish both kernels — <code>stepVel</code> returns
         <code>[v + a·dt]</code> per component, <code>stepPos</code> returns
         <code>[x + v·dt]</code> — and feed the position step the <em>new</em> velocities.`,
@@ -871,8 +871,8 @@ py = newPy;</code></pre>
       transfer: `A host loop launching device kernels in sequence is the universal skeleton of GPU
         simulation: CUDA streams queueing kernel after kernel per timestep, WebGPU building one
         command encoder per frame, Metal committing a command buffer per tick. Production codes
-        differ mainly in never reading the arrays back between passes — that's what track 2's
-        pipeline textures are for.`,
+        differ mainly in never reading the arrays back between passes — that's what the textures in
+        <strong>Pipelines &amp; Textures</strong> are for.`,
       starterCode: `// Three kernels from the last three tasks — and a conductor's podium.
 const gpu = new GPU({ mode });
 const N = 128;

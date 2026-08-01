@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 1-1.
 //
-// Module 1.1 — Hello, Kernel (the very first module of the course).
+// Hello, Kernel (the very first module of the course).
 //
 // Five tasks: the first kernel ever (createKernel + output size) → the
 // thread index as identity → computing a formula from the index → the 2D
@@ -459,7 +459,8 @@ console.log(samples);
       ],
       transfer: `GPUs are built around 2D grids because images are 2D: ROCm and CUDA launch
         <code>dim3</code>-shaped blocks, WebGPU dispatches workgroups across x/y/z, and Metal's
-        grids are up to three-dimensional. One thread per pixel — the idea module 1.2 runs with —
+        grids are up to three-dimensional. One thread per pixel — the idea <strong>Data In, Data
+        Out</strong> runs with —
         starts exactly here.`,
       starterCode: `// output: [width, height] launches a whole grid of threads.
 const gpu = new GPU({ mode });

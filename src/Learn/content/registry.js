@@ -247,6 +247,32 @@ export function validateContent(modules, trackMeta) {
           );
         }
       });
+
+      // CITE MODULES BY NAME, NEVER BY NUMBER.
+      //
+      // A module's position is not a property of the module — it lives in
+      // tracks.js and moves whenever a track is re-cut, which has now happened
+      // several times. Every "track 2" and "module 3.5" written into prose was
+      // wrong within weeks: Reaction–Diffusion told learners the convolution
+      // filters were in track 2 when they are in track 4, and N-Body pointed at
+      // "track 2's pipeline module" which is in track 1. Nothing catches that,
+      // because a stale sentence still renders perfectly.
+      //
+      // Module TITLES are stable and are what the learner actually sees in the
+      // catalogue, so they are the durable way to point at another module.
+      const prose = [task.intro, task.goal, task.transfer]
+        .concat(Array.isArray(task.requirements) ? task.requirements : [])
+        .concat((Array.isArray(task.hints) ? task.hints : []).map(h => (h ? h.body : '')))
+        .filter(v => typeof v === 'string')
+        .join('\n');
+      const numbered = prose.match(/\b(?:track|module)s?\s+\d+(?:[.-]\d+)?\b/i);
+      if (numbered) {
+        problems.push(
+          `${where} task ${step}: prose cites "${numbered[0]}" — cite the module by NAME ` +
+            `instead. Positions live in tracks.js and move on every re-cut, so a number ` +
+            `written into prose goes stale silently.`
+        );
+      }
     });
   });
 

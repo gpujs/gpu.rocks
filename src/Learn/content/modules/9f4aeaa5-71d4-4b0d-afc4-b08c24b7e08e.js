@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 1-4.
 //
-// Module 1.4 — Pipelines & Textures.
+// Pipelines & Textures.
 //
 // Five tasks: pipeline: true and what a texture is → chaining two kernels
 // through a texture → refactoring readbacks out of a three-stage chain →
@@ -335,7 +335,8 @@ console.log('first sample:', values[0]);
         <strong>straight into the next kernel</strong> as an argument. gpu.js binds the texture
         as the input — no download, no re-upload, no JavaScript in the middle. The data makes
         the whole trip without ever leaving the card.</p>
-        <p>In module 1.2 you chained two kernels through JavaScript: the luminance map came
+        <p>In <strong>Data In, Data Out</strong> you chained two kernels through JavaScript: the
+        luminance map came
         back as arrays, then went up again for the second pass. Same chain below — except this
         time <code>luminance</code> is a pipeline kernel, and the second pass eats its texture
         directly.</p>
@@ -791,7 +792,8 @@ console.log('peak after 12 steps:', heat[64]);
     {
       slug: 'photo-to-screen',
       title: 'The Payoff: Photo to Screen, Zero Readbacks',
-      intro: `<p>Time to cash in the whole module. In module 1.2's finale, a two-kernel chain
+      intro: `<p>Time to cash in the whole module. In the finale of <strong>Data In, Data Out</strong>,
+        a two-kernel chain
         hauled the luminance map down to JavaScript and back up again — two transfers it didn't
         need. This pipeline does more work with <em>fewer</em> transfers: photo →
         <strong>luminance</strong> → <strong>3×3 blur</strong> → <strong>painted canvas</strong>,

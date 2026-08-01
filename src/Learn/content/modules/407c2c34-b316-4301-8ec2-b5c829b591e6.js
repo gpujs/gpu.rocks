@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 3-3.
 //
-// Module 3.3 — Cellular Automata.
+// Cellular Automata.
 //
 // Five tasks: counting live neighbors on a wrapped grid → one tick of
 // Conway's Life as a numeric 2D kernel → generations via a JS feed-back

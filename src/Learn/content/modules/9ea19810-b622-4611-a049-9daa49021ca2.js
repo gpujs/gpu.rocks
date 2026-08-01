@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 2-4.
 //
-// Module 2.4 — Monte Carlo Methods.
+// Monte Carlo Methods.
 //
 // Four tasks: the inside-the-circle dart test (one sample per thread) → a
 // parallel reduction that turns hits into π → mean-value integration of

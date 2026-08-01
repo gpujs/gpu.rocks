@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 1-3.
 //
-// Module 1.3 — Thinking in Parallel.
+// Thinking in Parallel.
 //
 // Six tasks: the map pattern → the gather pattern (reverse) → why scatter is
 // impossible and how to invert it (circular shift) → boundary clamping →

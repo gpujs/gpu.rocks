@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 1-2.
 //
-// Module 1.2 — Data In, Data Out (the golden content module).
+// Data In, Data Out (the golden content module).
 //
 // Six tasks: 1D arrays in → 2D output shapes → the mockup's graphical
 // grayscale → reading results back into JS → images as plain data → a
@@ -569,7 +569,8 @@ for (let i = 0; i &lt; result.length; i++) {
       ],
       transfer: `Read-back is never free: CUDA's <code>cudaMemcpy</code> device→host and WebGPU's
         <code>mapAsync</code> staging buffers exist for exactly this step — and minimizing round trips
-        is rule one of real GPU performance (module 1.4 makes a whole meal of it).`,
+        is rule one of real GPU performance (<strong>Pipelines &amp; Textures</strong> makes a whole
+        meal of it).`,
       starterCode: `// Kernel output comes back to JavaScript as a typed array.
 const gpu = new GPU({ mode });
 
@@ -757,7 +758,8 @@ console.log('top-left brightness:', map[0][0]);
         That result comes back to JavaScript, and you pass it straight into kernel two, a
         <strong>graphical</strong> kernel that paints the map as a grayscale picture.</p>
         <p>Array in → numbers out → array in again → pixels out. Data flowing <em>through</em>
-        kernels is the whole game (and module 1.4 shows how to keep that flow on the GPU).</p>
+        kernels is the whole game (and <strong>Pipelines &amp; Textures</strong> shows how to keep that
+        flow on the GPU).</p>
         ${ARRAY_LAYOUT}`,
       goal: `<strong>Goal:</strong> finish both kernels — <code>luminance</code> returns
         <code>0.299r + 0.587g + 0.114b</code> per pixel, and <code>paint</code> renders the map
@@ -783,7 +785,8 @@ this.color(l, l, l, 1);</code></pre>`,
       ],
       transfer: `Multi-pass pipelines are the backbone of GPU work: render passes in graphics,
         kernel launch chains in CUDA, encoder passes in WebGPU. The handoff you just did through
-        JavaScript is the slow version — pipelines (module 1.4) keep it on-device.`,
+        JavaScript is the slow version — pipelines (<strong>Pipelines &amp; Textures</strong>) keep it
+        on-device.`,
       starterCode: `// Kernel 1 turns the photo into numbers. Kernel 2 turns numbers into pixels.
 const gpu = new GPU({ mode });
 

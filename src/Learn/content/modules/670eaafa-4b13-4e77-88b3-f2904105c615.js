@@ -1105,7 +1105,8 @@ console.log('as a grey level:', (best / 255).toFixed(3));
         back to task 1. Here the marks are 5 pixels across and the light drifts over tens of
         pixels, so 9×9 sits nicely in between.</p>
         <p><code>gray</code> is the same scene's luminance, one number per pixel. A luminance
-        pass produces it in a real pipeline — module 1.2's finale is exactly that pass — and it
+        pass produces it in a real pipeline — the finale of <strong>Data In, Data Out</strong> is
+        exactly that pass — and it
         is handed over here so the sweep is the only thing you write.</p>`,
       goal: `<strong>Goal:</strong> return <code>1</code> where <code>gray[y][x]</code> exceeds
         the mean of its clamped 9×9 neighbourhood by more than <code>this.constants.c</code>,

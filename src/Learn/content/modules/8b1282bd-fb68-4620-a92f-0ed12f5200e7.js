@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 3-5.
 //
-// Module 3.5 — Ray-Marched Metaballs.
+// Ray-Marched Metaballs.
 //
 // Six tasks: a sphere SDF sampled per pixel → smooth-min merges two spheres
 // into a metaball field → the sphere-tracing loop finds the surface → finite-

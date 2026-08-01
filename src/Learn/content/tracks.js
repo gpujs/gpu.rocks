@@ -12,6 +12,21 @@
 //
 // Numbers, titles and taglines come from the approved mockup.
 //
+// EDITING THIS FILE IS FREE. Module identity is the uuid, progress is keyed by
+// uuid, and URLs carry the uuid's short id — so moving a module between tracks
+// or reordering one costs nothing and breaks no saved work. That is deliberate,
+// and it has been used several times.
+//
+// WHICH IS EXACTLY WHY MODULE PROSE MUST NEVER CITE A POSITION. "track 2" and
+// "module 3.5" are facts about THIS file, not about the module they name, and
+// every one that was written into prose went stale here: Reaction–Diffusion
+// told learners the convolution filters were in track 2 when they had moved to
+// track 4, and N-Body pointed at "track 2's pipeline module" which is in track
+// 1. Nothing catches that, because a stale sentence still renders perfectly.
+// Cite the module's TITLE instead — titles are stable and are what the learner
+// sees in the catalogue. content/registry.js now fails the build on any prose
+// matching /\b(track|module)s? \d+/, so this cannot come back.
+//
 // Plain ESM data, no imports: node scripts read this file directly.
 
 const tracks = [

@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 3-4.
 //
-// Module 3.4 — Reaction–Diffusion.
+// Reaction–Diffusion.
 //
 // Four tasks: the 5-point Laplacian as a wrap-around gather kernel → one
 // Gray–Scott update step for the U and V grids (two kernels sharing a
@@ -102,7 +102,8 @@ function spikeGrid(size, y, x, value) {
 }
 
 // The same 5-point Laplacian with clamp-to-edge instead of wrap-around — the
-// filtering habit from track 2, reused here where the world is a torus.
+// filtering habit from Convolution & Filters, reused here where the world is a
+// torus.
 function laplacianClampedRef(grid) {
   const size = grid.length;
   const clamp = i => Math.max(0, Math.min(size - 1, i));
@@ -215,8 +216,8 @@ export default {
         <strong>Laplacian</strong>, and on a grid it's a five-read gather:
         <code>left + right + up + down − 4·center</code>. Positive means the neighbors are
         higher and stuff will flow in; negative means it flows out.</p>
-        <p>One wrinkle: simulations hate edges. Instead of clamping like the convolution
-        filters in track 2, we <strong>wrap around</strong> — the left neighbor of column 0 is
+        <p>One wrinkle: simulations hate edges. Instead of clamping like the filters in
+        <strong>Convolution &amp; Filters</strong>, we <strong>wrap around</strong> — the left neighbor of column 0 is
         column 31. The world becomes a torus and every cell has exactly four neighbors,
         no special cases.</p>`,
       goal: `<strong>Goal:</strong> complete the gather kernel so it returns the 5-point
@@ -804,7 +805,8 @@ console.log('center V after', STEPS, 'steps:', v[24][24]);
       hints: [
         {
           title: 'Hint 1 — same move as the luminance painter',
-          body: `<p>This is the paint kernel from track 1 with a fancier ramp: read one number
+          body: `<p>This is the paint kernel from <strong>Pixels from Scratch</strong> with a fancier
+            ramp: read one number
             from the grid, compute the channels, call <code>this.color()</code>.
             <code>Math.min</code> works inside kernels.</p>`,
         },

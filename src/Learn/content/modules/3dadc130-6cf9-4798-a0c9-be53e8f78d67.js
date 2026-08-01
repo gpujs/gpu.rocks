@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 2-2.
 //
-// Module 2.2 — Reductions.
+// Reductions.
 //
 // Six tasks: the one-thread baseline → strided partial sums → one rung of
 // the halving ladder → riding the ladder down to a scalar → min/max by

@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 3-1.
 //
-// Module 3.1 — Pixels from Scratch (Track 3: Computational Graphics).
+// Pixels from Scratch (Computational Graphics).
 //
 // Four tasks: first graphical kernel (a coordinate gradient) → checkerboard
 // via modular arithmetic → plotting y = f(x) as a per-pixel distance test →
@@ -462,7 +462,8 @@ render(board.canvas);
         that height, and paints amber if the distance is under 2 pixels — background otherwise.</p>
         <p>This per-pixel <em>"how far am I from the shape?"</em> question is one of the great
         tricks of computer graphics. Today it draws a sine wave; the same idea, pushed further,
-        draws the fractals of module 3.2 and the ray-marched scenes of module 3.5.</p>`,
+        draws the fractals of <strong>Escape-Time Fractals</strong> and the ray-marched scenes of
+        <strong>Ray-Marched Metaballs</strong>.</p>`,
       goal: `<strong>Goal:</strong> plot one full period of
         <code>y = 64 + 40 · sin(2πx / 128)</code> as a thin amber curve on the dark background.`,
       requirements: [

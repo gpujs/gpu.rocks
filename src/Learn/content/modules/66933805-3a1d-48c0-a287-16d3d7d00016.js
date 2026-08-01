@@ -2,7 +2,7 @@
 // The file name is the uuid; identity lives in the exported object below,
 // never in the path. Legacy id (pre-uuid URLs, localStorage migration): 2-3.
 //
-// Module 2.3 — Convolution & Filters.
+// Convolution & Filters.
 //
 // Five tasks: a hardcoded 3-tap smoothing kernel → a generic 1D convolution
 // with the filter as data and its size as constants → a 2D box blur on an
@@ -865,7 +865,8 @@ console.log('center before:', gray[48][48], ' after:', result[48][48]);
         <code>Gx</code> filter responds to horizontal change, <code>Gy</code> to vertical change,
         and the length of that gradient vector — <code>√(gx² + gy²)</code> — is how
         <em>edge-like</em> the pixel is, whatever the edge's direction.</p>
-        <p>This is a two-kernel pipeline like module 1.2's finale: a numeric pass turns the image
+        <p>This is a two-kernel pipeline like the finale of <strong>Data In, Data Out</strong>: a
+        numeric pass turns the image
         into a luminance map (written for you), then the Sobel pass reads each map cell's eight
         neighbors, applies both weight grids, and paints the magnitude. Border pixels have no
         full neighborhood, so the starter already paints them black — your work lives in the
@@ -907,7 +908,7 @@ this.color(m, m, m, 1);</code></pre>
       starterCode: `// Two directional convolutions, one kernel, magnitude out.
 const gpu = new GPU({ mode });
 
-// Pass 1 — luminance map (module 1.2 déjà vu; already done for you).
+// Pass 1 — luminance map (Data In, Data Out déjà vu; already done for you).
 const luminance = gpu.createKernel(function (image) {
   const pixel = image[this.thread.y][this.thread.x];
   return 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2];

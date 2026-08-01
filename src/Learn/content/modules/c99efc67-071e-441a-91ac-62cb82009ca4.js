@@ -582,17 +582,19 @@ export default {
       slug: 'per-thread-dice',
       title: 'Dice Every Thread Can Roll',
       intro: `<p>A path tracer needs random numbers by the million — every bounce picks a direction
-        out of a hat. On a CPU you call <code>Math.random()</code> and never think about it again.
-        On a GPU you can't, for two separate reasons. gpu.js's WebGPU backend simply refuses to
-        compile a kernel containing <code>Math.random</code> (it is one of exactly three things that
-        make a kernel decline the upgrade and stay on WebGL). And even where it compiles, 4,096
-        threads drawing from <em>one</em> generator is a fiction: there is no shared state on a GPU
-        and no defined order in which the threads would take their turns.</p>
-        <p>So the whole industry does the same thing instead: <strong>the thread's own coordinates
-        are the seed</strong>. Hash <code>this.thread.x</code>, <code>this.thread.y</code> and a
-        frame counter into a starting state, then walk that state forward. Every thread gets a
-        private stream, nothing is shared, and — because a hash is a pure function — the same run
-        produces the same picture every single time.</p>
+        out of a hat. It cannot ask <code>Math.random()</code> for them: WebGPU refuses to compile a
+        kernel containing it, and even where it compiles, thousands of threads drawing from
+        <em>one</em> generator is a fiction, because a GPU has no shared state and no defined order
+        in which the threads would take their turns. <strong>The Ising Model</strong> makes that
+        argument in full and builds the generator from first principles; if you have not met it
+        there, the short version is what follows.</p>
+        <p>The fix is to make <strong>the thread's own coordinates the seed</strong>. Hash
+        <code>this.thread.x</code>, <code>this.thread.y</code> and a frame counter into a starting
+        state, then walk that state forward. Every thread gets a private stream, nothing is shared,
+        and — because a hash is a pure function — the same run produces the same picture every
+        single time. What is new <em>here</em> is the frame counter: Ising re-seeds per sweep to
+        keep a simulation honest, and a path tracer re-seeds per frame so that each frame's noise is
+        independent of the last, which is the only reason averaging them helps.</p>
         <p>The generator is written for you. Notice how small the numbers stay:</p>
 <pre><code>gpu.addFunction(function nextRandom(state) {
   let p = state * 78.233 + 0.7213;
@@ -640,8 +642,9 @@ seed = nextRandom(seed + this.thread.y * 0.0917);</code></pre>
       transfer: `Counter-based, per-thread generators are how every production GPU renderer does
         this: CUDA's cuRAND is initialised as <code>curand_init(seed, thread_id, 0, &amp;state)</code>,
         and WebGPU and Metal shaders hash <code>global_invocation_id</code> with a frame index using
-        exactly this shape. The reason is always the same one — a shared stream needs shared state
-        and an ordering, and a GPU offers neither.`,
+        exactly this shape. It is the same tool <strong>The Ising Model</strong> reaches for, which
+        is worth noticing: a renderer and a statistical-mechanics simulation have almost nothing in
+        common except that both need a private stream per thread, and both get it the same way.`,
       starterCode: `// Static, on purpose: 4,096 threads each rolling their own die.
 const gpu = new GPU({ mode });
 
