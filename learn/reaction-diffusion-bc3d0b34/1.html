@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <script type="module" crossorigin src="/assets/index-Bf6tjKwP.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>The Laplacian: Ask Your Neighbors · Reaction–Diffusion — GPU.js Learn</title>
     <meta name="description" content="Goal: complete the gather kernel so it returns the 5-point Laplacian of field with wrap-around edges.">
@@ -155,8 +155,8 @@
         <strong>Laplacian</strong>, and on a grid it's a five-read gather:
         <code>left + right + up + down − 4·center</code>. Positive means the neighbors are
         higher and stuff will flow in; negative means it flows out.</p>
-        <p>One wrinkle: simulations hate edges. Instead of clamping like the convolution
-        filters in track 2, we <strong>wrap around</strong> — the left neighbor of column 0 is
+        <p>One wrinkle: simulations hate edges. Instead of clamping like the filters in
+        <strong>Convolution &amp; Filters</strong>, we <strong>wrap around</strong> — the left neighbor of column 0 is
         column 31. The world becomes a torus and every cell has exactly four neighbors,
         no special cases.</p>
 <figure><figcaption>five reads, one number — how far am i from my neighbors' average?</figcaption></figure>

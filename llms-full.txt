@@ -477,7 +477,8 @@ checkerboard-style.
 
 GPUs are built around 2D grids because images are 2D: ROCm and CUDA launch
 `dim3`-shaped blocks, WebGPU dispatches workgroups across x/y/z, and Metal's
-grids are up to three-dimensional. One thread per pixel — the idea module 1.2 runs with —
+grids are up to three-dimensional. One thread per pixel — the idea **Data In, Data
+Out** runs with —
 starts exactly here.
 
 ## Starter code
@@ -850,7 +851,8 @@ for (let i = 0; i < result.length; i++) {
 
 Read-back is never free: CUDA's `cudaMemcpy` device→host and WebGPU's
 `mapAsync` staging buffers exist for exactly this step — and minimizing round trips
-is rule one of real GPU performance (module 1.4 makes a whole meal of it).
+is rule one of real GPU performance (**Pipelines & Textures** makes a whole
+meal of it).
 
 ## Starter code
 
@@ -969,7 +971,8 @@ That result comes back to JavaScript, and you pass it straight into kernel two, 
 **graphical** kernel that paints the map as a grayscale picture.
 
 Array in → numbers out → array in again → pixels out. Data flowing *through*
-kernels is the whole game (and module 1.4 shows how to keep that flow on the GPU).
+kernels is the whole game (and **Pipelines & Textures** shows how to keep that
+flow on the GPU).
 
 **Array layout in gpu.js**
 Image data comes in row-major: `image[y][x]` is the pixel in row *y*,
@@ -1014,7 +1017,8 @@ this.color(l, l, l, 1);
 
 Multi-pass pipelines are the backbone of GPU work: render passes in graphics,
 kernel launch chains in CUDA, encoder passes in WebGPU. The handoff you just did through
-JavaScript is the slow version — pipelines (module 1.4) keep it on-device.
+JavaScript is the slow version — pipelines (**Pipelines & Textures**) keep it
+on-device.
 
 ## Starter code
 
@@ -1165,7 +1169,8 @@ Here's the payoff of textures: a texture returned by one kernel can be passed
 as the input — no download, no re-upload, no JavaScript in the middle. The data makes
 the whole trip without ever leaving the card.
 
-In module 1.2 you chained two kernels through JavaScript: the luminance map came
+In **Data In, Data Out** you chained two kernels through JavaScript: the
+luminance map came
 back as arrays, then went up again for the second pass. Same chain below — except this
 time `luminance` is a pipeline kernel, and the second pass eats its texture
 directly.
@@ -1452,7 +1457,8 @@ Interactive version: https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5/4
 
 *Task 5 of 5 · [Pipelines & Textures](https://gpu.rocks/learn/pipelines-and-textures-9f4aeaa5.md) · GPU.js Learn*
 
-Time to cash in the whole module. In module 1.2's finale, a two-kernel chain
+Time to cash in the whole module. In the finale of **Data In, Data Out**,
+a two-kernel chain
 hauled the luminance map down to JavaScript and back up again — two transfers it didn't
 need. This pipeline does more work with *fewer* transfers: photo →
 **luminance** → **3×3 blur** → **painted canvas**,
@@ -8950,8 +8956,8 @@ the velocity *first*, then move the body with the *new* velocity —
 Both updates are embarrassingly parallel — body *i* never looks at body
 *j* — so they're two tiny kernels. Between them, the `[vx, vy]` pairs
 come back to JavaScript and get unpacked into plain arrays for the next kernel. Clunky?
-Yes. Instructive? Also yes — and track 2's pipeline module shows how to skip the round
-trip.
+Yes. Instructive? Also yes — and **Pipelines & Textures** shows how to skip
+the round trip.
 
 ## Goal
 
@@ -9093,8 +9099,8 @@ for (let step = 0; step < STEPS; step++) {
 A host loop launching device kernels in sequence is the universal skeleton of GPU
 simulation: CUDA streams queueing kernel after kernel per timestep, WebGPU building one
 command encoder per frame, Metal committing a command buffer per tick. Production codes
-differ mainly in never reading the arrays back between passes — that's what track 2's
-pipeline textures are for.
+differ mainly in never reading the arrays back between passes — that's what the textures in
+**Pipelines & Textures** are for.
 
 ## Starter code
 
@@ -13953,7 +13959,8 @@ The payoff: run **two convolutions at once**. Sobel's
 and the length of that gradient vector — `√(gx² + gy²)` — is how
 *edge-like* the pixel is, whatever the edge's direction.
 
-This is a two-kernel pipeline like module 1.2's finale: a numeric pass turns the image
+This is a two-kernel pipeline like the finale of **Data In, Data Out**: a
+numeric pass turns the image
 into a luminance map (written for you), then the Sobel pass reads each map cell's eight
 neighbors, applies both weight grids, and paints the magnitude. Border pixels have no
 full neighborhood, so the starter already paints them black — your work lives in the
@@ -14018,7 +14025,7 @@ it in WGSL or Metal, too.
 // Two directional convolutions, one kernel, magnitude out.
 const gpu = new GPU({ mode });
 
-// Pass 1 — luminance map (module 1.2 déjà vu; already done for you).
+// Pass 1 — luminance map (Data In, Data Out déjà vu; already done for you).
 const luminance = gpu.createKernel(function (image) {
   const pixel = image[this.thread.y][this.thread.x];
   return 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2];
@@ -14359,7 +14366,8 @@ back to task 1. Here the marks are 5 pixels across and the light drifts over ten
 pixels, so 9×9 sits nicely in between.
 
 `gray` is the same scene's luminance, one number per pixel. A luminance
-pass produces it in a real pipeline — module 1.2's finale is exactly that pass — and it
+pass produces it in a real pipeline — the finale of **Data In, Data Out** is
+exactly that pass — and it
 is handed over here so the sweep is the only thing you write.
 
 ## Goal
@@ -24934,7 +24942,8 @@ that height, and paints amber if the distance is under 2 pixels — background o
 
 This per-pixel *"how far am I from the shape?"* question is one of the great
 tricks of computer graphics. Today it draws a sine wave; the same idea, pushed further,
-draws the fractals of module 3.2 and the ray-marched scenes of module 3.5.
+draws the fractals of **Escape-Time Fractals** and the ray-marched scenes of
+**Ray-Marched Metaballs**.
 
 ## Figures
 
@@ -26110,8 +26119,8 @@ The operator that measures "how far am I from my neighbors' average" is the
 `left + right + up + down − 4·center`. Positive means the neighbors are
 higher and stuff will flow in; negative means it flows out.
 
-One wrinkle: simulations hate edges. Instead of clamping like the convolution
-filters in track 2, we **wrap around** — the left neighbor of column 0 is
+One wrinkle: simulations hate edges. Instead of clamping like the filters in
+**Convolution & Filters**, we **wrap around** — the left neighbor of column 0 is
 column 31. The world becomes a torus and every cell has exactly four neighbors,
 no special cases.
 
@@ -26441,7 +26450,8 @@ rising through violet to white-hot at the pattern's crest.
 
 ## Hint 1 — same move as the luminance painter
 
-This is the paint kernel from track 1 with a fancier ramp: read one number
+This is the paint kernel from **Pixels from Scratch** with a fancier
+ramp: read one number
 from the grid, compute the channels, call `this.color()`.
 `Math.min` works inside kernels.
 
@@ -28127,18 +28137,20 @@ Interactive version: https://gpu.rocks/learn/path-tracing-c99efc67
 *Task 1 of 5 · [Progressive Path Tracing: Noise Melting Into an Image](https://gpu.rocks/learn/path-tracing-c99efc67.md) · GPU.js Learn*
 
 A path tracer needs random numbers by the million — every bounce picks a direction
-out of a hat. On a CPU you call `Math.random()` and never think about it again.
-On a GPU you can't, for two separate reasons. gpu.js's WebGPU backend simply refuses to
-compile a kernel containing `Math.random` (it is one of exactly three things that
-make a kernel decline the upgrade and stay on WebGL). And even where it compiles, 4,096
-threads drawing from *one* generator is a fiction: there is no shared state on a GPU
-and no defined order in which the threads would take their turns.
+out of a hat. It cannot ask `Math.random()` for them: WebGPU refuses to compile a
+kernel containing it, and even where it compiles, thousands of threads drawing from
+*one* generator is a fiction, because a GPU has no shared state and no defined order
+in which the threads would take their turns. **The Ising Model** makes that
+argument in full and builds the generator from first principles; if you have not met it
+there, the short version is what follows.
 
-So the whole industry does the same thing instead: **the thread's own coordinates
-are the seed**. Hash `this.thread.x`, `this.thread.y` and a
-frame counter into a starting state, then walk that state forward. Every thread gets a
-private stream, nothing is shared, and — because a hash is a pure function — the same run
-produces the same picture every single time.
+The fix is to make **the thread's own coordinates the seed**. Hash
+`this.thread.x`, `this.thread.y` and a frame counter into a starting
+state, then walk that state forward. Every thread gets a private stream, nothing is shared,
+and — because a hash is a pure function — the same run produces the same picture every
+single time. What is new *here* is the frame counter: Ising re-seeds per sweep to
+keep a simulation honest, and a path tracer re-seeds per frame so that each frame's noise is
+independent of the last, which is the only reason averaging them helps.
 
 The generator is written for you. Notice how small the numbers stay:
 
@@ -28204,8 +28216,9 @@ of itself removes nothing at all.
 Counter-based, per-thread generators are how every production GPU renderer does
 this: CUDA's cuRAND is initialised as `curand_init(seed, thread_id, 0, &state)`,
 and WebGPU and Metal shaders hash `global_invocation_id` with a frame index using
-exactly this shape. The reason is always the same one — a shared stream needs shared state
-and an ordering, and a GPU offers neither.
+exactly this shape. It is the same tool **The Ising Model** reaches for, which
+is worth noticing: a renderer and a statistical-mechanics simulation have almost nothing in
+common except that both need a private stream per thread, and both get it the same way.
 
 ## Starter code
 

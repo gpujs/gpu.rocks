@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <script type="module" crossorigin src="/assets/index-Bf6tjKwP.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Sobel Edge Detection · Convolution &amp; Filters — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the Sobel kernel — read the 3×3 neighborhood of gray , compute gx and gy with the weights shown in the starter, and paint Math.sqrt(gx * gx + gy…">
@@ -154,7 +154,8 @@
         <code>Gx</code> filter responds to horizontal change, <code>Gy</code> to vertical change,
         and the length of that gradient vector — <code>√(gx² + gy²)</code> — is how
         <em>edge-like</em> the pixel is, whatever the edge's direction.</p>
-        <p>This is a two-kernel pipeline like module 1.2's finale: a numeric pass turns the image
+        <p>This is a two-kernel pipeline like the finale of <strong>Data In, Data Out</strong>: a
+        numeric pass turns the image
         into a luminance map (written for you), then the Sobel pass reads each map cell's eight
         neighbors, applies both weight grids, and paints the magnitude. Border pixels have no
         full neighborhood, so the starter already paints them black — your work lives in the

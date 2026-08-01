@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <script type="module" crossorigin src="/assets/index-Bf6tjKwP.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Paint the Pattern · Reaction–Diffusion — GPU.js Learn</title>
     <meta name="description" content="Goal: complete the paint kernel — map this thread's v value through the palette and put it on screen.">
@@ -163,7 +163,8 @@
         <code>v</code> value through the palette and put it on screen.</div>
 
 <h2>Requirements</h2><ul><li>Read this thread's value: <code>v[this.thread.y][this.thread.x]</code></li><li>Brightness <code>t = Math.min(1, value * 2.5)</code></li><li>Paint <code>this.color(t, t * t, 0.25 + 0.75 * t, 1)</code></li></ul>
-<details><summary>Hint 1 — same move as the luminance painter</summary><p>This is the paint kernel from track 1 with a fancier ramp: read one number
+<details><summary>Hint 1 — same move as the luminance painter</summary><p>This is the paint kernel from <strong>Pixels from Scratch</strong> with a fancier
+            ramp: read one number
             from the grid, compute the channels, call <code>this.color()</code>.
             <code>Math.min</code> works inside kernels.</p></details>
 <details><summary>Hint 2 — the whole body</summary><pre><code>const t = Math.min(1, v[this.thread.y][this.thread.x] * 2.5);

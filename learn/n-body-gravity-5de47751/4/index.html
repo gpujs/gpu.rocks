@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <script type="module" crossorigin src="/assets/index-Bf6tjKwP.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>One Tick of the Clock · N-Body Gravity — GPU.js Learn</title>
     <meta name="description" content="Goal: finish both kernels — stepVel returns [v + a·dt] per component, stepPos returns [x + v·dt] — and feed the position step the new velocities.">
@@ -158,8 +158,8 @@
         <p>Both updates are embarrassingly parallel — body <em>i</em> never looks at body
         <em>j</em> — so they're two tiny kernels. Between them, the <code>[vx, vy]</code> pairs
         come back to JavaScript and get unpacked into plain arrays for the next kernel. Clunky?
-        Yes. Instructive? Also yes — and track 2's pipeline module shows how to skip the round
-        trip.</p>
+        Yes. Instructive? Also yes — and <strong>Pipelines &amp; Textures</strong> shows how to skip
+        the round trip.</p>
 
 <div class="ssg-goal"><strong>Goal:</strong> finish both kernels — <code>stepVel</code> returns
         <code>[v + a·dt]</code> per component, <code>stepPos</code> returns

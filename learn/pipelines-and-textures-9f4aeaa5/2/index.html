@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <script type="module" crossorigin src="/assets/index-Bf6tjKwP.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Chain Kernels, Skip the Round Trip · Pipelines &amp; Textures — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the contrast kernel — stretch each luminance value around the midpoint with (l − 0.5) × 2 + 0.5 , clamped to 0–1 — and keep the texture handoff…">
@@ -154,7 +154,8 @@
         <strong>straight into the next kernel</strong> as an argument. gpu.js binds the texture
         as the input — no download, no re-upload, no JavaScript in the middle. The data makes
         the whole trip without ever leaving the card.</p>
-        <p>In module 1.2 you chained two kernels through JavaScript: the luminance map came
+        <p>In <strong>Data In, Data Out</strong> you chained two kernels through JavaScript: the
+        luminance map came
         back as arrays, then went up again for the second pass. Same chain below — except this
         time <code>luminance</code> is a pipeline kernel, and the second pass eats its texture
         directly.</p>

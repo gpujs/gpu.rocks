@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <script type="module" crossorigin src="/assets/index-Bf6tjKwP.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Read the Results Back · Data In, Data Out — GPU.js Learn</title>
     <meta name="description" content="Goal: make the kernel return x² for each thread, then sum the returned array in plain JavaScript and log the total with console.log .">
@@ -169,7 +169,8 @@ for (let i = 0; i &lt; result.length; i++) {
 }</code></pre></details>
 <h2>Same idea elsewhere</h2>Read-back is never free: CUDA's <code>cudaMemcpy</code> device→host and WebGPU's
         <code>mapAsync</code> staging buffers exist for exactly this step — and minimizing round trips
-        is rule one of real GPU performance (module 1.4 makes a whole meal of it).
+        is rule one of real GPU performance (<strong>Pipelines &amp; Textures</strong> makes a whole
+        meal of it).
 <h2>All tasks in Data In, Data Out</h2>
 <ol class="ssg-tasks"><li><a href="/learn/data-in-data-out-42b68d01/1">Pass an Array In</a></li><li><a href="/learn/data-in-data-out-42b68d01/2">Shape the Output: 2D</a></li><li><a href="/learn/data-in-data-out-42b68d01/3">Grayscale, the GPU way</a></li><li><a href="/learn/data-in-data-out-42b68d01/4">Read the Results Back</a></li><li><a href="/learn/data-in-data-out-42b68d01/5">Images Are Just Arrays</a></li><li><a href="/learn/data-in-data-out-42b68d01/6">Put It Together: Two Kernels</a></li></ol>
 <nav class="ssg-pager"><a href="/learn/data-in-data-out-42b68d01/3">← previous task</a> · <a href="/learn/data-in-data-out-42b68d01/5">next task →</a></nav>

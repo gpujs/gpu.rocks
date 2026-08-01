@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-BPPrhpqU.js"></script>
+    <script type="module" crossorigin src="/assets/index-Bf6tjKwP.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Put It Together: 128 Bodies · N-Body Gravity — GPU.js Learn</title>
     <meta name="description" content="Goal: write the simulation loop — ten ticks of accel → stepVel → stepPos , carrying the new arrays forward each time.">
@@ -184,8 +184,8 @@ py = newPy;</code></pre>
 <h2>Same idea elsewhere</h2>A host loop launching device kernels in sequence is the universal skeleton of GPU
         simulation: CUDA streams queueing kernel after kernel per timestep, WebGPU building one
         command encoder per frame, Metal committing a command buffer per tick. Production codes
-        differ mainly in never reading the arrays back between passes — that's what track 2's
-        pipeline textures are for.
+        differ mainly in never reading the arrays back between passes — that's what the textures in
+        <strong>Pipelines &amp; Textures</strong> are for.
 <h2>All tasks in N-Body Gravity</h2>
 <ol class="ssg-tasks"><li><a href="/learn/n-body-gravity-5de47751/1">The Pull of One Star</a></li><li><a href="/learn/n-body-gravity-5de47751/2">Every Body Pulls on Every Body</a></li><li><a href="/learn/n-body-gravity-5de47751/3">Softening the Singularity</a></li><li><a href="/learn/n-body-gravity-5de47751/4">One Tick of the Clock</a></li><li><a href="/learn/n-body-gravity-5de47751/5">Put It Together: 128 Bodies</a></li></ol>
 <nav class="ssg-pager"><a href="/learn/n-body-gravity-5de47751/4">← previous task</a></nav>
