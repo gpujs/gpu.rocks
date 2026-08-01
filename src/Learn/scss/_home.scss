@@ -166,6 +166,62 @@
     transition: border-color .15s, transform .15s;
   }
 
+  /* ---- card art ----
+     Class is `mart`, not `thumb`: materialize-css styles `.thumb` (its range
+     input's knob) in purple 800, and being global it beat `.module .thumb` at
+     equal specificity by source order — which is why these panels rendered
+     garish purple rather than the --bg they asked for. Renaming beats an
+     !important war, and matches the card's own mno/mstate/mstale naming.
+     Full bleed: the picture reaches the card's top, left and right edges, with
+     only the top corners rounded so it sits inside the 1px border rather than
+     over it. The negative margins cancel the card's own padding exactly. */
+  .module {
+    padding-top: 0;
+  }
+
+  .module .mart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 -1.2rem .75rem;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-bottom: 1px solid var(--line);
+    /* Its own token: --surface-2 is a saturated indigo that reads fine as a
+       small chip and garish as a block this size, and --bg is the PAGE colour,
+       which made the panel look like a hole punched in the card. */
+    background: var(--art-bg);
+    /* 11px, not 12px: the card's radius measured from INSIDE its own border. */
+    border-radius: 11px 11px 0 0;
+  }
+
+  .module .mart.render img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* A figure is line art with its own margins, so it letterboxes rather than
+     cropping — cropping a diagram cuts the labels off. */
+  .module .mart.figure {
+    padding: .55rem .9rem;
+  }
+
+  .module .mart svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .module .mart svg text {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    fill: var(--ink);
+  }
+
+  .module .mart svg .lbl { font-size: 10px; fill: var(--muted); }
+  .module .mart svg .lbl-up { font-size: 9px; fill: var(--muted); }
+  .module .mart svg .formula { font-size: 11px; fill: var(--ink); }
+
   .module:hover,
   .module:focus-visible {
     border-color: var(--blue);

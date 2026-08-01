@@ -6,6 +6,8 @@ import TaskDots from '../components/TaskDots';
 import { moduleNumber, orphanModules, parseTaskKey, tracks } from '../content/index.js';
 import { FEEDBACK_URL } from '../feedback';
 import { getProgress, moduleProgress } from '../engine/storage.js';
+import { getFigures } from '../content/figures/index.js';
+import moduleRenders from '../content/moduleRenders.js';
 import { learnHomeMeta } from '../../routeMeta';
 import { setPageMeta } from '../../pageMeta';
 
@@ -93,6 +95,7 @@ function ModuleCard({ module }) {
       to={module.url}
       className={isCurrent ? 'module current' : 'module'}
     >
+      <ModuleThumb module={module} />
       <span className="mno">
         {/* orphan modules ("Others") have no number — they are unordered */}
         {moduleNumber(module) ? `MODULE ${moduleNumber(module)} · ` : ''}
@@ -119,6 +122,39 @@ function ModuleCard({ module }) {
       </div>
     </Link>
   );
+}
+
+// Card art. A module that PAINTS something gets its real output — captured by
+// scripts/capture-module-renders.mjs from the actual solution running in the
+// actual sandbox — so the thumbnail is the thing itself rather than a drawing
+// of it. Everything else falls back to the module's own opening figure, art a
+// human already drew in the course's visual language.
+//
+// Both go in a 16:9 box: module output is square (128x128 grids) and figures
+// are about 2.5:1, so without one fixed ratio the catalogue reads as a jumble.
+function ModuleThumb({ module }) {
+  if (moduleRenders.has(module.slug)) {
+    return (
+      <span className="mart render">
+        <img src={`/img/modules/${module.slug}.png`} alt="" loading="lazy" aria-hidden="true" />
+      </span>
+    );
+  }
+  // the first task that has a figure — its opening idea, not its finale
+  for (const task of module.tasks || []) {
+    const figures = getFigures(module, task);
+    if (figures.length) {
+      return (
+        <span
+          className="mart figure"
+          aria-hidden="true"
+          // trusted in-repo markup, same as the task page inlines
+          dangerouslySetInnerHTML={{ __html: figures[0].svg }}
+        />
+      );
+    }
+  }
+  return <span className="mart blank" aria-hidden="true" />;
 }
 
 function Track({ track }) {

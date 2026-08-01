@@ -1,0 +1,145 @@
+/**
+ * scripts/capture-module-renders.mjs — thumbnails that are the real thing.
+ *
+ * Eighteen modules end in a picture: a Mandelbrot, a Voronoi diagram, carved
+ * terrain, a path-traced scene. This runs each of those modules' payoff task —
+ * its actual solution, in the actual sandbox, on the actual GPU — and saves the
+ * canvas it paints to public/img/modules/<slug>.png, which the learn catalogue
+ * uses as that module's card art.
+ *
+ * So the thumbnail is the module's output rather than an illustration of it,
+ * and it cannot drift: re-run this and every card is whatever the course now
+ * produces.
+ *
+ *   node scripts/capture-module-renders.mjs [slug ...]
+ *
+ * NOT part of `yarn build`: it needs a browser and a working GPU, and CI has
+ * neither reliably. Run it when a painting module's output changes, and commit
+ * the PNGs. `--check` reports what would change without writing, which is what
+ * to run if you want to know whether the committed art is stale.
+ *
+ * Modules with no graphical task keep falling back to their first figure, which
+ * the catalogue inlines directly from content/figures — nothing to capture.
+ */
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
+import { loadContent } from './contentLoader.mjs';
+import { launch } from './browser.mjs';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const OUT_DIR = join(ROOT, 'public/img/modules');
+const MANIFEST = join(ROOT, 'src/Learn/content/moduleRenders.js');
+
+const args = process.argv.slice(2);
+const check = args.includes('--check');
+const only = args.filter(a => !a.startsWith('--'));
+
+const reg = await loadContent(ROOT);
+
+// The LAST graphical task: the payoff, the picture the module exists to make.
+function payloadTask(mod) {
+  const gfx = mod.tasks
+    .map((t, i) => ({ task: t, step: i + 1 }))
+    .filter(({ task }) => /graphical:\s*true/.test(task.solutionCode || ''));
+  return gfx.length ? gfx[gfx.length - 1] : null;
+}
+
+const targets = reg.modules
+  .map(mod => ({ mod, ...(payloadTask(mod) || {}) }))
+  .filter(t => t.task)
+  .filter(t => !only.length || only.includes(t.mod.slug));
+
+if (!targets.length) {
+  console.error('capture: nothing to do');
+  process.exit(1);
+}
+
+mkdirSync(OUT_DIR, { recursive: true });
+
+const vite = spawn('yarn', ['vite', '--port', '0'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+const port = await new Promise((res, rej) => {
+  let buf = '';
+  vite.stdout.on('data', d => {
+    buf += d;
+    const m = buf.match(/localhost:(\d+)/);
+    if (m) res(m[1]);
+  });
+  setTimeout(() => rej(new Error('vite did not start')), 40000);
+});
+
+const browser = await launch();
+const captured = [];
+let changed = 0;
+let missed = 0;
+
+for (const { mod, task, step } of targets) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(String(e.message).slice(0, 110)));
+  let url = null;
+  try {
+    await page.goto(`http://localhost:${port}${mod.url}/${step}`, { waitUntil: 'networkidle2' });
+    await new Promise(r => setTimeout(r, 1300));
+    await page.evaluate(code => {
+      const view = window.__learnEditorView;
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: code } });
+    }, task.solutionCode);
+    await page.click('.tb-run');
+    // Some of these accumulate for tens of frames before the picture exists.
+    for (let i = 0; i < 45 && !url; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      url = await page.evaluate(() => {
+        const imgs = [...document.querySelectorAll('.console .imgout img')];
+        return imgs.length ? imgs[imgs.length - 1].src : null;
+      });
+    }
+  } catch (e) {
+    errors.push(String(e.message).slice(0, 110));
+  }
+  await page.close();
+
+  if (!url) {
+    missed++;
+    console.log(`  MISS  ${mod.slug} — no canvas${errors.length ? ` (${errors[0]})` : ''}`);
+    continue;
+  }
+  const png = Buffer.from(url.split(',')[1], 'base64');
+  const file = join(OUT_DIR, `${mod.slug}.png`);
+  const before = existsSync(file) ? createHash('sha256').update(readFileSync(file)).digest('hex') : null;
+  const after = createHash('sha256').update(png).digest('hex');
+  captured.push(mod.slug);
+  if (before !== after) {
+    changed++;
+    if (!check) writeFileSync(file, png);
+    console.log(`  ${check ? 'STALE' : 'write'} ${mod.slug.padEnd(24)} task ${step}  ${(png.length / 1024).toFixed(0)} KB`);
+  } else {
+    console.log(`  same  ${mod.slug.padEnd(24)} task ${step}`);
+  }
+}
+
+await browser.close();
+vite.kill();
+
+// The catalogue needs to know which slugs have art WITHOUT probing the network
+// for a 404 per card, so the list is generated here and imported by the app.
+if (!check && !only.length) {
+  captured.sort();
+  writeFileSync(
+    MANIFEST,
+    '// GENERATED by scripts/capture-module-renders.mjs — do not edit by hand.\n' +
+      '//\n' +
+      '// Slugs whose module paints something, and therefore has a real captured\n' +
+      '// render at /img/modules/<slug>.png. Everything else falls back to the\n' +
+      "// module's first figure. Regenerate with `node scripts/capture-module-renders.mjs`.\n" +
+      `export default new Set(${JSON.stringify(captured, null, 2)});\n`
+  );
+  console.log(`\ncapture: wrote manifest with ${captured.length} slugs`);
+}
+
+console.log(
+  `capture: ${captured.length} captured, ${changed} ${check ? 'stale' : 'written'}, ${missed} missed`
+);
+if (check && changed) process.exit(1);
