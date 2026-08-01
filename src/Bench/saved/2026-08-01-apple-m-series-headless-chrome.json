@@ -1,0 +1,47 @@
+{
+  "id": "2026-08-01-apple-m-series-headless-chrome",
+  "label": "Apple M-series · headless Chrome",
+  "machine": "apple metal-3 · Chrome 150",
+  "date": "2026-08-01",
+  "gpujs": "2.20.0",
+  "results": {
+    "matmul": {
+      "bare-js": {
+        "ms": 1387,
+        "reps": 3,
+        "min": 1386.5,
+        "check": 0.0046696351903603335
+      },
+      "webgpu": {
+        "ms": 13.800000190734863,
+        "reps": 25,
+        "min": 11.5,
+        "check": null
+      },
+      "webgl2": {
+        "ms": 18.299999952316284,
+        "reps": 25,
+        "min": 17.899999856948853,
+        "check": null
+      },
+      "webgl": {
+        "ms": 24.399999856948853,
+        "reps": 25,
+        "min": 23.200000047683716,
+        "check": null
+      },
+      "cpu": {
+        "ms": 3199.7000000476837,
+        "reps": 3,
+        "min": 3199.5999999046326,
+        "check": null
+      },
+      "bare-webgpu": {
+        "ms": 5.700000047683716,
+        "reps": 25,
+        "min": 5.5,
+        "check": 0.0046696351903603335
+      }
+    }
+  }
+}

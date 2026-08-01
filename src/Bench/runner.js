@@ -1,0 +1,202 @@
+/**
+ * src/Bench/runner.js — the timing protocol, in one place.
+ *
+ * The old benchmark's numbers were not comparable to each other: different
+ * columns did different amounts of work, nothing was warmed up, and a single
+ * sample decided the answer. Everything here exists to stop one of those.
+ *
+ * THE PROTOCOL
+ *
+ *   build once, warm up twice, then take the MEDIAN of at least three timed
+ *   runs, and check every backend produced the same answer.
+ *
+ * Warm-up, because the first call to a gpu.js kernel compiles it. Timing that
+ * measures a shader compiler. Median rather than mean, because a GC pause or a
+ * scheduler hiccup lands in one sample and a mean carries it into the result.
+ * At least three so a median exists at all.
+ *
+ * ADAPTIVE REPETITION. A fixed seven runs is wrong at both ends: seven runs of
+ * a two-second baseline is a quarter-minute for one cell, and seven runs of a
+ * 40 microsecond kernel measures the clock. After the warm-up we know roughly
+ * how long one run takes, so the count is chosen to spend about a second per
+ * cell, clamped to [3, 25]. The count is reported next to the number — a median
+ * of 3 and a median of 25 do not deserve equal trust, and the page should say
+ * which one it is showing.
+ *
+ * CORRECTNESS IS PART OF THE MEASUREMENT. Every column returns a checksum, and
+ * a column whose checksum disagrees with the plain-JS baseline is reported as
+ * WRONG, not as fast. A backend that skips work is not a backend that is quick,
+ * and that failure mode is exactly what a benchmark is most likely to reward.
+ */
+
+// Roughly how long to spend per cell once the cost of a run is known.
+const TARGET_MS = 1000;
+const MIN_REPS = 3;
+const MAX_REPS = 25;
+const WARMUPS = 2;
+
+// A cell that cannot finish one run inside this is reported as too slow rather
+// than being allowed to hang the page. Deliberately generous: a plain-JS
+// baseline for a big workload is legitimately seconds long.
+const RUN_CEILING_MS = 20000;
+
+// Checksums are floats summed in different orders on different hardware, so
+// they never match bit for bit. This is a relative tolerance.
+const CHECK_EPS = 1e-4;
+
+export const COLUMNS = [
+  { id: 'webgpu', label: 'WebGPU', sub: 'via gpu.js', kind: 'gpujs', mode: 'webgpu' },
+  { id: 'webgl2', label: 'WebGL2', sub: 'via gpu.js', kind: 'gpujs', mode: 'webgl2' },
+  { id: 'webgl', label: 'WebGL', sub: 'via gpu.js', kind: 'gpujs', mode: 'webgl' },
+  { id: 'cpu', label: 'CPU', sub: 'via gpu.js', kind: 'gpujs', mode: 'cpu' },
+  { id: 'bare-webgpu', label: 'WebGPU', sub: 'no gpu.js runtime', kind: 'webgpu', bare: true },
+  { id: 'bare-js', label: 'CPU', sub: 'no gpu.js · baseline', kind: 'js', bare: true, baseline: true },
+];
+
+export const BASELINE = 'bare-js';
+
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+function median(xs) {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/**
+ * Times an already-built runnable. `run` must return a promise that settles
+ * only when the work is genuinely finished — for a GPU backend that means the
+ * result has been read back, because a dispatch that has not been awaited has
+ * not been measured.
+ */
+async function timeIt(run) {
+  for (let i = 0; i < WARMUPS; i++) {
+    const t0 = now();
+    await run();
+    if (now() - t0 > RUN_CEILING_MS) {
+      return { tooSlow: true, ms: now() - t0, reps: 0 };
+    }
+  }
+
+  const probe = now();
+  const value = await run();
+  const one = now() - probe;
+
+  const reps = Math.max(MIN_REPS, Math.min(MAX_REPS, Math.round(TARGET_MS / Math.max(one, 0.001))));
+  const samples = [one];
+  for (let i = 1; i < reps; i++) {
+    const t0 = now();
+    await run();
+    samples.push(now() - t0);
+  }
+  return { ms: median(samples), reps: samples.length, min: Math.min(...samples), value };
+}
+
+/** Does this browser actually have a WebGPU adapter? Presence of navigator.gpu does not prove it. */
+export async function webgpuAvailable() {
+  try {
+    if (!navigator.gpu) return false;
+    const adapter = await navigator.gpu.requestAdapter();
+    return Boolean(adapter);
+  } catch (e) {
+    return false;
+  }
+}
+
+async function webgpuDevice() {
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) throw new Error('no WebGPU adapter');
+  return adapter.requestDevice();
+}
+
+/**
+ * Runs one workload across every column. Yields a result per column through
+ * `onCell` as it goes, so a long row fills in rather than appearing at the end.
+ */
+export async function runWorkload(workload, { GPU, onCell, signal } = {}) {
+  const size = workload.size;
+  const inputs = workload.make ? workload.make(size) : null;
+  const cells = {};
+
+  // The baseline first, and always: every other column is reported relative to
+  // it, and its checksum is what the others are judged against.
+  let baselineCheck = null;
+
+  const ordered = [...COLUMNS].sort((a, b) => (a.id === BASELINE ? -1 : b.id === BASELINE ? 1 : 0));
+
+  for (const col of ordered) {
+    if (signal && signal.aborted) break;
+    let cell;
+    try {
+      cell = await runColumn(workload, col, { GPU, size, inputs });
+      if (cell.value !== undefined && workload.reduce) {
+        cell.check = workload.reduce(cell.value, size);
+        delete cell.value;
+        if (col.id === BASELINE) baselineCheck = cell.check;
+        else if (baselineCheck != null && Number.isFinite(cell.check)) {
+          const scale = Math.max(Math.abs(baselineCheck), 1e-9);
+          if (Math.abs(cell.check - baselineCheck) / scale > CHECK_EPS) cell.wrong = true;
+        }
+      }
+    } catch (e) {
+      cell = { error: String((e && e.message) || e).slice(0, 160) };
+    }
+    cells[col.id] = cell;
+    if (onCell) onCell(col.id, cell);
+  }
+  return cells;
+}
+
+async function runColumn(workload, col, { GPU, size, inputs }) {
+  if (col.kind === 'js') {
+    if (!workload.js) return { na: true, reason: 'no plain-JS reference' };
+    return timeIt(() => workload.js(size, inputs));
+  }
+
+  if (col.kind === 'webgpu') {
+    if (!workload.webgpu) return { na: true, reason: workload.webgpuReason || 'no bare WebGPU implementation' };
+    if (!(await webgpuAvailable())) return { na: true, reason: 'no WebGPU adapter on this machine' };
+    const device = await webgpuDevice();
+    const built = await workload.webgpu(device, size, inputs);
+    try {
+      return await timeIt(() => built.run());
+    } finally {
+      if (built.destroy) built.destroy();
+      if (device.destroy) device.destroy();
+    }
+  }
+
+  // gpu.js, pinned to one backend. `mode` is explicit on purpose: 'gpu' would
+  // silently pick whichever of webgl2/webgl exists, and then two columns would
+  // be the same measurement wearing different labels.
+  if (col.mode === 'webgpu' && !(await webgpuAvailable())) {
+    return { na: true, reason: 'no WebGPU adapter on this machine' };
+  }
+  if (workload.declines && workload.declines.includes(col.mode)) {
+    return { na: true, reason: workload.declinesReason || 'this kernel cannot run on that backend' };
+  }
+
+  let gpu = null;
+  let built = null;
+  try {
+    gpu = new GPU({ mode: col.mode });
+    built = await workload.gpujs(gpu, size, inputs);
+    const out = await timeIt(() => built.run());
+    // gpu.js swaps in a CPU kernel rather than failing when a kernel will not
+    // compile, and a silently-CPU "WebGL" column is a lie. So ask what actually
+    // ran — `static get mode` survives minification, `constructor.name` does not.
+    //
+    // Both GL kernels report 'gpu', not 'webgl2'/'webgl', so this compares
+    // FAMILIES. That is enough: an explicit `mode: 'webgl2'` throws outright
+    // when WebGL2 is unsupported (gpu.js only downgrades for mode 'gpu'), so a
+    // GL column cannot quietly become the other one. What it can become is CPU,
+    // and that is exactly what this catches.
+    const expected = { webgpu: 'webgpu', webgl2: 'gpu', webgl: 'gpu', cpu: 'cpu' }[col.mode];
+    const actual = built.backend && built.backend();
+    if (actual && expected && actual !== expected) out.fellBackTo = actual;
+    return out;
+  } finally {
+    if (built && built.destroy) built.destroy();
+    if (gpu && gpu.destroy) await gpu.destroy();
+  }
+}

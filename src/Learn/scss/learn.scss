@@ -16,75 +16,11 @@
 @use 'task';
 
 /* ============ tokens ============ */
-.learn-root {
-  --bg: #f6f6fb;
-  --bg-glow: radial-gradient(1200px 600px at 80% -10%, rgba(32, 164, 243, .10), transparent 60%),
-             radial-gradient(900px 500px at 10% 10%, rgba(255, 121, 198, .08), transparent 60%);
-  --surface: #ffffff;
-  --surface-2: #eceef8;
-  // Card art panel. Deliberately NOT --bg: that is the page colour, so a
-  // letterboxed diagram sat on it looked like a hole in the card rather than a
-  // panel. Barely off-white — lighter than the page, a shade under the card.
-  --art-bg: #fbfbfe;
-  --ink: #191333;
-  --muted: #5f5a80;
-  --line: rgba(38, 20, 90, .14);
-  --blue: #147cd4;
-  --blue-ink: #0d5da3;
-  --pink: #d6288f;
-  --teal: #0d9a80;
-  --amber: #b97f10;
-  --cellgrid: rgba(38, 20, 90, .045);
-  --shadow: 0 10px 30px rgba(25, 19, 51, .08);
+// Shared with the benchmark page — see src/scss/_tokens.scss.
+@use '../../scss/tokens' as tokens;
 
-  --ed-bg: #f7f5ef;
-  --ed-gutter: #a9a494;
-  --ed-line: rgba(60, 50, 20, .06);
-  --ed-ink: #2c2a24;
-  --ed-kw: #c7226e;
-  --ed-str: #9a7d0a;
-  --ed-num: #7c4dbe;
-  --ed-fn: #3e7d0e;
-  --ed-prop: #0e7ab8;
-  --ed-cm: #8a877a;
-
-  --con-bg: #ffffff;
-  --con-dim: #7a7596;
-}
-
-.learn-root[data-theme='dark'] {
-  --bg: #050218;
-  --bg-glow: radial-gradient(1200px 600px at 80% -10%, rgba(46, 7, 65, .9), transparent 60%),
-             radial-gradient(900px 500px at 10% 10%, rgba(32, 164, 243, .10), transparent 55%);
-  --surface: #0e0a2c;
-  --surface-2: #171040;
-  // Lifted a touch off --bg so the panel reads as a surface, not a void.
-  --art-bg: #151038;
-  --ink: #f6f7f8;
-  --muted: #9b94c0;
-  --line: rgba(158, 140, 220, .20);
-  --blue: #20a4f3;
-  --blue-ink: #7cc8f8;
-  --pink: #ff79c6;
-  --teal: #18bc9c;
-  --amber: #e2b04a;
-  --cellgrid: rgba(158, 140, 220, .06);
-  --shadow: 0 10px 30px rgba(0, 0, 0, .35);
-
-  --ed-bg: #272822;
-  --ed-gutter: #75715a;
-  --ed-line: rgba(255, 255, 255, .045);
-  --ed-ink: #f8f8f2;
-  --ed-kw: #f92672;
-  --ed-str: #e6db74;
-  --ed-num: #ae81ff;
-  --ed-fn: #a6e22e;
-  --ed-prop: #66d9ef;
-  --ed-cm: #75715a;
-
-  --con-bg: #0a0724;
-  --con-dim: #8d87b3;
-}
+.learn-root { @include tokens.light; }
+.learn-root[data-theme='dark'] { @include tokens.dark; }
 
 /* ============ base ============ */
 .learn-root {

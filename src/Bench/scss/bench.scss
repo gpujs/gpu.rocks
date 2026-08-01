@@ -1,0 +1,241 @@
+// src/Bench/scss/bench.scss
+//
+// Scoped to .bench-root for the same reason .learn-root exists: materialize-css
+// is loaded globally on this site and sets `table`, `th`, `td`, `nav`, `select`
+// and heading styles that would otherwise win. Everything here is written
+// against the shared tokens, never against a hex value.
+
+@use '../../scss/tokens' as tokens;
+
+.bench-root { @include tokens.light; }
+.bench-root[data-theme='dark'] { @include tokens.dark; }
+
+.bench-root {
+  position: relative;
+  min-height: 100dvh;
+  background: var(--bg);
+  background-image: var(--bg-glow);
+  color: var(--ink);
+  font-family: 'Avenir Next', 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+  line-height: 1.5;
+
+  * { box-sizing: border-box; }
+
+  // ---- nav (the course's, with a benchmark wordmark) ----
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: .7rem 1.4rem;
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface) 80%, transparent);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    height: auto;
+    line-height: inherit;
+    box-shadow: none;
+  }
+  .nav .brand {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--ink);
+    letter-spacing: .02em;
+    text-decoration: none;
+  }
+  .nav .tag-pill {
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--pink);
+    border: 1px solid var(--pink);
+    border-radius: 999px;
+    padding: .1rem .5rem;
+  }
+  .nav .links { margin-left: auto; display: flex; gap: 1.3rem; font-size: .85rem; font-weight: 600; }
+  .nav .links a { color: var(--muted); text-decoration: none; }
+  .nav .links a:hover { color: var(--ink); }
+  .nav .links a.active { color: var(--ink); border-bottom: 2px solid var(--pink); padding-bottom: .2rem; }
+  .nav-burger { display: none; }
+  .theme-btn { min-height: 36px; padding: .35rem .7rem; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 2rem 1.2rem 4rem; }
+  .eyebrow {
+    font-size: .7rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--pink); font-weight: 700; margin: 0 0 .5rem;
+  }
+  h1 {
+    font-family: 'Montserrat', 'Avenir Next', Futura, sans-serif !important;
+    font-weight: 800 !important;
+    font-size: 2.3rem !important;
+    line-height: 1.15 !important;
+    margin: 0 0 .5rem !important;
+    letter-spacing: -.01em;
+    text-wrap: balance;
+  }
+  .sub { color: var(--muted); max-width: 62ch; margin: 0 0 1.4rem; }
+
+  // ---- toolbar ----
+  .toolbar {
+    display: flex; gap: .5rem; align-items: center; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: .6rem; margin-bottom: .9rem; box-shadow: var(--shadow);
+    position: sticky; top: 57px; z-index: 30;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: .45rem;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+    border-radius: 8px; padding: .5rem .9rem; font: inherit; font-size: .85rem;
+    font-weight: 600; cursor: pointer; min-height: 40px;
+  }
+  .btn:hover:not([disabled]) { border-color: var(--blue); }
+  .btn.primary { background: var(--teal); border-color: transparent; color: #03211b; font-weight: 700; }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    border: 0; background: var(--surface-2); color: var(--muted); font: inherit;
+    font-size: .8rem; font-weight: 600; padding: .5rem .8rem; cursor: pointer; min-height: 40px;
+  }
+  .seg button[aria-pressed='true'] { background: var(--blue); color: #fff; }
+  .seg button[disabled] { opacity: .4; cursor: not-allowed; }
+
+  // The saved-run picker. A page whose whole point is comparison needs to say
+  // WHICH machine a stored table came from, and to let a reader change it.
+  .pick {
+    display: flex; align-items: center; gap: .45rem; min-height: 40px;
+    border: 1px solid var(--line); background: var(--surface-2);
+    border-radius: 8px; padding: 0 .6rem;
+  }
+  .pick .lbl {
+    font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+    font-weight: 700;
+  }
+  .pick select {
+    display: inline-block; appearance: none; -webkit-appearance: none;
+    background: transparent; border: 0; color: var(--ink); font: inherit;
+    font-size: .82rem; font-weight: 600; padding: 0; margin: 0; height: auto;
+    align-self: stretch; cursor: pointer;
+  }
+  .pick select option { color: initial; background: initial; }
+  .grow { flex: 1; }
+  .stat { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: .78rem; color: var(--muted); }
+
+  .ro {
+    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+    background: color-mix(in srgb, var(--blue) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--blue) 40%, var(--line));
+    border-radius: 10px; padding: .6rem .9rem; margin-bottom: .9rem; font-size: .85rem;
+  }
+
+  // ---- table ----
+  .tablecard {
+    position: relative; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1080px; }
+  thead th {
+    position: sticky; top: 0; background: var(--surface-2); z-index: 10;
+    font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
+    font-weight: 700; text-align: right; padding: .7rem .8rem;
+    border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: bottom;
+  }
+  thead th .g {
+    display: block; font-size: .62rem; letter-spacing: .06em; color: var(--muted);
+    opacity: .75; text-transform: none; font-weight: 600;
+  }
+  thead th:first-child { text-align: left; left: 0; z-index: 20; }
+  thead th.bare { color: var(--amber); }
+
+  tbody th.work {
+    position: sticky; left: 0; background: var(--surface); z-index: 5; text-align: left;
+    padding: .55rem .8rem; border-bottom: 1px solid var(--cellgrid); font-weight: 600;
+    display: grid; grid-template-columns: auto 1fr; gap: 0 .55rem; align-items: center;
+    min-width: 330px;
+  }
+  .run-one {
+    grid-row: 1 / 3; width: 32px; height: 32px; display: grid; place-items: center;
+    border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2);
+    color: var(--teal); cursor: pointer;
+  }
+  .run-one:hover { border-color: var(--teal); }
+  .wname { font-size: .88rem; }
+  .wdesc { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .72rem; color: var(--muted); grid-column: 2; }
+  .tag {
+    display: inline-block; margin-left: .45rem; font-size: .6rem; letter-spacing: .06em;
+    text-transform: uppercase; font-weight: 700; color: var(--blue);
+    background: color-mix(in srgb, var(--blue) 14%, transparent);
+    border-radius: 999px; padding: .1rem .4rem; vertical-align: middle;
+  }
+
+  tbody td {
+    padding: .55rem .8rem; border-bottom: 1px solid var(--cellgrid); text-align: right;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  tbody tr:hover th.work, tbody tr:hover td { background: color-mix(in srgb, var(--blue) 5%, transparent); }
+  .t { display: block; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .82rem; }
+  .x { display: block; font-size: .68rem; font-weight: 700; letter-spacing: .02em; }
+  .x.win { color: var(--teal); }
+  .x.flat { color: var(--muted); }
+  .x.lose { color: var(--pink); }
+  .x.base { color: var(--muted); opacity: .6; }
+  td.bare { background: color-mix(in srgb, var(--amber) 7%, transparent); }
+  td.baseline .t { color: var(--amber); }
+  td .dash { color: var(--muted); opacity: .5; font-family: ui-monospace, monospace; font-size: .78rem; }
+  td.err .dash { color: var(--pink); opacity: .9; }
+  .fell { display: block; font-size: .6rem; color: var(--pink); font-weight: 700; }
+  .spin { color: var(--teal); letter-spacing: .1em; }
+  tbody tr.running th.work { box-shadow: inset 3px 0 0 var(--teal); }
+
+  .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .8rem; margin-top: 1.2rem; }
+  .legend > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .7rem .9rem; }
+  .legend b { display: block; font-size: .78rem; margin-bottom: .15rem; }
+  .legend p { margin: 0; font-size: .78rem; color: var(--muted); }
+  code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em; }
+
+  @media (max-width: 720px) {
+    h1 { font-size: 1.7rem !important; }
+    .wrap { padding: 1.2rem .7rem 3rem; }
+    .toolbar { position: static; }
+    .nav { gap: .6rem; position: relative; z-index: 70; }
+    .nav .brand { font-size: .95rem; flex: none; }
+    .nav-burger {
+      display: block; margin-left: auto; min-width: 40px; min-height: 40px;
+      border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+      border-radius: 8px; font-size: 1.05rem; cursor: pointer;
+    }
+    .nav .links { display: none; }
+    .nav.open { background: var(--surface); }
+    .nav.open .links {
+      display: flex; flex-direction: column; align-items: stretch; gap: 0;
+      position: absolute; top: 100%; left: 0; right: 0; background: var(--surface);
+      border-bottom: 1px solid var(--line); box-shadow: 0 12px 24px -14px rgba(0, 0, 0, .55);
+      padding: .35rem .9rem .6rem; font-size: .95rem; margin-left: 0;
+    }
+    .nav.open .links a { padding: .62rem .2rem; border-bottom: 1px solid var(--line); }
+    .nav.open .links a:last-child { border-bottom: none; }
+
+    // At 330px the work column filled a phone and the numbers were off-screen
+    // with nothing to say they existed.
+    tbody th.work { min-width: 180px; max-width: 180px; }
+    .wname { font-size: .8rem; }
+    .wdesc { font-size: .66rem; }
+    .tag { display: none; }
+    thead th { font-size: .62rem; padding: .6rem .55rem; }
+    tbody td { padding: .5rem .55rem; }
+    .tablecard::after {
+      content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 26px;
+      pointer-events: none; background: linear-gradient(90deg, transparent, var(--surface));
+    }
+  }
+}
+
+.bench-root .nav-scrim {
+  position: fixed; inset: 0; z-index: 55;
+  background: rgba(6, 3, 24, .55); backdrop-filter: blur(2px);
+}

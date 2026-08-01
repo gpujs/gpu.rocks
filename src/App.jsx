@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router'
 import { siteMeta } from './routeMeta'
 import { setPageMeta } from './pageMeta'
 import Main from './Components/Main/Main'
-import Benchmark from './Components/Benchmark/Benchmark'
+import BenchApp from './Bench/BenchApp'
 import Install from './Components/Install/Install'
 import Nav from './Components/Nav/Nav'
 import PageFooter from './Components/PageFooter/PageFooter'
@@ -124,8 +124,11 @@ function App() {
       <Routes>
         <Route path="/learn/*" element={<LearnFallback><LearnApp /></LearnFallback>} />
         <Route path="/learn-verify" element={<LearnFallback><LearnApp verify /></LearnFallback>} />
+        {/* Outside SiteLayout on purpose: the benchmark carries its own nav and
+            its own token scope, exactly like /learn, so it is not wrapped in the
+            site chrome or subject to materialize's global table styles. */}
+        <Route path="/benchmark" element={<BenchApp />} />
         <Route element={<SiteLayout />}>
-          <Route path="/benchmark" element={<Benchmark />} />
           <Route path="/install" element={<Install />} />
           <Route path="/examples" element={<Examples />} />
           <Route path="*" element={<Main />} />
