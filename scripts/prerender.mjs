@@ -58,12 +58,33 @@ import {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 
-// The link-preview card: public/img/ogimage.png, 1200×630 (1.91:1) branded
-// jelly art — matches twitter:card summary_large_image.
-const OG_IMAGE = `${ORIGIN}/img/ogimage.png`;
-const OG_IMAGE_WIDTH = 1200;
-const OG_IMAGE_HEIGHT = 630;
-const OG_IMAGE_ALT = 'GPU.js jellyfish logo — GPU accelerated JavaScript';
+// Two link-preview cards, because /learn is a different product from the rest
+// of the site: the jelly says "this is gpu.js", the course card says "this is a
+// free course you can start now", and a shared /learn link should say the
+// second thing. Chosen per page by content kind, not by path matching, so a new
+// learn route cannot forget to opt in.
+const OG_SITE = {
+  url: `${ORIGIN}/img/ogimage.png`,
+  width: 1200,
+  height: 630,
+  alt: 'GPU.js jellyfish logo — GPU accelerated JavaScript',
+};
+const OG_LEARN = {
+  // pngcrush -brute -rem alla -reduce: 1,592,714 -> 1,161,798 bytes (27%), and
+  // pixel-identical (the alpha channel was fully opaque, so -reduce dropping it
+  // costs nothing — verified over all 1,070,848 pixels).
+  url: `${ORIGIN}/img/oglearn.png`,
+  width: 1424,
+  height: 752,
+  alt:
+    'Learn GPGPU in your browser — a free, hands-on course built on gpu.js. Six ' +
+    'panels, one per track: GPGPU 101, Parallel Primitives, Math & Simulation, ' +
+    'Computer Vision, Signal Processing and Computational Graphics.',
+};
+
+function ogImageFor(page) {
+  return page.content && page.content.kind !== 'site' ? OG_LEARN : OG_SITE;
+}
 const SITE_NAME = 'GPU.js';
 
 function fail(message) {
@@ -97,7 +118,9 @@ function esc(value) {
     .replace(/"/g, '&quot;');
 }
 
-function headBlock({ title, description, path }, jsonLd) {
+function headBlock(page, jsonLd) {
+  const { title, description, path } = page;
+  const image = ogImageFor(page);
   const url = ORIGIN + path;
   const lines = [
     `<title>${esc(title)}</title>`,
@@ -108,14 +131,14 @@ function headBlock({ title, description, path }, jsonLd) {
     `<meta property="og:url" content="${esc(url)}">`,
     `<meta property="og:title" content="${esc(title)}">`,
     `<meta property="og:description" content="${esc(description)}">`,
-    `<meta property="og:image" content="${esc(OG_IMAGE)}">`,
-    `<meta property="og:image:width" content="${OG_IMAGE_WIDTH}">`,
-    `<meta property="og:image:height" content="${OG_IMAGE_HEIGHT}">`,
-    `<meta property="og:image:alt" content="${esc(OG_IMAGE_ALT)}">`,
+    `<meta property="og:image" content="${esc(image.url)}">`,
+    `<meta property="og:image:width" content="${image.width}">`,
+    `<meta property="og:image:height" content="${image.height}">`,
+    `<meta property="og:image:alt" content="${esc(image.alt)}">`,
     `<meta name="twitter:card" content="summary_large_image">`,
     `<meta name="twitter:title" content="${esc(title)}">`,
     `<meta name="twitter:description" content="${esc(description)}">`,
-    `<meta name="twitter:image" content="${esc(OG_IMAGE)}">`,
+    `<meta name="twitter:image" content="${esc(image.url)}">`,
   ];
   if (jsonLd) {
     // JSON-LD may not contain a literal "</script" — JSON.stringify keeps "/"
