@@ -42,11 +42,17 @@ function smoothEscape(zr0, zi0, cr, ci, maxIter = MAX_ITER) {
 }
 
 // The module's palette, in canvas bytes: shade t → [r, g, b].
+//
+// Three cosines a third of a turn apart, so t sweeps the whole colour wheel
+// once instead of running blue-to-white. MUST stay identical to the kernels in
+// tasks 4-5: the tests compare real pixels against this, within a couple of
+// byte-levels of tolerance for the GPU's float32.
 function paletteBytes(t) {
+  const a = 6.28318 * t;
   return [
-    Math.round(t * 255),
-    Math.round(t * t * 255),
-    Math.round((0.5 + 0.5 * t) * 255),
+    Math.round((0.5 + 0.5 * Math.cos(a)) * 255),
+    Math.round((0.5 + 0.5 * Math.cos(a + 2.0944)) * 255),
+    Math.round((0.5 + 0.5 * Math.cos(a + 4.18879)) * 255),
   ];
 }
 
@@ -116,7 +122,7 @@ function smoothProbes(cr, ci) {
 
 export default {
   uuid: '0de4764c-e40f-4966-9014-05e3a26c0eec',
-  version: 1,
+  version: 2,
   slug: 'escape-time-fractals',
   legacyId: '3-2',
   title: 'Escape-Time Fractals',
@@ -407,12 +413,12 @@ console.log('far corner, escapes at once:', counts[0][0]);
         <code>this.color(t, t·t, 0.5 + 0.5·t, 1)</code> — fast escapes glow deep blue, slow ones
         burn toward white near the boundary, where all the detail hides.</p>`,
       goal: `<strong>Goal:</strong> same escape-time loop, but <code>graphical: true</code> —
-        interior pixels black, escaped pixels shaded <code>this.color(t, t*t, 0.5 + 0.5*t, 1)</code>
-        with <code>t = count / 100</code>.`,
+        interior pixels black, escaped pixels shaded by three cosines a third of a turn
+        apart — a full colour wheel across <code>t = count / 100</code>.`,
       requirements: [
         'Keep the guarded 100-pass loop from the last task (already in place)',
         'If <code>count</code> reached 100, paint black: <code>this.color(0, 0, 0, 1)</code>',
-        'Otherwise compute <code>t = count / 100</code> and paint <code>this.color(t, t * t, 0.5 + 0.5 * t, 1)</code>',
+        'Otherwise compute <code>t = count / 100</code>, then <code>a = 6.28318 * t</code>, and paint <code>this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1)</code>',
       ],
       hints: [
         {
@@ -424,7 +430,8 @@ console.log('far corner, escapes at once:', counts[0][0]);
         {
           title: 'Hint 2 — the shade branch',
           body: `<pre><code>const t = count / 100;
-this.color(t, t * t, 0.5 + 0.5 * t, 1);</code></pre>`,
+const a = 6.28318 * t;
+this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1);</code></pre>`,
         },
       ],
       transfer: `Mapping a scalar to a color is a <em>transfer function</em> — in scientific
@@ -479,7 +486,8 @@ const paint = gpu.createKernel(function (xMin, yMin, step) {
   }
   if (count < 100) {
     const t = count / 100;
-    this.color(t, t * t, 0.5 + 0.5 * t, 1);
+    const a = 6.28318 * t;
+    this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1);
   } else {
     this.color(0, 0, 0, 1);
   }
@@ -747,7 +755,7 @@ console.log('a fractional escape value:', field[0][0]);
       requirements: [
         'Seed z from the pixel: <code>zr = xMin + x·step</code>, <code>zi = yMin + y·step</code> (constants are wired up)',
         'Inside the loop, add <code>cRe</code> and <code>cIm</code> — not the pixel coordinates',
-        'Escaped: shade with <code>t = smooth / 100</code> via <code>this.color(t, t * t, 0.5 + 0.5 * t, 1)</code>; interior: black',
+        'Escaped: shade with <code>t = smooth / 100</code> through the same three-cosine palette as the last task; interior: black',
         'Call the kernel with a c of your choice and <code>render()</code> it',
       ],
       hints: [
@@ -792,7 +800,8 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   if (count < 100) {
     const smooth = count + 1 - Math.log2(0.5 * Math.log2(zr * zr + zi * zi));
     const t = smooth / 100;
-    this.color(t, t * t, 0.5 + 0.5 * t, 1);
+    const a = 6.28318 * t;
+    this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1);
   } else {
     this.color(0, 0, 0, 1);
   }
@@ -832,7 +841,8 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   if (count < 100) {
     const smooth = count + 1 - Math.log2(0.5 * Math.log2(zr * zr + zi * zi));
     const t = smooth / 100;
-    this.color(t, t * t, 0.5 + 0.5 * t, 1);
+    const a = 6.28318 * t;
+    this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1);
   } else {
     this.color(0, 0, 0, 1);
   }
@@ -875,9 +885,13 @@ render(julia.canvas);
                     `pixel (${x}, ${y}) is inside the unit disk — expected black, got rgb(${pixels[i]}, ${pixels[i + 1]}, ${pixels[i + 2]})`
                   );
                 } else if (r2 > 4.25) {
+                  // "shaded, not black" — deliberately not a channel test. The
+                  // palette sweeps the whole colour wheel, so which channel is
+                  // bright depends on the shade, and an escaped pixel is only
+                  // ever required to be non-black.
                   ctx.assert(
-                    pixels[i + 2] > 100,
-                    `pixel (${x}, ${y}) is far outside the disk — expected a blue-ish shade, got rgb(${pixels[i]}, ${pixels[i + 1]}, ${pixels[i + 2]})`
+                    pixels[i] + pixels[i + 1] + pixels[i + 2] > 60,
+                    `pixel (${x}, ${y}) is far outside the disk — expected a shade, got rgb(${pixels[i]}, ${pixels[i + 1]}, ${pixels[i + 2]})`
                   );
                 }
               }
@@ -897,7 +911,7 @@ render(julia.canvas);
             await ctx.kernel(-2.5, 0);
             pixels = ctx.getPixels();
             ctx.assert(
-              pixels[center + 2] > 100,
+              pixels[center] + pixels[center + 1] + pixels[center + 2] > 60,
               'with c = -2.5 the center pixel escapes in one step — it should be shaded, not black. Is c actually used in the loop?'
             );
           },

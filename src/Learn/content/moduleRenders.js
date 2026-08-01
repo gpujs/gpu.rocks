@@ -23,7 +23,7 @@ export default new Map([
   ],
   [
     "escape-time-fractals",
-    "d9e7837d"
+    "4a302c28"
   ],
   [
     "hydraulic-erosion",

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import LearnNav from '../components/LearnNav';
 import KernelGrid from '../components/KernelGrid';
@@ -8,6 +8,7 @@ import { FEEDBACK_URL } from '../feedback';
 import { getProgress, moduleProgress } from '../engine/storage.js';
 import { getFigures } from '../content/figures/index.js';
 import moduleRenders from '../content/moduleRenders.js';
+import moduleAnims from '../content/moduleAnims.js';
 import { learnHomeMeta } from '../../routeMeta';
 import { setPageMeta } from '../../pageMeta';
 
@@ -82,7 +83,25 @@ function stateLabel(progress, prior) {
   return prior ? 'Start again' : 'Start';
 }
 
+// How this visitor should be shown a moving card, decided once.
+//
+//   'never'  — they asked for reduced motion. A GIF cannot be paused by CSS, so
+//              the only way to honour that is to not load one.
+//   'hover'  — a pointer device: hold the still until they point at the card.
+//              Nothing downloads until then, which matters when the animation is
+//              two orders of magnitude heavier than the still.
+//   'always' — no hover to trigger on (touch), so the card just plays.
+function motionMode() {
+  try {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'never';
+    return window.matchMedia('(hover: hover)').matches ? 'hover' : 'always';
+  } catch (e) {
+    return 'never'; // no matchMedia (prerender): the still is always safe
+  }
+}
+
 function ModuleCard({ module }) {
+  const [pointedAt, setPointedAt] = useState(false);
   const progress = progressOf(module);
   const taskCount = Array.isArray(module.tasks) ? module.tasks.length : 0;
   const isCurrent = progress.state === 'now';
@@ -94,8 +113,14 @@ function ModuleCard({ module }) {
     <Link
       to={module.url}
       className={isCurrent ? 'module current' : 'module'}
+      onMouseEnter={() => setPointedAt(true)}
+      onMouseLeave={() => setPointedAt(false)}
+      // focus, not just hover: a keyboard user tabbing the catalogue should get
+      // the same card a mouse user gets
+      onFocus={() => setPointedAt(true)}
+      onBlur={() => setPointedAt(false)}
     >
-      <ModuleThumb module={module} />
+      <ModuleThumb module={module} pointedAt={pointedAt} />
       <span className="mno">
         {/* orphan modules ("Others") have no number — they are unordered */}
         {moduleNumber(module) ? `MODULE ${moduleNumber(module)} · ` : ''}
@@ -132,8 +157,28 @@ function ModuleCard({ module }) {
 //
 // Both go in a 16:9 box: module output is square (128x128 grids) and figures
 // are about 2.5:1, so without one fixed ratio the catalogue reads as a jumble.
-function ModuleThumb({ module }) {
+function ModuleThumb({ module, pointedAt }) {
+  // Decided per mount rather than at module scope so a prerendered pass and a
+  // hydrated one cannot disagree about it.
+  const [mode] = useState(motionMode);
   if (moduleRenders.has(module.slug)) {
+    // A few modules end on a dial — the Julia constant, the Ising temperature,
+    // the generation counter — and a still has to pick one value off it and
+    // throw the rest away. Where an animation exists, show it.
+    const anim = moduleAnims.get(module.slug);
+    const moving = anim && (mode === 'always' || (mode === 'hover' && pointedAt));
+    if (moving) {
+      return (
+        <span className="mart render">
+          <img
+            src={`/img/modules/${module.slug}.gif?v=${anim}`}
+            alt=""
+            loading="lazy"
+            aria-hidden="true"
+          />
+        </span>
+      );
+    }
     // ?v=<content hash>: the PNG lives at a stable path but its bytes change
     // whenever the art is re-captured, and both the CDN and the browser cache
     // it for four hours. Without this a re-capture keeps serving the old
