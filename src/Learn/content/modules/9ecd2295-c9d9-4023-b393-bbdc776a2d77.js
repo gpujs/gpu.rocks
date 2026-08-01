@@ -66,6 +66,20 @@ const BINS = 128; // bins kept per frame: 0 … just below Nyquist
 const SIGNAL_N = 4288; // (FRAMES - 1) * HOP + WIN — the last frame ends exactly
                        // on the last sample, so nothing reads past the end.
 
+// Task 4's module card. On the card the picture is 512×512 with one pixel per
+// (frame, bin) rather than a 4×2 block per cell, so it needs eight times the
+// frames — which is a shorter hop, not a longer signal: the same second of
+// audio analysed more often. The signal does have to grow by the 56 samples
+// that keep the SIGNAL_N invariant above true at the finer hop, or the last
+// frames would read past the end. (The frequency axis is interpolated in the
+// kernel instead — see the spectrograms entry in capture-module-renders.mjs —
+// because a longer window would buy bins by spending time resolution, which is
+// the trade task 3 is about, and would change the picture rather than sharpen
+// it.)
+const CARD_HOP = HOP / 8; // 8 samples between frames instead of 64
+const CARD_FRAMES = 512;
+const CARD_N = (CARD_FRAMES - 1) * CARD_HOP + WIN; // 4344
+
 // Task 3 — the same signal through two window lengths, same hop, same frames.
 const T_HOP = 32;
 const T_FRAMES = 64;
@@ -166,9 +180,14 @@ function tradeSignal() {
 // exponential decay, over a faint seeded noise floor — which is what every
 // real recording has, and what stops the quiet parts of the picture being a
 // flat black rectangle.
-function noteSignal() {
-  return once('notes', () => {
-    const s = new Array(SIGNAL_N).fill(0);
+//
+// Takes a length so the card can have the same notes analysed at a finer hop
+// (see CARD_N above): the voices keep their absolute sample positions, so a
+// longer signal is this exact signal with more of the last note's tail — the
+// first SIGNAL_N samples come out identical, sample for sample.
+function noteSignal(length = SIGNAL_N) {
+  return once(`notes:${length}`, () => {
+    const s = new Array(length).fill(0);
     const voices = [
       { f: 192, start: 0, tau: 0.34 },
       { f: 256, start: 1408, tau: 0.3 },
@@ -176,7 +195,7 @@ function noteSignal() {
     ];
     const partials = [1, 0.5, 0.28, 0.15];
     for (const voice of voices) {
-      for (let n = voice.start; n < SIGNAL_N; n++) {
+      for (let n = voice.start; n < length; n++) {
         const t = (n - voice.start) / SR;
         const env = Math.exp(-t / voice.tau) * (1 - Math.exp(-t / 0.004));
         let acc = 0;
@@ -187,9 +206,9 @@ function noteSignal() {
       }
     }
     let peak = 0;
-    for (let n = 0; n < SIGNAL_N; n++) peak = Math.max(peak, Math.abs(s[n]));
+    for (let n = 0; n < length; n++) peak = Math.max(peak, Math.abs(s[n]));
     const rand = seededRandom(9137);
-    for (let n = 0; n < SIGNAL_N; n++) {
+    for (let n = 0; n < length; n++) {
       s[n] = round6(s[n] / peak + 0.006 * (rand() * 2 - 1));
     }
     return s;
@@ -1564,6 +1583,14 @@ await paint(spec, peak);
 render(paint.canvas);
 `,
       inputs: () => ({ signal: noteSignal() }),
+      // The lesson paints 64 frames × 128 bins as 4×2 blocks on a 256×256
+      // canvas — which the catalogue card then shows at ~300 CSS px, so every
+      // cell is a lump. The card renders the same second of audio at 512×512
+      // with one pixel per cell: the same notes, hopped eight times as often
+      // (CARD_HOP) and read at four times the bin spacing, both set up by the
+      // capture script's CARD_SCALE entry. All this has to supply is the 56
+      // extra samples the finer hop needs to reach the right edge.
+      cardInputs: () => ({ signal: noteSignal(CARD_N) }),
       publicTests: [
         {
           name: 'a spectrogram kernel and a <code>256×256</code> graphical kernel',

@@ -49,6 +49,22 @@ const PENALTY = 20; // the mask's energy bonus. MEASURED: the dearest seam this
 const CORRIDOR = [6, 26]; // the smooth band the first ~18 seams eat
 const FACE = { cx: 92, cy: 34, r: 18 };
 
+// The module card shows this task's last frame at ~300 CSS px — 600 device px
+// on a phone — so 128 columns arrive as a near-fivefold upscale. CARD is the
+// scale the capture asks for
+// (scripts/capture-module-renders.mjs rewrites the kernel constants to match,
+// and takes cardInputs below instead of inputs).
+//
+// Two, not four, and the reason is the shape of the bill rather than taste. The
+// picture must narrow by the same FRACTION or the card stops being this card,
+// so the run is SEAMS * CARD removals of a picture H * CARD rows tall — and the
+// cumulative map costs one awaited launch per row, so the launch count grows as
+// CARD²: 64 removals × 150 launches at 2, and 128 × 294 at 4. Only the first
+// fits the 10 s run watchdog (engine/runner.js) that the frames have to arrive
+// within — canvases ride home in the run's RESULT, never in the streamed log
+// lines, so a run the watchdog kills hands the capture no picture at all.
+const CARD = 2;
+
 // ---- the picture ----------------------------------------------------------
 //
 // A synthetic scene, built so that seam carving's behaviour is legible rather
@@ -66,55 +82,67 @@ const FACE = { cx: 92, cy: 34, r: 18 };
 // through dead straight: not one seam pixel ever lands on either of them. Task
 // 6 says exactly that rather than promising a kink this picture does not
 // produce.
-function makeScene(utils) {
+//
+// Takes a scale so the card can be captured at CARD times the resolution
+// without the lesson moving: EVERY length here is written as a multiple of the
+// lesson's own, so at scale 1 `at(n)` is n and this is the picture it always
+// was — verified byte-identical, not assumed. The face, the poles, the corridor
+// and the soft edge all grow with the picture, which is the whole point: a
+// scene whose features stayed 18 px wide in a 256-column picture would be a
+// different scene, not the same one sampled better.
+function makeScene(utils, scale = 1) {
   const rand = utils.seededRandom(0x5ea3);
   const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
   const q8 = v => Math.round(clamp01(v) * 255) / 255; // 8-bit exact: an
   //     ImageData cannot hold anything else, so quantize before the tests
   //     compute expectations from these numbers.
-  const image = new Array(H);
-  for (let y = 0; y < H; y++) {
-    const row = new Array(W);
-    for (let x = 0; x < W; x++) {
-      const t = y / (H - 1);
+  const w = W * scale;
+  const h = H * scale;
+  const at = n => n * scale; // a length in lesson pixels, at this scale
+  const face = { cx: at(FACE.cx), cy: at(FACE.cy), r: at(FACE.r) };
+  const image = new Array(h);
+  for (let y = 0; y < h; y++) {
+    const row = new Array(w);
+    for (let x = 0; x < w; x++) {
+      const t = y / (h - 1);
       let r = 0.4 + 0.3 * t;
       let g = 0.56 + 0.26 * t;
       let b = 0.82 - 0.06 * t;
       // `smooth` runs 0 (full texture) to 1 (perfectly flat). Flat is cheap,
       // and cheap is what a seam eats.
-      let smooth = x >= CORRIDOR[0] && x < CORRIDOR[1] ? 1 : 0;
-      if (y >= 30 && y < 40) smooth = 1; // a smooth horizontal band, so a seam
-      //                                    can wander sideways for free
-      const dx = x - FACE.cx;
-      const dy = (y - FACE.cy) * 1.1;
+      let smooth = x >= at(CORRIDOR[0]) && x < at(CORRIDOR[1]) ? 1 : 0;
+      if (y >= at(30) && y < at(40)) smooth = 1; // a smooth horizontal band, so
+      //                                    a seam can wander sideways for free
+      const dx = x - face.cx;
+      const dy = (y - face.cy) * 1.1;
       const d = Math.sqrt(dx * dx + dy * dy);
-      if (d <= FACE.r) {
-        const k = Math.min(1, (FACE.r - d) / 6); // soft edge: cheap to enter
+      if (d <= face.r) {
+        const k = Math.min(1, (face.r - d) / at(6)); // soft edge: cheap to enter
         r += (0.95 - r) * k;
         g += (0.79 - g) * k;
         b += (0.64 - b) * k;
         smooth = Math.max(smooth, k);
       }
       for (const px of [44, 62]) {
-        if (x >= px && x <= px + 1) {
+        if (x >= at(px) && x < at(px + 2)) {
           r = 0.3;
           g = 0.31;
           b = 0.38;
           smooth = 1;
         }
       }
-      if (d <= FACE.r) {
+      if (d <= face.r) {
         const eye = Math.min(
-          Math.hypot(x - (FACE.cx - FACE.r * 0.38), (y - (FACE.cy - FACE.r * 0.22)) * 1.15),
-          Math.hypot(x - (FACE.cx + FACE.r * 0.38), (y - (FACE.cy - FACE.r * 0.22)) * 1.15)
+          Math.hypot(x - (face.cx - face.r * 0.38), (y - (face.cy - face.r * 0.22)) * 1.15),
+          Math.hypot(x - (face.cx + face.r * 0.38), (y - (face.cy - face.r * 0.22)) * 1.15)
         );
-        if (eye <= FACE.r * 0.15) {
+        if (eye <= face.r * 0.15) {
           r = 0.13;
           g = 0.13;
           b = 0.17;
         }
-        const my = y - (FACE.cy + FACE.r * 0.42);
-        if (Math.abs(dx) <= FACE.r * 0.44 && my >= 0 && my <= FACE.r * 0.13) {
+        const my = y - (face.cy + face.r * 0.42);
+        if (Math.abs(dx) <= face.r * 0.44 && my >= 0 && my <= face.r * 0.13) {
           r = 0.56;
           g = 0.23;
           b = 0.23;
@@ -131,14 +159,20 @@ function makeScene(utils) {
 }
 
 // The face, painted over: 1 where nothing may be removed, 0 everywhere else.
-function makeMask() {
-  const mask = new Array(H);
-  for (let y = 0; y < H; y++) {
-    const row = new Array(W).fill(0);
-    for (let x = 0; x < W; x++) {
-      const dx = x - FACE.cx;
-      const dy = (y - FACE.cy) * 1.1;
-      if (Math.sqrt(dx * dx + dy * dy) <= FACE.r + 2) row[x] = 1;
+// Scaled with the scene it protects — the mask lives in image space, so a mask
+// built at one size over a picture built at another protects the wrong pixels.
+function makeMask(scale = 1) {
+  const w = W * scale;
+  const h = H * scale;
+  const at = n => n * scale;
+  const face = { cx: at(FACE.cx), cy: at(FACE.cy), r: at(FACE.r) };
+  const mask = new Array(h);
+  for (let y = 0; y < h; y++) {
+    const row = new Array(w).fill(0);
+    for (let x = 0; x < w; x++) {
+      const dx = x - face.cx;
+      const dy = (y - face.cy) * 1.1;
+      if (Math.sqrt(dx * dx + dy * dy) <= face.r + at(2)) row[x] = 1;
     }
     mask[y] = row;
   }
@@ -307,31 +341,38 @@ function carveRunUncached(gray, count, mask) {
 
 // Tasks 5 and 6 compare against the same unmasked run several times over
 // (once to build an input, three more inside tests), and it is ~30 ms of
-// float64 arithmetic each time. Memoize on the seam count.
+// float64 arithmetic each time. Memoize on the seam count — and on the picture's
+// WIDTH, because the card capture builds the same scene at CARD scale in the
+// same page, and a key of the count alone would hand it the lesson's costs.
 const runCache = new Map();
 function carveRun(gray, count, mask) {
   if (mask) return carveRunUncached(gray, count, mask);
-  if (!runCache.has(count)) runCache.set(count, carveRunUncached(gray, count));
-  return runCache.get(count);
+  const key = `${gray[0].length}:${count}`;
+  if (!runCache.has(key)) runCache.set(key, carveRunUncached(gray, count));
+  return runCache.get(key);
 }
 
-// One scene, built once: every fixture below is derived from it, and the
-// tests recompute nothing the learner is not also given.
-let fixtureCache = null;
-function fixtures(utils) {
-  if (fixtureCache) return fixtureCache;
-  const image = makeScene(utils);
+// One scene, built once per scale: every fixture below is derived from it, and
+// the tests recompute nothing the learner is not also given. A Map rather than
+// one slot because the lesson's fixtures and the card capture's larger ones can
+// both be asked for in one page, and a single slot would serve the second
+// caller the first caller's picture.
+const fixtureCache = new Map();
+function fixtures(utils, scale = 1) {
+  if (fixtureCache.has(scale)) return fixtureCache.get(scale);
+  const image = makeScene(utils, scale);
   // rounded to 4 dp so the numbers the learner is SHOWN are the numbers the
   // tests use — and so a fixture printed in the inputs panel is readable
   const gray = grayOf(image).map(row => row.map(round4));
   const energy = energyOf(gray).map(row => row.map(round4));
   const cost = cumulativeOf(energy);
-  fixtureCache = { image, gray, energy, cost, seam: backtrackOf(cost) };
-  return fixtureCache;
+  const built = { image, gray, energy, cost, seam: backtrackOf(cost) };
+  fixtureCache.set(scale, built);
+  return built;
 }
 
-function sceneImage(utils) {
-  return plainToImageData(fixtures(utils).image);
+function sceneImage(utils, scale = 1) {
+  return plainToImageData(fixtures(utils, scale).image);
 }
 
 // A small flat plane, for probing a kernel's identity or its border handling.
@@ -2019,6 +2060,18 @@ plot({ 'no mask': unmaskedCosts, 'face protected': costs },
         photo: sceneImage(utils),
         faceMask: makeMask(),
         unmaskedCosts: carveRun(fixtures(utils).gray, SEAMS).costs.map(v => Math.round(v * 1e3) / 1e3),
+      }),
+      // The card is this run's LAST frame — the carved picture and the band of
+      // empty frame beside it — shown at ~300 px, and 128x72 is the lesson's
+      // size, not the card's. Same scene, same mask, and SEAMS * CARD removals
+      // so the picture narrows by the same quarter of its width: the card
+      // differs from the lesson's only in how finely it is sampled.
+      cardInputs: utils => ({
+        photo: sceneImage(utils, CARD),
+        faceMask: makeMask(CARD),
+        unmaskedCosts: carveRun(fixtures(utils, CARD).gray, SEAMS * CARD).costs.map(
+          v => Math.round(v * 1e3) / 1e3
+        ),
       }),
       publicTests: [
         {

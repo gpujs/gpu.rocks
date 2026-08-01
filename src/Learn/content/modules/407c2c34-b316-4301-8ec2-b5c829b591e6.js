@@ -177,6 +177,82 @@ const BLOCK = [[3, 3], [3, 4], [4, 3], [4, 4]]; //    2×2 still life
 const GLIDER = [[1, 2], [2, 3], [3, 1], [3, 2], [3, 3]]; // flies down-right
 const R_PENTOMINO = [[6, 8], [6, 9], [7, 7], [7, 8], [8, 8]];
 
+// ---- the module card's world -----------------------------------------------
+//
+// The lesson runs ONE glider on a 16x16 torus, which is the right lesson and a
+// dull thumbnail: five lit cells in a dark square. The card does not have to be
+// the lesson's world, so it is a 64x64 menagerie of the shapes Life is famous
+// for — a pulsar, a pentadecathlon, still lifes, oscillators and ships — run by
+// the module's own B3/S23 kernel. Nothing here changes what a learner sees.
+//
+// Placed with clearance so nothing collides within the eight generations the
+// task runs: they stay recognisable, which is the entire point of showing them.
+const CARD_PULSAR = [
+  [0, 2], [0, 3], [0, 4], [0, 8], [0, 9], [0, 10],
+  [2, 0], [2, 5], [2, 7], [2, 12],
+  [3, 0], [3, 5], [3, 7], [3, 12],
+  [4, 0], [4, 5], [4, 7], [4, 12],
+  [5, 2], [5, 3], [5, 4], [5, 8], [5, 9], [5, 10],
+  [7, 2], [7, 3], [7, 4], [7, 8], [7, 9], [7, 10],
+  [8, 0], [8, 5], [8, 7], [8, 12],
+  [9, 0], [9, 5], [9, 7], [9, 12],
+  [10, 0], [10, 5], [10, 7], [10, 12],
+  [12, 2], [12, 3], [12, 4], [12, 8], [12, 9], [12, 10],
+];
+const CARD_PENTADECATHLON = [
+  [0, 1], [1, 1], [2, 0], [2, 2], [3, 1], [4, 1],
+  [5, 1], [6, 1], [7, 0], [7, 2], [8, 1], [9, 1],
+];
+const CARD_BLOCK = [[0, 0], [0, 1], [1, 0], [1, 1]];
+const CARD_BEEHIVE = [[0, 1], [0, 2], [1, 0], [1, 3], [2, 1], [2, 2]];
+const CARD_LOAF = [[0, 1], [0, 2], [1, 0], [1, 3], [2, 1], [2, 3], [3, 2]];
+const CARD_BOAT = [[0, 0], [0, 1], [1, 0], [1, 2], [2, 1]];
+const CARD_BLINKER = [[0, 0], [0, 1], [0, 2]];
+const CARD_TOAD = [[0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2]];
+const CARD_BEACON = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 2], [2, 3], [3, 2], [3, 3]];
+// .OOOO / O...O / ....O / O..O.  — the canonical lightweight spaceship
+const CARD_LWSS = [
+  [0, 1], [0, 2], [0, 3], [0, 4],
+  [1, 0], [1, 4],
+  [2, 4],
+  [3, 0], [3, 3],
+];
+
+// the module's own GLIDER is placed for the 16x16 world; the card needs the
+// shape at the origin so it can be dropped anywhere
+const CARD_GLIDER = [[0, 1], [1, 2], [2, 0], [2, 1], [2, 2]];
+
+// The card is displayed as a 16:9 crop of a square render, so a square world
+// loses its top and bottom. This one is 64x36 — 16:9 exactly — so every shape
+// placed here survives to the catalogue.
+const CARD_W = 64;
+const CARD_H = 36;
+const CARD_WORLD = [
+  // top row: one pulsar, then the still lifes and short-period oscillators
+  [CARD_PULSAR, 1, 2],
+  [CARD_PENTADECATHLON, 2, 19],
+  [CARD_BEEHIVE, 1, 26], [CARD_LOAF, 1, 33], [CARD_BLOCK, 1, 41], [CARD_BOAT, 1, 47],
+  [CARD_TOAD, 1, 53], [CARD_BLINKER, 2, 60],
+  [CARD_BEACON, 6, 26], [CARD_LWSS, 7, 33], [CARD_GLIDER, 6, 41],
+  [CARD_GLIDER, 6, 47], [CARD_BLINKER, 7, 53], [CARD_BLOCK, 6, 60],
+  // bottom row: two more pulsars and the ships, with clearance from the top
+  [CARD_PULSAR, 18, 2], [CARD_PULSAR, 18, 19],
+  [CARD_PENTADECATHLON, 19, 36],
+  [CARD_LWSS, 18, 43], [CARD_GLIDER, 18, 52], [CARD_BEEHIVE, 18, 59],
+  [CARD_TOAD, 25, 43], [CARD_BEACON, 24, 52], [CARD_LOAF, 25, 58],
+  [CARD_GLIDER, 31, 43], [CARD_BOAT, 31, 52], [CARD_BLINKER, 31, 59],
+];
+
+// A rectangle, so it cannot use withCells() — that builds the lesson's square.
+function cardWorld() {
+  const grid = new Array(CARD_H);
+  for (let y = 0; y < CARD_H; y++) grid[y] = new Array(CARD_W).fill(0);
+  for (const [pattern, dy, dx] of CARD_WORLD) {
+    for (const [y, x] of pattern) grid[(y + dy) % CARD_H][(x + dx) % CARD_W] = 1;
+  }
+  return grid;
+}
+
 function shiftCells(cells, dy, dx, size = SIZE) {
   return cells.map(([y, x]) => [(y + dy + size) % size, (x + dx + size) % size]);
 }
@@ -717,6 +793,9 @@ await paint(current);
 render(paint.canvas);
 `,
       inputs: () => ({ world: withCells(GLIDER) }),
+      // The catalogue card gets a wider world of famous shapes instead of the
+      // lesson's single glider — same rule, same kernel, better thumbnail.
+      cardInputs: () => ({ world: cardWorld() }),
       publicTests: [
         {
           name: 'the glider translates: four ticks move the whole pattern down-right by one',

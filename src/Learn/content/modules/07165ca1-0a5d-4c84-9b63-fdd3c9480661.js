@@ -131,11 +131,35 @@ function noiseLayer(rand, size, cells) {
   return out;
 }
 
+// Lattice sizes are FEATURE counts, not resolution: four hills across the tile
+// stays four hills however finely the tile is sampled. So this list does not
+// move with CARD_SIZE — only `size` does.
 const OCTAVES = [[4, 1], [8, 0.55], [16, 0.3], [32, 0.16], [64, 0.08]];
+
+// The resolution the module card's capture runs the payoff task at. The lesson
+// stays at 96 (see task 6's `inputs`); this is only ever reached through
+// `cardInputs`, because a 96×96 render shown at ~300 CSS px — 600 device px on
+// a phone — is a sevenfold upscale of a thumbnail.
+//
+// It MUST equal the SIZE that CARD_SCALE['hydraulic-erosion'] writes into the
+// solution (scripts/capture-module-renders.mjs): the kernels index `terrain`
+// directly, so a terrain built at a different size is a crop of the tile, not a
+// resampling of it, and the torus wrap lands mid-landscape.
+//
+// 256 and not more: above 65,536 threads the sandbox's pre-flight guard reruns
+// the whole program at 64×64 and multiplies by the thread ratio, which refuses
+// a 200-step loop outright. 256×256 is exactly 65,536.
+const CARD_SIZE = 256;
 
 // Two hills and two hollows on a wrap-around tile, plus five octaves of noise.
 // The smooth part guarantees every cell has somewhere downhill to go; the
 // noise is what the water gets to organise into channels.
+//
+// `size` is the sampling rate of a continuous field, not a property of the
+// landscape: makeHills(utils, 256, 7) is the SAME terrain as
+// makeHills(utils, 96, 7) with 2.67× the samples per axis — the noise lattices
+// are drawn from `rand` before `size` is ever used, and both the octaves and
+// the two-hill base are read at the normalised coordinate x / size.
 function makeHills(utils, size, seed = 7, roughness = 0.35) {
   const rand = utils.seededRandom(seed);
   const layers = OCTAVES.map(([cells, amp]) => [noiseLayer(rand, size, cells), amp]);
@@ -2401,6 +2425,12 @@ for (let i = 1; i <= STEPS; i++) {
 }
 `,
       inputs: utils => ({ terrain: makeHills(utils, 96, 7) }),
+      // 96 is the LESSON's size — chosen so two hundred steps finish while a
+      // learner watches. The card is this picture at ~300 px, so the capture
+      // re-runs the same landscape at CARD_SIZE with the model's constants
+      // moved to match; the terrain has to arrive at that size or the kernels
+      // erode a crop of it. Same hills, same hollows, more samples.
+      cardInputs: utils => ({ terrain: makeHills(utils, CARD_SIZE, 7) }),
       publicTests: [
         {
           name: 'the run leaves a scrubber behind — twenty frames',

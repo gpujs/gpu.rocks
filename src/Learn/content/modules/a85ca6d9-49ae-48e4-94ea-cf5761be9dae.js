@@ -36,7 +36,10 @@
 // backend and 78–219 ms in auto, so nothing here needs a budgetMs even with the
 // pre-flight probe running the program a second time. The largest launch in the
 // module is 1,221 threads, far under the guard's 65,536-thread threshold, so the
-// pre-flight guard never engages at all.
+// pre-flight guard never engages at all. The card capture's larger pair (CARD
+// below) asks for 18,705 threads across 271 launches, which is still under that
+// threshold and still four hundred-odd milliseconds — the guard stays asleep for
+// the card too, and no learner ever runs that size.
 //
 // BACKENDS IN "AUTO" (measured, from the console's `▸ ran on …` line): tasks 1–5
 // run entirely on WebGPU. Task 6 reports "webgpu (1 kernel) + webgl (1 kernel)"
@@ -72,6 +75,49 @@ const CODE = { A: 0, C: 1, G: 2, T: 3 };
 // Kernels only speak numbers, so a sequence travels as base codes 0–3.
 function codesOf(seq) {
   return Array.from(seq, ch => CODE[ch]);
+}
+
+// ---- the module card's pair ------------------------------------------------
+//
+// The picture task 6 paints IS the score matrix, so its resolution is the two
+// sequence lengths: 33 × 37 cells, one cell per pixel, shown on the catalogue
+// card at ~300 px. There is no finer sampling of THIS pair to be had — a cell is
+// a datum, and it is already a pixel — so the only way to give the card more
+// pixels is to align a longer pair, which is what the capture asks for through
+// cardInputs (scripts/capture-module-renders.mjs).
+//
+// Built to the same recipe as LONG_A / LONG_B rather than by hand: random bases
+// with one shared motif planted at the same relative position, mutated at the
+// same rate — one substitution and one insertion per sixteen bases, which at
+// scale 1 is exactly the lesson pair's one and one, and scores exactly what the
+// lesson pair's motif scores: 15 matches, one substitution and one gap is
+// 45 − 3 − 2 = 40. So the card is the same picture with four times the bases
+// each way and sixteen times the cells — dark in the upper left, one bright
+// ridge growing towards the best local alignment in the lower right. Measured
+// on the built pair: 62% of cells below a sixth of full brightness against the
+// lesson's 59%, so the tone holds too.
+//
+// The lesson never calls this. LONG_A / LONG_B keep their documented answer (40
+// at H[25][30]), which the prose quotes and three tests assert.
+const CARD = 4;
+const BASES = 'ACGT';
+
+function cardPair(utils, scale) {
+  const rand = utils.seededRandom(0xa85c);
+  const pick = () => BASES[Math.floor(rand() * 4)];
+  const A = Array.from({ length: LONG_A.length * scale }, pick);
+  const B = Array.from({ length: LONG_B.length * scale }, pick);
+  // The lesson's motif runs A[9…24] and B[13…29]; these are those offsets and
+  // that length, scaled. Writing B's copy left to right is what makes an
+  // insertion an insertion: the rest of the copy shifts along behind it.
+  let p = 13 * scale;
+  for (let k = 0; k < 16 * scale; k++) {
+    if (k % 16 === 8) B[p++] = pick(); // an insertion, so the ridge has a kink
+    const base = A[9 * scale + k];
+    // …and a substitution, to any of the other three bases.
+    B[p++] = k % 16 === 4 ? BASES[(CODE[base] + 1 + Math.floor(rand() * 3)) % 4] : base;
+  }
+  return { A: A.join(''), B: B.join('') };
 }
 
 function zerosMatrix(m, n) {
@@ -1967,6 +2013,17 @@ plot(
         codesA: codesOf(LONG_A),
         codesB: codesOf(LONG_B),
       }),
+      // A 37 × 33 canvas on a 300 px card is a sixteenfold upscale on a phone,
+      // and the matrix cannot be sampled any more finely than one cell per
+      // pixel — so the card capture aligns a longer pair of the same
+      // construction (see cardPair). CARD × the bases is CARD × the cells and
+      // CARD × the launches: 128 × 144 bases, a 145 × 129 canvas, 271 sweeps.
+      // Its best local score is 203, which is what the capture's rewrite has to
+      // set `top` to — that constant is what turns a score into a colour.
+      cardInputs: utils => {
+        const { A, B } = cardPair(utils, CARD);
+        return { seqA: A, seqB: B, codesA: codesOf(A), codesB: codesOf(B) };
+      },
       publicTests: [
         {
           name: 'every launch rendered a frame — 67 of them',

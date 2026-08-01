@@ -37,8 +37,12 @@ const HALF = (WINDOW - 1) / 2;
 const DET_EPS = 1e-6; // below this a 2x2 system is refused, not solved
 const MAX_FLOW = 1.5; // flow magnitude that paints fully saturated
 
-function clampIndex(i) {
-  return i < 0 ? 0 : i > LAST ? LAST : i;
+// `last` is the grid's last index — SIZE - 1 for everything the lesson runs,
+// and larger for the module card's bigger copy of the scene (see cardInputs on
+// task 5). Passing it beats reading a module constant so one generator can
+// serve both sizes.
+function clampIndex(i, last = LAST) {
+  return i < 0 ? 0 : i > last ? last : i;
 }
 
 function level8(v) {
@@ -62,12 +66,69 @@ function level8(v) {
 // Nothing left of column 34 varies with y, so Iy is EXACTLY zero there, which
 // is what makes the confidence story in tasks 3 and 4 provable rather than
 // approximate.
-function sceneLevel(x, y) {
-  if (x < 16) return level8(128 + 4 * Math.sin((2 * Math.PI * x) / 15));
-  if (x < 34) return level8(128 + 70 * Math.sin((2 * Math.PI * x) / 14));
+//
+// `scale` stretches the whole scene — band edges AND wavelengths — so a bigger
+// frame is the same picture sampled more finely rather than a crop of it. Every
+// number below is in lesson pixels; at scale 1 (everything the lesson runs)
+// the arithmetic is untouched.
+function sceneLevel(x, y, scale = 1) {
+  if (x < 16 * scale) return level8(128 + 4 * Math.sin((2 * Math.PI * x) / (15 * scale)));
+  if (x < 34 * scale) return level8(128 + 70 * Math.sin((2 * Math.PI * x) / (14 * scale)));
   return level8(
-    128 + 60 * Math.sin((2 * Math.PI * x) / 20) + 60 * Math.sin((2 * Math.PI * y) / 26)
+    128 +
+      60 * Math.sin((2 * Math.PI * x) / (20 * scale)) +
+      60 * Math.sin((2 * Math.PI * y) / (26 * scale))
   );
+}
+
+// ---- the module card's own scene -------------------------------------------
+//
+// The lesson's frames are built to TEACH: two of sceneLevel's three bands vary
+// in x only, so Lucas-Kanade correctly refuses them and half the picture comes
+// out white. Right lesson, wrong card — the catalogue thumbnail was mostly
+// blank, and the one band that did resolve moved in a single direction, so it
+// was a single flat blue.
+//
+// This is the picture the module is actually about: a texture ROTATING about
+// the centre, so every direction is present at once. Hue sweeps the whole
+// wheel, magnitude grows with radius, and the still centre stays white — the
+// legend for "direction becomes hue" drawn by the algorithm itself rather than
+// asserted. It is a real Lucas-Kanade solve of real frames, same as the lesson.
+//
+// Two sine directions plus a diagonal term, so the structure tensor is
+// well-conditioned everywhere and there is no aperture ambiguity to refuse.
+function cardTextureLevel(x, y) {
+  return level8(
+    128 +
+      52 * Math.sin((2 * Math.PI * x) / 21) +
+      52 * Math.sin((2 * Math.PI * y) / 17) +
+      26 * Math.sin((2 * Math.PI * (x + y)) / 13)
+  );
+}
+
+// Frame B is frame A's texture sampled at the position each pixel ROTATED FROM,
+// which is what makes the apparent motion a rotation rather than a smear. The
+// scene is continuous, so those samples are sub-pixel — exactly the regime
+// Lucas-Kanade is for.
+function cardRotationFrames(size, radians = 0.0125) {
+  const c = (size - 1) / 2;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const a = new Array(size);
+  const b = new Array(size);
+  for (let y = 0; y < size; y++) {
+    const rowA = new Array(size);
+    const rowB = new Array(size);
+    for (let x = 0; x < size; x++) {
+      const dx = x - c;
+      const dy = y - c;
+      rowA[x] = cardTextureLevel(x, y) / 255;
+      rowB[x] = cardTextureLevel(c + dx * cos + dy * sin, c - dx * sin + dy * cos) / 255;
+    }
+    a[y] = rowA;
+    b[y] = rowB;
+  }
+  return [a, b];
 }
 
 // The aperture scene: a sawtooth ramp running along the (1, 1) diagonal, so
@@ -83,13 +144,13 @@ function apertureLevel(x, y) {
 // A scene sampled into two frames: frame B is the same scene shifted by
 // (dx, dy), i.e. B(x, y) = scene(x - dx, y - dy) — content that moved right
 // and down. Returns two grids of intensities in 0-1.
-function framePair(scene, dx, dy) {
-  const a = new Array(SIZE);
-  const b = new Array(SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    const rowA = new Array(SIZE);
-    const rowB = new Array(SIZE);
-    for (let x = 0; x < SIZE; x++) {
+function framePair(scene, dx, dy, size = SIZE) {
+  const a = new Array(size);
+  const b = new Array(size);
+  for (let y = 0; y < size; y++) {
+    const rowA = new Array(size);
+    const rowB = new Array(size);
+    for (let x = 0; x < size; x++) {
       rowA[x] = scene(x, y) / 255;
       rowB[x] = scene(x - dx, y - dy) / 255;
     }
@@ -116,7 +177,14 @@ function grayImage(grid) {
   return plainToImageData(plain);
 }
 
-const mainFrames = () => framePair(sceneLevel, 1, 1);
+// The working pair. `size` scales the scene AND the displacement together: the
+// content moves one lesson-pixel per frame, so on a 4x scene it has to move
+// four, or the flow field being painted is a different field — a quarter of the
+// motion, and a quarter of the saturation with it.
+const mainFrames = (size = SIZE) => {
+  const scale = size / SIZE;
+  return framePair((x, y) => sceneLevel(x, y, scale), 1 * scale, 1 * scale, size);
+};
 const apertureFrames = () => framePair(apertureLevel, 4, 0);
 
 // ---- CPU references --------------------------------------------------------
@@ -128,21 +196,26 @@ const apertureFrames = () => framePair(apertureLevel, 4, 0);
 //           actually belongs (halfway between them in time) and what the task
 //           asks for;
 //   'a' / 'b' — one frame only, the near-miss the probes name.
+//
+// The grid's size comes from the frames themselves, so this works unchanged on
+// the card's bigger pair.
 function derivativeRef(a, b, blend = 'mid') {
+  const size = a.length;
+  const last = size - 1;
   const sample = (y, x) =>
     blend === 'a' ? a[y][x] : blend === 'b' ? b[y][x] : (a[y][x] + b[y][x]) / 2;
-  const ix = new Array(SIZE);
-  const iy = new Array(SIZE);
-  const it = new Array(SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    const rowX = new Array(SIZE);
-    const rowY = new Array(SIZE);
-    const rowT = new Array(SIZE);
-    const up = clampIndex(y - 1);
-    const down = clampIndex(y + 1);
-    for (let x = 0; x < SIZE; x++) {
-      const left = clampIndex(x - 1);
-      const right = clampIndex(x + 1);
+  const ix = new Array(size);
+  const iy = new Array(size);
+  const it = new Array(size);
+  for (let y = 0; y < size; y++) {
+    const rowX = new Array(size);
+    const rowY = new Array(size);
+    const rowT = new Array(size);
+    const up = clampIndex(y - 1, last);
+    const down = clampIndex(y + 1, last);
+    for (let x = 0; x < size; x++) {
+      const left = clampIndex(x - 1, last);
+      const right = clampIndex(x + 1, last);
       rowX[x] = (sample(y, right) - sample(y, left)) / 2;
       rowY[x] = (sample(down, x) - sample(up, x)) / 2;
       rowT[x] = b[y][x] - a[y][x];
@@ -156,16 +229,24 @@ function derivativeRef(a, b, blend = 'mid') {
 
 // The five window sums Lucas-Kanade needs, clamp-to-edge like every other
 // neighbourhood pass in this course.
-function windowSums(d, x, y) {
+//
+// `half` is the window's reach in pixels, and it is a SPATIAL measure: a window
+// that stays 5x5 on a scene stretched 4x sees a patch a quarter the size, where
+// the texture looks like a single straight edge and the 2x2 system goes
+// singular. Measured, not guessed — at half 2 on the 4x scene the whole
+// textured band falls under DET_EPS and paints white.
+function windowSums(d, x, y, half = HALF) {
+  const last = d[0].length - 1;
+  const window = 2 * half + 1;
   let sxx = 0;
   let sxy = 0;
   let syy = 0;
   let sxt = 0;
   let syt = 0;
-  for (let wy = 0; wy < WINDOW; wy++) {
-    const sy = clampIndex(y + wy - HALF);
-    for (let wx = 0; wx < WINDOW; wx++) {
-      const sx = clampIndex(x + wx - HALF);
+  for (let wy = 0; wy < window; wy++) {
+    const sy = clampIndex(y + wy - half, last);
+    for (let wx = 0; wx < window; wx++) {
+      const sx = clampIndex(x + wx - half, last);
       const ix = d[0][sy][sx];
       const iy = d[1][sy][sx];
       const it = d[2][sy][sx];
@@ -185,14 +266,15 @@ function detOf(s) {
 
 // Lucas-Kanade flow, [U, V]. `variant` selects a deliberate mistake for the
 // probes: 'nocross' drops the Ix*Iy term, 'swap' exchanges u and v.
-function flowRef(d, variant = 'ok') {
-  const u = new Array(SIZE);
-  const v = new Array(SIZE);
-  for (let y = 0; y < SIZE; y++) {
-    const rowU = new Array(SIZE);
-    const rowV = new Array(SIZE);
-    for (let x = 0; x < SIZE; x++) {
-      const s = windowSums(d, x, y);
+function flowRef(d, variant = 'ok', half = HALF) {
+  const size = d[0].length;
+  const u = new Array(size);
+  const v = new Array(size);
+  for (let y = 0; y < size; y++) {
+    const rowU = new Array(size);
+    const rowV = new Array(size);
+    for (let x = 0; x < size; x++) {
+      const s = windowSums(d, x, y, half);
       if (variant === 'nocross') {
         // Ix*Iy never accumulated: the 2x2 system collapses to two
         // independent 1x1 ones.
@@ -1579,6 +1661,17 @@ render(paintFlow.canvas);
       inputs: () => {
         const [a, b] = mainFrames();
         return { flow: flowRef(derivativeRef(a, b)) };
+      },
+      // The catalogue card is this picture at ~300 px, and SIZE is the lesson's
+      // choice rather than the card's. Same scene, same motion, four times the
+      // samples: the scene stretches 4x, the displacement grows 1 → 4 px with
+      // it (a flow field is a MOTION, so leaving it at 1 would paint a quarter
+      // of the motion), and the Lucas-Kanade window grows 5x5 → 17x17 to keep
+      // covering the same patch of scene. The kernel's maxFlow moves with the
+      // motion, which is the card rewrite in scripts/capture-module-renders.mjs.
+      cardInputs: () => {
+        const [a, b] = cardRotationFrames(SIZE * 4);
+        return { flow: flowRef(derivativeRef(a, b), 'ok', HALF * 4) };
       },
       publicTests: [
         {

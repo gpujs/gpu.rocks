@@ -47,6 +47,7 @@ const SIZE = 64;
 const LAST = SIZE - 1;
 const FRAME_COUNT = 8;
 const RADIUS = 9;
+const SEED = 90210;
 const OBJECT = [0.85, 0.7, 0.34]; // luminance ≈ 0.704
 const LUM = [0.299, 0.587, 0.114];
 const HOT_PIXEL_CHANCE = 0.01;
@@ -60,25 +61,36 @@ const THRESHOLD = 0.12; // tasks 3, 4, 6 — luminance change that counts as mot
 const RAMP_LO = 0.1; // task 5 — soft mask ramp
 const RAMP_HI = 0.22;
 
+// The scene below is built at a size rather than at SIZE, because the module
+// card wants this same shot at four times the pixels (see cardInputs on task 5)
+// and everything about it is measured in pixels: where the object is, how big
+// it is, where the poster and the desk edge fall. Each constant is therefore
+// written relative to SIZE and multiplied by size / SIZE — which is 1 for the
+// lesson, so the frames a learner gets are the frames they always got.
+
 // Where the object is in frame i. It starts fully off the left edge, so frame 0
 // shows the empty scene.
-function objectCenter(i) {
-  return [-12 + 9 * i, 30 + Math.round(4 * Math.sin(i * 0.8))];
+function objectCenter(i, size = SIZE) {
+  const s = size / SIZE;
+  return [(-12 + 9 * i) * s, (30 + Math.round(4 * Math.sin(i * 0.8))) * s];
 }
 
-// The static scene, identical in every frame.
-function scenePixel(x, y) {
-  const nx = x / LAST;
-  const ny = y / LAST;
+// The static scene, identical in every frame. The two rectangles are half-open
+// in scene coordinates — `>= 6 * s` up to `< 23 * s` is x = 6…22 at s = 1 and
+// exactly four times that span at s = 4, which `<= 22 * s` would not be.
+function scenePixel(x, y, size = SIZE) {
+  const s = size / SIZE;
+  const nx = x / (size - 1);
+  const ny = y / (size - 1);
   let r = 0.1 + 0.18 * nx;
   let g = 0.16 + 0.2 * ny;
   let b = 0.3 + 0.16 * (1 - nx);
-  if (x >= 6 && x <= 22 && y >= 8 && y <= 24) {
+  if (x >= 6 * s && x < 23 * s && y >= 8 * s && y < 25 * s) {
     r += 0.14; // the poster on the wall
     g += 0.14;
     b += 0.02;
   }
-  if (y >= 46) {
+  if (y >= 46 * s) {
     r *= 0.55; // the desk, in shadow
     g *= 0.55;
     b *= 0.55;
@@ -90,18 +102,22 @@ function scenePixel(x, y) {
 // on the GPU (engine/utils.plainToImageData). Channels are quantized to 8-bit
 // steps, which is what makes .plain an exact host-side view of what the kernel
 // sees. Same seed → same eight frames, always.
-function makeFrames(utils, seed = 90210) {
+// The sensor noise stays per-PIXEL rather than scaling with size: a hot pixel is
+// a pixel, so the card gets the same 1% of them, finer-grained. Everything with
+// a position or a size scales.
+function makeFrames(utils, seed = SEED, size = SIZE) {
   const frames = new Array(FRAME_COUNT);
+  const radius = RADIUS * (size / SIZE);
   for (let i = 0; i < FRAME_COUNT; i++) {
     const rand = utils.seededRandom(seed + i * 7919);
-    const [cx, cy] = objectCenter(i);
-    const plain = new Array(SIZE);
-    for (let y = 0; y < SIZE; y++) {
-      const row = new Array(SIZE);
-      for (let x = 0; x < SIZE; x++) {
+    const [cx, cy] = objectCenter(i, size);
+    const plain = new Array(size);
+    for (let y = 0; y < size; y++) {
+      const row = new Array(size);
+      for (let x = 0; x < size; x++) {
         const dx = x - cx;
         const dy = y - cy;
-        const base = dx * dx + dy * dy <= RADIUS * RADIUS ? OBJECT : scenePixel(x, y);
+        const base = dx * dx + dy * dy <= radius * radius ? OBJECT : scenePixel(x, y, size);
         const hot = rand() < HOT_PIXEL_CHANCE ? HOT_PIXEL_LIFT : 0;
         row[x] = quantizePixel([
           base[0] + hot + (rand() - 0.5) * 0.04,
@@ -1818,6 +1834,13 @@ await compose(live, await feather(await softMask(live, model)));
 render(compose.canvas);
 `,
       inputs: utils => ({ frames: makeFrames(utils) }),
+      // The catalogue card is this composite shown at ~300 CSS px, and 64×64 is
+      // the LESSON's frame budget — eight frames through five passes, quick on
+      // a laptop — not the card's. Same scene, same eight frames, same seed, at
+      // four times the width. The capture script widens the kernels to match
+      // (CARD_SCALE), blur radii included, or the backdrop would stop looking
+      // blurred.
+      cardInputs: utils => ({ frames: makeFrames(utils, SEED, SIZE * 4) }),
       inputNotes: {
         frames: 'Eight 64×64 ImageData frames in time order — a bright object crossing a static scene, with sensor noise. Pass one frame at a time into a kernel; inside it frames[i][y][x] is that pixel as [r, g, b, a] from 0 to 1.',
       },

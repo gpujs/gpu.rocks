@@ -923,6 +923,26 @@ render(paint.canvas);
         const seed = makeSeedPair(64, 8);
         return { seedU: seed.u, seedV: seed.v };
       },
+      // The catalogue card is this picture at ~300 px, where the lesson's 64x64
+      // is a fivefold upscale. Same seed in the same place — the block doubles
+      // with the grid, so it covers the same fraction of the world — and the
+      // card rewrite in scripts/capture-module-renders.mjs doubles the lattice
+      // with it.
+      //
+      // Doubled, not quadrupled, and the arithmetic says why. A lattice is a
+      // discretisation: du_code = D·dt/h², so halving the cell size h needs 4x
+      // du to keep the same physical diffusion — and an explicit-Euler step is
+      // only stable while du·dt <= 1/4, so dt has to drop 4x and the step count
+      // rise 4x to reach the same moment in the pattern's life. 16x the work
+      // for 2x the resolution; 4x would be 256x, which is thousands of
+      // dispatches and nowhere near the sandbox's 10 s run watchdog. Leaving
+      // the rates alone instead is not an option: measured, a 4x grid at the
+      // lesson's rates and step count paints the seed square barely grown, not
+      // the ring.
+      cardInputs: () => {
+        const seed = makeSeedPair(128, 16);
+        return { seedU: seed.u, seedV: seed.v };
+      },
       publicTests: [
         {
           name: 'a 64×64 canvas is rendered',

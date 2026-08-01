@@ -32,8 +32,16 @@ const STRIDES = [64, 32, 16, 8, 4, 2, 1];
 // ---- deterministic inputs (shared by inputs() and tests) -------------------
 
 // `count` distinct seed sites on the N×N grid. Same seed → same sites, always.
-function makeSites(utils, count, seed) {
+//
+// `size` places those same sites on a larger grid — the module card renders this
+// diagram four times bigger (see cardInputs on task 6), and it has to be the
+// SAME layout, so the draw stays on the lesson's grid and each site moves to the
+// middle of the block it grew into. At size === N that mapping is the identity,
+// and so is the rejection sequence: the dedupe key is the drawn cell either way.
+function makeSites(utils, count, seed, size = N) {
   const rand = utils.seededRandom(seed);
+  const scale = size / N;
+  const at = v => v * scale + Math.floor(scale / 2);
   const xs = [];
   const ys = [];
   const used = {};
@@ -43,17 +51,19 @@ function makeSites(utils, count, seed) {
     const key = y * N + x;
     if (used[key]) continue;
     used[key] = true;
-    xs.push(x);
-    ys.push(y);
+    xs.push(at(x));
+    ys.push(at(y));
   }
   return { xs, ys };
 }
 
 // The starting field: the packed id at each seed site, -1 everywhere else.
-function seedGridOf(xs, ys) {
-  const grid = new Array(N);
-  for (let y = 0; y < N; y++) grid[y] = new Array(N).fill(-1);
-  for (let i = 0; i < xs.length; i++) grid[ys[i]][xs[i]] = ys[i] * N + xs[i];
+// `size` is the grid the ids are packed against — sy * size + sx — so it has to
+// be the same size makeSites placed them on.
+function seedGridOf(xs, ys, size = N) {
+  const grid = new Array(size);
+  for (let y = 0; y < size; y++) grid[y] = new Array(size).fill(-1);
+  for (let i = 0; i < xs.length; i++) grid[ys[i]][xs[i]] = ys[i] * size + xs[i];
   return grid;
 }
 
@@ -1980,6 +1990,21 @@ render(paintErr.canvas);
           seedX: sites.xs,
           seedY: sites.ys,
           seedGrid: seedGridOf(sites.xs, sites.ys),
+        };
+      },
+      // The catalogue card is this diagram at ~300 CSS px — 600 device px on a
+      // phone — so N, the lesson's size and picked so 16,384 cells and a 7-rung
+      // ladder run anywhere, arrives as a fivefold upscale with every cell
+      // boundary a staircase. Same 24 sites, same framing, four times the
+      // samples, so the boundaries come out as edges. The card's ladder needs
+      // two more rungs (log2(512) = 9); that and the kernel constants come from
+      // CARD_SCALE in scripts/capture-module-renders.mjs.
+      cardInputs: utils => {
+        const sites = makeSites(utils, 24, 211, N * 4);
+        return {
+          seedX: sites.xs,
+          seedY: sites.ys,
+          seedGrid: seedGridOf(sites.xs, sites.ys, N * 4),
         };
       },
       publicTests: [
