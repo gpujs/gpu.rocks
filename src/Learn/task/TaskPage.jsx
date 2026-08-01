@@ -684,21 +684,22 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
         <BenchChip bench={bench} />
         <div className="tb-right">
           {passedNow && <span className="pass-note">✓ All tests passed</span>}
-          <button type="button" className="tb-btn" onClick={handleReset}>
-            Reset code
+          <button type="button" className="tb-btn" onClick={handleReset} aria-label="Reset code">
+            Reset<span className="tb-word"> code</span>
           </button>
           {/* same wording as the completion modal's way out, so leaving a
               module reads the same whether you finished it or not */}
-          <button type="button" className="tb-btn" onClick={handleAllModules}>
-            Exit module
+          <button type="button" className="tb-btn" onClick={handleAllModules} aria-label="Exit module">
+            Exit<span className="tb-word"> module</span>
           </button>
           <button
             type="button"
             className="tb-btn"
             onClick={handlePrev}
             disabled={!prevEnabled}
+            aria-label="Previous task"
           >
-            ← Prev task
+            ← Prev<span className="tb-word"> task</span>
           </button>
           <button
             type="button"
@@ -706,8 +707,9 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
             ref={nextBtnRef}
             onClick={handleNext}
             disabled={!nextEnabled}
+            aria-label="Next task"
           >
-            Next task →
+            Next<span className="tb-word"> task</span> →
           </button>
         </div>
       </div>

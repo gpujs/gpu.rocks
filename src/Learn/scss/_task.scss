@@ -1321,6 +1321,25 @@
      took 321px at 38vh, and the 1.4:1 editor/output split left the panel 72px
      of content — one and a half test rows. */
   @media (max-width: 720px) {
+    /* Each of Reset code / Exit module / Prev task / Next task wrapped onto two
+       lines, which made the second toolbar row ~110px tall on a 390px phone.
+       Dropping the second word fits each on one line; the full label survives
+       for screen readers as aria-label. */
+    .tb-word { display: none; }
+
+    .toolbar {
+      gap: .4rem;
+      padding: .45rem .8rem;
+    }
+
+    .tb-btn,
+    .tb-next {
+      padding: .4rem .7rem;
+      white-space: nowrap;
+    }
+
+    .tb-right { gap: .4rem; }
+
     .brief {
       // Now that the brief has its own full screen, it does not need to be
       // tall by default — which is what buys the output pane its room.
