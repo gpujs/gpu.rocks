@@ -255,7 +255,7 @@ function TaskInputs({ docs }) {
   );
 }
 
-function BriefPane({ module, task, taskNum, total, inputDocs }) {
+function BriefPane({ module, task, taskNum, total, inputDocs, full, onToggleFull }) {
   const figures = getFigures(module, task);
   const briefRef = useRef(null);
   // Static syntax highlighting for authored <pre><code> blocks. Layout effect
@@ -265,7 +265,18 @@ function BriefPane({ module, task, taskNum, total, inputDocs }) {
     highlightCodeBlocks(briefRef.current);
   }, [task]);
   return (
-    <aside className="brief" ref={briefRef}>
+    <aside className={full ? 'brief brief-full' : 'brief'} ref={briefRef}>
+      {/* Phones only (hidden by media query): the brief is capped at a fraction
+          of a phone screen so the editor and output have room, which makes a
+          long task description a keyhole. */}
+      <button
+        type="button"
+        className="brief-fullbtn"
+        onClick={onToggleFull}
+        aria-label={full ? 'Exit full screen task description' : 'Full screen task description'}
+      >
+        {full ? '✕ Close' : '⛶'}
+      </button>
       <p className="eyebrow">Task {taskNum} of {total}</p>
       <h2>{task.title}</h2>
       <div dangerouslySetInnerHTML={{ __html: task.intro || '' }} />
@@ -352,6 +363,10 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
   const [tab, setTab] = useState('console');
   const [done, setDone] = useState(() => isTaskDone(taskId));
   const [fullscreen, setFullscreen] = useState(false);
+  // Phones only (the button is hidden above 720px). Mutually exclusive with the
+  // editor's full screen — two fixed-inset panels would stack.
+  const [panelFull, setPanelFull] = useState(false);
+  const [briefFull, setBriefFull] = useState(false);
   const [progressTick, setProgressTick] = useState(0);
   const [status, setStatus] = useState(''); // announced via the role=status region
   const [celebration, setCelebration] = useState(null); // null | { kind: 'module' | 'track' }
@@ -709,6 +724,8 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
           taskNum={taskNum}
           total={total}
           inputDocs={inputDocs}
+          full={briefFull}
+          onToggleFull={() => { setFullscreen(false); setPanelFull(false); setBriefFull(f => !f); }}
         />
 
         <div className="editpane">
@@ -720,7 +737,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
               <button
                 type="button"
                 className="ed-fullbtn"
-                onClick={() => setFullscreen(f => !f)}
+                onClick={() => { setPanelFull(false); setBriefFull(false); setFullscreen(f => !f); }}
                 aria-label={fullscreen ? 'Exit full screen editor' : 'Full screen editor'}
               >
                 {fullscreen ? '✕ Close' : '⛶ Full screen'}
@@ -745,7 +762,7 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
             />
           </div>
 
-          <div className="bottompane">
+          <div className={panelFull ? 'bottompane bottompane-full' : 'bottompane'}>
             <div
               className="btabs"
               role="tablist"
@@ -777,6 +794,14 @@ function TaskWorkspace({ module, task, taskNum, taskIndex, taskId, total }) {
                 onClick={() => setTab('tests')}
               >
                 Tests {testBadge && <span className="cnt">{testBadge}</span>}
+              </button>
+              <button
+                type="button"
+                className="panel-fullbtn"
+                onClick={() => { setFullscreen(false); setBriefFull(false); setPanelFull(f => !f); }}
+                aria-label={panelFull ? 'Exit full screen output' : 'Full screen output'}
+              >
+                {panelFull ? '✕ Close' : '⛶'}
               </button>
               <button type="button" className="clearbtn" onClick={() => setLogs([])}>
                 clear

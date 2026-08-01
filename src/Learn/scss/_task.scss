@@ -778,6 +778,51 @@
     color: var(--blue);
   }
 
+  /* Phones only. On a desktop the panel already has room, and a second
+     fixed-inset surface competing with the editor's full screen would be
+     clutter. Shown by the media query at the bottom of this file. */
+  /* Same affordance for the task description. Floats within the brief's own
+     scroll box and sticks to the top, so it stays reachable however far down
+     the reader has scrolled. */
+  .brief-fullbtn {
+    display: none;
+    position: sticky;
+    top: 0;
+    float: right;
+    z-index: 2;
+    margin: -.4rem -.4rem 0 .5rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: .72rem;
+    padding: .15rem .5rem;
+    height: auto;
+    line-height: 1.5;
+    text-transform: none;
+    box-shadow: none;
+  }
+
+  .panel-fullbtn {
+    display: none;
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: .72rem;
+    padding: .15rem .5rem;
+    height: auto;
+    line-height: 1.5;
+    text-transform: none;
+    box-shadow: none;
+  }
+
+  /* clear keeps its own right-alignment only while the button is absent */
+  .btabs .panel-fullbtn + .clearbtn {
+    margin-left: .4rem;
+  }
+
   .bpanel {
     flex: 1;
     overflow-y: auto;
@@ -1269,6 +1314,61 @@
   @media (max-width: 560px) {
     // no Tab key on touch keyboards — make room for the full-screen button
     .ed-hint { display: none; }
+  }
+
+  /* ---- phones: the output pane was unusable ----
+     Measured on a 390x844 phone before this block: chrome ate 263px, the brief
+     took 321px at 38vh, and the 1.4:1 editor/output split left the panel 72px
+     of content — one and a half test rows. */
+  @media (max-width: 720px) {
+    .brief {
+      // Now that the brief has its own full screen, it does not need to be
+      // tall by default — which is what buys the output pane its room.
+      max-height: 24vh;
+    }
+
+    .brief-fullbtn { display: inline-block; }
+
+    .brief.brief-full {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      max-height: none;
+      border-bottom: none;
+    }
+
+    // even split, and a floor so the panel can never collapse to a sliver
+    .editor { flex: 1; }
+
+    .bottompane {
+      flex: 1.15;
+      min-height: 11rem;
+    }
+
+    .panel-fullbtn { display: inline-block; }
+
+    /* Full screen output. Same z-index as the editor's full screen — they are
+       mutually exclusive in TaskPage, so they never coexist. */
+    .bottompane.bottompane-full {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      flex: none;
+      min-height: 0;
+      border-top: none;
+    }
+  }
+
+  /* Safety net: if the viewport widens while the panel is full screen the
+     button vanishes with the media query above, so undo the fixed positioning
+     too — otherwise there would be no way out. */
+  @media (min-width: 721px) {
+    .bottompane.bottompane-full,
+    .brief.brief-full {
+      position: static;
+      inset: auto;
+      z-index: auto;
+    }
   }
 
   /* ============ completion modal (module / track celebration) ============ */
