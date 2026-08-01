@@ -51,7 +51,13 @@ const reg = await loadContent(ROOT);
 //   luminance map, which at 16:9 and 300px wide is indistinguishable from
 //   static. Their figures show the actual idea (output shapes; the chain that
 //   never leaves the card), so the fallback is strictly better here.
-const NO_RENDER = new Set(['data-in-data-out', 'pipelines-and-textures']);
+//   convolution-and-filters — same problem one step further on: its payoff is a
+//   Sobel edge-magnitude map, which is grey noise at this size.
+const NO_RENDER = new Set([
+  'data-in-data-out',
+  'pipelines-and-textures',
+  'convolution-and-filters',
+]);
 
 // The LAST graphical task: the payoff, the picture the module exists to make.
 function payloadTask(mod) {

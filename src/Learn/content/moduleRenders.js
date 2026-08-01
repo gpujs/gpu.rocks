@@ -6,7 +6,6 @@
 export default new Set([
   "cellular-automata",
   "colour-spaces",
-  "convolution-and-filters",
   "escape-time-fractals",
   "hydraulic-erosion",
   "ising-model",

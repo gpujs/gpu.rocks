@@ -222,6 +222,15 @@
   .module .mart svg .lbl-up { font-size: 9px; fill: var(--muted); }
   .module .mart svg .formula { font-size: 11px; fill: var(--ink); }
 
+  /* Figures rely on these classes, and they were only ever defined under
+     `.diagram svg` — the task page's wrapper. On a card the same markup sits in
+     `.mart`, so an `.arrow` path fell back to the SVG DEFAULT of fill:black,
+     stroke:none: the elbow in Pipelines & Textures' "one download" filled in as
+     a solid black triangle. Any figure using arrows had the same fate. */
+  .module .mart svg .cellline { stroke: var(--line); }
+  .module .mart svg .arrow { stroke: var(--muted); fill: none; }
+  .module .mart svg .arrowhead { fill: var(--muted); }
+
   .module:hover,
   .module:focus-visible {
     border-color: var(--blue);
