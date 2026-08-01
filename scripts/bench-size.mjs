@@ -25,10 +25,12 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MIN_MS = 200;
 const MAX_MS = 3000;
 
-const only = process.argv.slice(2).filter(a => !a.startsWith('--'));
 // --file lets a workload be checked BEFORE it is in the generated registry,
 // which is what makes it usable while several are being written at once.
 const fileArg = process.argv.indexOf('--file');
+const only = process.argv
+  .slice(2)
+  .filter((a, i) => !a.startsWith('--') && i + 2 !== fileArg + 1);
 const workloads = fileArg >= 0
   ? [(await import(`${ROOT}/${process.argv[fileArg + 1].replace(/^\.?\//, '')}`)).default]
   : (await import(`${ROOT}/src/Bench/workloads/index.js`)).default;
