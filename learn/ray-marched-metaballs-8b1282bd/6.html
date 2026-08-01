@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-TW3208Vw.js"></script>
+    <script type="module" crossorigin src="/assets/index-CeyZkHJy.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Soft Shadows, Full Scene · Ray-Marched Metaballs — GPU.js Learn</title>
     <meta name="description" content="Goal: add the shadow march — 32 steps from the hit point toward the light, penumbra factor sh = Math.min(sh, 3.0 * d / st) — and scale the diffuse term by it…">
@@ -159,6 +159,11 @@
         <p>The kernel takes a <code>shadowOn</code> switch so you can A/B it: with the light swung
         low to the left, the left lobe casts a soft-edged shadow across the neck of the blob. One
         more march, and a scene with no triangles anywhere gets real cinematography.</p>
+        <p>The driver also hands you a <strong>separation</strong> slider, which is task 2's point
+        made in one gesture: the program is a pure function of its controls, so dragging it re-runs
+        the whole thing. Slide the two centres together and <code>smin</code> welds them into a
+        single blob; pull them apart and the neck thins, necks down, and snaps. Solve the task
+        first — it defaults to the <code>0.55</code> the scene has always used — then drag it.</p>
 
 <div class="ssg-goal"><strong>Goal:</strong> add the shadow march — 32 steps from the hit point toward the
         light, penumbra factor <code>sh = Math.min(sh, 3.0 * d / st)</code> — and scale the diffuse

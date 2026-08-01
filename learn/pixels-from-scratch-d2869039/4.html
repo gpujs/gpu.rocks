@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-TW3208Vw.js"></script>
+    <script type="module" crossorigin src="/assets/index-CeyZkHJy.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Ripples: Think in Polar · Pixels from Scratch — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the ripple kernel — a cosine wave over the radius, faded toward the edge, tinted blue: this.color(0.4v, 0.75v, v, 1) .">
@@ -160,20 +160,32 @@
         One gotcha, handled in the starter: <code>this.thread.x</code> is an <em>integer</em> on
         the GPU, so promote it to a float (<code>this.thread.x / 1</code>) before subtracting the
         fractional center — otherwise the GPU rounds your 63.5 away.</p>
+        <p>One more thing comes prewired: a <strong>dial</strong>.
+        <code>slider('phase', …)</code> returns the value this run is using and puts a control
+        under the console; move it and the whole program re-runs. Phase slides the radius the
+        cosine sees — one radian of it is <code>1 / 0.35</code> px of radius — so at 0 the rings
+        stand still, and anywhere else the same rings sit further out. Drag it and the crests
+        travel; at 2π every crest has moved out by exactly one ring, which is the picture you
+        started from. The fade is computed <em>before</em> the slide, on the true radius, so the
+        vignette never moves — only the water does.</p>
 <figure><figcaption>subtract the center and (x, y) becomes r — anything you do to r is a circle</figcaption></figure>
 <div class="ssg-goal"><strong>Goal:</strong> finish the ripple kernel — a cosine wave over the radius,
         faded toward the edge, tinted blue: <code>this.color(0.4v, 0.75v, v, 1)</code>.</div>
 
-<h2>Requirements</h2><ul><li>Radius from the center: <code>Math.sqrt(dx*dx + dy*dy)</code> with dx, dy relative to (63.5, 63.5)</li><li>Ripple: <code>wave = 0.5 + 0.5 * Math.cos(r * 0.35)</code></li><li>Fade: <code>fade = Math.max(0, 1 - r / 96)</code>, then <code>v = wave * fade</code></li><li>Blue tint: channels <code>0.4*v</code>, <code>0.75*v</code>, <code>v</code></li></ul>
+<h2>Requirements</h2><ul><li>Radius from the center: <code>Math.sqrt(dx*dx + dy*dy)</code> with dx, dy relative to (63.5, 63.5)</li><li>Ripple: <code>wave = 0.5 + 0.5 * Math.cos(r * 0.35)</code></li><li>Fade: <code>fade = Math.max(0, 1 - r / 96)</code>, then <code>v = wave * fade</code></li><li>Blue tint: channels <code>0.4*v</code>, <code>0.75*v</code>, <code>v</code></li><li>The <code>phase</code> dial is prewired — drag it to send the rings travelling, but Run at its default <code>0</code>, which is where these tests measure</li></ul>
 <details><summary>Hint 1 — the ripple</summary><p><code>Math.cos(r * 0.35)</code> swings between −1 and 1 as r grows —
             <code>0.5 + 0.5 * cos</code> remaps that to 0…1, a crest roughly every 18 pixels.</p></details>
 <details><summary>Hint 2 — the last three lines</summary><pre><code>const wave = 0.5 + 0.5 * Math.cos(r * 0.35);
-const v = wave * Math.max(0, 1 - r / 96);
-this.color(0.4 * v, 0.75 * v, v, 1);</code></pre></details>
+const v = wave * fade;
+this.color(0.4 * v, 0.75 * v, v, 1);</code></pre>
+<p>Use the <code>fade</code> the starter already computed rather than writing it again —
+it was measured on the true radius, before the phase slide.</p></details>
 <h2>Same idea elsewhere</h2>Radius-and-angle reasoning is everywhere in GPU code: vignette and
         lens-distortion passes in Metal and WebGPU post-processing, CUDA and ROCm image warps
         that resample in polar space, every "tunnel" demo ever shipped. Center the coordinates,
-        transform them, color by the result — that opening move never changes.
+        transform them, color by the result — that opening move never changes. Nor does the next
+        one: add a phase to the transformed coordinate and the picture starts to move, which is
+        all the <code>time</code> uniform in an animated shader has ever done.
 <h2>All tasks in Pixels from Scratch</h2>
 <ol class="ssg-tasks"><li><a href="/learn/pixels-from-scratch-d2869039/1">Paint with Coordinates</a></li><li><a href="/learn/pixels-from-scratch-d2869039/2">Checkerboard Logic</a></li><li><a href="/learn/pixels-from-scratch-d2869039/3">Plot a Function</a></li><li><a href="/learn/pixels-from-scratch-d2869039/4">Ripples: Think in Polar</a></li></ol>
 <nav class="ssg-pager"><a href="/learn/pixels-from-scratch-d2869039/3">← previous task</a></nav>

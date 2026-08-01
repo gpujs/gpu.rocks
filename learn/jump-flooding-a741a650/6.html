@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-TW3208Vw.js"></script>
+    <script type="module" crossorigin src="/assets/index-CeyZkHJy.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Payoff: Measure the Lie · Jump Flooding: Voronoi in log n Passes — GPU.js Learn</title>
     <meta name="description" content="Goal: write worse(jfa, truth) — 1 where the flooded seed is strictly farther than the true nearest one, 0 otherwise — and countOnes to total it.">
@@ -166,6 +166,13 @@
         stride 1 ("JFA+1"), takes it to 55 — better, and still not exact. If you need exact, you
         need a different algorithm; what you get here is a fast answer with a bounded, measurable
         error, and for a glow or an outline or a shatter pattern that is the right trade.</p>
+        <p>The <code>passes</code> dial stops the ladder short — one rung, or two, or all seven —
+        and re-runs the whole program each time you move it. Wrong cells come out red, so dragging
+        it puts the error curve and the picture side by side: the plot says how many, the diagram
+        says <em>where</em>. Six passes out of seven is not "nearly right", it is
+        <strong>12,292 wrong cells out of 16,384</strong>, because every jump left is a multiple of
+        2 and three quarters of the grid is an odd step away from every seed. The last rung is not
+        a polish pass. It is the one that reaches the cells in between at all.</p>
 
 <div class="ssg-goal"><strong>Goal:</strong> write <code>worse(jfa, truth)</code> — 1 where the flooded seed
         is strictly farther than the true nearest one, 0 otherwise — and <code>countOnes</code> to

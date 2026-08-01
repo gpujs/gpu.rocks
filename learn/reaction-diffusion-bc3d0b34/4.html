@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-TW3208Vw.js"></script>
+    <script type="module" crossorigin src="/assets/index-CeyZkHJy.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Paint the Pattern · Reaction–Diffusion — GPU.js Learn</title>
     <meta name="description" content="Goal: complete the paint kernel — map this thread's v value through the palette and put it on screen.">
@@ -150,8 +150,10 @@
 <nav class="ssg-crumbs"><a href="/">GPU.js</a> › <a href="/learn">Learn</a> › <a href="/learn/reaction-diffusion-bc3d0b34">Reaction–Diffusion</a></nav>
 <p class="ssg-eyebrow">Task 4 of 4</p>
 <h1>Paint the Pattern</h1>
-<p>Payoff time. The whole simulation is wired below — 64×64 grid, 200 steps —
-        and it ends holding <code>v</code>, a grid of numbers with coral growing in it.
+<p>Payoff time. The whole simulation is wired below — a 64×64 grid and a
+        <strong>steps</strong> dial saying how long to run it — 200 is the value that
+        turn the seed square into coral — and it ends holding <code>v</code>, a grid of numbers
+        with coral growing in it.
         Numbers deserve pixels: one graphical kernel, exactly like the painters in 3.1,
         turns the V field into the picture the module cover promised.</p>
         <p>The palette is fixed so we can test it: brightness

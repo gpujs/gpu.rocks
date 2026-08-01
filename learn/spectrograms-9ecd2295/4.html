@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-TW3208Vw.js"></script>
+    <script type="module" crossorigin src="/assets/index-CeyZkHJy.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Decibels, Then Colour · Spectrograms — GPU.js Learn</title>
     <meta name="description" content="Goal: finish the paint kernel — magnitude to decibels, decibels to a 0…1 value — and render the result.">
@@ -166,6 +166,16 @@
         which is the case Colour Spaces argues at length. The ramp below is written for you: black →
         indigo → magenta → orange → cream. What is yours is the two lines above it, and the canvas
         is 256×256, so each spectrogram cell paints a 4×2 block.</p>
+        <p>One thing has moved since task 2: the window length is on a <strong>slider</strong>, and
+        the kernel now takes two lengths instead of one. <code>WIN</code> is the length of the
+        <em>transform</em> and stays 256, which is what pins bin <em>b</em> to
+        <em>b·SR/256</em> and stops the frequency axis sliding around under you. <code>TAPER</code>
+        is the length of the <em>window</em> — how much of that 256 the Hann bell covers, the rest
+        being zeros, which is exactly what <code>librosa</code> means by <code>win_length</code>
+        against <code>n_fft</code>. Solve the task at the default, where <code>TAPER === WIN</code>
+        and the kernel is task 2's to the last bit. Then drag it left and watch task 3 happen: the
+        harmonics swell into bands as the bins coarsen, and the plucks tighten into hard vertical
+        edges as time sharpens up.</p>
 
 <div class="ssg-goal"><strong>Goal:</strong> finish the paint kernel — magnitude to decibels, decibels to a
         0…1 value — and render the result.</div>

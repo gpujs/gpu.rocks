@@ -95,7 +95,7 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-TW3208Vw.js"></script>
+    <script type="module" crossorigin src="/assets/index-CeyZkHJy.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Julia Sets: Turn the Dial · Escape-Time Fractals — GPU.js Learn</title>
     <meta name="description" content="Goal: a graphical Julia kernel over the fixed view −1.6…1.6: seed z from the pixel, add the arguments cRe, cIm each step, and keep task 4's smooth shading…">
@@ -163,7 +163,7 @@
         <code>z</code> from the pixel, add the arguments <code>cRe, cIm</code> each step, and keep
         task 4's smooth shading (interior black).</div>
 
-<h2>Requirements</h2><ul><li>Seed z from the pixel: <code>zr = xMin + x·step</code>, <code>zi = yMin + y·step</code> (constants are wired up)</li><li>Inside the loop, add <code>cRe</code> and <code>cIm</code> — not the pixel coordinates</li><li>Escaped: shade with <code>t = smooth / 100</code> via <code>this.color(t, t * t, 0.5 + 0.5 * t, 1)</code>; interior: black</li><li>Call the kernel with a c of your choice and <code>render()</code> it</li></ul>
+<h2>Requirements</h2><ul><li>Seed z from the pixel: <code>zr = xMin + x·step</code>, <code>zi = yMin + y·step</code> (constants are wired up)</li><li>Inside the loop, add <code>cRe</code> and <code>cIm</code> — not the pixel coordinates</li><li>Escaped: shade with <code>t = smooth / 100</code> through the same three-cosine palette as the last task; interior: black</li><li>Call the kernel with a c of your choice and <code>render()</code> it</li></ul>
 <details><summary>Hint 1 — what actually changes</summary><p>Two lines. Mandelbrot: z starts at 0 and c is the pixel. Julia: z starts at the
             pixel and c is the argument pair. The loop body, the guard, the shading — all identical.</p></details>
 <details><summary>Hint 2 — the exact edits</summary><p>Seed with</p>

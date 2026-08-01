@@ -95,25 +95,25 @@
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
     <link rel="manifest" href="/manifest.json" />
-    <script type="module" crossorigin src="/assets/index-TW3208Vw.js"></script>
+    <script type="module" crossorigin src="/assets/index-CeyZkHJy.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-yJd6mUcX.css">
       <title>Paint by Iteration Count · Escape-Time Fractals — GPU.js Learn</title>
-    <meta name="description" content="Goal: same escape-time loop, but graphical: true — interior pixels black, escaped pixels shaded this.color(t, t*t, 0.5 + 0.5*t, 1) with t = count / 100 .">
+    <meta name="description" content="Goal: same escape-time loop, but graphical: true — interior pixels black, escaped pixels shaded by three cosines a third of a turn apart — a full colour wheel…">
     <link rel="canonical" href="https://gpu.rocks/learn/escape-time-fractals-0de4764c/3">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="GPU.js">
     <meta property="og:url" content="https://gpu.rocks/learn/escape-time-fractals-0de4764c/3">
     <meta property="og:title" content="Paint by Iteration Count · Escape-Time Fractals — GPU.js Learn">
-    <meta property="og:description" content="Goal: same escape-time loop, but graphical: true — interior pixels black, escaped pixels shaded this.color(t, t*t, 0.5 + 0.5*t, 1) with t = count / 100 .">
+    <meta property="og:description" content="Goal: same escape-time loop, but graphical: true — interior pixels black, escaped pixels shaded by three cosines a third of a turn apart — a full colour wheel…">
     <meta property="og:image" content="https://gpu.rocks/img/oglearn.png">
     <meta property="og:image:width" content="1424">
     <meta property="og:image:height" content="752">
     <meta property="og:image:alt" content="Learn GPGPU in your browser — a free, hands-on course built on gpu.js. Six panels, one per track: GPGPU 101, Parallel Primitives, Math &amp; Simulation, Computer Vision, Signal Processing and Computational Graphics.">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Paint by Iteration Count · Escape-Time Fractals — GPU.js Learn">
-    <meta name="twitter:description" content="Goal: same escape-time loop, but graphical: true — interior pixels black, escaped pixels shaded this.color(t, t*t, 0.5 + 0.5*t, 1) with t = count / 100 .">
+    <meta name="twitter:description" content="Goal: same escape-time loop, but graphical: true — interior pixels black, escaped pixels shaded by three cosines a third of a turn apart — a full colour wheel…">
     <meta name="twitter:image" content="https://gpu.rocks/img/oglearn.png">
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Paint by Iteration Count","description":"Goal: same escape-time loop, but graphical: true — interior pixels black, escaped pixels shaded this.color(t, t*t, 0.5 + 0.5*t, 1) with t = count / 100 .","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Escape-Time Fractals","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"LearningResource","name":"Paint by Iteration Count","description":"Goal: same escape-time loop, but graphical: true — interior pixels black, escaped pixels shaded by three cosines a third of a turn apart — a full colour wheel…","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c/3","position":3,"learningResourceType":"Exercise","isAccessibleForFree":true,"isPartOf":{"@type":"LearningResource","name":"Escape-Time Fractals","url":"https://gpu.rocks/learn/escape-time-fractals-0de4764c","isPartOf":{"@type":"Course","name":"Learn GPGPU in your browser — GPU.js Learn","url":"https://gpu.rocks/learn"}}}</script>
     <link rel="alternate" type="text/markdown" href="https://gpu.rocks/learn/escape-time-fractals-0de4764c/3.md">
     <style>
     #ssg-prose{max-width:46rem;margin:0 auto;padding:2rem 1.25rem 4rem;
@@ -159,15 +159,16 @@
         burn toward white near the boundary, where all the detail hides.</p>
 
 <div class="ssg-goal"><strong>Goal:</strong> same escape-time loop, but <code>graphical: true</code> —
-        interior pixels black, escaped pixels shaded <code>this.color(t, t*t, 0.5 + 0.5*t, 1)</code>
-        with <code>t = count / 100</code>.</div>
+        interior pixels black, escaped pixels shaded by three cosines a third of a turn
+        apart — a full colour wheel across <code>t = count / 100</code>.</div>
 
-<h2>Requirements</h2><ul><li>Keep the guarded 100-pass loop from the last task (already in place)</li><li>If <code>count</code> reached 100, paint black: <code>this.color(0, 0, 0, 1)</code></li><li>Otherwise compute <code>t = count / 100</code> and paint <code>this.color(t, t * t, 0.5 + 0.5 * t, 1)</code></li></ul>
+<h2>Requirements</h2><ul><li>Keep the guarded 100-pass loop from the last task (already in place)</li><li>If <code>count</code> reached 100, paint black: <code>this.color(0, 0, 0, 1)</code></li><li>Otherwise compute <code>t = count / 100</code>, then <code>a = 6.28318 * t</code>, and paint <code>this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1)</code></li></ul>
 <details><summary>Hint 1 — two kinds of pixel</summary><p>Branch on the cap: <code>if (count &lt; 100) { …shade… } else { …black… }</code>.
             Both branches must call <code>this.color()</code> — a graphical thread always paints
             exactly one pixel.</p></details>
 <details><summary>Hint 2 — the shade branch</summary><pre><code>const t = count / 100;
-this.color(t, t * t, 0.5 + 0.5 * t, 1);</code></pre></details>
+const a = 6.28318 * t;
+this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1);</code></pre></details>
 <h2>Same idea elsewhere</h2>Mapping a scalar to a color is a <em>transfer function</em> — in scientific
         visualization and medical imaging it's usually a 1D texture the fragment shader samples
         by value; here the colormap is three inline formulas. Same trick, WebGPU to Metal.

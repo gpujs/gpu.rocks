@@ -6370,6 +6370,14 @@ stride 1 ("JFA+1"), takes it to 55 — better, and still not exact. If you need 
 need a different algorithm; what you get here is a fast answer with a bounded, measurable
 error, and for a glow or an outline or a shatter pattern that is the right trade.
 
+The `passes` dial stops the ladder short — one rung, or two, or all seven —
+and re-runs the whole program each time you move it. Wrong cells come out red, so dragging
+it puts the error curve and the picture side by side: the plot says how many, the diagram
+says *where*. Six passes out of seven is not "nearly right", it is
+**12,292 wrong cells out of 16,384**, because every jump left is a multiple of
+2 and three quarters of the grid is an odd step away from every seed. The last rung is not
+a polish pass. It is the one that reaches the cells in between at all.
+
 ## Goal
 
 **Goal:** write `worse(jfa, truth)` — 1 where the flooded seed
@@ -6500,16 +6508,24 @@ function countOnes(grid) {
   return 0;
 }
 
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is how far down the ladder gets to climb. Seven rungs — 64 down to 1
+// — is the whole thing; stop earlier and the red is the error you did not pay
+// for, cell by cell.
+const passes = slider('passes', { min: 1, max: 7, value: 7, step: 1 });
+const finest = Math.pow(2, 7 - passes); // 7 passes reach stride 1, 1 pass stops at 64
+
 const truth = await exact(seedX, seedY);
 let grid = seedGrid;
 const wrong = [countOnes(await worse(grid, truth))];
 for (let k = 64; k >= 1; k = k / 2) {
+  if (k < finest) break;
   grid = await flood(grid, k);
   wrong.push(countOnes(await worse(grid, truth)));
 }
 
 plot(wrong, { title: 'cells not yet holding their nearest seed', log: true });
-console.log('after the ladder:', wrong[wrong.length - 1], 'of 16384 cells are wrong');
+console.log('after', wrong.length - 1, 'passes:', wrong[wrong.length - 1], 'of 16384 cells are wrong');
 
 const patched = await flood(grid, 1);
 console.log('after one extra stride-1 pass:', countOnes(await worse(patched, truth)));
@@ -19103,13 +19119,18 @@ const compose = gpu.createKernel(function (frame, mask) {
   this.color(p[0], p[1], p[2], 1);
 }, { output: [64, 64], graphical: true, constants: { last: 63 } });
 
-// Build the model from every frame but the last, then filter the last one.
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this scrubs the clip — frame 0 is the empty room, frame 7 the one the
+// tests check.
+const frame = slider('frame', { min: 0, max: frames.length - 1, value: frames.length - 1, step: 1 });
+
+// Build the model from every frame BEFORE this one, then filter this one.
 let model = await seedModel(frames[0]);
-for (let i = 1; i < frames.length - 1; i++) {
+for (let i = 1; i < frame; i++) {
   model = await learn(frames[i], model);
 }
 
-const live = frames[frames.length - 1];
+const live = frames[frame];
 await compose(live, await feather(await softMask(live, model)));
 render(compose.canvas);
 ```
@@ -23620,6 +23641,17 @@ which is the case Colour Spaces argues at length. The ramp below is written for 
 indigo → magenta → orange → cream. What is yours is the two lines above it, and the canvas
 is 256×256, so each spectrogram cell paints a 4×2 block.
 
+One thing has moved since task 2: the window length is on a **slider**, and
+the kernel now takes two lengths instead of one. `WIN` is the length of the
+*transform* and stays 256, which is what pins bin *b* to
+*b·SR/256* and stops the frequency axis sliding around under you. `TAPER`
+is the length of the *window* — how much of that 256 the Hann bell covers, the rest
+being zeros, which is exactly what `librosa` means by `win_length`
+against `n_fft`. Solve the task at the default, where `TAPER === WIN`
+and the kernel is task 2's to the last bit. Then drag it left and watch task 3 happen: the
+harmonics swell into bands as the bins coarsen, and the plucks tighten into hard vertical
+edges as time sharpens up.
+
 ## Goal
 
 **Goal:** finish the paint kernel — magnitude to decibels, decibels to a
@@ -23669,10 +23701,17 @@ change.
 // that makes it legible. 64 frames × 128 bins onto a 256×256 canvas.
 const gpu = new GPU({ mode });
 
-const WIN = 256;
+const WIN = 256;   // the TRANSFORM length. Bin b is b * SR / WIN, always.
 const HOP = 64;
 const BINS = 128;
 const FRAMES = Math.floor((signal.length - WIN) / HOP) + 1;
+
+// A dial, not a constant: slider() re-runs the whole program when you drag it.
+// TAPER is the WINDOW length — how many of the frame's 256 samples the Hann
+// bell actually covers; the rest are zeros. Left: coarse bins, sharp onsets.
+// Right: fine bins, smeared onsets. Task 3 measured that trade. This is the
+// handle on it, and it starts where the task was written: the full 256.
+const TAPER = slider('window', { min: 32, max: WIN, value: WIN, step: 16 });
 
 const spectrogram = gpu.createKernel(function (signal) {
   const frame = this.thread.x;
@@ -23680,8 +23719,8 @@ const spectrogram = gpu.createKernel(function (signal) {
   const start = frame * this.constants.hop;
   let re = 0;
   let im = 0;
-  for (let t = 0; t < this.constants.win; t++) {
-    const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / (this.constants.win - 1));
+  for (let t = 0; t < this.constants.taper; t++) {
+    const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * t) / (this.constants.taper - 1));
     const s = signal[start + t] * w;
     const angle = (-2 * Math.PI * bin * t) / this.constants.win;
     re += s * Math.cos(angle);
@@ -23690,7 +23729,7 @@ const spectrogram = gpu.createKernel(function (signal) {
   return Math.sqrt(re * re + im * im) / this.constants.win;
 }, {
   output: [FRAMES, BINS],
-  constants: { win: WIN, hop: HOP },
+  constants: { win: WIN, hop: HOP, taper: TAPER },
 });
 
 const spec = await spectrogram(signal);
@@ -25032,6 +25071,15 @@ One gotcha, handled in the starter: `this.thread.x` is an *integer* on
 the GPU, so promote it to a float (`this.thread.x / 1`) before subtracting the
 fractional center — otherwise the GPU rounds your 63.5 away.
 
+One more thing comes prewired: a **dial**.
+`slider('phase', …)` returns the value this run is using and puts a control
+under the console; move it and the whole program re-runs. Phase slides the radius the
+cosine sees — one radian of it is `1 / 0.35` px of radius — so at 0 the rings
+stand still, and anywhere else the same rings sit further out. Drag it and the crests
+travel; at 2π every crest has moved out by exactly one ring, which is the picture you
+started from. The fade is computed *before* the slide, on the true radius, so the
+vignette never moves — only the water does.
+
 ## Figures
 
 - **subtract the center and (x, y) becomes r — anything you do to r is a circle**
@@ -25047,6 +25095,7 @@ faded toward the edge, tinted blue: `this.color(0.4v, 0.75v, v, 1)`.
 - Ripple: `wave = 0.5 + 0.5 * Math.cos(r * 0.35)`
 - Fade: `fade = Math.max(0, 1 - r / 96)`, then `v = wave * fade`
 - Blue tint: channels `0.4*v`, `0.75*v`, `v`
+- The `phase` dial is prewired — drag it to send the rings travelling, but Run at its default `0`, which is where these tests measure
 
 ## Hint 1 — the ripple
 
@@ -25057,16 +25106,21 @@ faded toward the edge, tinted blue: `this.color(0.4v, 0.75v, v, 1)`.
 
 ```js
 const wave = 0.5 + 0.5 * Math.cos(r * 0.35);
-const v = wave * Math.max(0, 1 - r / 96);
+const v = wave * fade;
 this.color(0.4 * v, 0.75 * v, v, 1);
 ```
+
+Use the `fade` the starter already computed rather than writing it again —
+it was measured on the true radius, before the phase slide.
 
 ## Same idea elsewhere
 
 Radius-and-angle reasoning is everywhere in GPU code: vignette and
 lens-distortion passes in Metal and WebGPU post-processing, CUDA and ROCm image warps
 that resample in polar space, every "tunnel" demo ever shipped. Center the coordinates,
-transform them, color by the result — that opening move never changes.
+transform them, color by the result — that opening move never changes. Nor does the next
+one: add a phase to the transformed coordinate and the picture starts to move, which is
+all the `time` uniform in an animated shader has ever done.
 
 ## Starter code
 
@@ -25074,13 +25128,17 @@ transform them, color by the result — that opening move never changes.
 // Change coordinates INSIDE the kernel: position → radius from center.
 const gpu = new GPU({ mode });
 
-const ripples = gpu.createKernel(function () {
+const ripples = gpu.createKernel(function (phase) {
   // thread ids are integers — "/ 1" promotes them to floats so the
   // half-pixel center stays exact on the GPU
   const dx = this.thread.x / 1 - 63.5;
   const dy = this.thread.y / 1 - 63.5;
-  const r = Math.sqrt(dx * dx + dy * dy);
+  let r = Math.sqrt(dx * dx + dy * dy);
   const fade = Math.max(0, 1 - r / 96);
+  // Prewired, and it stays put: the dial slides the radius the cosine will
+  // see, so the crests travel while the fade — measured one line up, on the
+  // TRUE radius — holds the vignette still.
+  r = r - phase / 0.35;
   // TODO: 1) ripple — wave = 0.5 + 0.5 * Math.cos(r * 0.35)
   //       2) combine — v = wave * fade
   //       3) tint    — this.color(0.4 * v, 0.75 * v, v, 1)
@@ -25090,7 +25148,12 @@ const ripples = gpu.createKernel(function () {
   graphical: true,
 });
 
-await ripples();
+// A dial, not a constant: slider() returns the value this run is using and puts
+// a control under the console, and moving it re-runs the whole program. The
+// tests measure the ripple at rest, so Run with phase back at its default 0.
+const phase = slider('phase', { min: 0, max: 6.28, value: 0, step: 0.01 });
+
+await ripples(phase);
 render(ripples.canvas);
 ```
 
@@ -25326,14 +25389,14 @@ burn toward white near the boundary, where all the detail hides.
 ## Goal
 
 **Goal:** same escape-time loop, but `graphical: true` —
-interior pixels black, escaped pixels shaded `this.color(t, t*t, 0.5 + 0.5*t, 1)`
-with `t = count / 100`.
+interior pixels black, escaped pixels shaded by three cosines a third of a turn
+apart — a full colour wheel across `t = count / 100`.
 
 ## Requirements
 
 - Keep the guarded 100-pass loop from the last task (already in place)
 - If `count` reached 100, paint black: `this.color(0, 0, 0, 1)`
-- Otherwise compute `t = count / 100` and paint `this.color(t, t * t, 0.5 + 0.5 * t, 1)`
+- Otherwise compute `t = count / 100`, then `a = 6.28318 * t`, and paint `this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1)`
 
 ## Hint 1 — two kinds of pixel
 
@@ -25345,7 +25408,8 @@ exactly one pixel.
 
 ```js
 const t = count / 100;
-this.color(t, t * t, 0.5 + 0.5 * t, 1);
+const a = 6.28318 * t;
+this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1);
 ```
 
 ## Same idea elsewhere
@@ -25518,7 +25582,7 @@ task 4's smooth shading (interior black).
 
 - Seed z from the pixel: `zr = xMin + x·step`, `zi = yMin + y·step` (constants are wired up)
 - Inside the loop, add `cRe` and `cIm` — not the pixel coordinates
-- Escaped: shade with `t = smooth / 100` via `this.color(t, t * t, 0.5 + 0.5 * t, 1)`; interior: black
+- Escaped: shade with `t = smooth / 100` through the same three-cosine palette as the last task; interior: black
 - Call the kernel with a c of your choice and `render()` it
 
 ## Hint 1 — what actually changes
@@ -25571,7 +25635,8 @@ const julia = gpu.createKernel(function (cRe, cIm) {
   if (count < 100) {
     const smooth = count + 1 - Math.log2(0.5 * Math.log2(zr * zr + zi * zi));
     const t = smooth / 100;
-    this.color(t, t * t, 0.5 + 0.5 * t, 1);
+    const a = 6.28318 * t;
+    this.color(0.5 + 0.5 * Math.cos(a), 0.5 + 0.5 * Math.cos(a + 2.0944), 0.5 + 0.5 * Math.cos(a + 4.18879), 1);
   } else {
     this.color(0, 0, 0, 1);
   }
@@ -25974,8 +26039,13 @@ const paint = gpu.createKernel(function (cells) {
 }, { output: [16, 16], graphical: true });
 
 // world starts as a glider in the top-left. Fly, little guy.
+//
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is the generation counter — scrub it and watch the glider walk.
+const generations = slider('generations', { min: 0, max: 32, value: 8, step: 1 });
+
 let current = world;
-for (let g = 0; g < 8; g++) {
+for (let g = 0; g < generations; g++) {
   current = await step(current);
 }
 await paint(current);
@@ -26427,8 +26497,10 @@ Interactive version: https://gpu.rocks/learn/reaction-diffusion-bc3d0b34/3
 
 *Task 4 of 4 · [Reaction–Diffusion](https://gpu.rocks/learn/reaction-diffusion-bc3d0b34.md) · GPU.js Learn*
 
-Payoff time. The whole simulation is wired below — 64×64 grid, 200 steps —
-and it ends holding `v`, a grid of numbers with coral growing in it.
+Payoff time. The whole simulation is wired below — a 64×64 grid and a
+**steps** dial saying how long to run it — 200 is the value that
+turn the seed square into coral — and it ends holding `v`, a grid of numbers
+with coral growing in it.
 Numbers deserve pixels: one graphical kernel, exactly like the painters in 3.1,
 turns the V field into the picture the module cover promised.
 
@@ -26472,7 +26544,7 @@ a fragment function. The data never has to leave the card.
 ## Starter code
 
 ```js
-// 200 steps of Gray–Scott, then paint the V field. The sim is done —
+// Gray–Scott on a dial, then paint the V field. The sim is done —
 // the painter is yours.
 const gpu = new GPU({ mode });
 
@@ -26510,9 +26582,15 @@ const paint = gpu.createKernel(function (v) {
   this.color(1, 0, 1, 1);
 }, { output: [64, 64], graphical: true });
 
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is how far the chemistry gets — 0 is the bare seed square, 1 is the
+// 200 steps that grow it into coral, 3 keeps going until the branches crowd
+// each other.
+const steps = slider('steps', { min: 0, max: 600, value: 200, step: 10 });
+
 let u = seedU;
 let v = seedV;
-for (let i = 0; i < 200; i++) {
+for (let i = 0; i < steps; i++) {
   const nextU = await stepU(u, v);
   const nextV = await stepV(u, v);
   u = nextU;
@@ -27994,6 +28072,12 @@ The kernel takes a `shadowOn` switch so you can A/B it: with the light swung
 low to the left, the left lobe casts a soft-edged shadow across the neck of the blob. One
 more march, and a scene with no triangles anywhere gets real cinematography.
 
+The driver also hands you a **separation** slider, which is task 2's point
+made in one gesture: the program is a pure function of its controls, so dragging it re-runs
+the whole thing. Slide the two centres together and `smin` welds them into a
+single blob; pull them apart and the neck thins, necks down, and snaps. Solve the task
+first — it defaults to the `0.55` the scene has always used — then drag it.
+
 ## Goal
 
 **Goal:** add the shadow march — 32 steps from the hit point toward the
@@ -28095,8 +28179,14 @@ const finalScene = gpu.createKernel(function (sep, r, k, lx, ly, lz, shadowOn) {
   }
 }, { output: [64, 64], graphical: true });
 
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is the gap between the two centres. Drag it to 0 and smin has nothing
+// left to blend; drag it past ~0.58 and the neck finally snaps and you have two
+// spheres again. Everything between is the whole module in one gesture.
+const separation = slider('separation', { min: 0, max: 1.1, value: 0.55, step: 0.01 });
+
 // light swung low to the left — the left lobe should shade the neck
-await finalScene(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
+await finalScene(separation, 0.5, 0.3, -0.86, 0, -0.51, 1);
 render(finalScene.canvas);
 ```
 
@@ -29001,6 +29091,12 @@ the bad news in the theory: halving the noise costs *four times* the samples. Th
 single fact is why production renderers spend their effort on importance sampling and
 denoisers instead of simply waiting longer.
 
+The `samples` dial is that trade in your hand. Drag it from 24 to 96 and the
+whole run happens again with four times the paths per pixel: both curves grow, the picture
+quietens, and the noise at the far end lands on half what 24 frames managed. Four times the
+work for one halving — and this is the cheap end of the curve, where the frames are still
+making a visible difference.
+
 ## Goal
 
 **Goal:** finish `sqDiff` — half the squared difference between
@@ -29229,7 +29325,10 @@ const paint = gpu.createKernel(function (image) {
   this.color(g, g, g, 1);
 }, { output: [64, 64], graphical: true });
 
-const FRAMES = 24;
+// A dial, not a constant: slider() re-runs the whole program when you drag it,
+// so this is the sample budget, and 24 → 96 is exactly the four times theory
+// says buys you half the noise. The plot is where you check that it does.
+const FRAMES = slider('samples', { min: 24, max: 96, value: 24, step: 4 });
 let accA = await black();
 let accB = await black();
 const errs = [];
