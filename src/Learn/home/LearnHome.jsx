@@ -134,9 +134,18 @@ function ModuleCard({ module }) {
 // are about 2.5:1, so without one fixed ratio the catalogue reads as a jumble.
 function ModuleThumb({ module }) {
   if (moduleRenders.has(module.slug)) {
+    // ?v=<content hash>: the PNG lives at a stable path but its bytes change
+    // whenever the art is re-captured, and both the CDN and the browser cache
+    // it for four hours. Without this a re-capture keeps serving the old
+    // picture — and no cache purge can reach a phone that already has it.
     return (
       <span className="mart render">
-        <img src={`/img/modules/${module.slug}.png`} alt="" loading="lazy" aria-hidden="true" />
+        <img
+          src={`/img/modules/${module.slug}.png?v=${moduleRenders.get(module.slug)}`}
+          alt=""
+          loading="lazy"
+          aria-hidden="true"
+        />
       </span>
     );
   }
