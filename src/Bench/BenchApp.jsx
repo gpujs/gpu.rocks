@@ -136,7 +136,7 @@ function Cell({ cell, base, isBaseline, bare }) {
   );
 }
 
-function BenchTable({ rows, results, onRun, readOnly }) {
+function BenchTable({ rows, results, onRun, onStop, running, readOnly }) {
   return (
     <div className="tablecard">
       <div className="scroll">
@@ -167,18 +167,34 @@ function BenchTable({ rows, results, onRun, readOnly }) {
                       {/* disabled, not removed: pulling the button out of the
                           row would reflow every name the moment you switch
                           source, and the table would look like it changed */}
+                      {/* A row that is not the one running cannot be started on
+                          top of it, but the row that IS running stays clickable
+                          — that button is the stop control. */}
                       <button
                         type="button"
-                        className="run-one"
-                        onClick={() => onRun([w])}
-                        disabled={readOnly}
+                        className={`run-one${cells.__running ? ' isrunning' : ''}`}
+                        onClick={() => (cells.__running ? onStop() : onRun([w]))}
+                        disabled={readOnly || (running && !cells.__running)}
                         aria-label={
-                          readOnly ? `Benchmark ${w.name} — disabled while a saved run is shown` : `Benchmark ${w.name}`
+                          readOnly
+                            ? `Benchmark ${w.name} — disabled while a saved run is shown`
+                            : cells.__running
+                              ? `Stop benchmarking ${w.name}`
+                              : `Benchmark ${w.name}`
                         }
                       >
-                        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                          <polygon points="6 4 20 12 6 20" fill="currentColor" />
-                        </svg>
+                        {cells.__running ? (
+                          <>
+                            <span className="spin" aria-hidden="true" />
+                            <svg className="stopicon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                              <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+                            </svg>
+                          </>
+                        ) : (
+                          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                            <polygon points="6 4 20 12 6 20" fill="currentColor" />
+                          </svg>
+                        )}
                       </button>
                       <span className="wname">
                         {w.name}
@@ -239,7 +255,10 @@ function BenchPage() {
   // glyph and nothing else, and auto never resolved at all.
   const { theme } = useTheme();
   const [source, setSource] = useState('live');
-  const [brief, setBrief] = useState(true);
+  // Off by default. Brief is the ten most flattering rows, and a benchmark
+  // that opens on its own best case has chosen what to show you before you
+  // asked. The full run is the default and the warning explains the cost.
+  const [brief, setBrief] = useState(false);
   const [cols, setCols] = useState(() => new Set(COLUMNS.map(c => c.id)));
   const [confirmFull, setConfirmFull] = useState(false);
   const [savedId, setSavedId] = useState(savedRuns.length ? savedRuns[0].id : '');
@@ -248,26 +267,30 @@ function BenchPage() {
   const [gpuInfo, setGpuInfo] = useState('');
   const abortRef = useRef(null);
   const workerRef = useRef(null);
+  const pendingRef = useRef(null);
 
   // The suite runs off the main thread: the plain-JS baseline and the gpu.js
   // CPU backend are synchronous multi-second loops, and on the main thread one
   // row blocked for 23 s and Stop could not be clicked.
-  useEffect(() => {
-    let w = null;
+  const spawnWorker = useCallback(() => {
     try {
-      w = new Worker(new URL('./bench.worker.js', import.meta.url), { type: 'module' });
+      const w = new Worker(new URL('./bench.worker.js', import.meta.url), { type: 'module' });
       w.onerror = () => {
         workerRef.current = null;
       };
+      return w;
     } catch (e) {
-      w = null;
+      return null;
     }
-    workerRef.current = w;
+  }, []);
+
+  useEffect(() => {
+    workerRef.current = spawnWorker();
     return () => {
-      if (w) w.terminate();
+      if (workerRef.current) workerRef.current.terminate();
       workerRef.current = null;
     };
-  }, []);
+  }, [spawnWorker]);
 
   useEffect(() => {
     let dead = false;
@@ -303,6 +326,10 @@ function BenchPage() {
       return;
     }
     const id = `${w.id}:${Date.now()}`;
+    // stop() kills the worker mid-measurement, and this promise is what the run
+    // loop is awaiting — without a way to settle it the loop would hang on a
+    // worker that no longer exists.
+    pendingRef.current = { id, workloadId: w.id, resolve };
     const onMessage = e => {
       const m = e.data || {};
       if (m.id !== id) return;
@@ -311,11 +338,15 @@ function BenchPage() {
         return;
       }
       worker.removeEventListener('message', onMessage);
+      pendingRef.current = null;
       setLive(prev => ({ ...prev, [w.id]: m.failed ? { __error: m.error } : m.cells }));
       resolve();
     };
     worker.addEventListener('message', onMessage);
-    worker.postMessage({ id, workloadId: w.id });
+    // columns travels with every request: the no-worker fallback above read
+    // `cols` directly and this path did not, so unchecking a column changed
+    // nothing at all on the normal path.
+    worker.postMessage({ id, workloadId: w.id, columns: [...cols] });
   }), [cols]);
 
   const run = useCallback(async list => {
@@ -342,6 +373,31 @@ function BenchPage() {
   }, [live, status]);
 
   const running = Boolean(abortRef.current) || status.startsWith('running');
+  // Setting the flag alone only ends the run BETWEEN workloads: a row is one
+  // postMessage and the worker is busy in a compute loop, so a stop pressed
+  // during Conway's Life did nothing visible for the several seconds that row
+  // had left. Pressing stop should stop. So the worker is terminated outright
+  // and a fresh one takes its place — that also releases the GPU contexts the
+  // dead one was holding — and the promise the run loop is awaiting is settled
+  // by hand, since no message is ever coming back for it.
+  const stop = () => {
+    if (abortRef.current) abortRef.current.aborted = true;
+    const pending = pendingRef.current;
+    pendingRef.current = null;
+    if (workerRef.current) {
+      workerRef.current.terminate();
+      workerRef.current = spawnWorker();
+    }
+    if (pending) {
+      // keep whatever columns did land, drop the running marker
+      setLive(prev => {
+        const row = { ...(prev[pending.workloadId] || {}) };
+        delete row.__running;
+        return { ...prev, [pending.workloadId]: row };
+      });
+      pending.resolve();
+    }
+  };
 
   return (
     <div className="bench-root" data-theme={theme}>
@@ -361,27 +417,39 @@ function BenchPage() {
           {/* Both stay put and grey out. A saved run is read-only, but hiding
               the controls moved every other control in the bar, which reads as
               the page having changed rather than the source having. */}
+          {/* One control, three states: play, spinning while it works, and a
+              stop square under the pointer. A separate Stop button spent a
+              permanent slot in the bar on something that is only meaningful
+              for the minutes a run is going, and left the run button looking
+              pressable while it was doing nothing. */}
           <button
             type="button"
-            className="btn primary"
-            disabled={running || readOnly}
+            className={`btn primary${running ? ' isrunning' : ''}`}
+            disabled={readOnly}
             title={readOnly ? 'Showing a saved run — switch to Live to measure on this machine' : undefined}
-            onClick={() => (brief ? run(BRIEF) : setConfirmFull(true))}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-              <polygon points="6 4 20 12 6 20" fill="currentColor" />
-            </svg>
-            {brief ? `Run ${BRIEF.length}` : `Run all ${workloads.length}`}
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={!running || readOnly}
+            aria-label={running ? 'Stop the run' : undefined}
             onClick={() => {
-              if (abortRef.current) abortRef.current.aborted = true;
+              if (running) return stop();
+              return brief ? run(BRIEF) : setConfirmFull(true);
             }}
           >
-            Stop
+            {running ? (
+              <>
+                <span className="spin" aria-hidden="true" />
+                <svg className="stopicon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+                </svg>
+                <span className="lbl-run">Running</span>
+                <span className="lbl-stop">Stop</span>
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <polygon points="6 4 20 12 6 20" fill="currentColor" />
+                </svg>
+                {brief ? `Run ${BRIEF.length}` : `Run all ${workloads.length}`}
+              </>
+            )}
           </button>
           <div className="seg" role="group" aria-label="Result source">
             <button type="button" aria-pressed={source === 'live'} onClick={() => setSource('live')}>
@@ -527,6 +595,8 @@ function BenchPage() {
           rows={brief && !readOnly ? BRIEF : ORDERED}
           results={results}
           onRun={run}
+          onStop={stop}
+          running={running}
           readOnly={readOnly}
         />
 

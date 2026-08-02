@@ -15,16 +15,16 @@
  * say — or the rule in the generator.
  */
 const SIGNATURE = [
-  ['matmul', '98.0x on webgpu'],
-  ['ode-rk4', '951x on webgpu'],
-  ['path-trace', '535x on webgpu'],
-  ['monte-carlo', '468x on webgpu'],
-  ['gradient-descent', '276x on webgl2'],
+  ['matmul', '90.9x on webgpu'],
+  ['ode-rk4', '1073x on webgpu'],
+  ['monte-carlo', '477x on webgpu'],
+  ['path-trace', '411x on webgpu'],
+  ['sdf-march', '402x on webgpu'],
+  ['gradient-descent', '269x on webgl2'],
   ['ncc-template', '210x on webgpu'],
   ['nbody', '164x on webgpu'],
-  ['life', '87.0x on webgpu'],
-  ['ising', '77.0x on webgpu'],
-  ['gray-scott', '66.6x on webgpu'],
+  ['life', '78.4x on webgpu'],
+  ['ising', '76.7x on webgpu'],
 ];
 
 export const SIGNATURE_IDS = SIGNATURE.map(([id]) => id);
