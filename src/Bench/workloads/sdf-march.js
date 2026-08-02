@@ -337,7 +337,12 @@ export default {
         if (h > 1) h = 1;
         return s + (d - s) * h - 0.45 * h * (1 - h);
       },
-      { argumentTypes: { px: 'Number', py: 'Number', pz: 'Number' }, returnType: 'Number' }
+      // name given explicitly: the minifier strips it off the function
+      // expression, and the kernel calls sdfScene by this name (gpu.js#863)
+      // name and ARRAY-form types given explicitly: the minifier strips the
+      // name off the function expression and renames its parameters, so the
+      // object form keyed by px/py/pz stops matching (gpu.js#863)
+      { name: 'sdfScene', argumentTypes: ['Number', 'Number', 'Number'], returnType: 'Number' }
     );
 
     // No kernel arguments at all: nothing is uploaded, so this row is pure
