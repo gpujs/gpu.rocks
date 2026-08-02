@@ -43,27 +43,47 @@
  * Worth stating plainly because it was once wrongly blamed for this row: fp32
  * has never been anywhere near the reason a column on it disagreed.
  *
- * Memory: the ping-pong textures are 2n floats each. gpu.js stores a single
- * float per RGBA32F texel, so each is 0.5 MB on the GL backends. Memory is not
- * what caps this row — the 16,384 texture-width limit is; see LOG2N below.
+ * Memory: the ping-pong textures are 2 * n * BATCH floats each. gpu.js stores a
+ * single float per RGBA32F texel, so each is 0.5 MB per batched transform —
+ * around 100 MB here. That, and not the texture-width limit, is what now caps
+ * the row; see LOG2N below.
  */
 
-// 14, not 22. The ping-pong output is [n, 2], so n IS the texture width, and
+// 14, not 22. The ping-pong output is [n, ...], so n IS the texture width, and
 // WebGL caps a texture dimension at 16,384 on both GL backends — measured, not
-// assumed. There is nothing to chunk here the way the STFT row chunks its
-// frames: a single transform's working set is the whole signal, so the platform
-// limit sets the row's size outright and the 0.2-3 s sizing band cannot be met.
-// The limit wins; the row says so rather than being quietly dropped.
+// assumed. A single transform therefore cannot grow past 2^14.
+//
+// So the row grows the OTHER way. One transform is about 1.1 ms of plain JS,
+// which is not a measurement — it is the clock and one dispatch. BATCH
+// independent transforms run per call, stacked into the texture's HEIGHT where
+// there is room to spare, and the row lands in the sizing band without any
+// single transform exceeding what WebGL can hold.
+//
+// This is also how an FFT is actually used. Nobody transforms one buffer and
+// stops: a spectrogram, a convolution and a channel filter bank all issue many
+// independent transforms of the same length, which is exactly this shape.
+//
+// WHAT IT COSTS THE dft-naive COMPARISON. That row is the sibling of this one —
+// same signal, same twiddles, same output, n^2 against n log n — and it is NOT
+// batched, because 224 naive DFTs would be two minutes. The two rows are
+// still comparable, but per transform rather than per row: divide this row's
+// time by BATCH. The header used to promise the times could be read side by
+// side, and that is no longer true, so it says this instead.
 const LOG2N = 14;
 const N = 1 << LOG2N;
+// 224 x 1.1 ms clears the 200 ms floor. Each ping-pong texture is n * 2 * BATCH texels
+// and gpu.js stores one float per RGBA32F texel at single precision, so the
+// working set is 0.5 MB * BATCH — about 100 MB a texture here, two or three
+// live at once. That is the real ceiling on this number, not the sizing band.
+const BATCH = 224;
 const TWO_PI = Math.PI * 2;
 
 // Same generator as the naive-DFT row, so the two rows transform the same kind
 // of signal and the spectra are comparable by eye as well as by stopwatch.
-function makeSignal(n) {
+function makeSignal(n, seed) {
   const re = new Float32Array(n);
   const im = new Float32Array(n);
-  let s = 0x9e3779b9 >>> 0;
+  let s = seed >>> 0;
   for (let i = 0; i < n; i++) {
     s = (s * 1664525 + 1013904223) >>> 0;
     const noise = (s >>> 8) / 0x1000000 - 0.5;
@@ -77,15 +97,23 @@ function makeSignal(n) {
 export default {
   id: 'fft',
   name: 'Radix-2 FFT',
-  params: `2¹⁴ complex points · ${LOG2N} stages, fp32`,
+  params: `${BATCH} × 2¹⁴ complex points · ${LOG2N} stages, fp32`,
   tag: 'O(n log n) transform',
   group: 'transform',
-  // Below the sizing band by necessity, not by choice — see LOG2N above.
-  sizeExempt: true,
-  size: { n: N, bits: LOG2N },
+  size: { n: N, bits: LOG2N, batch: BATCH },
 
-  make({ n }) {
-    const { re, im } = makeSignal(n);
+  make({ n, batch }) {
+    // An array of typed arrays, which is what gpu.js wants for a 2D input and
+    // what js() indexes directly. A different seed per transform: 192 copies of
+    // 224 copies of one signal would let a cache serve most of the batch and would price the
+    // memory system rather than the transform.
+    const re = [];
+    const im = [];
+    for (let b = 0; b < batch; b++) {
+      const sig = makeSignal(n, 0x9e3779b9 + b * 0x85ebca6b);
+      re.push(sig.re);
+      im.push(sig.im);
+    }
     // Half the circle is enough: stage `len` wants e^(-2πi·j/len) for j < len/2,
     // which is entry j·(n/len) of this table. One table serves all 14 stages.
     const half = n >> 1;
@@ -108,9 +136,17 @@ export default {
    * every stage boundary exactly as it is on a GPU. Only the five operations
    * inside one butterfly are evaluated wider.
    */
-  js({ n, bits }, { re, im, twRe, twIm }) {
+  js({ n, bits, batch }, { re, im, twRe, twIm }) {
+    // Flat and batch-major, so the index of element i of transform b is
+    // b * n + i — the same order the two GPU columns hand back, which is what
+    // lets reduce() be one function rather than three.
+    const out = new Float32Array(n * batch);
     const ar = new Float32Array(n);
     const ai = new Float32Array(n);
+
+    for (let b = 0; b < batch; b++) {
+      const sigRe = re[b];
+      const sigIm = im[b];
 
     // Bit-reversal permutation, written as an arithmetic loop rather than with
     // shifts because the two GPU columns run the identical loop — a GLSL ES 1.0
@@ -119,13 +155,14 @@ export default {
     for (let i = 0; i < n; i++) {
       let r = 0;
       let v = i;
-      for (let b = 0; b < bits; b++) {
+      // `bit`, not `b`: b is the batch index in the enclosing loop now.
+      for (let bit = 0; bit < bits; bit++) {
         const h = Math.floor(v / 2);
         r = r * 2 + (v - h * 2);
         v = h;
       }
-      ar[i] = re[r];
-      ai[i] = im[r];
+      ar[i] = sigRe[r];
+      ai[i] = sigIm[r];
     }
 
     for (let len = 2; len <= n; len <<= 1) {
@@ -149,35 +186,42 @@ export default {
       }
     }
 
-    const out = new Float32Array(n);
-    for (let i = 0; i < n; i++) out[i] = Math.sqrt(ar[i] * ar[i] + ai[i] * ai[i]);
+    const base = b * n;
+      for (let i = 0; i < n; i++) out[base + i] = Math.sqrt(ar[i] * ar[i] + ai[i] * ai[i]);
+    }
     return out;
   },
 
   // async because the twiddle tables are uploaded here, once, and a gpu.js
   // kernel call resolves to a promise on the WebGPU backend. runner.js awaits
   // this builder; the uploads are outside the timed region either way.
-  async gpujs(gpu, { n, bits }, { re, im, twRe, twIm }) {
+  async gpujs(gpu, { n, bits, batch }, { re, im, twRe, twIm }) {
     // Pipeline + immutable is what makes 14 passes possible without touching the
     // host: each call hands back a GPU-resident handle, and immutable gives each
     // call its own storage so a kernel can be fed its own previous output
     // without reading and writing the same texture in one dispatch.
-    const pipe = k => k.setPipeline(true).setImmutable(true).setPrecision('single').setOutput([n, 2]);
+    // [n, 2 * batch]: x still walks one transform, and the height carries the
+    // batch. Row 2b is transform b's real part and row 2b+1 its imaginary part,
+    // which keeps a complex pair adjacent and leaves x — the axis the stage
+    // arithmetic works on — exactly as it was before the row was batched.
+    const pipe = k => k.setPipeline(true).setImmutable(true).setPrecision('single').setOutput([n, 2 * batch]);
 
     // Row 0 is the real part, row 1 the imaginary part. Both rows of one index
     // are computed by different threads; see the header for what that costs.
     const bitrev = pipe(
       gpu
         .createKernel(function (signalRe, signalIm) {
+          const b = Math.floor(this.thread.y / 2);
+          const part = this.thread.y - b * 2;
           let r = 0;
           let v = this.thread.x;
-          for (let b = 0; b < this.constants.bits; b++) {
+          for (let s = 0; s < this.constants.bits; s++) {
             const h = Math.floor(v / 2);
             r = r * 2 + (v - h * 2);
             v = h;
           }
-          if (this.thread.y === 0) return signalRe[r];
-          return signalIm[r];
+          if (part === 0) return signalRe[b][r];
+          return signalIm[b][r];
         })
         .setConstants({ bits })
     );
@@ -234,23 +278,31 @@ export default {
             m = (pos - halfLen) * step;
             sgn = -1;
           }
+          // The block arithmetic above needed no change for the batch: every
+          // stage length divides n, so blocks tile each transform exactly and
+          // never straddle two of them.
+          const rowRe = Math.floor(this.thread.y / 2) * 2;
+          const rowIm = rowRe + 1;
           const wr = twRe[m];
           const wi = twIm[m];
-          const br = a[0][q];
-          const bi = a[1][q];
-          if (this.thread.y === 0) return a[0][p] + sgn * (wr * br - wi * bi);
-          return a[1][p] + sgn * (wr * bi + wi * br);
+          const br = a[rowRe][q];
+          const bi = a[rowIm][q];
+          if (this.thread.y - rowRe === 0) return a[rowRe][p] + sgn * (wr * br - wi * bi);
+          return a[rowIm][p] + sgn * (wr * bi + wi * br);
         })
     );
 
+    // [n, batch] — one row of magnitudes per transform. Read row by row that is
+    // the same batch-major order the other two columns return flat.
     const magnitude = gpu
       .createKernel(function (a) {
-        const r = a[0][this.thread.x];
-        const m = a[1][this.thread.x];
+        const rowRe = this.thread.y * 2;
+        const r = a[rowRe][this.thread.x];
+        const m = a[rowRe + 1][this.thread.x];
         return Math.sqrt(r * r + m * m);
       })
       .setPrecision('single')
-      .setOutput([n]);
+      .setOutput([n, batch]);
 
     return {
       async run() {
@@ -287,11 +339,20 @@ export default {
    * owns one complex number and reads the twiddle and the partner once instead
    * of twice.
    */
-  async webgpu(device, { n, bits }, { re, im, twRe, twIm }) {
-    const interleaved = new Float32Array(n * 2);
-    for (let i = 0; i < n; i++) {
-      interleaved[2 * i] = re[i];
-      interleaved[2 * i + 1] = im[i];
+  async webgpu(device, { n, bits, batch }, { re, im, twRe, twIm }) {
+    // Flat, batch-major, complex interleaved. 8 bytes a complex number here
+    // against gpu.js's 32 — one float per RGBA32F texel is a 4x tax this column
+    // does not pay, and at this batch size that is the difference between 29 MB
+    // and 112 MB of working set.
+    const total = n * batch;
+    const interleaved = new Float32Array(total * 2);
+    for (let b = 0; b < batch; b++) {
+      const sigRe = re[b];
+      const sigIm = im[b];
+      for (let i = 0; i < n; i++) {
+        interleaved[2 * (b * n + i)] = sigRe[i];
+        interleaved[2 * (b * n + i) + 1] = sigIm[i];
+      }
     }
     const tw = new Float32Array(n);
     for (let m = 0; m < n / 2; m++) {
@@ -312,10 +373,10 @@ export default {
     };
     const bufIn = upload(interleaved);
     const bufTw = upload(tw);
-    const bufA = device.createBuffer({ size: n * 8, usage: S });
-    const bufB = device.createBuffer({ size: n * 8, usage: S });
-    const bufMag = device.createBuffer({ size: n * 4, usage: S | GPUBufferUsage.COPY_SRC });
-    const read = device.createBuffer({ size: n * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+    const bufA = device.createBuffer({ size: total * 8, usage: S });
+    const bufB = device.createBuffer({ size: total * 8, usage: S });
+    const bufMag = device.createBuffer({ size: total * 4, usage: S | GPUBufferUsage.COPY_SRC });
+    const read = device.createBuffer({ size: total * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
 
     // One uniform buffer, one 256-byte slot per stage, all written at build.
     // Writing a uniform between passes would not work: writeBuffer is queued at
@@ -324,10 +385,13 @@ export default {
     const uni = device.createBuffer({ size: SLOT * bits, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     for (let s = 0; s < bits; s++) {
       const len = 2 << s;
-      device.queue.writeBuffer(uni, s * SLOT, new Uint32Array([len, 1 << s, n / len, n]));
+      // The 4th word is the dispatch bound, so it counts the whole batch. len,
+      // halfLen and step stay per transform — every stage length divides n, so
+      // a block never straddles two transforms and the arithmetic is unchanged.
+      device.queue.writeBuffer(uni, s * SLOT, new Uint32Array([len, 1 << s, n / len, total]));
     }
     const dim = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    device.queue.writeBuffer(dim, 0, new Uint32Array([n, bits, 0, 0]));
+    device.queue.writeBuffer(dim, 0, new Uint32Array([n, bits, total, 0]));
 
     const WG = 64;
     const mk = code => device.createComputePipeline({
@@ -336,7 +400,7 @@ export default {
     });
 
     const revPipe = mk(`
-struct Dim { n: u32, bits: u32 };
+struct Dim { n: u32, bits: u32, total: u32 };
 @group(0) @binding(0) var<storage, read> src: array<vec2<f32>>;
 @group(0) @binding(1) var<storage, read_write> dst: array<vec2<f32>>;
 @group(0) @binding(2) var<uniform> dim: Dim;
@@ -344,17 +408,21 @@ struct Dim { n: u32, bits: u32 };
 @compute @workgroup_size(${WG})
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let i = gid.x;
-  if (i >= dim.n) { return; }
+  if (i >= dim.total) { return; }
+  // Reversal is within one transform, so it works on the offset inside the
+  // batch element and reads back from that element's own base.
+  let base = i - (i % dim.n);
+  let k = i % dim.n;
   // The same arithmetic loop as js() and the gpu.js kernel. reverseBits() would
   // do it in one instruction here, but keeping the three implementations
   // textually comparable is worth more than 14 cycles that run once per element.
   var r: u32 = 0u;
-  var v: u32 = i;
+  var v: u32 = k;
   for (var b: u32 = 0u; b < dim.bits; b = b + 1u) {
     r = r * 2u + (v % 2u);
     v = v / 2u;
   }
-  dst[i] = src[r];
+  dst[i] = src[base + r];
 }`);
 
     const stagePipe = mk(`
@@ -391,7 +459,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }`);
 
     const magPipe = mk(`
-struct Dim { n: u32 };
+struct Dim { n: u32, bits: u32, total: u32 };
 @group(0) @binding(0) var<storage, read> src: array<vec2<f32>>;
 @group(0) @binding(1) var<storage, read_write> mag: array<f32>;
 @group(0) @binding(2) var<uniform> dim: Dim;
@@ -399,7 +467,7 @@ struct Dim { n: u32 };
 @compute @workgroup_size(${WG})
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let i = gid.x;
-  if (i >= dim.n) { return; }
+  if (i >= dim.total) { return; }
   let v = src[i];
   mag[i] = sqrt(v.x * v.x + v.y * v.y);
 }`);
@@ -438,7 +506,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         { binding: 2, resource: { buffer: dim } },
       ],
     });
-    const groups = Math.ceil(n / WG);
+    const groups = Math.ceil(total / WG);
 
     return {
       async run() {
@@ -457,7 +525,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         pass.setBindGroup(0, magBind);
         pass.dispatchWorkgroups(groups);
         pass.end();
-        enc.copyBufferToBuffer(bufMag, 0, read, 0, n * 4);
+        enc.copyBufferToBuffer(bufMag, 0, read, 0, total * 4);
         device.queue.submit([enc.finish()]);
         await read.mapAsync(GPUMapMode.READ);
         const out = new Float32Array(read.getMappedRange()).slice();
@@ -472,10 +540,23 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   // Magnitudes only, so nothing in this sum can cancel and the fp32 columns
   // agree with the fp64 oracle to 2e-9. Index-weighted so a partly-filled
-  // output cannot match it.
-  reduce(out, { n }) {
+  // output cannot match it, and averaged over every element of every transform
+  // so the value stays O(1) rather than growing with the batch.
+  //
+  // Two shapes arrive here: a flat Float32Array from js() and from the bare
+  // WebGPU column, and an array of rows from gpu.js, whose magnitude kernel has
+  // a 2D output. Walking the rows in order visits exactly the flat batch-major
+  // order, so the weighting lines up without a copy.
+  reduce(out, { n, batch }) {
     let acc = 0;
-    for (let i = 0; i < out.length; i++) acc += out[i] * (1 + (i % 17));
-    return acc / n;
+    let i = 0;
+    if (ArrayBuffer.isView(out)) {
+      for (; i < out.length; i++) acc += out[i] * (1 + (i % 17));
+    } else {
+      for (const row of out) {
+        for (let x = 0; x < row.length; x++, i++) acc += row[x] * (1 + (i % 17));
+      }
+    }
+    return acc / (n * batch);
   },
 };
