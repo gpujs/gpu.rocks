@@ -47,25 +47,76 @@ const srv = http.createServer((q, r) => {
 await new Promise(r => srv.listen(0, r));
 const base = `http://localhost:${srv.address().port}`;
 
-const browser = await launch();
+const browser = await launch({ real: true, headed: argv.includes('--headed') });
 const page = await browser.newPage();
 page.on('pageerror', e => console.log('  page error:', String(e.message).slice(0, 120)));
 await page.setViewport({ width: 1400, height: 1000 });
 await page.goto(`${base}/benchmark`, { waitUntil: 'networkidle2' });
 await new Promise(r => setTimeout(r, 1200));
 
+// A saved run is presented as what a real machine did. Chrome will happily
+// hand back a SwiftShader adapter and a software WebGL renderer and never say
+// so, and those numbers would be a CPU wearing a GPU's label — the one lie
+// this page cannot afford. Check before spending half an hour, not after.
+const rendering = await page.evaluate(async () => {
+  const gl = document.createElement('canvas').getContext('webgl2');
+  const dbg = gl && gl.getExtension('WEBGL_debug_renderer_info');
+  let adapter = 'none';
+  try {
+    const a = await navigator.gpu.requestAdapter();
+    const info = a && (a.info || (a.requestAdapterInfo ? await a.requestAdapterInfo() : null));
+    adapter = info ? [info.vendor, info.architecture, info.description].filter(Boolean).join(' ') : 'unknown';
+  } catch (e) { /* left as none */ }
+  return {
+    adapter,
+    webgl: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : (gl ? 'unknown' : 'none'),
+  };
+});
+console.log(`bench-record: WebGPU ${rendering.adapter}`);
+console.log(`bench-record: WebGL  ${rendering.webgl}`);
+const software = /swiftshader|llvmpipe|software|angle \(google/i;
+if (!argv.includes('--allow-software')) {
+  const bad = Object.entries(rendering).filter(([, v]) => software.test(v));
+  if (bad.length) {
+    console.error(`bench-record: software renderer (${bad.map(([k]) => k).join(', ')}) — refusing to save`);
+    console.error('  these numbers would be a CPU labelled as a GPU. --allow-software to override.');
+    process.exit(1);
+  }
+}
+
+// A saved run is a WHOLE table — every workload, every column — so the two run
+// options the page offers a visitor are both turned off here: brief mode would
+// store ten rows, and an unchecked column would store a hole. The full-run
+// warning is for someone about to spend half an hour by accident; this script
+// is that half hour on purpose, so it answers its own dialog.
+await page.evaluate(() => {
+  const set = (input, want) => {
+    if (!input || input.disabled || input.checked === want) return;
+    input.click();
+  };
+  set(document.querySelector('.opt.brief input'), false);
+  document.querySelectorAll('.opt.cols input').forEach(i => set(i, true));
+});
+await new Promise(r => setTimeout(r, 200));
+
 const rows = await page.evaluate(() => document.querySelectorAll('#root tbody tr').length);
 console.log(`bench-record: ${rows} workload(s), running…`);
 await page.click('.toolbar .btn.primary');
+await page.waitForSelector('.runwarn', { timeout: 5000 });
+await page.click('.runwarn .btn.primary');
 
+// A full pass is half an hour and longer on a slow machine, so the cap is
+// wall-clock and generous rather than a poll count that quietly expired first.
+const deadline = Date.now() + 150 * 60 * 1000;
 let done = false;
-for (let i = 0; i < 400 && !done; i++) {
+for (let i = 0; !done; i++) {
+  if (Date.now() > deadline) break;
   // eslint-disable-next-line no-await-in-loop
   await new Promise(r => setTimeout(r, 3000));
   // eslint-disable-next-line no-await-in-loop
   const s = await page.evaluate(() => window.__benchStatus || '');
   if (/^done|^stopped/.test(s)) done = true;
-  else if (i % 5 === 0) console.log(`  ${s}`);
+  else if (i % 20 === 0) console.log(`  [${new Date().toTimeString().slice(0, 5)}] ${s}`);
 }
 if (!done) {
   console.error('bench-record: timed out; nothing written');
@@ -74,13 +125,7 @@ if (!done) {
 
 const results = await page.evaluate(() => window.__benchResults);
 const ua = await page.evaluate(() => navigator.userAgent);
-const adapter = await page.evaluate(async () => {
-  try {
-    const a = await navigator.gpu.requestAdapter();
-    const info = a && (a.info || (a.requestAdapterInfo ? await a.requestAdapterInfo() : null));
-    return info ? [info.vendor, info.architecture, info.description].filter(Boolean).join(' ') : 'unknown adapter';
-  } catch (e) { return 'no adapter'; }
-});
+const adapter = rendering.adapter;
 await browser.close();
 srv.close();
 

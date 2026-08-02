@@ -24,16 +24,35 @@ export function findBrowser() {
   return found;
 }
 
-export function launch() {
+// { real: true } is for measuring rather than looking. It does NOT mean headed:
+// measured on this machine, headless Chrome reports the same apple metal-3
+// adapter and the same Metal WebGL renderer as a headed window, so a window on
+// someone's screen buys nothing and costs them their screen for half an hour.
+// What it does mean is no permission to fall back to software, and none of
+// Chrome's background throttling. Whether the GPU is genuinely hardware is then
+// checked by looking at the renderer strings — see bench-record.mjs — rather
+// than inferred from how the browser was launched.
+//
+// { headed: true } is for watching a run go wrong, and is orthogonal.
+export function launch({ real = false, headed = false } = {}) {
   return puppeteer.launch({
     executablePath: findBrowser(),
-    headless: true,
+    headless: !headed,
     args: [
       '--no-sandbox',
       '--disable-dev-shm-usage',
-      // CI runners have no GPU; let WebGL fall back to software rendering so
-      // the benchmark page still renders
-      '--enable-unsafe-swiftshader',
+      ...(real
+        ? [
+          // a benchmark in a tab nobody is watching is still a benchmark
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+        ]
+        : [
+          // CI runners have no GPU; let WebGL fall back to software rendering
+          // so the benchmark page still renders
+          '--enable-unsafe-swiftshader',
+        ]),
     ],
   });
 }

@@ -4,7 +4,7 @@ import { ThemeProvider, useTheme } from '../Learn/ThemeContext';
 import workloads, { GROUPS } from './workloads/index.js';
 import savedRuns from './saved/index.js';
 import { BASELINE, COLUMNS, runWorkload, webgpuStatus } from './runner.js';
-import { SIGNATURE_IDS, SIGNATURE_WHY } from './signature.js';
+import { SIGNATURE_IDS } from './signature.js';
 import './scss/bench.scss';
 
 // The benchmark page. Same visual language as the course — same tokens, same
@@ -419,8 +419,9 @@ function BenchPage() {
             <label className="opt brief">
               <input type="checkbox" checked={brief} onChange={e => setBrief(e.target.checked)} />
               <span>
-                <b>Brief</b> — the {BRIEF.length} signature workloads, one per thing a GPU is
-                good or bad at. About a tenth of the time.
+                <b>Brief</b> — the {BRIEF.length} biggest wins in the saved run, about a tenth
+                of the time. Not a representative sample: the rows where the GPU loses are
+                in the full run.
               </span>
             </label>
             <div className="opt cols">
@@ -476,10 +477,10 @@ function BenchPage() {
                 whole time.
               </p>
               <p className="alt">
-                If you do not have half an hour: <b>Brief</b> runs the {BRIEF.length} signature
-                workloads, one per thing a GPU is good or bad at, in roughly a tenth of the
-                time. Or read a <b>saved run</b> — a full table already measured on a known
-                machine.
+                If you do not have half an hour: <b>Brief</b> runs the {BRIEF.length} rows
+                where gpu.js gained the most, in roughly a tenth of the time — the best case
+                rather than the whole picture. Or read a <b>saved run</b> — a full table
+                already measured on a known machine.
               </p>
               <div className="runwarn-actions">
                 <button type="button" className="btn" onClick={() => setConfirmFull(false)}>
