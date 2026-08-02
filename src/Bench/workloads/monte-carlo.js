@@ -23,10 +23,9 @@
  * decoration. Six columns have to agree on one number to 1e-4; if each of them
  * draws its own randomness they produce six different (perfectly valid) prices
  * and there is no way left to tell a broken kernel from a differently-seeded
- * one. Math.random also has no WebGPU equivalent — a compute shader has no
- * global mutable state to keep a generator in — so the GPU columns would have to
- * do something else entirely, and a row where two columns do different work is
- * not a benchmark.
+ * one. (gpu.js 2.21 does implement Math.random on WebGPU, so this is no longer
+ * about capability — it is only about determinism, which is the harder
+ * requirement and the one that actually binds here.)
  *
  * So the generator is a pure function: path p draws its whole stream from a
  * counter-based seed, every backend evaluates the same function, and the six

@@ -2018,9 +2018,10 @@ gpu-mock.js@^1.4.1:
   resolved "https://registry.yarnpkg.com/gpu-mock.js/-/gpu-mock.js-1.4.1.tgz#390f9d22667f9e3e73416d4e1f3f1261d0906a0a"
   integrity sha512-LhCznlFsadwIJCYysx9OJZ4TXluvnKyBHZXt0F3Dbh5ENWbZsCm7TIyrOY2Dh/4DvaOfK67rAmDLYHFqBZ6B1Q==
 
-gpu.js@gpujs/gpu.js#develop:
-  version "2.20.0"
-  resolved "https://codeload.github.com/gpujs/gpu.js/tar.gz/a15c9945ea877bd7599df83ee902c30aa8393d07"
+gpu.js@^2.21.0:
+  version "2.21.0"
+  resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.21.0.tgz#3f1bc672bfcd7fe99bbac2dbce7be262ad55fa2d"
+  integrity sha512-A/n+Ephh8YYton3UFqg2jGfN43ENYRVVXGjCqd3puXfZp/O+gK/joZYm69rAKeLQcrVbBSsGwyZqI2i68Pp3Iw==
   dependencies:
     acorn "8.14.0"
     gl "8.1.6"

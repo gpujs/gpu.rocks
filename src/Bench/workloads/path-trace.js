@@ -33,8 +33,8 @@
  * ── WHY NOT Math.random, AND WHY NOT sin/cos ────────────────────────────────
  *
  * Randomness is what makes a path tracer work and what makes it hard to put in
- * a benchmark table. Math.random cannot be used: it has no WebGPU equivalent
- * (a compute shader has no global mutable state to keep a generator in), and if
+ * a benchmark table. Math.random cannot be used, though not for want of
+ * support — gpu.js 2.21 implements it on WebGPU too. The problem is that if
  * every column drew its own randomness the six of them would produce six
  * different — equally valid — images, and the checksum could no longer tell a
  * broken kernel from a differently-seeded one. So every random number here is a

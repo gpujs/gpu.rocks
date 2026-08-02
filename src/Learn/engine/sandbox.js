@@ -83,7 +83,9 @@ export function webgpuSupported() {
 //   auto   -> 'async'  best available: WebGPU when an adapter answers, WebGL
 //                      otherwise. Kernels ALWAYS return a Promise in this mode,
 //                      whichever backend wins, which is why every task awaits.
-//   webgpu -> 'webgpu' explicit. Refuses ImageData and Math.random.
+//   webgpu -> 'webgpu' explicit. Refuses ImageData. Math.random works here
+//                      as of gpu.js 2.21 (and draws better than WebGL2: 4096
+//                      distinct values out of 4096, against WebGL2's 1258).
 //                      Graphical kernels now COMPILE and paint here (gpu.js
 //                      develop) -- verified pixel-identical to WebGL2 on the
 //                      main thread -- and the worker supplies the
@@ -504,7 +506,7 @@ export async function executeRun(
       type: 'system',
       time: timeString(),
       text: webgpuOk
-        ? '▸ mode "webgpu" → selected WebGPU (no ImageData or Math.random)'
+        ? '▸ mode "webgpu" → selected WebGPU (no ImageData)'
         : `▸ mode "webgpu" requested but this browser has no navigator.gpu — falling back to ${resolvedMode === 'gpu' ? 'WebGL' : 'cpu'}`,
     });
   } else if (task && task.backend === 'webgl') {
@@ -763,8 +765,9 @@ export async function executeRun(
   //
   // Under 'async' there are now TWO kinds of falling back, and only one is a
   // problem. Declining WebGPU for WebGL is routine and expected — graphical
-  // kernels, ImageData arguments and Math.random all do it by design, and the
-  // course leans on that. Landing on the CPU backend when a GPU one was asked
+  // kernels and ImageData arguments do it by design, and the course leans on
+  // that. (Math.random used to be on that list; gpu.js 2.21 implements it on
+  // WebGPU, so it no longer forces a decline.) Landing on the CPU backend when a GPU one was asked
   // for is the one worth warning about, and it still is.
   const backends = {};
   for (const k of kernels) {
