@@ -24,6 +24,11 @@ const SAVED = join(ROOT, 'src/Bench/saved');
 const argv = process.argv.slice(2);
 const arg = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
 const label = arg('--label') || 'unlabelled run';
+// --only re-measures named rows and MERGES them into the newest saved run,
+// rather than spending a quarter of an hour to change one number. The merge is
+// only honest while the rest of the table still describes the same machine and
+// the same library, so both are checked below and a mismatch refuses.
+const only = (arg('--only') || '').split(',').map(x => x.trim()).filter(Boolean);
 const stamp = arg('--date') || new Date().toISOString().slice(0, 10);
 const id = arg('--id') || `${stamp}-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
 
@@ -99,11 +104,29 @@ await page.evaluate(() => {
 });
 await new Promise(r => setTimeout(r, 200));
 
-const rows = await page.evaluate(() => document.querySelectorAll('#root tbody tr').length);
-console.log(`bench-record: ${rows} workload(s), running…`);
-await page.click('.toolbar .btn.primary');
-await page.waitForSelector('.runwarn', { timeout: 5000 });
-await page.click('.runwarn .btn.primary');
+if (only.length) {
+  const missing = await page.evaluate(
+    ids => ids.filter(id => !document.querySelector(`tr[data-workload="${id}"] .run-one`)),
+    only
+  );
+  if (missing.length) {
+    console.error(`bench-record: no such row(s): ${missing.join(', ')}`);
+    process.exit(1);
+  }
+  console.log(`bench-record: ${only.length} row(s) — ${only.join(', ')} — running…`);
+  for (const id of only) {
+    // eslint-disable-next-line no-await-in-loop
+    await page.evaluate(rid => document.querySelector(`tr[data-workload="${rid}"] .run-one`).click(), id);
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(r => setTimeout(r, 500));
+  }
+} else {
+  const rows = await page.evaluate(() => document.querySelectorAll('#root tbody tr').length);
+  console.log(`bench-record: ${rows} workload(s), running…`);
+  await page.click('.toolbar .btn.primary');
+  await page.waitForSelector('.runwarn', { timeout: 5000 });
+  await page.click('.runwarn .btn.primary');
+}
 
 // A full pass is half an hour and longer on a slow machine, so the cap is
 // wall-clock and generous rather than a poll count that quietly expired first.
@@ -130,15 +153,45 @@ await browser.close();
 srv.close();
 
 const chrome = (ua.match(/Chrome\/(\d+)/) || [])[1];
-const run = {
-  id,
-  label,
-  machine: `${adapter}${chrome ? ` · Chrome ${chrome}` : ''}`,
-  date: stamp,
-  gpujs: JSON.parse(readFileSync(join(ROOT, 'node_modules/gpu.js/package.json'), 'utf8')).version,
-  results,
-};
-writeFileSync(join(SAVED, `${id}.json`), `${JSON.stringify(run, null, 2)}\n`);
+const machine = `${adapter}${chrome ? ` · Chrome ${chrome}` : ''}`;
+const gpujs = JSON.parse(readFileSync(join(ROOT, 'node_modules/gpu.js/package.json'), 'utf8')).version;
+
+let outId = id;
+let run = { id, label, machine, date: stamp, gpujs, results };
+
+if (only.length) {
+  const existing = readdirSync(SAVED).filter(f => f.endsWith('.json')).sort().reverse()[0];
+  if (!existing) {
+    console.error('bench-record: --only needs a saved run to merge into; record a full one first');
+    process.exit(1);
+  }
+  const prev = JSON.parse(readFileSync(join(SAVED, existing), 'utf8'));
+  // A saved run is one table from one machine. Patching a row into a table
+  // measured on different hardware or a different gpu.js would produce a
+  // column of numbers that never coexisted.
+  if (prev.machine !== machine || prev.gpujs !== gpujs) {
+    console.error('bench-record: refusing to merge into a run from elsewhere');
+    console.error(`  saved:   ${prev.machine} · gpu.js ${prev.gpujs}`);
+    console.error(`  current: ${machine} · gpu.js ${gpujs}`);
+    process.exit(1);
+  }
+  const measured = Object.fromEntries(only.filter(k => results[k]).map(k => [k, results[k]]));
+  const absent = only.filter(k => !results[k]);
+  if (absent.length) {
+    console.error(`bench-record: no results came back for ${absent.join(', ')}; nothing written`);
+    process.exit(1);
+  }
+  outId = prev.id;
+  run = {
+    ...prev,
+    results: { ...prev.results, ...measured },
+    // say so in the file: the table is no longer one continuous sitting
+    patched: [...(prev.patched || []), { rows: only, date: stamp }],
+  };
+  console.log(`bench-record: merged ${only.join(', ')} into ${prev.id}`);
+}
+
+writeFileSync(join(SAVED, `${outId}.json`), `${JSON.stringify(run, null, 2)}\n`);
 
 // regenerate the index from whatever is on disk, newest first
 const files = readdirSync(SAVED).filter(f => f.endsWith('.json')).sort().reverse();
@@ -157,4 +210,4 @@ ${files.map((f, i) => `import r${i} from './${f}';`).join('\n')}
 
 export default [${files.map((_, i) => `r${i}`).join(', ')}];
 `);
-console.log(`bench-record: wrote ${id}.json (${Object.keys(results).length} rows) and rebuilt the index`);
+console.log(`bench-record: wrote ${outId}.json (${Object.keys(run.results).length} rows) and rebuilt the index`);

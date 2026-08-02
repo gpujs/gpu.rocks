@@ -184,19 +184,24 @@
   // the button is a 1x1 grid, so both icons have to be told to share the cell
   // rather than being laid out as two rows
   .run-one > * { grid-area: 1 / 1; }
-  .spin {
-    width: 14px; height: 14px; border-radius: 50%;
+  // `runspin`, not `spin`. The cells already own `.spin` — it is the three
+  // dancing dots that say which cell is being measured — and reusing the name
+  // for the button ring stole the dots' styling AND inherited theirs: their
+  // `display: inline-flex; height: 1.9em` sits later in this file, so it beat
+  // the ring's own 14px box and drew it as a stretched oval.
+  .runspin {
+    display: block; width: 14px; height: 14px; border-radius: 50%;
     border: 2px solid currentColor; border-top-color: transparent;
     animation: benchspin .7s linear infinite;
   }
-  .btn .spin { width: 16px; height: 16px; }
+  .btn .runspin { width: 16px; height: 16px; }
   .stopicon, .lbl-stop { display: none; }
-  .run-one.isrunning:hover .spin,
-  .run-one.isrunning:focus-visible .spin { display: none; }
+  .run-one.isrunning:hover .runspin,
+  .run-one.isrunning:focus-visible .runspin { display: none; }
   .run-one.isrunning:hover .stopicon,
   .run-one.isrunning:focus-visible .stopicon { display: block; }
-  .btn.isrunning:hover .spin,
-  .btn.isrunning:focus-visible .spin,
+  .btn.isrunning:hover .runspin,
+  .btn.isrunning:focus-visible .runspin,
   .btn.isrunning:hover .lbl-run,
   .btn.isrunning:focus-visible .lbl-run { display: none; }
   .btn.isrunning:hover .stopicon,
@@ -410,5 +415,5 @@
 
 @keyframes benchspin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .bench-root .spin { animation-duration: 2.4s; }
+  .bench-root .runspin { animation-duration: 2.4s; }
 }

@@ -1,10 +1,10 @@
 /**
  * Convolution by way of the frequency domain: forward FFT, multiply by a
- * kernel spectrum, inverse FFT. 2²¹ points, 21 stages each way.
+ * kernel spectrum, inverse FFT. 128 signals of 2¹⁴ points, 14 stages each way.
  *
  * The plain FFT row measures a transform. This row measures the thing people
  * actually build transforms for, and the difference matters on a GPU: it is
- * 44 dependent passes rather than 22, with a pointwise multiply and a second
+ * 30 dependent passes rather than 15, with a pointwise multiply and a second
  * bit-reversal wedged in the middle, and every one of those passes is a full
  * round trip through memory that the arithmetic cannot hide. If the FFT row
  * says the GPU is worth n×, this row says what n× survives contact with a
@@ -27,14 +27,26 @@
  * here, for the same reason.
  */
 
-// 14, not 22. The ping-pong output is [n, 2], so n IS the texture width, and
+// 14, not 22: the ping-pong output is [n, ...], so n IS the texture width, and
 // WebGL caps a texture dimension at 16,384 on both GL backends — measured, not
-// assumed. There is nothing to chunk here the way the STFT row chunks its
-// frames: a single transform's working set is the whole signal, so the platform
-// limit sets the row's size outright and the 0.2-3 s sizing band cannot be met.
-// The limit wins; the row says so rather than being quietly dropped.
+// assumed. One round trip cannot grow past that.
+//
+// So the row grows in the batch instead, exactly as fft.js does. One signal was
+// 2.0 ms of plain JS and the row reported 0.9x-1.0x across every gpu.js column:
+// at that size the whole table was dispatch overhead and clock granularity, and
+// sizeExempt hid it from the sizing gate. 128 signals put the baseline at a
+// quarter of a second, where the numbers mean something.
+//
+// One filter over many signals is what this operation IS — a filter bank, a
+// channel strip, an image convolved row by row. The kernel spectrum is built
+// once and shared across the batch, which is both the honest shape and the
+// reason the batch costs no extra bandwidth for the filter itself.
 const LOG2N = 14;
 const N = 1 << LOG2N;
+// 128 x 2.0 ms lands mid-band. Each ping-pong texture is n * 2 * BATCH texels at
+// one float per RGBA32F texel, so 0.5 MB per batched signal — 64 MB a texture,
+// which is what caps this number rather than the sizing band.
+const BATCH = 128;
 const TWO_PI = Math.PI * 2;
 // The Gaussian low-pass keeps the lowest 1/256th of the spectrum, so its width
 // is derived from n rather than fixed — size is the only place a dimension
@@ -46,23 +58,27 @@ const DELAY = 5;
 export default {
   id: 'spectral-filter',
   name: 'FFT convolution',
-  params: `2¹⁴ points · forward + multiply + inverse, fp32`,
+  params: `${BATCH} × 2¹⁴ points · forward + multiply + inverse, fp32`,
   tag: 'frequency-domain multiply',
   group: 'transform',
-  // Below the sizing band by necessity, not by choice — see LOG2N above.
-  sizeExempt: true,
-  size: { n: N, bits: LOG2N },
+  size: { n: N, bits: LOG2N, batch: BATCH },
 
-  make({ n }) {
-    // A real signal: two tones and a seeded noise floor, so the low-pass has
-    // something to remove and the output is visibly not the input.
-    const signal = new Float32Array(n);
-    let s = 0x9e3779b9 >>> 0;
-    for (let i = 0; i < n; i++) {
-      s = (s * 1664525 + 1013904223) >>> 0;
-      const noise = (s >>> 8) / 0x1000000 - 0.5;
-      const t = i / n;
-      signal[i] = Math.sin(TWO_PI * 5 * t) + 0.5 * Math.sin(TWO_PI * 37 * t + 0.4) + 0.5 * noise;
+  make({ n, batch }) {
+    // Real signals: two tones and a seeded noise floor, so the low-pass has
+    // something to remove and the output is visibly not the input. One seed per
+    // signal — a batch of identical inputs would let a cache serve all of it and
+    // would price the memory system rather than the pipeline.
+    const signal = [];
+    for (let b = 0; b < batch; b++) {
+      const one = new Float32Array(n);
+      let s = (0x9e3779b9 + b * 0x85ebca6b) >>> 0;
+      for (let i = 0; i < n; i++) {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        const noise = (s >>> 8) / 0x1000000 - 0.5;
+        const t = i / n;
+        one[i] = Math.sin(TWO_PI * 5 * t) + 0.5 * Math.sin(TWO_PI * 37 * t + 0.4) + 0.5 * noise;
+      }
+      signal.push(one);
     }
 
     const half = n >> 1;
@@ -95,9 +111,14 @@ export default {
    * both the standard identity and the only way to be sure the two directions
    * cannot drift apart.
    */
-  js({ n, bits }, { signal, twRe, twIm, kernRe, kernIm }) {
+  js({ n, bits, batch }, { signal, twRe, twIm, kernRe, kernIm }) {
+    // Flat and batch-major: element i of signal b is out[b * n + i], which is
+    // the order both GPU columns hand back, so reduce() stays one function.
+    const out = new Float32Array(n * batch);
     const ar = new Float32Array(n);
     const ai = new Float32Array(n);
+    const br = new Float32Array(n);
+    const bi = new Float32Array(n);
 
     const bitReverseInto = (dstRe, dstIm, srcRe, srcIm) => {
       for (let i = 0; i < n; i++) {
@@ -136,28 +157,31 @@ export default {
       }
     };
 
-    bitReverseInto(ar, ai, signal, null);
-    transform(ar, ai, 1);
+    for (let b = 0; b < batch; b++) {
+      bitReverseInto(ar, ai, signal[b], null);
+      transform(ar, ai, 1);
 
-    for (let i = 0; i < n; i++) {
-      const r = ar[i];
-      const m = ai[i];
-      ar[i] = r * kernRe[i] - m * kernIm[i];
-      ai[i] = r * kernIm[i] + m * kernRe[i];
+      for (let i = 0; i < n; i++) {
+        const r = ar[i];
+        const m = ai[i];
+        ar[i] = r * kernRe[i] - m * kernIm[i];
+        ai[i] = r * kernIm[i] + m * kernRe[i];
+      }
+
+      bitReverseInto(br, bi, ar, ai);
+      transform(br, bi, -1);
+
+      const base = b * n;
+      for (let i = 0; i < n; i++) out[base + i] = br[i] / n;
     }
-
-    const br = new Float32Array(n);
-    const bi = new Float32Array(n);
-    bitReverseInto(br, bi, ar, ai);
-    transform(br, bi, -1);
-
-    const out = new Float32Array(n);
-    for (let i = 0; i < n; i++) out[i] = br[i] / n;
     return out;
   },
 
-  gpujs(gpu, { n, bits }, { signal, twRe, twIm, kernRe, kernIm }) {
-    const pipe = k => k.setPipeline(true).setImmutable(true).setPrecision('single').setOutput([n, 2]);
+  gpujs(gpu, { n, bits, batch }, { signal, twRe, twIm, kernRe, kernIm }) {
+    // [n, 2 * batch]: x walks one signal and the height carries the batch, so
+    // row 2b is signal b's real part and 2b+1 its imaginary part. The stage
+    // arithmetic works on x and is therefore untouched by batching.
+    const pipe = k => k.setPipeline(true).setImmutable(true).setPrecision('single').setOutput([n, 2 * batch]);
 
     // Row 0 real, row 1 imaginary. The signal is real, so row 1 starts at zero.
     const bitrevIn = pipe(
@@ -170,7 +194,8 @@ export default {
             r = r * 2 + (v - h * 2);
             v = h;
           }
-          if (this.thread.y === 0) return x[r];
+          const b2 = Math.floor(this.thread.y / 2);
+          if (this.thread.y - b2 * 2 === 0) return x[b2][r];
           return 0;
         })
         .setConstants({ bits })
@@ -178,6 +203,8 @@ export default {
 
     // The second bit-reversal reads a texture rather than a host array, so it
     // needs its own kernel — but it can permute both rows with one expression.
+    // Batching costs it nothing: y is just a row index and the permutation runs
+    // along x, inside one signal, so this kernel is unchanged.
     const bitrevTex = pipe(
       gpu
         .createKernel(function (a) {
@@ -215,12 +242,17 @@ export default {
             m = (pos - halfLen) * step;
             sgn = -1;
           }
+          // Every stage length divides n, so a block tiles one signal exactly
+          // and never straddles two of them — the block arithmetic above needed
+          // no change for the batch.
+          const rowRe = Math.floor(this.thread.y / 2) * 2;
+          const rowIm = rowRe + 1;
           const wr = this.constants.twRe[m];
           const wi = sign * this.constants.twIm[m];
-          const br = a[0][q];
-          const bi = a[1][q];
-          if (this.thread.y === 0) return a[0][p] + sgn * (wr * br - wi * bi);
-          return a[1][p] + sgn * (wr * bi + wi * br);
+          const br = a[rowRe][q];
+          const bi = a[rowIm][q];
+          if (this.thread.y - rowRe === 0) return a[rowRe][p] + sgn * (wr * br - wi * bi);
+          return a[rowIm][p] + sgn * (wr * bi + wi * br);
         })
         .setConstants({ twRe, twIm })
     );
@@ -229,23 +261,28 @@ export default {
       gpu
         .createKernel(function (a) {
           const i = this.thread.x;
-          const r = a[0][i];
-          const m = a[1][i];
+          // one filter, every signal: the kernel spectrum is indexed by bin
+          // alone and is shared across the batch
+          const rowRe = Math.floor(this.thread.y / 2) * 2;
+          const r = a[rowRe][i];
+          const m = a[rowRe + 1][i];
           const kr = this.constants.kernRe[i];
           const ki = this.constants.kernIm[i];
-          if (this.thread.y === 0) return r * kr - m * ki;
+          if (this.thread.y - rowRe === 0) return r * kr - m * ki;
           return r * ki + m * kr;
         })
         .setConstants({ kernRe, kernIm })
     );
 
+    // [n, batch] — one row of filtered samples per signal, which read in order
+    // is the same batch-major sequence the other two columns return flat.
     const extract = gpu
       .createKernel(function (a) {
-        return a[0][this.thread.x] / this.constants.n;
+        return a[this.thread.y * 2][this.thread.x] / this.constants.n;
       })
       .setConstants({ n })
       .setPrecision('single')
-      .setOutput([n]);
+      .setOutput([n, batch]);
 
     return {
       async run() {
@@ -283,7 +320,11 @@ export default {
    * real pipeline has and the shape gpu.js cannot quite reach, because every
    * gpu.js kernel call is its own submit.
    */
-  async webgpu(device, { n, bits }, { signal, twRe, twIm, kernRe, kernIm }) {
+  async webgpu(device, { n, bits, batch }, { signal, twRe, twIm, kernRe, kernIm }) {
+    // Flat and batch-major. 8 bytes a complex number against gpu.js's 32.
+    const total = n * batch;
+    const flatSignal = new Float32Array(total);
+    for (let b = 0; b < batch; b++) flatSignal.set(signal[b], b * n);
     const tw = new Float32Array(n);
     for (let m = 0; m < n / 2; m++) {
       tw[2 * m] = twRe[m];
@@ -306,13 +347,13 @@ export default {
       buf.unmap();
       return buf;
     };
-    const bufIn = upload(signal);
+    const bufIn = upload(flatSignal);
     const bufTw = upload(tw);
     const bufKern = upload(kern);
-    const bufA = device.createBuffer({ size: n * 8, usage: S });
-    const bufB = device.createBuffer({ size: n * 8, usage: S });
-    const bufOut = device.createBuffer({ size: n * 4, usage: S | GPUBufferUsage.COPY_SRC });
-    const read = device.createBuffer({ size: n * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+    const bufA = device.createBuffer({ size: total * 8, usage: S });
+    const bufB = device.createBuffer({ size: total * 8, usage: S });
+    const bufOut = device.createBuffer({ size: total * 4, usage: S | GPUBufferUsage.COPY_SRC });
+    const read = device.createBuffer({ size: total * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
 
     // 2·bits uniform slots: the forward sweep, then the inverse sweep with the
     // twiddle sign flipped. All written at build, because writeBuffer is queued
@@ -323,12 +364,14 @@ export default {
       for (let s = 0; s < bits; s++) {
         const len = 2 << s;
         const slot = (d * bits + s) * SLOT;
-        device.queue.writeBuffer(uni, slot, new Uint32Array([len, 1 << s, n / len, n]));
+        // 4th word is the dispatch bound, so it counts the whole batch; len,
+        // halfLen and step stay per signal.
+        device.queue.writeBuffer(uni, slot, new Uint32Array([len, 1 << s, n / len, total]));
         device.queue.writeBuffer(uni, slot + 16, new Float32Array([d === 0 ? 1 : -1]));
       }
     }
     const dim = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    device.queue.writeBuffer(dim, 0, new Uint32Array([n, bits, 0, 0]));
+    device.queue.writeBuffer(dim, 0, new Uint32Array([n, bits, total, 0]));
 
     const WG = 64;
     const mk = code => device.createComputePipeline({
@@ -337,39 +380,43 @@ export default {
     });
 
     const revInPipe = mk(`
-struct Dim { n: u32, bits: u32 };
+struct Dim { n: u32, bits: u32, total: u32 };
 @group(0) @binding(0) var<storage, read> src: array<f32>;
 @group(0) @binding(1) var<storage, read_write> dst: array<vec2<f32>>;
 @group(0) @binding(2) var<uniform> dim: Dim;
 @compute @workgroup_size(${WG})
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let i = gid.x;
-  if (i >= dim.n) { return; }
+  if (i >= dim.total) { return; }
+  // reversal is within one signal, so it works on the offset inside the batch
+  // element and reads back from that element's own base
+  let base = i - (i % dim.n);
   var r: u32 = 0u;
-  var v: u32 = i;
+  var v: u32 = i % dim.n;
   for (var b: u32 = 0u; b < dim.bits; b = b + 1u) {
     r = r * 2u + (v % 2u);
     v = v / 2u;
   }
-  dst[i] = vec2<f32>(src[r], 0.0);
+  dst[i] = vec2<f32>(src[base + r], 0.0);
 }`);
 
     const revTexPipe = mk(`
-struct Dim { n: u32, bits: u32 };
+struct Dim { n: u32, bits: u32, total: u32 };
 @group(0) @binding(0) var<storage, read> src: array<vec2<f32>>;
 @group(0) @binding(1) var<storage, read_write> dst: array<vec2<f32>>;
 @group(0) @binding(2) var<uniform> dim: Dim;
 @compute @workgroup_size(${WG})
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let i = gid.x;
-  if (i >= dim.n) { return; }
+  if (i >= dim.total) { return; }
+  let base = i - (i % dim.n);
   var r: u32 = 0u;
-  var v: u32 = i;
+  var v: u32 = i % dim.n;
   for (var b: u32 = 0u; b < dim.bits; b = b + 1u) {
     r = r * 2u + (v % 2u);
     v = v / 2u;
   }
-  dst[i] = src[r];
+  dst[i] = src[base + r];
 }`);
 
     const stagePipe = mk(`
@@ -406,7 +453,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }`);
 
     const mulPipe = mk(`
-struct Dim { n: u32 };
+struct Dim { n: u32, bits: u32, total: u32 };
 @group(0) @binding(0) var<storage, read> src: array<vec2<f32>>;
 @group(0) @binding(1) var<storage, read_write> dst: array<vec2<f32>>;
 @group(0) @binding(2) var<storage, read> kern: array<vec2<f32>>;
@@ -414,21 +461,22 @@ struct Dim { n: u32 };
 @compute @workgroup_size(${WG})
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let i = gid.x;
-  if (i >= dim.n) { return; }
+  if (i >= dim.total) { return; }
   let a = src[i];
-  let k = kern[i];
+  // one filter over every signal: the spectrum is indexed by bin alone
+  let k = kern[i % dim.n];
   dst[i] = vec2<f32>(a.x * k.x - a.y * k.y, a.x * k.y + a.y * k.x);
 }`);
 
     const outPipe = mk(`
-struct Dim { n: u32 };
+struct Dim { n: u32, bits: u32, total: u32 };
 @group(0) @binding(0) var<storage, read> src: array<vec2<f32>>;
 @group(0) @binding(1) var<storage, read_write> dst: array<f32>;
 @group(0) @binding(2) var<uniform> dim: Dim;
 @compute @workgroup_size(${WG})
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let i = gid.x;
-  if (i >= dim.n) { return; }
+  if (i >= dim.total) { return; }
   dst[i] = src[i].x / f32(dim.n);
 }`);
 
@@ -485,11 +533,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       }
     }
     const outBind = bind2(outPipe, buf[cur], bufOut);
-    const groups = Math.ceil(n / WG);
+    const groups = Math.ceil(total / WG);
 
     return {
       async run() {
-        device.queue.writeBuffer(bufIn, 0, signal);
+        device.queue.writeBuffer(bufIn, 0, flatSignal);
         const enc = device.createCommandEncoder();
         const pass = enc.beginComputePass();
         pass.setPipeline(revInPipe);
@@ -504,7 +552,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         pass.setBindGroup(0, outBind);
         pass.dispatchWorkgroups(groups);
         pass.end();
-        enc.copyBufferToBuffer(bufOut, 0, read, 0, n * 4);
+        enc.copyBufferToBuffer(bufOut, 0, read, 0, total * 4);
         device.queue.submit([enc.finish()]);
         await read.mapAsync(GPUMapMode.READ);
         const out = new Float32Array(read.getMappedRange()).slice();
@@ -525,9 +573,19 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
    * samples in the wrong order — a time-reversed inverse transform, say — is
    * still caught.
    */
-  reduce(out, { n }) {
+  reduce(out, { n, batch }) {
+    // Flat from js() and from the bare WebGPU column; an array of rows from
+    // gpu.js, whose extract kernel has a 2D output. Walking the rows in order
+    // is exactly the flat batch-major order, so the weighting lines up.
     let acc = 0;
-    for (let i = 0; i < out.length; i++) acc += Math.abs(out[i]) * (1 + (i % 17));
-    return acc / n;
+    let i = 0;
+    if (ArrayBuffer.isView(out)) {
+      for (; i < out.length; i++) acc += Math.abs(out[i]) * (1 + (i % 17));
+    } else {
+      for (const row of out) {
+        for (let x = 0; x < row.length; x++, i++) acc += Math.abs(row[x]) * (1 + (i % 17));
+      }
+    }
+    return acc / (n * batch);
   },
 };

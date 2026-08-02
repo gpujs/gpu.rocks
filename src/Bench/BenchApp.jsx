@@ -157,7 +157,14 @@ function BenchTable({ rows, results, onRun, onStop, running, readOnly }) {
               const cells = results[w.id] || {};
               const base = cells[BASELINE] && cells[BASELINE].ms;
               return (
-                <tr key={w.id} className={cells.__running ? 'running' : undefined}>
+                <tr
+                  key={w.id}
+                  // addressable by id: scripts/bench-record.mjs --only <id>
+                  // drives a single row, and matching on the display name is a
+                  // rename away from silently selecting nothing
+                  data-workload={w.id}
+                  className={cells.__running ? 'running' : undefined}
+                >
                   {/* the grid lives on an inner div, never on the th: a th with
                       display:grid is no longer a table-cell, and position:sticky
                       stops tracking the scroll container — the header stayed put
@@ -185,7 +192,7 @@ function BenchTable({ rows, results, onRun, onStop, running, readOnly }) {
                       >
                         {cells.__running ? (
                           <>
-                            <span className="spin" aria-hidden="true" />
+                            <span className="runspin" aria-hidden="true" />
                             <svg className="stopicon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
                               <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
                             </svg>
@@ -435,7 +442,7 @@ function BenchPage() {
           >
             {running ? (
               <>
-                <span className="spin" aria-hidden="true" />
+                <span className="runspin" aria-hidden="true" />
                 <svg className="stopicon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
                   <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
                 </svg>
