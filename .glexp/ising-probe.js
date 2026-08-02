@@ -150,15 +150,10 @@ export default {
     return s;
   },
 
-  // async because the random field is uploaded here, once, and a gpu.js kernel
-  // call resolves to a promise on the WebGPU backend. runner.js awaits this
-  // builder; the upload is outside the timed region either way.
-  async gpujs(gpu, { n, sweeps }, { rows, spinRows }) {
-    // Only scalars here. The random field is handed in as an ARGUMENT instead,
-    // and that is a correctness requirement rather than a preference — see the
-    // note above the kernel.
+  gpujs(gpu, { n, sweeps }, { rows, spinRows }) {
     const constants = {
       n,
+      rnd: rows, // a constant, so it uploads once — an argument would re-upload 4 MB per dispatch
       accept4: ACCEPT_4,
       accept8: ACCEPT_8,
       parity: 0,
@@ -169,24 +164,9 @@ export default {
     // writes its own, black reads red's and writes its own, and neither ever
     // writes a texture that is currently an input. That is the ping-pong, and
     // it costs no allocation per sweep.
-    //
-    // `rnd` is an argument and not a constant, and the difference is the whole
-    // reason this row used to report WRONG on both GL backends. gpu.js binds a
-    // kernel's array CONSTANTS to texture units once, when the kernel is first
-    // called, and never rebinds them; arguments are rebound on every dispatch.
-    // Texture units are global to the GL context, so the `seed` kernel below —
-    // one argument, therefore texture unit 0 — overwrote the binding that this
-    // kernel's `rnd` constant was still relying on. Run one was correct because
-    // red and black are set up after seed's first call; from run two onwards
-    // every site read the SPIN lattice as its random draw, and spins are ±1,
-    // which is below both acceptance thresholds, so every site flipped on every
-    // pass. The runner takes its checksum from the third call.
-    //
-    // Passing it costs a texture bind per dispatch and no upload: the field goes
-    // to the GPU once, at build time, through the uploader below.
     const half = parity =>
       gpu
-        .createKernel(function (state, rnd, sx, sy) {
+        .createKernel(function (state, sx, sy) {
           // `dim`, not `n`: a kernel-local named after one of its own constants
           // collides with the CPU backend's generated `constants_n`.
           const dim = this.constants.n;
@@ -217,7 +197,7 @@ export default {
           if (rx >= dim) rx = rx - dim;
           let ry = y + sy;
           if (ry >= dim) ry = ry - dim;
-          const r = rnd[ry][rx];
+          const r = this.constants.rnd[ry][rx];
           if (e < 3) {
             if (r < this.constants.accept4) return -c;
             return c;
@@ -237,34 +217,40 @@ export default {
     // kernels always see a Texture argument: handing them a plain array on the
     // first sweep of every run would make gpu.js recompile for the new argument
     // type, and the row would be timing a shader compiler.
-    const identity = () =>
-      gpu
-        .createKernel(function (s) {
-          return s[this.thread.y][this.thread.x];
-        })
-        .setPipeline(true)
-        .setPrecision('single')
-        .setOutput([n, n]);
-
-    const seed = identity();
-
-    // The random field, uploaded once at build. A separate kernel from `seed`
-    // and not the same one called twice: a pipelined kernel reuses its own
-    // single output texture, so the second call would hand back the first
-    // call's texture and the draws would silently become the spins.
-    const uploadRnd = identity();
-    const rndTex = await uploadRnd(rows);
+    const seed = gpu
+      .createKernel(function (s) {
+        return s[this.thread.y][this.thread.x];
+      })
+      .setPipeline(true)
+      .setPrecision('single')
+      .setOutput([n, n]);
 
     const mask = n - 1;
 
+    const sum = a => {
+      let s = 0;
+      if (ArrayBuffer.isView(a)) { for (let i = 0; i < a.length; i++) s += a[i]; return s; }
+      for (const r of a) for (let i = 0; i < r.length; i++) s += r[i];
+      return s;
+    };
+    const peek = async (tag, tex) => {
+      const v = tex.toArray ? await tex.toArray() : tex;
+      (globalThis.__probe = globalThis.__probe || []).push([tag, sum(v)]);
+    };
+    let runNo = 0;
+
     return {
       async run() {
+        runNo++;
         let state = await seed(spinRows);
+        await peek(`run${runNo}.seed`, state);
         for (let t = 0; t < sweeps; t++) {
           const sx = (t * SHIFT_X) & mask;
           const sy = (t * SHIFT_Y) & mask;
-          state = await red(state, rndTex, sx, sy);
-          state = await black(state, rndTex, sx, sy);
+          state = await red(state, sx, sy);
+          if (t < 3) await peek(`run${runNo}.red${t}`, state);
+          state = await black(state, sx, sy);
+          if (t < 3) await peek(`run${runNo}.black${t}`, state);
         }
         // The read-back. Without it this function would return while 512
         // dispatches were still queued, and the row would report the time it
@@ -273,7 +259,7 @@ export default {
       },
       backend: () => red.kernel && red.kernel.constructor.mode,
       destroy() {
-        [red, black, seed, uploadRnd].forEach(k => k.destroy && k.destroy());
+        [red, black, seed].forEach(k => k.destroy && k.destroy());
       },
     };
   },

@@ -131,7 +131,12 @@ export default {
     return src;
   },
 
-  gpujs(gpu, { n, steps, hi, alpha }, { u0 }) {
+  // async, because gpu.js's WebGPU kernels return a Promise — read-back needs
+  // mapAsync and there is no honest synchronous alternative — and the pristine
+  // texture below has to be a Texture before the first step is handed it. An
+  // unawaited call hands the next kernel a Promise, which gpu.js types as
+  // `Unknown` and refuses. The runner awaits gpujs(), so this costs nothing.
+  async gpujs(gpu, { n, steps, hi, alpha }, { u0 }) {
     // Two instances of one kernel body: with gpu.js's default immutable:false a
     // kernel reuses its own output texture, so one kernel cannot both read the
     // previous step and overwrite it. They alternate instead.
@@ -163,14 +168,20 @@ export default {
       },
       { output: [n, n], pipeline: true }
     );
-    const u0Tex = upload(rows(u0, n));
+    const u0Tex = await upload(rows(u0, n));
 
     return {
       async run() {
         // Step 0 reads the pristine texture and writes kA's own, so u0 survives
         // every repetition the runner asks for.
         let t = u0Tex;
-        for (let s = 0; s < steps; s++) t = (s % 2 === 0 ? kA : kB)(t);
+        // await per step, because on the WebGPU backend each call returns a
+        // Promise and the next step has to be handed the Texture, not the
+        // Promise. It does not serialise the GPU: in pipeline mode gpu.js
+        // resolves as soon as the dispatch is submitted, with no read-back, so
+        // all 1024 dispatches still queue back to back. On the synchronous
+        // backends it is a microtask and nothing else.
+        for (let s = 0; s < steps; s++) t = await (s % 2 === 0 ? kA : kB)(t);
         // The read-back, and awaiting it is the only thing that proves all 1024
         // dispatches finished. The CPU backend's pipeline result is already a
         // plain array of rows and has no toArray to call.

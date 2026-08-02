@@ -223,8 +223,8 @@ export default {
         const su = (x + 0.5 - hw) / half;
         // Left to right, exactly as the two shaders spell it. The two multiplies
         // that could be hoisted out of this loop are worth nothing against the
-        // 800 flops below them, and hoisting them would re-associate the sum
-        // and put an avoidable ulp between the columns.
+        // thousands of flops below them, and hoisting them would re-associate
+        // the sum and put an avoidable ulp between the columns.
         let dx = su * rx + sv * ux + FOCAL * fx;
         let dy = su * ry + sv * uy + FOCAL * fy;
         let dz = su * rz + sv * uz + FOCAL * fz;
@@ -254,7 +254,7 @@ export default {
           const pz = ez + dz * t;
 
           // Tetrahedron normal: four probes at the corners of a tetrahedron,
-          // half the evaluations of six-tap central differences.
+          // rather than the six a central-difference gradient would need.
           const d1 = sdfScene(px + NEPS, py - NEPS, pz - NEPS);
           const d2 = sdfScene(px - NEPS, py - NEPS, pz + NEPS);
           const d3 = sdfScene(px - NEPS, py + NEPS, pz - NEPS);

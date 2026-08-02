@@ -246,7 +246,8 @@ function BenchPage() {
           {workloads.length} GPGPU workload{workloads.length === 1 ? '' : 's'}, timed on every backend
           gpu.js can reach and against hand-written baselines. The rightmost column is plain
           JavaScript with no gpu.js in the picture — every speed-up on this page is measured
-          against it.
+          against it. Each column runs the best implementation for its platform, not the same
+          code six times; what is held identical is the problem, and every answer is checked.
         </p>
 
         <div className="toolbar">
@@ -327,6 +328,13 @@ function BenchPage() {
             <b>N/A is a fact, not a gap</b>
             <p>Hover it for the reason — a graphical kernel pins unsigned precision, and
               <code> Math.random</code> has no WebGPU equivalent.</p>
+          </div>
+          <div>
+            <b>Each column is the best that platform can do</b>
+            <p>Not one algorithm compiled six ways. Selecting the top 512 is a heap in plain JS
+              and a threshold bisection on a GPU, because that is what each is good at. What is
+              held identical is the <em>problem</em> and the answer — every column is checksummed
+              against the same oracle.</p>
           </div>
           <div>
             <b>Median of ≥3, after 2 warm-ups</b>

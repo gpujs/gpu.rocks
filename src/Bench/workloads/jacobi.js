@@ -145,7 +145,13 @@ export default {
     return src;
   },
 
-  gpujs(gpu, { n, sweeps, hi }, { u0, q }) {
+  // async, because gpu.js's WebGPU kernels return a Promise — read-back needs
+  // mapAsync and there is no honest synchronous alternative — and the two
+  // resident textures below have to be Textures before the first sweep is
+  // handed them. An unawaited call hands the next kernel a Promise, which
+  // gpu.js types as `Unknown` and refuses. The runner awaits gpujs(), so the
+  // uploads still happen once, at build time, outside anything being timed.
+  async gpujs(gpu, { n, sweeps, hi }, { u0, q }) {
     // One kernel body, three instances of it. Two are needed because with
     // gpu.js's default immutable:false a kernel reuses its own output texture,
     // so a kernel cannot both read the previous result and overwrite it; the
@@ -173,15 +179,21 @@ export default {
     };
     const upU = gpu.createKernel(identity, { output: [n, n], pipeline: true });
     const upQ = gpu.createKernel(identity, { output: [n, n], pipeline: true });
-    const u0Tex = upU(rows(u0, n));
-    const qTex = upQ(rows(q, n));
+    const u0Tex = await upU(rows(u0, n));
+    const qTex = await upQ(rows(q, n));
 
     return {
       async run() {
         // Sweep 0 reads the pristine u0 texture and writes kA's own texture, so
         // u0 is never overwritten and every run starts from the same grid.
         let t = u0Tex;
-        for (let s = 0; s < sweeps; s++) t = (s % 2 === 0 ? kA : kB)(t, qTex);
+        // await per sweep, because on the WebGPU backend each call returns a
+        // Promise and the next sweep has to be handed the Texture, not the
+        // Promise. It does not serialise the GPU: in pipeline mode gpu.js
+        // resolves as soon as the dispatch is submitted, with no read-back, so
+        // all 512 dispatches still queue back to back. On the synchronous
+        // backends it is a microtask and nothing else.
+        for (let s = 0; s < sweeps; s++) t = await (s % 2 === 0 ? kA : kB)(t, qTex);
         // toArray is the read-back, and awaiting it is the only thing that
         // proves all 512 dispatches finished; on the synchronous backends the
         // await is harmless. The CPU backend's pipeline result is already a

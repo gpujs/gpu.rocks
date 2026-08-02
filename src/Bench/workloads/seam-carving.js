@@ -99,7 +99,7 @@
  *
  * 32 seams is a 3% resize, not the dramatic before/after picture seam carving is
  * famous for. The count was chosen to put the plain-JS baseline in the middle of
- * the sizing band (373 ms) at the lowest possible dispatch count; carving 300
+ * the sizing band (about 370 ms) at the lowest possible dispatch count; carving 300
  * seams would be the same arithmetic ten times over and would take a minute per
  * GPU column to no additional effect.
  */

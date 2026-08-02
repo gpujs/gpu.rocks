@@ -148,10 +148,7 @@ export default {
     return out;
   },
 
-  // async because the twiddle tables are uploaded here, once, and a gpu.js
-  // kernel call resolves to a promise on the WebGPU backend. runner.js awaits
-  // this builder; the uploads are outside the timed region either way.
-  async gpujs(gpu, { n, bits }, { re, im, twRe, twIm }) {
+  gpujs(gpu, { n, bits }, { re, im, twRe, twIm }) {
     // Pipeline + immutable is what makes 22 passes possible without touching the
     // host: each call hands back a GPU-resident handle, and immutable gives each
     // call its own storage so a kernel can be fed its own previous output
@@ -176,41 +173,12 @@ export default {
         .setConstants({ bits })
     );
 
-    // The twiddle table, uploaded to the GPU once at build time. Two kernels
-    // and not one called twice: a pipelined kernel reuses its own single output
-    // texture, so one uploader would hand back the same texture for both tables
-    // and the imaginary part would silently become the real one.
-    const uploadTable = () =>
-      gpu
-        .createKernel(function (v) {
-          return v[this.thread.x];
-        })
-        .setPipeline(true)
-        .setPrecision('single')
-        .setOutput([n >> 1]);
-    const twReUp = uploadTable();
-    const twImUp = uploadTable();
-    const twReTex = await twReUp(twRe);
-    const twImTex = await twImUp(twIm);
-
     // One stage, gathered. len/halfLen/step are arguments rather than constants
-    // so a single compiled kernel serves all 14 passes — 14 compiled kernels
-    // would put 14 shader compiles in the first warm-up and nothing else.
-    //
-    // The twiddle tables are ARGUMENTS too, and that is a correctness
-    // requirement rather than a preference. gpu.js binds a kernel's array
-    // CONSTANTS to texture units once, when the kernel is first called, and
-    // never rebinds them; arguments are rebound on every dispatch. Texture
-    // units are global to the GL context, and `bitrev`'s two signal arguments
-    // sit on units 0 and 1 — exactly where twRe/twIm lived as constants. The
-    // first run was therefore correct (this kernel is set up after bitrev's
-    // first call) and every run after it read the input signal as its twiddle
-    // table. The runner takes its checksum from the third call, so the row
-    // reported WRONG. Handing the tables in as arguments costs one texture bind
-    // per dispatch and nothing else: they are uploaded once, above.
+    // so a single compiled kernel serves all 22 passes — 22 compiled kernels
+    // would put 22 shader compiles in the first warm-up and nothing else.
     const stage = pipe(
       gpu
-        .createKernel(function (a, twRe, twIm, len, halfLen, step) {
+        .createKernel(function (a, len, halfLen, step) {
           const i = this.thread.x;
           const blk = Math.floor(i / len) * len;
           const pos = i - blk;
@@ -228,13 +196,14 @@ export default {
             m = (pos - halfLen) * step;
             sgn = -1;
           }
-          const wr = twRe[m];
-          const wi = twIm[m];
+          const wr = this.constants.twRe[m];
+          const wi = this.constants.twIm[m];
           const br = a[0][q];
           const bi = a[1][q];
           if (this.thread.y === 0) return a[0][p] + sgn * (wr * br - wi * bi);
           return a[1][p] + sgn * (wr * bi + wi * br);
         })
+        .setConstants({ twRe, twIm })
     );
 
     const magnitude = gpu
@@ -255,7 +224,7 @@ export default {
         for (let s = 0; s < bits; s++) {
           const len = 2 << s;
           const halfLen = 1 << s;
-          const next = await stage(cur, twReTex, twImTex, len, halfLen, n / len);
+          const next = await stage(cur, len, halfLen, n / len);
           // Released only after the next stage has been issued, so the texture
           // being recycled is always two stages old and never the one being
           // read. (CPU-mode pipeline results are plain arrays and have no
@@ -269,7 +238,7 @@ export default {
       },
       backend: () => stage.kernel && stage.kernel.constructor.mode,
       destroy: () => {
-        [bitrev, stage, magnitude, twReUp, twImUp].forEach(k => k.destroy && k.destroy());
+        [bitrev, stage, magnitude].forEach(k => k.destroy && k.destroy());
       },
     };
   },

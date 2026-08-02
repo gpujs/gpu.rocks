@@ -3,7 +3,8 @@
  *
  * Every other row on this page reads its numbers from memory. This one makes
  * them up, four million paths at a time, and that is the whole point: the
- * arithmetic below is about 80% random-number generation and 20% finance. A GPU
+ * arithmetic below is nine parts random-number generation to one part finance
+ * — 28 generator rounds per path against 8 multiply-adds of actual SDE. A GPU
  * is supposed to be extraordinary at this — the paths are perfectly independent,
  * there is no communication, no neighbourhood, no reduction until the very end —
  * so if the speed-up is ever going to be large it is going to be large here.
@@ -200,7 +201,7 @@ export default {
    * draws themselves are identical everywhere (they are exact), so the only
    * divergence is eight roundings of one multiply. Re-running this function with
    * Math.fround on every operation of the path arithmetic moves the checksum by
-   * 1.4e-6 relative — seventy times inside the runner's tolerance.
+   * 1.9e-6 relative — fifty times inside the runner's tolerance.
    */
   js({ paths, steps }) {
     const out = new Float32Array(paths);
@@ -260,57 +261,60 @@ export default {
     // No arguments at all — nothing is uploaded, so what this column measures is
     // arithmetic plus one 16 MB readback, which is the comparison it should be.
     const kernel = gpu
+      // Every constant is read through `this.constants.` at its use site rather
+      // than hoisted into a local. A kernel-local named after one of the
+      // kernel's own constants collides with the generated `constants_<name>`
+      // on the CPU backend and the kernel fails to build — `const lane =
+      // this.constants.lane` throws "Cannot access 'constants_lane' before
+      // initialization". Verbose, but it compiles on all four backends.
       .createKernel(function () {
-        const lane = this.constants.lane;
-        const invLane = this.constants.invLane;
-        const weyl = this.constants.weyl;
-        const mul = this.constants.mul;
         const idx = this.thread.x;
 
-        const ph = Math.floor(idx * invLane);
-        const pl = idx - ph * lane;
+        // Seed: middle lanes of the full 44-bit idx².
+        const ph = Math.floor(idx * this.constants.invLane);
+        const pl = idx - ph * this.constants.lane;
         const a0 = pl * pl;
-        const k0 = Math.floor(a0 * invLane);
-        const lane0 = a0 - k0 * lane;
-        const a1 = 2 * ph * pl + k0;
-        const k1 = Math.floor(a1 * invLane);
-        const lane1 = a1 - k1 * lane;
-        const a2 = ph * ph + k1;
-        const lane2 = a2 - Math.floor(a2 * invLane) * lane;
+        const c0 = Math.floor(a0 * this.constants.invLane);
+        const w0 = a0 - c0 * this.constants.lane;
+        const a1 = 2 * ph * pl + c0;
+        const c1 = Math.floor(a1 * this.constants.invLane);
+        const w1 = a1 - c1 * this.constants.lane;
+        const a2 = ph * ph + c1;
+        const w2 = a2 - Math.floor(a2 * this.constants.invLane) * this.constants.lane;
 
-        let h = lane2;
-        let l = lane1;
-        const q = lane2 * lane + lane0;
-        let c = q - weyl * Math.floor(q * this.constants.invWeyl);
-        const s = 2 * idx + 1;
+        let hi = w2;
+        let lo = w1;
+        const q = w2 * this.constants.lane + w0;
+        let ctr = q - this.constants.weyl * Math.floor(q * this.constants.invWeyl);
+        const stride = 2 * idx + 1;
 
         for (let i = 0; i < this.constants.warmup; i++) {
-          c = c + s;
-          if (c >= weyl) c = c - weyl;
-          const b = mul * l + c;
-          const bh = Math.floor(b * invLane);
-          const top = mul * h + bh;
-          h = b - bh * lane;
-          l = top - lane * Math.floor(top * invLane);
+          ctr = ctr + stride;
+          if (ctr >= this.constants.weyl) ctr = ctr - this.constants.weyl;
+          const b = this.constants.mul * lo + ctr;
+          const bh = Math.floor(b * this.constants.invLane);
+          const tp = this.constants.mul * hi + bh;
+          hi = b - bh * this.constants.lane;
+          lo = tp - this.constants.lane * Math.floor(tp * this.constants.invLane);
         }
 
-        let spot = this.constants.spot;
+        let price = this.constants.spot;
         for (let k = 0; k < this.constants.steps; k++) {
           let tsum = 0;
           for (let j = 0; j < 3; j++) {
-            c = c + s;
-            if (c >= weyl) c = c - weyl;
-            const b = mul * l + c;
-            const bh = Math.floor(b * invLane);
-            const top = mul * h + bh;
-            h = b - bh * lane;
-            l = top - lane * Math.floor(top * invLane);
-            tsum = tsum + l;
+            ctr = ctr + stride;
+            if (ctr >= this.constants.weyl) ctr = ctr - this.constants.weyl;
+            const b = this.constants.mul * lo + ctr;
+            const bh = Math.floor(b * this.constants.invLane);
+            const tp = this.constants.mul * hi + bh;
+            hi = b - bh * this.constants.lane;
+            lo = tp - this.constants.lane * Math.floor(tp * this.constants.invLane);
+            tsum = tsum + lo;
           }
-          spot = spot * (this.constants.base + this.constants.zscale * tsum);
+          price = price * (this.constants.base + this.constants.zscale * tsum);
         }
-        if (spot > this.constants.strike) {
-          return (spot - this.constants.strike) * this.constants.discount;
+        if (price > this.constants.strike) {
+          return (price - this.constants.strike) * this.constants.discount;
         }
         return 0;
       })
@@ -474,7 +478,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
    * Payoffs are non-negative and bounded, the weights are small integers, and
    * the total is divided by the path count, so the sum of four million terms
    * stays in a range where fp32 and fp64 agree far inside the runner's 1e-4.
-   * The measured fp32-throughout spread on this checksum is 1.4e-6.
+   * The measured fp32-throughout spread on this checksum is 1.9e-6.
    */
   reduce(out, { paths }) {
     const flat = ArrayBuffer.isView(out) ? out : Float32Array.from(out);

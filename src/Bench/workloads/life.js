@@ -235,8 +235,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
            + src[row + left] + src[row + right]
            + src[down + left] + src[down + x] + src[down + right];
 
-  let self = src[row + x];
-  dst[row + x] = select(0u, 1u, live == 3u || (live == 2u && self == 1u));
+  // NOT named "self": that is a WGSL reserved keyword, and a shader that fails to
+  // compile does not fail loudly — createShaderModule reports asynchronously,
+  // the pipeline is invalid, every dispatch is dropped, and the read-back is a
+  // buffer of zeros that looks like an answer.
+  let alive = src[row + x];
+  dst[row + x] = select(0u, 1u, live == 3u || (live == 2u && alive == 1u));
 }`,
     });
 
