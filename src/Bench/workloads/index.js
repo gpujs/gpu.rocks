@@ -38,7 +38,35 @@
  *   6. If a kernel genuinely cannot run on a backend, declare it. N/A with a
  *      reason is information; a rewritten kernel that "works" is not.
  */
+import bitonicSort from './bitonic-sort.js';
+import blurSeparable from './blur-separable.js';
+import canny from './canny.js';
+import compaction from './compaction.js';
+import dftNaive from './dft-naive.js';
+import erosion from './erosion.js';
+import escapeTime from './escape-time.js';
+import fft from './fft.js';
+import gradientDescent from './gradient-descent.js';
+import grayScott from './gray-scott.js';
+import heat from './heat.js';
+import histogram from './histogram.js';
+import ising from './ising.js';
+import jacobi from './jacobi.js';
+import launchOverhead from './launch-overhead.js';
+import life from './life.js';
 import matmul from './matmul.js';
+import nbody from './nbody.js';
+import nccTemplate from './ncc-template.js';
+import odeRk4 from './ode-rk4.js';
+import opticalFlow from './optical-flow.js';
+import prefixSum from './prefix-sum.js';
+import radixSort from './radix-sort.js';
+import reduction from './reduction.js';
+import sobel from './sobel.js';
+import spectralFilter from './spectral-filter.js';
+import stft from './stft.js';
+import undersized from './undersized.js';
+import wavefront from './wavefront.js';
 
 // Rows are grouped in the table in this order.
 export const GROUPS = [
@@ -50,7 +78,7 @@ export const GROUPS = [
   ['render', 'Rendering'],
 ];
 
-const WORKLOADS = [matmul];
+const WORKLOADS = [bitonicSort, blurSeparable, canny, compaction, dftNaive, erosion, escapeTime, fft, gradientDescent, grayScott, heat, histogram, ising, jacobi, launchOverhead, life, matmul, nbody, nccTemplate, odeRk4, opticalFlow, prefixSum, radixSort, reduction, sobel, spectralFilter, stft, undersized, wavefront];
 
 const REQUIRED = ['id', 'name', 'params', 'tag', 'size', 'js', 'gpujs', 'reduce'];
 const seen = new Set();

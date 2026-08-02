@@ -64,15 +64,23 @@ for (const w of workloads) {
 
   // A build that costs more than the work it feeds means the row would be
   // timing its own setup if anyone ever moved make() inside a column.
-  const buildWarn = build > ms;
-  const ok = ms >= MIN_MS && ms <= MAX_MS;
+  const buildWarn = build > ms && !w.sizeExempt;
+  // One row is deliberately too small to be worth a GPU — that IS its finding,
+  // and sizing it into the band would delete it. It says so with sizeExempt.
+  const ok = w.sizeExempt || (ms >= MIN_MS && ms <= MAX_MS);
   if (!ok) bad++;
-  const status = ok ? (buildWarn ? 'BUILD? ' : 'ok     ') : ms < MIN_MS ? 'TOO SML' : 'TOO BIG';
+  const status = w.sizeExempt
+    ? 'exempt '
+    : ok
+      ? (buildWarn ? 'BUILD? ' : 'ok     ')
+      : ms < MIN_MS
+        ? 'TOO SML'
+        : 'TOO BIG';
   console.log(
     `  ${status}  ${ms.toFixed(0).padStart(7)} ms  ${build.toFixed(0).padStart(5)} ms   ` +
       `${w.id.padEnd(22)} ${w.params}`
   );
-  if (!ok) {
+  if (!ok && !w.sizeExempt) {
     const factor = ms < MIN_MS ? MIN_MS / ms : MAX_MS / ms;
     console.log(`           ^ scale the work by about ${factor.toFixed(1)}x`);
   }
