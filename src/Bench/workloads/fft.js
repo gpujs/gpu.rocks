@@ -1,17 +1,19 @@
 /**
- * Radix-2 FFT, 2²² complex points, 22 stages.
+ * Radix-2 FFT, 2¹⁴ complex points, 14 stages.
  *
  * The sibling of the naive-DFT row. Same signal family, same twiddle table,
- * same output (a magnitude spectrum) — and 256× more points, in a fraction of
- * the time, because the algorithm is n log n instead of n². That comparison is
- * the most useful thing on this page, and it is a comparison between two
- * columns of the SAME colour: plain JS beats plain JS.
+ * same output (a magnitude spectrum) and — since both rows are capped at the
+ * same 16,384 points — exactly the same transform, computed in a fraction of
+ * the time because the algorithm is n log n instead of n². Nothing but the
+ * algorithm differs between the two rows, which is what makes the comparison
+ * worth having, and it is a comparison between two columns of the SAME colour:
+ * plain JS beats plain JS.
  *
  * ── What the GPU columns can and cannot do here ──────────────────────────────
  *
- * An FFT is 22 dependent passes over the whole array. There is no way to fuse
+ * An FFT is 14 dependent passes over the whole array. There is no way to fuse
  * them without shared memory, so every backend does the same thing: bit-reverse
- * once, then 22 gather passes, ping-ponging between two buffers. Two honest
+ * once, then 14 gather passes, ping-ponging between two buffers. Two honest
  * consequences, both of which the row should be read as including:
  *
  *   • The gather form computes each output element independently, so it does
@@ -28,18 +30,22 @@
  *
  * ── Numerics ────────────────────────────────────────────────────────────────
  *
- * 22 stages of fp32 is exactly the case where a checksum tolerance of 1e-4
+ * 14 stages of fp32 is exactly the case where a checksum tolerance of 1e-4
  * might not be honestly reachable, so it was measured rather than assumed: an
  * fp32-throughout evaluation (every operation rounded with Math.fround) differs
- * from this oracle by 2.0e-9 on the checksum. An FFT is well conditioned and
- * reduce() sums magnitudes, which are non-negative and cannot cancel, so the
- * margin is four orders of magnitude. Individual bins near a zero of the
- * spectrum disagree by much more than that, and always will; a checksum that
- * cared about them would be measuring cancellation, not correctness.
+ * from this oracle by 7.0e-9 on the checksum, and the GL backends come in at
+ * 7.2e-9. An FFT is well conditioned and reduce() sums magnitudes, which are
+ * non-negative and cannot cancel, so the margin is four orders of magnitude.
+ * Individual bins near a zero of the spectrum disagree by much more than that,
+ * and always will; a checksum that cared about them would be measuring
+ * cancellation, not correctness.
+ *
+ * Worth stating plainly because it was once wrongly blamed for this row: fp32
+ * has never been anywhere near the reason a column on it disagreed.
  *
  * Memory: the ping-pong textures are 2n floats each. gpu.js stores a single
- * float per RGBA32F texel, so each is ~134 MB on the GL backends. That is the
- * reason this row is 2²² and not 2²⁴.
+ * float per RGBA32F texel, so each is 0.5 MB on the GL backends. Memory is not
+ * what caps this row — the 16,384 texture-width limit is; see LOG2N below.
  */
 
 // 14, not 22. The ping-pong output is [n, 2], so n IS the texture width, and
@@ -81,7 +87,7 @@ export default {
   make({ n }) {
     const { re, im } = makeSignal(n);
     // Half the circle is enough: stage `len` wants e^(-2πi·j/len) for j < len/2,
-    // which is entry j·(n/len) of this table. One table serves all 22 stages.
+    // which is entry j·(n/len) of this table. One table serves all 14 stages.
     const half = n >> 1;
     const twRe = new Float32Array(half);
     const twIm = new Float32Array(half);
@@ -152,7 +158,7 @@ export default {
   // kernel call resolves to a promise on the WebGPU backend. runner.js awaits
   // this builder; the uploads are outside the timed region either way.
   async gpujs(gpu, { n, bits }, { re, im, twRe, twIm }) {
-    // Pipeline + immutable is what makes 22 passes possible without touching the
+    // Pipeline + immutable is what makes 14 passes possible without touching the
     // host: each call hands back a GPU-resident handle, and immutable gives each
     // call its own storage so a kernel can be fed its own previous output
     // without reading and writing the same texture in one dispatch.
@@ -250,7 +256,7 @@ export default {
       async run() {
         // await on every handoff: on the WebGPU backend a kernel call is a
         // promise, and on the GL backends awaiting a texture is free. Without it
-        // this loop would enqueue 23 dispatches and return before any ran.
+        // this loop would enqueue 16 dispatches and return before any ran.
         let cur = await bitrev(re, im);
         for (let s = 0; s < bits; s++) {
           const len = 2 << s;
@@ -276,7 +282,7 @@ export default {
 
   /**
    * Hand-written WGSL. Structurally identical to the gpu.js version — bit
-   * reverse, 22 gather passes, magnitude — with one difference that is the
+   * reverse, 14 gather passes, magnitude — with one difference that is the
    * whole point of this column: a WGSL kernel can write a vec2, so one thread
    * owns one complex number and reads the twiddle and the partner once instead
    * of twice.
@@ -341,7 +347,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   if (i >= dim.n) { return; }
   // The same arithmetic loop as js() and the gpu.js kernel. reverseBits() would
   // do it in one instruction here, but keeping the three implementations
-  // textually comparable is worth more than 22 cycles that run once per element.
+  // textually comparable is worth more than 14 cycles that run once per element.
   var r: u32 = 0u;
   var v: u32 = i;
   for (var b: u32 = 0u; b < dim.bits; b = b + 1u) {

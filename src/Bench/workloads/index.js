@@ -62,7 +62,6 @@ import odeRk4 from './ode-rk4.js';
 import opticalFlow from './optical-flow.js';
 import pathTrace from './path-trace.js';
 import prefixSum from './prefix-sum.js';
-import radixSort from './radix-sort.js';
 import reduction from './reduction.js';
 import residency from './residency.js';
 import sdfMarch from './sdf-march.js';
@@ -84,7 +83,7 @@ export const GROUPS = [
   ['render', 'Rendering'],
 ];
 
-const WORKLOADS = [bitonicSort, blurSeparable, canny, compaction, dftNaive, erosion, escapeTime, fft, gradientDescent, grayScott, heat, histogram, ising, jacobi, launchOverhead, life, matmul, monteCarlo, nbody, nccTemplate, odeRk4, opticalFlow, pathTrace, prefixSum, radixSort, reduction, residency, sdfMarch, seamCarving, sobel, spectralFilter, stft, topk, undersized, wavefront];
+const WORKLOADS = [bitonicSort, blurSeparable, canny, compaction, dftNaive, erosion, escapeTime, fft, gradientDescent, grayScott, heat, histogram, ising, jacobi, launchOverhead, life, matmul, monteCarlo, nbody, nccTemplate, odeRk4, opticalFlow, pathTrace, prefixSum, reduction, residency, sdfMarch, seamCarving, sobel, spectralFilter, stft, topk, undersized, wavefront];
 
 const REQUIRED = ['id', 'name', 'params', 'tag', 'size', 'js', 'gpujs', 'reduce'];
 const seen = new Set();

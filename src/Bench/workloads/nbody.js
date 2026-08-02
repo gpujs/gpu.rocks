@@ -126,6 +126,18 @@ export default {
   },
 
   gpujs(gpu, { n, soft2, g }, { x, y, z, m }) {
+    // `bodies` and `grav`, not `n` and `g`. The CPU backend translates every
+    // identifier that MATCHES A CONSTANT'S NAME into `constants_<name>`, kernel
+    // locals included — so a local called `g` is emitted as `const constants_g =
+    // …` and shadows the real constant for the rest of the thread body. The
+    // kernel source below has no such local, but the minifier does: the built
+    // bundle renames `zi` to `g`, and the row then multiplied every |a_i| by
+    // z_i instead of by G. Only the CPU column was wrong, because only its
+    // transpiler puts constants and locals in one flat namespace.
+    //
+    // Renaming the local is not the fix — that is what the minifier controls.
+    // Renaming the CONSTANT is: minified identifiers are one or two characters,
+    // so a constant whose name is longer than that can never be collided with.
     const kernel = gpu
       .createKernel(function (px, py, pz, pm) {
         const xi = px[this.thread.x];
@@ -134,7 +146,7 @@ export default {
         let ax = 0;
         let ay = 0;
         let az = 0;
-        for (let j = 0; j < this.constants.n; j++) {
+        for (let j = 0; j < this.constants.bodies; j++) {
           const dx = px[j] - xi;
           const dy = py[j] - yi;
           const dz = pz[j] - zi;
@@ -144,9 +156,9 @@ export default {
           ay += dy * inv;
           az += dz * inv;
         }
-        return this.constants.g * Math.sqrt(ax * ax + ay * ay + az * az);
+        return this.constants.grav * Math.sqrt(ax * ax + ay * ay + az * az);
       })
-      .setConstants({ n, soft2, g })
+      .setConstants({ bodies: n, soft2, grav: g })
       .setOutput([n]);
 
     return {

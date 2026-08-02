@@ -83,7 +83,16 @@ export function webgpuSupported() {
 //   auto   -> 'async'  best available: WebGPU when an adapter answers, WebGL
 //                      otherwise. Kernels ALWAYS return a Promise in this mode,
 //                      whichever backend wins, which is why every task awaits.
-//   webgpu -> 'webgpu' explicit. Refuses graphical, ImageData and Math.random.
+//   webgpu -> 'webgpu' explicit. Refuses ImageData and Math.random.
+//                      Graphical kernels now COMPILE and paint here (gpu.js
+//                      develop) -- verified pixel-identical to WebGL2 on the
+//                      main thread -- and the worker supplies the
+//                      OffscreenCanvas that WebGPU's initCanvas will not make
+//                      for itself. Two caveats remain, both measured: reading
+//                      pixels back off that canvas inside the worker still
+//                      comes out black for some tasks, and gpu.js declines the
+//                      mid-run UPGRADE of an existing graphical kernel because
+//                      a canvas cannot change backend once it has one.
 //   webgl  -> 'gpu'    the WebGL2/WebGL backend. Synchronous.
 //   cpu    -> 'cpu'    single-threaded JavaScript.
 //
@@ -495,7 +504,7 @@ export async function executeRun(
       type: 'system',
       time: timeString(),
       text: webgpuOk
-        ? '▸ mode "webgpu" → selected WebGPU (no graphical, ImageData or Math.random)'
+        ? '▸ mode "webgpu" → selected WebGPU (no ImageData or Math.random)'
         : `▸ mode "webgpu" requested but this browser has no navigator.gpu — falling back to ${resolvedMode === 'gpu' ? 'WebGL' : 'cpu'}`,
     });
   } else if (task && task.backend === 'webgl') {
@@ -541,7 +550,19 @@ export async function executeRun(
   // GPU subclass: forces the resolved mode, records instances and kernels.
   class RecordingGPU extends GPU {
     constructor(settings = {}) {
-      super({ ...settings, mode: resolvedMode });
+      // A graphical kernel needs a canvas, and in the worker there is no
+      // document to make one from. The GL backends already cope (their
+      // initCanvas goes through utils, which knows about OffscreenCanvas);
+      // WebGPU's checks for `document` directly and returns null, so a
+      // graphical task fails with "graphical mode requires a canvas". Supply
+      // one rather than let the whole mode be unusable off the main thread.
+      const needsCanvas =
+        !settings.canvas && typeof document === 'undefined' && typeof OffscreenCanvas !== 'undefined';
+      super({
+        ...settings,
+        ...(needsCanvas ? { canvas: new OffscreenCanvas(1, 1) } : null),
+        mode: resolvedMode,
+      });
       instances.push(this);
       previousInstances.push(this);
     }
@@ -843,8 +864,17 @@ export function buildTestContext(runResult, task) {
     assert,
     assertClose,
     assertNotPromise,
-    // Uint8ClampedArray from the last graphical kernel's getPixels();
-    // falls back to a 2D readback of the run's canvas.
+    // Uint8ClampedArray from the last graphical kernel's getPixels(), or a
+    // 2D readback of the run's canvas when that is async (WebGPU) or absent.
+    // Awaitable. gpu.js returns a Promise from getPixels() under the async
+    // contract — on every backend, not just WebGPU — and 'auto' is the mode
+    // almost every learner runs in. Tests are already `async ctx => ...`, so
+    // they await this; `await` on a plain array is a no-op, which keeps the
+    // explicit webgl/cpu modes working unchanged.
+    //
+    // Resolving once at end-of-run and caching was tried and is WRONG: several
+    // tests re-run their kernel and then read pixels, so a cached value is a
+    // picture from before the thing under test.
     getPixels(flip) {
       for (let i = kernels.length - 1; i >= 0; i--) {
         const k = kernels[i];

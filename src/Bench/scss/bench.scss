@@ -152,18 +152,24 @@
   thead th:first-child { text-align: left; left: 0; z-index: 20; }
   thead th.bare { color: var(--amber); }
 
+  // A th with display:grid is not a table-cell any more, and position:sticky
+  // stops tracking the scroll container: the header stayed pinned while these
+  // scrolled out from under it. The grid goes on an inner div instead.
   tbody th.work {
     position: sticky; left: 0; background: var(--surface); z-index: 5; text-align: left;
     padding: .55rem .8rem; border-bottom: 1px solid var(--cellgrid); font-weight: 600;
-    display: grid; grid-template-columns: auto 1fr; gap: 0 .55rem; align-items: center;
     min-width: 330px;
+  }
+  .workinner {
+    display: grid; grid-template-columns: auto 1fr; gap: 0 .55rem; align-items: center;
   }
   .run-one {
     grid-row: 1 / 3; width: 32px; height: 32px; display: grid; place-items: center;
     border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2);
     color: var(--teal); cursor: pointer;
   }
-  .run-one:hover { border-color: var(--teal); }
+  .run-one:hover:not([disabled]) { border-color: var(--teal); }
+  .run-one[disabled] { opacity: .35; cursor: not-allowed; }
   .wname { font-size: .88rem; }
   .wdesc { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .72rem; color: var(--muted); grid-column: 2; }
   .tag {
@@ -178,18 +184,53 @@
     white-space: nowrap; font-variant-numeric: tabular-nums;
   }
   tbody tr:hover th.work, tbody tr:hover td { background: color-mix(in srgb, var(--blue) 5%, transparent); }
-  .t { display: block; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .82rem; }
-  .x { display: block; font-size: .68rem; font-weight: 700; letter-spacing: .02em; }
+  // the factor is the headline, the time is its evidence
+  .x {
+    display: block; font-size: 1.08rem; font-weight: 800; letter-spacing: -.01em;
+    line-height: 1.15; font-variant-numeric: tabular-nums;
+  }
+  .t {
+    display: block; font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: .7rem; color: var(--muted); margin-top: .1rem;
+  }
   .x.win { color: var(--teal); }
   .x.flat { color: var(--muted); }
   .x.lose { color: var(--pink); }
-  .x.base { color: var(--muted); opacity: .6; }
+  .x.base { color: var(--muted); opacity: .55; font-weight: 700; font-size: .9rem; }
   td.bare { background: color-mix(in srgb, var(--amber) 7%, transparent); }
-  td.baseline .t { color: var(--amber); }
+  td.baseline .t { color: var(--amber); font-size: .78rem; }
   td .dash { color: var(--muted); opacity: .5; font-family: ui-monospace, monospace; font-size: .78rem; }
   td.err .dash { color: var(--pink); opacity: .9; }
   .fell { display: block; font-size: .6rem; color: var(--pink); font-weight: 700; }
-  .spin { color: var(--teal); letter-spacing: .1em; }
+  // Which cell is being measured right now. A dash cannot distinguish "not
+  // started" from "has been running for twelve seconds", and the plain-JS
+  // baseline routinely takes that long.
+  .spin { display: inline-flex; gap: 4px; align-items: center; height: 1.9em; }
+  .spin i {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--teal);
+    opacity: .25; animation: bench-dot 1.1s ease-in-out infinite;
+  }
+  .spin i:nth-child(2) { animation-delay: .16s; }
+  .spin i:nth-child(3) { animation-delay: .32s; }
+  @keyframes bench-dot {
+    0%, 70%, 100% { opacity: .22; transform: translateY(0); }
+    35%           { opacity: 1;   transform: translateY(-3px); }
+  }
+  td.working {
+    background: color-mix(in srgb, var(--teal) 9%, transparent);
+    animation: bench-cell 1.6s ease-in-out infinite;
+  }
+  @keyframes bench-cell {
+    0%, 100% { background: color-mix(in srgb, var(--teal) 6%, transparent); }
+    50%      { background: color-mix(in srgb, var(--teal) 15%, transparent); }
+  }
+  // A benchmark page that pulses for minutes is a poor guest on a machine whose
+  // owner asked for less of it; the state still has to be legible, so the dots
+  // stay put rather than disappearing.
+  @media (prefers-reduced-motion: reduce) {
+    .spin i { animation: none; opacity: .75; }
+    td.working { animation: none; }
+  }
   tbody tr.running th.work { box-shadow: inset 3px 0 0 var(--teal); }
 
   .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .8rem; margin-top: 1.2rem; }
@@ -220,9 +261,24 @@
     .nav.open .links a { padding: .62rem .2rem; border-bottom: 1px solid var(--line); }
     .nav.open .links a:last-child { border-bottom: none; }
 
-    // At 330px the work column filled a phone and the numbers were off-screen
-    // with nothing to say they existed.
-    tbody th.work { min-width: 180px; max-width: 180px; }
+    // NOT sticky on a phone. A frozen 190px column leaves ~200px for the
+    // numbers, which is one and a half columns — so the table was unreadable in
+    // both directions at once: the name was clipped AND the figures were. Let
+    // the whole row scroll instead. The name gets its natural width, and
+    // scrolling right shows the numbers against a work column you have just
+    // read, which at this size is a better trade than seeing both badly.
+    // The table's own min-width is what sizes the columns — capping the cell or
+    // its contents does nothing, because the layout algorithm still shares out
+    // 1080px. Shrink the table instead, then pin the work column's width.
+    table { min-width: 820px; }
+    tbody th.work,
+    thead th:first-child {
+      position: static;
+      width: 190px;
+      min-width: 190px;
+      white-space: normal;
+    }
+    .wname, .wdesc { overflow-wrap: anywhere; }
     .wname { font-size: .8rem; }
     .wdesc { font-size: .66rem; }
     .tag { display: none; }

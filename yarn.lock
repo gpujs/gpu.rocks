@@ -2018,10 +2018,9 @@ gpu-mock.js@^1.4.1:
   resolved "https://registry.yarnpkg.com/gpu-mock.js/-/gpu-mock.js-1.4.1.tgz#390f9d22667f9e3e73416d4e1f3f1261d0906a0a"
   integrity sha512-LhCznlFsadwIJCYysx9OJZ4TXluvnKyBHZXt0F3Dbh5ENWbZsCm7TIyrOY2Dh/4DvaOfK67rAmDLYHFqBZ6B1Q==
 
-gpu.js@^2.20.0:
+gpu.js@gpujs/gpu.js#develop:
   version "2.20.0"
-  resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.20.0.tgz#4bd5d24e1a527f2abf29a3eb6fd6c83e9942b6bd"
-  integrity sha512-Tt+9ttmKkABqdXlwaWBPRPS1G7BnEQYqurR1pYzGMuJ0A3O7QswZ3mcZbI6Iz0W+YyC9PZYAbrkPQ0wltSPS7g==
+  resolved "https://codeload.github.com/gpujs/gpu.js/tar.gz/a15c9945ea877bd7599df83ee902c30aa8393d07"
   dependencies:
     acorn "8.14.0"
     gl "8.1.6"
@@ -2128,9 +2127,9 @@ internmap@^1.0.0:
   integrity sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw==
 
 ip-address@^10.1.1:
-  version "10.2.2"
-  resolved "https://registry.yarnpkg.com/ip-address/-/ip-address-10.2.2.tgz#52ca28ae978e483fce9ef5d2691b1a83dcbef2b9"
-  integrity sha512-aNJVEVdXTr/g5+N2VCLo+CTrFLo/Y+9rx9RC5BpxPtf7NEknmzY+UQvMO8Fjni5KFmDaHJieL8HCMJKjJXsTgg==
+  version "10.4.0"
+  resolved "https://registry.yarnpkg.com/ip-address/-/ip-address-10.4.0.tgz#c5910bc541b6eae287765d1e4846be0308a05d93"
+  integrity sha512-oSK96Grm3aP6OrS263xVxbNDGVL7rzBtYdpGqlDG8iQdoenDoTs/nkki+DflYbAEE8Xl6o5YxhxlrKvI3nqKXQ==
 
 is-alphabetical@^1.0.0:
   version "1.0.4"

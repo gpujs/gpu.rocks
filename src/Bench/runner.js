@@ -92,15 +92,36 @@ async function timeIt(run) {
   return { ms: median(samples), reps: samples.length, min: Math.min(...samples), value };
 }
 
-/** Does this browser actually have a WebGPU adapter? Presence of navigator.gpu does not prove it. */
-export async function webgpuAvailable() {
-  try {
-    if (!navigator.gpu) return false;
-    const adapter = await navigator.gpu.requestAdapter();
-    return Boolean(adapter);
-  } catch (e) {
-    return false;
+/**
+ * Why WebGPU is or is not usable here — the reason, not just a boolean.
+ *
+ * There are three quite different ways to have no WebGPU, and reporting all of
+ * them as "no adapter" sends people hunting for a driver problem they do not
+ * have. The common one by far is the first: navigator.gpu is only exposed in a
+ * SECURE CONTEXT, and `http://<lan-ip>` is not one — localhost is, by special
+ * case, so a page that works on the dev machine reports no WebGPU the moment it
+ * is opened from a phone on the same network.
+ */
+export async function webgpuStatus() {
+  if (typeof window !== 'undefined' && window.isSecureContext === false) {
+    return { ok: false, reason: 'WebGPU needs a secure context — this page is plain http, so navigator.gpu is not exposed. Use https or localhost.' };
   }
+  if (typeof navigator === 'undefined' || !navigator.gpu) {
+    return { ok: false, reason: 'this browser does not implement WebGPU' };
+  }
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    return adapter
+      ? { ok: true, reason: 'WebGPU adapter present' }
+      : { ok: false, reason: 'WebGPU is implemented but no adapter is available here' };
+  } catch (e) {
+    return { ok: false, reason: `requestAdapter threw: ${String(e.message || e).slice(0, 80)}` };
+  }
+}
+
+/** Boolean form, for the column guards. */
+export async function webgpuAvailable() {
+  return (await webgpuStatus()).ok;
 }
 
 async function webgpuDevice() {
@@ -113,7 +134,7 @@ async function webgpuDevice() {
  * Runs one workload across every column. Yields a result per column through
  * `onCell` as it goes, so a long row fills in rather than appearing at the end.
  */
-export async function runWorkload(workload, { GPU, onCell, signal } = {}) {
+export async function runWorkload(workload, { GPU, onCell, signal, makeCanvas } = {}) {
   const size = workload.size;
   const inputs = workload.make ? workload.make(size) : null;
   const cells = {};
@@ -126,9 +147,13 @@ export async function runWorkload(workload, { GPU, onCell, signal } = {}) {
 
   for (const col of ordered) {
     if (signal && signal.aborted) break;
+    // Say which column is being measured before measuring it. Without this the
+    // table shows a dash for however long the cell takes — up to 20 s for a
+    // plain-JS baseline — and a reader cannot tell working from stuck.
+    if (onCell) onCell(col.id, { running: true });
     let cell;
     try {
-      cell = await runColumn(workload, col, { GPU, size, inputs });
+      cell = await runColumn(workload, col, { GPU, size, inputs, makeCanvas });
       if (cell.value !== undefined && workload.reduce) {
         cell.check = workload.reduce(cell.value, size);
         delete cell.value;
@@ -147,7 +172,7 @@ export async function runWorkload(workload, { GPU, onCell, signal } = {}) {
   return cells;
 }
 
-async function runColumn(workload, col, { GPU, size, inputs }) {
+async function runColumn(workload, col, { GPU, size, inputs, makeCanvas }) {
   if (col.kind === 'js') {
     if (!workload.js) return { na: true, reason: 'no plain-JS reference' };
     return timeIt(() => workload.js(size, inputs));
@@ -155,7 +180,8 @@ async function runColumn(workload, col, { GPU, size, inputs }) {
 
   if (col.kind === 'webgpu') {
     if (!workload.webgpu) return { na: true, reason: workload.webgpuReason || 'no bare WebGPU implementation' };
-    if (!(await webgpuAvailable())) return { na: true, reason: 'no WebGPU adapter on this machine' };
+    const status = await webgpuStatus();
+    if (!status.ok) return { na: true, reason: status.reason };
     const device = await webgpuDevice();
     const built = await workload.webgpu(device, size, inputs);
     try {
@@ -169,8 +195,9 @@ async function runColumn(workload, col, { GPU, size, inputs }) {
   // gpu.js, pinned to one backend. `mode` is explicit on purpose: 'gpu' would
   // silently pick whichever of webgl2/webgl exists, and then two columns would
   // be the same measurement wearing different labels.
-  if (col.mode === 'webgpu' && !(await webgpuAvailable())) {
-    return { na: true, reason: 'no WebGPU adapter on this machine' };
+  if (col.mode === 'webgpu') {
+    const status = await webgpuStatus();
+    if (!status.ok) return { na: true, reason: status.reason };
   }
   if (workload.declines && workload.declines.includes(col.mode)) {
     return { na: true, reason: workload.declinesReason || 'this kernel cannot run on that backend' };
@@ -179,7 +206,8 @@ async function runColumn(workload, col, { GPU, size, inputs }) {
   let gpu = null;
   let built = null;
   try {
-    gpu = new GPU({ mode: col.mode });
+    // a worker has no document for gpu.js to take a canvas from
+    gpu = new GPU(makeCanvas ? { mode: col.mode, canvas: makeCanvas() } : { mode: col.mode });
     built = await workload.gpujs(gpu, size, inputs);
     const out = await timeIt(() => built.run());
     // gpu.js swaps in a CPU kernel rather than failing when a kernel will not

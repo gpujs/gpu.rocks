@@ -119,9 +119,19 @@ export default {
     const step = () =>
       gpu
         .createKernel(function (a) {
-          // `dim`, not `n`: a kernel-local named after one of the kernel's own
-          // constants collides with the CPU backend's generated `constants_n`.
-          const dim = this.constants.n;
+          // `side`, not `n`. The CPU backend translates every identifier that
+          // MATCHES A CONSTANT'S NAME into `constants_<name>`, kernel locals
+          // included, so a local called `n` would be emitted as
+          // `const constants_n = …` and shadow the real constant for the rest
+          // of the thread body — silently, and only on that one column.
+          //
+          // Naming the local `dim` is not enough on its own, because the local
+          // names in the shipped bundle are the MINIFIER's, not ours, and a
+          // one-character constant is exactly what a minifier hands out. (This
+          // is not hypothetical: it is what went wrong in nbody.js, where a
+          // local minified to `g` collided with the constant `g`.) A constant
+          // whose name is longer than two characters cannot be collided with.
+          const dim = this.constants.side;
           const x = this.thread.x;
           const y = this.thread.y;
 
@@ -145,7 +155,7 @@ export default {
           if (live === 2) return a[y][x];
           return 0;
         })
-        .setConstants({ n })
+        .setConstants({ side: n })
         .setPipeline(true)
         .setPrecision('single')
         .setOutput([n, n]);
