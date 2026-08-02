@@ -17,9 +17,9 @@
  * WHY THE DATA STAYS RESIDENT. The array is handed to the GPU once per run and
  * read back once per run; the 512 passes ping-pong between two GPU-side
  * buffers. Uploading 4 MB before each pass would be a perfectly good benchmark
- * of PCIe, and this table already has one of those — see `undersized`. This row
- * is about dispatch, so the transfer is paid once and the launches are what is
- * left.
+ * of PCIe, and a poor one of dispatch — the transfer would dominate and the
+ * launches would be invisible underneath it. This row is about dispatch, so the
+ * transfer is paid once and the launches are what is left.
  *
  * EXPECT THE GPU COLUMNS TO LOOK BAD. That is the finding, not a defect. One
  * add per thread over 4 MB is arithmetic intensity of essentially zero, so the

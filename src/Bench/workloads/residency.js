@@ -26,9 +26,9 @@
  * traffic, for a pipeline whose arithmetic is five adds, nine absolute values
  * and three multiplies per pixel per round.
  *
- * That ratio is why residency is not a micro-optimisation. Read this row beside
- * `undersized`, which is nothing but a round trip: there, one dispatch's worth
- * of transfer is the entire cost. Here there are thirty of those round trips
+ * That ratio is why residency is not a micro-optimisation. A kernel small
+ * enough that one dispatch's worth of transfer IS the entire cost is the
+ * degenerate case of this row. Here there are thirty of those round trips
  * waiting to be paid, each of a 9 MiB plane, and the only reason they are not
  * paid is a boolean.
  *

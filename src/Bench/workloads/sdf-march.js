@@ -337,12 +337,20 @@ export default {
         if (h > 1) h = 1;
         return s + (d - s) * h - 0.45 * h * (1 - h);
       },
-      // name given explicitly: the minifier strips it off the function
-      // expression, and the kernel calls sdfScene by this name (gpu.js#863)
-      // name and ARRAY-form types given explicitly: the minifier strips the
-      // name off the function expression and renames its parameters, so the
-      // object form keyed by px/py/pz stops matching (gpu.js#863)
-      { name: 'sdfScene', argumentTypes: ['Number', 'Number', 'Number'], returnType: 'Number' }
+      // ARRAY-form types because the minifier renames this expression's
+      // parameters, so an object form keyed by px/py/pz stops matching
+      // (gpu.js#863).
+      //
+      // And the name is READ OFF the module-scope sdfScene rather than written
+      // as the string 'sdfScene'. The kernel below calls sdfScene(), which
+      // resolves lexically to that module-scope declaration — so the minifier
+      // renames the declaration to something like `q` AND rewrites the call
+      // site to match, while a hard-coded string registered the added function
+      // under 'sdfScene'. Every gpu.js backend then failed identically with
+      // "Identifier is not defined: q". Taking the name from the same binding
+      // the call site resolves to is correct minified and unminified, because
+      // it is by construction whatever that binding ended up being called.
+      { name: sdfScene.name, argumentTypes: ['Number', 'Number', 'Number'], returnType: 'Number' }
     );
 
     // No kernel arguments at all: nothing is uploaded, so this row is pure

@@ -130,7 +130,13 @@ const SKY_GRADIENT = fp32(0.42);
 const SUN_AMPLITUDE = fp32(3);
 
 const T_MIN = fp32(1e-4); // ignore hits at the ray origin
-const T_MISS = fp32(1e30);
+// 1e9 and not 1e30: gpu.js appends '.0' to any integer-valued number it emits
+// into GLSL, and JS renders anything from 1e21 up in exponential form, so 1e30
+// became the literal `1e+30.0` and neither WebGL backend would compile the
+// shader (gpujs/gpu.js#864). Any sentinel below 1e21 renders as digits and is
+// safe; 1e9 is nine orders of magnitude past the far wall of a unit-scale
+// scene, so nothing that is actually hit can reach it.
+const T_MISS = fp32(1e9);
 const OFFSET = fp32(1e-3); // push the next origin off the surface
 
 // ── The generator (see monte-carlo.js for the full write-up and its testing) ─
