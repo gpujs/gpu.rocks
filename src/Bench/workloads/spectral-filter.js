@@ -27,7 +27,13 @@
  * here, for the same reason.
  */
 
-const LOG2N = 21;
+// 14, not 22. The ping-pong output is [n, 2], so n IS the texture width, and
+// WebGL caps a texture dimension at 16,384 on both GL backends — measured, not
+// assumed. There is nothing to chunk here the way the STFT row chunks its
+// frames: a single transform's working set is the whole signal, so the platform
+// limit sets the row's size outright and the 0.2-3 s sizing band cannot be met.
+// The limit wins; the row says so rather than being quietly dropped.
+const LOG2N = 14;
 const N = 1 << LOG2N;
 const TWO_PI = Math.PI * 2;
 // The Gaussian low-pass keeps the lowest 1/256th of the spectrum, so its width
@@ -40,9 +46,11 @@ const DELAY = 5;
 export default {
   id: 'spectral-filter',
   name: 'FFT convolution',
-  params: `2²¹ points · forward + multiply + inverse, fp32`,
+  params: `2¹⁴ points · forward + multiply + inverse, fp32`,
   tag: 'frequency-domain multiply',
   group: 'transform',
+  // Below the sizing band by necessity, not by choice — see LOG2N above.
+  sizeExempt: true,
   size: { n: N, bits: LOG2N },
 
   make({ n }) {

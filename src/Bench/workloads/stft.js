@@ -37,7 +37,12 @@ const FRAMES = 6144;
 const BINS = 2048;
 const LOG2_BINS = 11;
 const HOP = BINS / 2;
-const CHUNK_FRAMES = 1024;
+// 8, not 1024. The ping-pong output is [chunkFrames * bins, 2], so the texture
+// is that wide, and WebGL caps a dimension at 16,384 on both GL backends
+// (measured). 8 x 2048 = 16,384 exactly. My first cut used 16 and assumed the
+// half-spectrum; the kernel ping-pongs the FULL bins, so it asked for 32,768.
+// Only the chunk shrinks: all 6144 frames are still transformed, in more passes.
+const CHUNK_FRAMES = 8;
 const TWO_PI = Math.PI * 2;
 
 export default {

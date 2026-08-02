@@ -42,7 +42,13 @@
  * reason this row is 2²² and not 2²⁴.
  */
 
-const LOG2N = 22;
+// 14, not 22. The ping-pong output is [n, 2], so n IS the texture width, and
+// WebGL caps a texture dimension at 16,384 on both GL backends — measured, not
+// assumed. There is nothing to chunk here the way the STFT row chunks its
+// frames: a single transform's working set is the whole signal, so the platform
+// limit sets the row's size outright and the 0.2-3 s sizing band cannot be met.
+// The limit wins; the row says so rather than being quietly dropped.
+const LOG2N = 14;
 const N = 1 << LOG2N;
 const TWO_PI = Math.PI * 2;
 
@@ -65,9 +71,11 @@ function makeSignal(n) {
 export default {
   id: 'fft',
   name: 'Radix-2 FFT',
-  params: `2²² complex points · ${LOG2N} stages, fp32`,
+  params: `2¹⁴ complex points · ${LOG2N} stages, fp32`,
   tag: 'O(n log n) transform',
   group: 'transform',
+  // Below the sizing band by necessity, not by choice — see LOG2N above.
+  sizeExempt: true,
   size: { n: N, bits: LOG2N },
 
   make({ n }) {

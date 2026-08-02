@@ -10,6 +10,25 @@ export default defineConfig({
     // unguarded, which throws before the app renders anything.
     global: 'globalThis',
   },
+  // Minify names and whitespace, but NOT syntax.
+  //
+  // gpu.js compiles a kernel by parsing `fn.toString()`, so whatever the
+  // minifier leaves behind is the language its transpiler has to accept. The
+  // default esbuild pass rewrites ordinary statements into forms it cannot
+  // parse — measured on a real kernel, not assumed:
+  //
+  //   sum += v; if (v > hi) hi = v;   ->   t+=s,s>n&&(n=s)
+  //   if (sum < 0) sum = 0; return …  ->   return t<0&&(t=0),t+n
+  //
+  // which is where "does not yet support the comma operator", "assignment used
+  // as an expression" and GLSL's "'&&' : wrong operand types" all came from.
+  // Turning off syntax rewriting keeps every kernel parseable and still mangles
+  // identifiers and strips whitespace, so the size cost is small.
+  //
+  // This applies to any bundled gpu.js kernel, not just ours.
+  esbuild: {
+    minifySyntax: false,
+  },
   build: {
     outDir: 'dist',
     // the benchmark legitimately pulls in gpu.js and @nivo
