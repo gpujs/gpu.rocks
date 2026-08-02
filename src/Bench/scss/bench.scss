@@ -233,6 +233,85 @@
   }
   tbody tr.running th.work { box-shadow: inset 3px 0 0 var(--teal); }
 
+
+  // ---- run options ----
+  .opts {
+    display: flex; gap: 1.2rem; align-items: flex-start; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: .7rem .9rem; margin-bottom: .9rem; font-size: .82rem;
+  }
+  .opt { display: flex; align-items: flex-start; gap: .5rem; }
+  .opt.brief { max-width: 40ch; }
+  .opt.brief span { color: var(--muted); }
+  .opt.brief b { color: var(--ink); }
+  .opt input[type='checkbox'] {
+    // materialize hides checkboxes and draws its own; this page does not use
+    // its markup, so the native control has to be put back
+    position: static; opacity: 1; pointer-events: auto; width: 16px; height: 16px;
+    margin: .15rem 0 0; accent-color: var(--teal); cursor: pointer;
+  }
+  // ...and materialize ALSO draws a checkbox out of `[type=checkbox] + span`
+  // pseudo-elements, which is exactly this markup — so every box rendered
+  // twice, a real one next to a large drawn tick. Cancel its version.
+  .opt input[type='checkbox'] + span::before,
+  .opt input[type='checkbox'] + span::after {
+    content: none !important;
+    display: none !important;
+  }
+  // materialize also pins that span to height:25px / line-height:25px for its
+  // own single-line checkbox label. Three wrapped lines are 75px, so the text
+  // simply spilled out of the box and over the controls below it.
+  .opt label > span,
+  .opt.brief > span {
+    padding-left: 0 !important;
+    height: auto !important;
+    line-height: 1.4 !important;
+    position: static !important;
+  }
+  .opt input[type='checkbox'][disabled] { cursor: not-allowed; opacity: .55; }
+  .opt.cols { flex-wrap: wrap; gap: .1rem .9rem; align-items: center; }
+  .opt.cols .lbl {
+    font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin-right: .2rem;
+  }
+  .opt.cols label { display: flex; align-items: center; gap: .35rem; cursor: pointer; }
+  .opt.cols label > span { display: flex; flex-direction: column; line-height: 1.15; }
+  .opt.cols label i { font-style: normal; font-size: .62rem; color: var(--muted); }
+  .opt.cols label.bare > span { color: var(--amber); }
+
+  // ---- the long-run warning ----
+  //
+  // NOT .modal: materialize-css owns that class and ships `display: none` on
+  // it, so the dialog rendered at 0x0 with the backdrop blurring an empty
+  // screen. Same trap as its `.thumb` rule.
+  .runwarn-wrap {
+    position: fixed; inset: 0; z-index: 200; display: flex;
+    align-items: center; justify-content: center; padding: 1.2rem;
+    background: rgba(6, 3, 24, .55); backdrop-filter: blur(3px);
+  }
+  .runwarn {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 1.3rem 1.4rem; max-width: 34rem;
+  }
+  .runwarn h2 {
+    font-family: 'Montserrat', 'Avenir Next', Futura, sans-serif !important;
+    font-weight: 800 !important; font-size: 1.4rem !important;
+    line-height: 1.2 !important; margin: 0 0 .6rem !important;
+  }
+  .runwarn p { margin: 0 0 .7rem; font-size: .88rem; color: var(--muted); }
+  .runwarn p.alt { color: var(--ink); }
+  .runwarn-actions { display: flex; gap: .5rem; flex-wrap: wrap; justify-content: flex-end; margin-top: 1rem; }
+
+  @media (max-width: 720px) {
+    // stacked, not wrapped: at this width the two groups wrapped into each
+    // other and the brief description ran straight through the column boxes
+    .opts { flex-direction: column; gap: .9rem; }
+    .opt.brief { max-width: none; }
+    .opt.cols { gap: .55rem .9rem; }
+    .opt.cols .lbl { flex: 1 0 100%; margin: 0 0 .1rem; }
+    .runwarn-actions .btn { flex: 1 1 auto; justify-content: center; }
+  }
+
   .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .8rem; margin-top: 1.2rem; }
   .legend > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .7rem .9rem; }
   .legend b { display: block; font-size: .78rem; margin-bottom: .15rem; }

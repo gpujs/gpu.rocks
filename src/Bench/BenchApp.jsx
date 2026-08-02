@@ -4,6 +4,7 @@ import { ThemeProvider, useTheme } from '../Learn/ThemeContext';
 import workloads, { GROUPS } from './workloads/index.js';
 import savedRuns from './saved/index.js';
 import { BASELINE, COLUMNS, runWorkload, webgpuStatus } from './runner.js';
+import { SIGNATURE_IDS, SIGNATURE_WHY } from './signature.js';
 import './scss/bench.scss';
 
 // The benchmark page. Same visual language as the course — same tokens, same
@@ -211,13 +212,25 @@ function BenchTable({ rows, results, onRun, readOnly }) {
 // what the footer promises.
 const ORDERED = (() => {
   const rank = new Map(GROUPS.map(([g], i) => [g, i]));
+  const sig = new Map(SIGNATURE_IDS.map((id, i) => [id, i]));
   return [...workloads].sort((a, b) => {
-    if (a.id === 'matmul') return -1;
-    if (b.id === 'matmul') return 1;
+    // The ten signature rows sit at the top in their own order, so brief mode
+    // is literally the first ten rows rather than a different table. matmul is
+    // first of those and therefore first overall.
+    const sa = sig.has(a.id) ? sig.get(a.id) : Infinity;
+    const sb = sig.has(b.id) ? sig.get(b.id) : Infinity;
+    if (sa !== sb) return sa - sb;
     const byGroup = (rank.has(a.group) ? rank.get(a.group) : 99) - (rank.has(b.group) ? rank.get(b.group) : 99);
     return byGroup || a.name.localeCompare(b.name);
   });
 })();
+
+const BRIEF = ORDERED.filter(w => SIGNATURE_IDS.includes(w.id));
+
+// Rough, and honest about being rough: measured wall time for a full pass is
+// tens of minutes and depends entirely on the machine. The number exists to set
+// an expectation before someone commits to it, not to be accurate.
+const MINUTES_FULL = 30;
 
 function BenchPage() {
   // The effective theme ('light' | 'dark'), never the preference: 'auto' is
@@ -226,6 +239,9 @@ function BenchPage() {
   // glyph and nothing else, and auto never resolved at all.
   const { theme } = useTheme();
   const [source, setSource] = useState('live');
+  const [brief, setBrief] = useState(true);
+  const [cols, setCols] = useState(() => new Set(COLUMNS.map(c => c.id)));
+  const [confirmFull, setConfirmFull] = useState(false);
   const [savedId, setSavedId] = useState(savedRuns.length ? savedRuns[0].id : '');
   const [live, setLive] = useState({});
   const [status, setStatus] = useState('idle');
@@ -277,6 +293,7 @@ function BenchPage() {
       runWorkload(w, {
         GPU,
         signal: ctl,
+        columns: [...cols],
         onCell: (colId, cell) =>
           setLive(prev => ({ ...prev, [w.id]: { ...(prev[w.id] || {}), __running: true, [colId]: cell } })),
       }).then(cells => {
@@ -299,7 +316,7 @@ function BenchPage() {
     };
     worker.addEventListener('message', onMessage);
     worker.postMessage({ id, workloadId: w.id });
-  }), []);
+  }), [cols]);
 
   const run = useCallback(async list => {
     const ctl = { aborted: false };
@@ -349,12 +366,12 @@ function BenchPage() {
             className="btn primary"
             disabled={running || readOnly}
             title={readOnly ? 'Showing a saved run — switch to Live to measure on this machine' : undefined}
-            onClick={() => run(ORDERED)}
+            onClick={() => (brief ? run(BRIEF) : setConfirmFull(true))}
           >
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
               <polygon points="6 4 20 12 6 20" fill="currentColor" />
             </svg>
-            Run all {workloads.length}
+            {brief ? `Run ${BRIEF.length}` : `Run all ${workloads.length}`}
           </button>
           <button
             type="button"
@@ -397,6 +414,46 @@ function BenchPage() {
           </span>
         </div>
 
+        {!readOnly && (
+          <div className="opts">
+            <label className="opt brief">
+              <input type="checkbox" checked={brief} onChange={e => setBrief(e.target.checked)} />
+              <span>
+                <b>Brief</b> — the {BRIEF.length} signature workloads, one per thing a GPU is
+                good or bad at. About a tenth of the time.
+              </span>
+            </label>
+            <div className="opt cols">
+              <span className="lbl">Columns</span>
+              {COLUMNS.map(c => {
+                const isBase = c.id === BASELINE;
+                return (
+                  <label key={c.id} className={c.bare ? 'bare' : undefined}>
+                    <input
+                      type="checkbox"
+                      checked={cols.has(c.id) || isBase}
+                      disabled={isBase}
+                      title={isBase ? 'the baseline every speed-up divides by — always measured' : undefined}
+                      onChange={e =>
+                        setCols(prev => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(c.id);
+                          else next.delete(c.id);
+                          return next;
+                        })
+                      }
+                    />
+                    <span>
+                      {c.label}
+                      <i>{c.sub}</i>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {readOnly && saved && (
           <div className="ro">
             <b>Read-only.</b>
@@ -407,7 +464,70 @@ function BenchPage() {
           </div>
         )}
 
-        <BenchTable rows={ORDERED} results={results} onRun={run} readOnly={readOnly} />
+        {confirmFull && (
+          <div className="runwarn-wrap" onMouseDown={e => e.target === e.currentTarget && setConfirmFull(false)}>
+            <div className="runwarn" role="dialog" aria-modal="true" aria-labelledby="full-title">
+              <p className="eyebrow">Full run</p>
+              <h2 id="full-title">This will take about half an hour</h2>
+              <p>
+                All {workloads.length} workloads across {cols.size} column
+                {cols.size === 1 ? '' : 's'}, measured properly — warm-ups, then a median of at
+                least three runs each. Longer on a slower machine, and it holds the GPU the
+                whole time.
+              </p>
+              <p className="alt">
+                If you do not have half an hour: <b>Brief</b> runs the {BRIEF.length} signature
+                workloads, one per thing a GPU is good or bad at, in roughly a tenth of the
+                time. Or read a <b>saved run</b> — a full table already measured on a known
+                machine.
+              </p>
+              <div className="runwarn-actions">
+                <button type="button" className="btn" onClick={() => setConfirmFull(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setConfirmFull(false);
+                    setSource('saved');
+                  }}
+                  disabled={!savedRuns.length}
+                >
+                  Read a saved run
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setConfirmFull(false);
+                    setBrief(true);
+                    run(BRIEF);
+                  }}
+                >
+                  Run brief instead
+                </button>
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() => {
+                    setConfirmFull(false);
+                    run(ORDERED);
+                  }}
+                >
+                  Run all {workloads.length}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <BenchTable
+          rows={brief && !readOnly ? BRIEF : ORDERED}
+          results={results}
+          onRun={run}
+          readOnly={readOnly}
+        />
 
         <div className="legend">
           <div>

@@ -13,7 +13,7 @@
  * which needs an OffscreenCanvas because there is no document to make one from.
  *
  * Protocol, deliberately tiny:
- *     in   { id, workloadId }
+ *     in   { id, workloadId, columns? }
  *     out  { id, cellId, cell }     one per column, as it finishes
  *          { id, done: true, cells }
  *          { id, failed: true, error }
@@ -33,7 +33,7 @@ const byId = new Map(workloads.map(w => [w.id, w]));
 const makeCanvas = () => new OffscreenCanvas(1, 1);
 
 self.onmessage = async event => {
-  const { id, workloadId } = event.data || {};
+  const { id, workloadId, columns } = event.data || {};
   const workload = byId.get(workloadId);
   if (!workload) {
     self.postMessage({ id, failed: true, error: `unknown workload: ${workloadId}` });
@@ -43,6 +43,7 @@ self.onmessage = async event => {
     const cells = await runWorkload(workload, {
       GPU,
       makeCanvas,
+      columns,
       // stream each column as it lands so a long row fills in rather than
       // appearing all at once at the end
       onCell: (cellId, cell) => self.postMessage({ id, cellId, cell }),

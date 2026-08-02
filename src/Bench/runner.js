@@ -134,7 +134,7 @@ async function webgpuDevice() {
  * Runs one workload across every column. Yields a result per column through
  * `onCell` as it goes, so a long row fills in rather than appearing at the end.
  */
-export async function runWorkload(workload, { GPU, onCell, signal, makeCanvas } = {}) {
+export async function runWorkload(workload, { GPU, onCell, signal, makeCanvas, columns } = {}) {
   const size = workload.size;
   const inputs = workload.make ? workload.make(size) : null;
   const cells = {};
@@ -143,7 +143,12 @@ export async function runWorkload(workload, { GPU, onCell, signal, makeCanvas } 
   // it, and its checksum is what the others are judged against.
   let baselineCheck = null;
 
-  const ordered = [...COLUMNS].sort((a, b) => (a.id === BASELINE ? -1 : b.id === BASELINE ? 1 : 0));
+  // The baseline is never optional: every other cell is reported as a ratio to
+  // it, so a table without it has no speed-ups in it at all.
+  const wanted = columns && columns.length ? new Set([...columns, BASELINE]) : null;
+  const ordered = [...COLUMNS]
+    .filter(c => !wanted || wanted.has(c.id))
+    .sort((a, b) => (a.id === BASELINE ? -1 : b.id === BASELINE ? 1 : 0));
 
   for (const col of ordered) {
     if (signal && signal.aborted) break;
