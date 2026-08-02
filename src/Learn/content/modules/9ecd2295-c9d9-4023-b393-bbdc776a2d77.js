@@ -1470,6 +1470,18 @@ console.log('long  window:', tonePeaks(longPic, 256), 'tone peaks,', clickFrames
 
     // ------------------------------------------------------------------ 4
     {
+      // Pinned to WebGL, like the other tasks whose paint sits downstream of a
+      // pipelined chain. This one awaits its STFT before creating the paint
+      // kernel, so under 'auto' the adapter decision has already settled and
+      // gpu.js builds the graphical kernel as a WebGPU kernel directly —
+      // dropping the GPU-level canvas, which in a worker is the only one there
+      // is, and failing with "graphical mode requires a canvas".
+      //
+      // Injecting a per-kernel canvas in the engine was tried and reverted: it
+      // fixed this task and broke four others, whose readbacks then returned
+      // zeros. Pinning is the mechanism the course already has for exactly
+      // this shape, and it costs nothing here — explicit webgpu still works.
+      backend: 'webgl',
       slug: 'paint-it',
       title: 'Decibels, Then Colour',
       intro: `<p>The numbers in a spectrogram span orders of magnitude. In this one the loudest cell
@@ -1681,7 +1693,7 @@ render(paint.canvas);
               for (let f = 0; f < FRAMES; f++) if (spec[b][f] > peak) peak = spec[b][f];
             }
             await paint(spec, peak);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
 
             // Sample the cells nearest a spread of loudnesses, so the check
             // covers the whole ramp rather than the bright end of it. Brightest
@@ -1773,7 +1785,7 @@ render(paint.canvas);
               for (let f = 0; f < FRAMES; f++) if (spec[b][f] > peak) peak = spec[b][f];
             }
             await paint(spec, peak);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const read = (tx, ty, flipped) => {
               const row = flipped ? ty : 255 - ty;
               const i = (row * 256 + tx) * 4;
@@ -1820,7 +1832,7 @@ render(paint.canvas);
               for (let f = 0; f < FRAMES; f++) if (spec[b][f] > peak) peak = spec[b][f];
             }
             await paint(spec, peak);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const read = (tx, ty, flipped) => {
               const row = flipped ? ty : 255 - ty;
               const i = (row * 256 + tx) * 4;

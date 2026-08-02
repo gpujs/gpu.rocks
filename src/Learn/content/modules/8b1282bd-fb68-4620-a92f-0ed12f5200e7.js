@@ -494,7 +494,7 @@ render(marchScene.canvas);
               ctx.canvas.width === 64 && ctx.canvas.height === 64,
               `expected a 64×64 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (const [x, y] of [[0, 0], [63, 0], [0, 63], [63, 63]]) {
               const [r] = pixelAt(pixels, x, y);
               ctx.assert(r < 40, `corner (${x}, ${y}) should be background, got red ${r}`);
@@ -505,7 +505,7 @@ render(marchScene.canvas);
           name: 'rays through the blob hit: center and both lobes come back pink',
           run: async ctx => {
             await ctx.kernel(0.55, 0.5, 0.3);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const missed = noHitHint(pixels);
             for (const x of [22, 32, 42]) {
               const r = redRow32(pixels, x);
@@ -517,7 +517,7 @@ render(marchScene.canvas);
           name: 'the silhouette is left-right symmetric',
           run: async ctx => {
             await ctx.kernel(0.55, 0.5, 0.3);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (const d of [6, 10, 14, 18]) {
               const left = redRow32(pixels, 32 - d) > 128;
               const right = redRow32(pixels, 32 + d) > 128;
@@ -535,7 +535,7 @@ render(marchScene.canvas);
           run: async ctx => {
             // Pull the spheres apart: the center ray now passes clean between them.
             await ctx.kernel(1.2, 0.45, 0.15);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(
               redRow32(pixels, 32) < 40,
               `separated spheres: the center ray should miss, got red ${redRow32(pixels, 32)}`
@@ -685,7 +685,7 @@ render(showNormals.canvas);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             await ctx.kernel(0.55, 0.5, 0.3);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             assertCenterRow(ctx, pixels, 32, 0, 128, 14, 'center red (nx = 0)');
             assertCenterRow(ctx, pixels, 32, 1, 128, 14, 'center green (ny = 0)');
             const b32 = pixelAt(pixels, 32, 32)[2];
@@ -701,7 +701,7 @@ render(showNormals.canvas);
           name: 'mirrored hit pixels have mirrored normals: red channels sum to ≈255',
           run: async ctx => {
             await ctx.kernel(0.55, 0.5, 0.3);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (const d of [8, 10]) {
               const left = pixelAt(pixels, 32 - d, 32);
               const right = pixelAt(pixels, 32 + d, 32);
@@ -717,7 +717,7 @@ render(showNormals.canvas);
           name: 'misses keep the background color',
           run: async ctx => {
             await ctx.kernel(0.55, 0.5, 0.3);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (const [x, y] of [[0, 0], [63, 0], [0, 63], [63, 63]]) {
               const [, g] = pixelAt(pixels, x, y);
               ctx.assert(g < 40, `corner (${x}, ${y}) should be background, got green ${g}`);
@@ -731,7 +731,7 @@ render(showNormals.canvas);
           run: async ctx => {
             // Separated spheres: center misses; a lobe-center pixel faces the camera.
             await ctx.kernel(1.2, 0.45, 0.15);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixelAt(pixels, 32, 32)[1] < 40, 'center should be background now');
             assertCenterRow(ctx, pixels, 51, 0, 124, 16, 'right lobe red (nx ≈ 0)');
             assertCenterRow(ctx, pixels, 51, 1, 128, 16, 'right lobe green (ny = 0)');
@@ -889,7 +889,7 @@ render(shadeScene.canvas);
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
             await ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // n = (0, 0, -1), l = (-0.6, 0, -0.8) → diff 0.8 → c 0.83 → red ≈ 212
             const flat = ambientOnlyHint(Math.max(redRow32(pixels, 32), pixelAt(pixels, 32, 31)[0]));
             assertCenterRow(ctx, pixels, 32, 0, 212, 14, flat || 'center red');
@@ -900,7 +900,7 @@ render(shadeScene.canvas);
           name: 'the side facing the light is brighter than the side facing away',
           run: async ctx => {
             await ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const lit = redRow32(pixels, 22);
             const unlit = redRow32(pixels, 42);
             ctx.assert(
@@ -913,7 +913,7 @@ render(shadeScene.canvas);
           name: 'misses keep the background color',
           run: async ctx => {
             await ctx.kernel(0.55, 0.5, 0.3, -0.6, 0, -0.8);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (const [x, y] of [[0, 0], [63, 63]]) {
               const [r] = pixelAt(pixels, x, y);
               ctx.assert(r < 40, `corner (${x}, ${y}) should be background, got red ${r}`);
@@ -927,7 +927,7 @@ render(shadeScene.canvas);
           run: async ctx => {
             // Move the light to the right: the gradient must flip with it.
             await ctx.kernel(0.55, 0.5, 0.3, 0.6, 0, -0.8);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             assertCenterRow(ctx, pixels, 32, 0, 212, 14, 'center red (same head-on dot product)');
             const left = redRow32(pixels, 22);
             const right = redRow32(pixels, 42);
@@ -1136,7 +1136,7 @@ render(finalScene.canvas);
               `expected a 64×64 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
             await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // even a fully shadowed hit keeps the 0.15 ambient floor (red ≈ 38)
             ctx.assert(
               redRow32(pixels, 32) >= 28,
@@ -1152,9 +1152,9 @@ render(finalScene.canvas);
           name: 'toggling <code>shadowOn</code> darkens the neck of the blob by > 60',
           run: async ctx => {
             await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
-            const withShadow = Array.from(ctx.getPixels());
+            const withShadow = Array.from(await ctx.getPixels());
             await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 0);
-            const noShadow = Array.from(ctx.getPixels());
+            const noShadow = Array.from(await ctx.getPixels());
             let maxDrop = 0;
             for (let x = 28; x <= 40; x++) {
               maxDrop = Math.max(maxDrop, redRow32(noShadow, x) - redRow32(withShadow, x));
@@ -1169,9 +1169,9 @@ render(finalScene.canvas);
           name: 'shadows only ever darken — and the lit flank is untouched',
           run: async ctx => {
             await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 1);
-            const withShadow = Array.from(ctx.getPixels());
+            const withShadow = Array.from(await ctx.getPixels());
             await ctx.kernel(0.55, 0.5, 0.3, -0.86, 0, -0.51, 0);
-            const noShadow = Array.from(ctx.getPixels());
+            const noShadow = Array.from(await ctx.getPixels());
             for (let x = 0; x < 64; x++) {
               ctx.assert(
                 redRow32(withShadow, x) <= redRow32(noShadow, x) + 10,
@@ -1194,9 +1194,9 @@ render(finalScene.canvas);
             // New geometry AND a mirrored light: the shadow must move to the
             // other flank, and the now-separated center ray must miss.
             await ctx.kernel(0.6, 0.48, 0.25, 0.86, 0, -0.51, 1);
-            const withShadow = Array.from(ctx.getPixels());
+            const withShadow = Array.from(await ctx.getPixels());
             await ctx.kernel(0.6, 0.48, 0.25, 0.86, 0, -0.51, 0);
-            const noShadow = Array.from(ctx.getPixels());
+            const noShadow = Array.from(await ctx.getPixels());
             ctx.assert(redRow32(withShadow, 32) < 20, 'center ray should miss the separated blobs');
             let maxDrop = 0;
             for (let x = 24; x <= 36; x++) {

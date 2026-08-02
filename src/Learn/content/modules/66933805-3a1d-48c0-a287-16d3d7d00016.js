@@ -635,7 +635,7 @@ render(blur.canvas);
               ctx.canvas.width === 128 && ctx.canvas.height === 128,
               `expected a 128×128 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels.length === 128 * 128 * 4, 'pixel buffer should hold 128×128 RGBA values');
           },
         },
@@ -645,7 +645,7 @@ render(blur.canvas);
             const image = constantImage(128, [0.3, 0.5, 0.7, 1]);
             const flat = image.at(0, 0);
             await ctx.kernel(image);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 331 * 4) {
               ctx.assertClose(pixels[i], flat[0] * 255, 2, `red at byte ${i}`);
               ctx.assertClose(pixels[i + 1], flat[1] * 255, 2, `green at byte ${i}`);
@@ -658,7 +658,7 @@ render(blur.canvas);
           run: async ctx => {
             const img = ctx.utils.makeTestImage(128);
             await ctx.kernel(img);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const ref = boxBlurRef(img);
             // getPixels row order can be top-down or bottom-up depending on
             // backend — accept the correct average for either orientation.
@@ -694,7 +694,7 @@ render(blur.canvas);
             // Dark-left / light-right split: blurred columns have exact,
             // row-independent values — orientation cannot hide a mistake.
             await ctx.kernel(verticalSplitImage(128, 0.2, 0.8));
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const expectedAt = col => {
               if (col <= 62) return 0.2;
               if (col === 63) return 0.4; // (0.2 + 0.2 + 0.8) / 3
@@ -1005,7 +1005,7 @@ render(sobel.canvas);
             const graphical = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
             await graphical(await numeric(constantImage(128, [0.4, 0.6, 0.2, 1])));
-            const pixels = graphical.getPixels();
+            const pixels = await graphical.getPixels();
             for (let i = 0; i < pixels.length; i += 251 * 4) {
               ctx.assert(
                 pixels[i] <= 1 && pixels[i + 1] <= 1 && pixels[i + 2] <= 1,
@@ -1022,7 +1022,7 @@ render(sobel.canvas);
             const graphical = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
             await graphical(await numeric(verticalSplitImage(128, 0.1, 0.9)));
-            const pixels = graphical.getPixels();
+            const pixels = await graphical.getPixels();
             const red = (r, c) => pixels[(r * 128 + c) * 4];
             // Transposed, the picture answers to the row where it should answer
             // to the column: what belongs at (row, col) sits at (col, row) —
@@ -1062,7 +1062,7 @@ render(sobel.canvas);
             const graphical = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(numeric && graphical, 'expected a numeric and a graphical kernel');
             await graphical(await numeric(horizontalSplitImage(128, 0.15, 0.85)));
-            const pixels = graphical.getPixels();
+            const pixels = await graphical.getPixels();
             const red = (r, c) => pixels[(r * 128 + c) * 4];
             // A transposed paint answers to the column instead of the row: what
             // belongs at (row, col) sits at (col, row), or at (127 - col, row)

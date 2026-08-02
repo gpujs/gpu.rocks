@@ -506,7 +506,7 @@ render(paint.canvas);
               ctx.canvas.width === 128 && ctx.canvas.height === 128,
               `expected a 128×128 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             let black = 0;
             let shaded = 0;
             for (let i = 0; i < pixels.length; i += 4) {
@@ -521,7 +521,7 @@ render(paint.canvas);
           name: 'a window inside the set is pure black',
           run: async ctx => {
             await ctx.kernel(-0.2, -0.05, 0.001);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 401 * 4) {
               ctx.assert(
                 pixels[i] <= 2 && pixels[i + 1] <= 2 && pixels[i + 2] <= 2,
@@ -535,7 +535,7 @@ render(paint.canvas);
           name: 'far outside, every pixel wears the count-1 shade',
           run: async ctx => {
             await ctx.kernel(2.5, 2.5, 0.001);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const [r, g, b] = paletteBytes(1 / MAX_ITER);
             for (let i = 0; i < pixels.length; i += 401 * 4) {
               ctx.assertClose(pixels[i], r, 2, `red at byte ${i}`);
@@ -551,7 +551,7 @@ render(paint.canvas);
           run: async ctx => {
             // Inside the period-2 bulb around c = -1: all black.
             await ctx.kernel(-1.05, -0.05, 0.0008);
-            let pixels = ctx.getPixels();
+            let pixels = await ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 293 * 4) {
               ctx.assert(
                 pixels[i] <= 2 && pixels[i + 1] <= 2 && pixels[i + 2] <= 2,
@@ -561,7 +561,7 @@ render(paint.canvas);
             }
             // Far left of the set: uniform count-1 shade.
             await ctx.kernel(-9, 0, 0.001);
-            pixels = ctx.getPixels();
+            pixels = await ctx.getPixels();
             const [r, g, b] = paletteBytes(1 / MAX_ITER);
             for (let i = 0; i < pixels.length; i += 293 * 4) {
               ctx.assertClose(pixels[i], r, 2, `red at byte ${i}`);
@@ -872,7 +872,7 @@ render(julia.canvas);
               `expected a 128×128 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
             await ctx.kernel(0, 0);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (let y = 4; y < 128; y += 8) {
               for (let x = 4; x < 128; x += 8) {
                 const zr0 = -1.6 + x * 0.025;
@@ -902,14 +902,14 @@ render(julia.canvas);
           name: 'c is a live argument — turn the dial and the center pixel flips',
           run: async ctx => {
             await ctx.kernel(0, 0);
-            let pixels = ctx.getPixels();
+            let pixels = await ctx.getPixels();
             const center = (64 * 128 + 64) * 4;
             ctx.assert(
               pixels[center] + pixels[center + 1] + pixels[center + 2] <= 3,
               'with c = 0 the center pixel (z₀ = 0) never escapes — it should be black'
             );
             await ctx.kernel(-2.5, 0);
-            pixels = ctx.getPixels();
+            pixels = await ctx.getPixels();
             ctx.assert(
               pixels[center] + pixels[center + 1] + pixels[center + 2] > 60,
               'with c = -2.5 the center pixel escapes in one step — it should be shaded, not black. Is c actually used in the loop?'
@@ -922,7 +922,7 @@ render(julia.canvas);
           name: 'private test #1',
           run: async ctx => {
             await ctx.kernel(0, 0);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // z₀ = (0.5, 0.5): inside the unit disk → black.
             let i = (84 * 128 + 84) * 4;
             ctx.assert(

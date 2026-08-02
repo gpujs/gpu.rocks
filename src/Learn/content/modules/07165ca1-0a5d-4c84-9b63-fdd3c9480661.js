@@ -738,7 +738,7 @@ render(hillshade.canvas);
               ctx.canvas.width === 64 && ctx.canvas.height === 64,
               `expected a 64×64 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels.length === 64 * 64 * 4, 'pixel buffer should hold 64×64 RGBA values');
           },
         },
@@ -749,7 +749,7 @@ render(hillshade.canvas);
             // every pixel — no row-order question to answer.
             const flat = makeGrid(64, 0.5);
             await ctx.kernel(flat);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const expected = shadeColour(LIGHT, 0.5).map(v => v * 255);
             for (let i = 0; i < pixels.length; i += 331 * 4) {
               ctx.assertClose(pixels[i], expected[0], 3, `red at byte ${i} on flat ground`);
@@ -770,7 +770,7 @@ render(hillshade.canvas);
               }
             }
             await ctx.kernel(ridge);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const lit = hillshadeRef(ridge, 12);
             // Shape the row as a 3 × 64 grid of channels so a probe has to
             // predict the WHOLE row before it is allowed to name a mistake:
@@ -806,7 +806,7 @@ render(hillshade.canvas);
             // them agrees everywhere.
             const terrain = makeHills(ctx.utils, 64, 7);
             await ctx.kernel(terrain);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const lit = hillshadeRef(terrain, 12);
             const score = flip => {
               let worst = 0;
@@ -839,7 +839,7 @@ render(hillshade.canvas);
               for (let x = 0; x < 64; x++) wall[y][x] = 0.5 + 0.02 * Math.min(x, 63 - x);
             }
             await ctx.kernel(wall);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const lit = hillshadeRef(wall, 12);
             let brightest = 0;
             for (let i = 0; i < pixels.length; i += 4) brightest = Math.max(brightest, pixels[i]);
@@ -2091,6 +2091,14 @@ plot({ 'deepest water': deepest }, { title: 'deepest cell on the map' });
 
     // ------------------------------------------------------------------ 6
     {
+      // Pinned after the whole suite was verified three ways: this task passes
+      // on webgl, cpu AND explicit webgpu, and fails ONLY on 'auto'. That is
+      // the mixed-backend path — gpu.js declines to upgrade a graphical kernel
+      // (its canvas cannot change backend) while the kernels feeding it do
+      // upgrade, so the paint reads a texture from the other backend. The
+      // bridge is supposed to be transparent; here it is not, and the symptom
+      // is a picture that is subtly wrong rather than an error.
+      backend: 'webgl',
       slug: 'carve-a-valley',
       title: 'Two Hundred Steps, and a River Appears',
       // Under mode "auto" this task legitimately runs on two backends: the four
@@ -2528,10 +2536,10 @@ for (let i = 1; i <= STEPS; i++) {
             const seed = makeHills(ctx.utils, 96, 7);
             const dry = makeGrid(96, 0);
             await paint(seed, dry);
-            const before = Array.from(paint.getPixels());
+            const before = Array.from(await paint.getPixels());
             const [height, water] = ctx.kernels[1].lastArgs;
             await paint(height, water);
-            const after = paint.getPixels();
+            const after = await paint.getPixels();
             let changed = 0;
             for (let i = 0; i < after.length; i += 4) {
               if (Math.abs(after[i] - before[i]) > 8 || Math.abs(after[i + 2] - before[i + 2]) > 8) changed++;

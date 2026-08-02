@@ -563,11 +563,28 @@ export async function executeRun(
         ...(needsCanvas ? { canvas: new OffscreenCanvas(1, 1) } : null),
         mode: resolvedMode,
       });
+      this._needsWorkerCanvas = needsCanvas;
       instances.push(this);
       previousInstances.push(this);
     }
 
-    createKernel(...args) {
+    // A graphical kernel in the worker needs the canvas on ITS OWN settings,
+    // not just the GPU's.
+    //
+    // Under mode 'async', once an adapter has answered, gpu.js builds a
+    // graphical kernel as a WebGPUKernel directly and deliberately drops the
+    // GPU-level canvas — that one belongs to the GL backend and its context
+    // cannot be handed to WebGPU. Only a per-kernel canvas survives. And
+    // WebGPUKernel.initCanvas() makes one only `if (typeof document !==
+    // 'undefined')`, which is false here, so the kernel ends up with none and
+    // throws "graphical mode requires a canvas" at build time — past the
+    // constructor's fallback, so the whole run dies.
+    //
+    // It only bites when the adapter decision has already settled, i.e. when
+    // the task awaits something before creating its graphical kernel. Tasks
+    // that create every kernel in one synchronous tick never reach the branch,
+    // which is why this surfaced on exactly one module.
+        createKernel(...args) {
       const built = super.createKernel(...(probe ? clampKernelArgs(args, probeStats) : args));
       const kernel = patchKernel(built, push, resolvedMode);
       kernels.push(kernel);

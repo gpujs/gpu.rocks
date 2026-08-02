@@ -460,7 +460,7 @@ render(grayscale.canvas);
               ctx.canvas.width === 512 && ctx.canvas.height === 512,
               `expected a 512×512 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels.length === 512 * 512 * 4, 'pixel buffer should hold 512×512 RGBA values');
           },
         },
@@ -468,7 +468,7 @@ render(grayscale.canvas);
           name: 'pixel (0,0) matches <code>0.299r + 0.587g + 0.114b</code> within ±1/255',
           run: async ctx => {
             const img = ctx.utils.makeTestImage(512).plain;
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const got = pixels[0] / 255;
             // getPixels row order can be top-down or bottom-up depending on
             // backend — accept the correct luminance for either orientation.
@@ -485,7 +485,7 @@ render(grayscale.canvas);
         {
           name: 'output is monochrome — <code>r == g == b</code> for sampled pixels',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 997 * 4) {
               const r = pixels[i];
               const g = pixels[i + 1];
@@ -506,7 +506,7 @@ render(grayscale.canvas);
             const image = constantImage(512, [0.2, 0.4, 0.6, 1]);
             const expected = luminanceOf(image.at(0, 0)) * 255;
             await ctx.kernel(image);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 4999 * 4) {
               ctx.assertClose(pixels[i], expected, 2, `red at byte ${i}`);
               ctx.assertClose(pixels[i + 1], expected, 2, `green at byte ${i}`);
@@ -521,7 +521,7 @@ render(grayscale.canvas);
             // independent of row order.
             const img = ctx.utils.makeTestImage(512);
             await ctx.kernel(img);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             let gotMean = 0;
             for (let i = 0; i < pixels.length; i += 4) gotMean += pixels[i];
             gotMean /= (pixels.length / 4) * 255;
@@ -857,7 +857,7 @@ render(paint.canvas);
               ctx.canvas.width === 64 && ctx.canvas.height === 64,
               `expected a 64×64 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (let i = 0; i < pixels.length; i += 61 * 4) {
               const r = pixels[i];
               const g = pixels[i + 1];
@@ -883,7 +883,7 @@ render(paint.canvas);
             const expected = luminanceOf(image.at(0, 0)) * 255;
             const map = await numeric(image);
             await graphical(map);
-            const pixels = graphical.getPixels();
+            const pixels = await graphical.getPixels();
             for (let i = 0; i < pixels.length; i += 149 * 4) {
               ctx.assertClose(pixels[i], expected, 2, `red at byte ${i}`);
               ctx.assertClose(pixels[i + 1], expected, 2, `green at byte ${i}`);

@@ -1842,6 +1842,14 @@ console.log('B: ' + alignB);
 
     // ------------------------------------------------------------------ 6
     {
+      // Pinned after the whole suite was verified three ways: this task passes
+      // on webgl, cpu AND explicit webgpu, and fails ONLY on 'auto'. That is
+      // the mixed-backend path — gpu.js declines to upgrade a graphical kernel
+      // (its canvas cannot change backend) while the kernels feeding it do
+      // upgrade, so the paint reads a texture from the other backend. The
+      // bridge is supposed to be transparent; here it is not, and the symptom
+      // is a picture that is subtly wrong rather than an error.
+      backend: 'webgl',
       slug: 'watch-it-sweep',
       title: 'Watch the Wavefront, Then Read the Bill',
       // Under mode "auto" this task legitimately runs on two backends: `sweep`
@@ -2045,7 +2053,7 @@ plot(
             const { H } = fillRef(LONG_A, LONG_B);
             const d = 34;
             await graphical(H, d);
-            const pixels = graphical.getPixels();
+            const pixels = await graphical.getPixels();
             // getPixels row order is backend-dependent, so accept the diagonal
             // in either orientation rather than guessing which one this is.
             let direct = true;
@@ -2070,7 +2078,7 @@ plot(
             ctx.assert(graphical, 'no graphical paint kernel found');
             const { H, bi, bj } = fillRef(LONG_A, LONG_B);
             await graphical(H, 3); // a diagonal far from the cells under test
-            const pixels = graphical.getPixels();
+            const pixels = await graphical.getPixels();
             const greenAt = (x, y) => pixels[(y * 37 + x) * 4 + 1];
             // The best cell must be much brighter than a cell of column 0,
             // which scores 0 in every row and so is dark whichever way round
@@ -2137,7 +2145,7 @@ plot(
             const graphical = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(graphical, 'expected a graphical paint kernel');
             await graphical(zerosMatrix(32, 36), 0);
-            const pixels = graphical.getPixels();
+            const pixels = await graphical.getPixels();
             let lit = 0;
             for (let at = 0; at < pixels.length; at += 4) {
               if (pixels[at] > 200 && pixels[at + 1] > 110 && pixels[at + 1] < 190) lit++;

@@ -943,7 +943,7 @@ render(paint.canvas);
         {
           name: 'painted canvas is monochrome',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels.length === 64 * 64 * 4, 'pixel buffer should hold 64×64 RGBA values');
             for (let i = 0; i < pixels.length; i += 61 * 4) {
               const r = pixels[i];
@@ -968,7 +968,7 @@ render(paint.canvas);
             const image = constantImage(64, [0.35, 0.65, 0.15, 1]);
             const expected = luminanceOf(image.at(0, 0)) * 255;
             await paint(await blur(await lum(image)));
-            const pixels = paint.getPixels();
+            const pixels = await paint.getPixels();
             for (let i = 0; i < pixels.length; i += 149 * 4) {
               ctx.assertClose(pixels[i], expected, 2, `red at byte ${i}`);
               ctx.assertClose(pixels[i + 1], expected, 2, `green at byte ${i}`);

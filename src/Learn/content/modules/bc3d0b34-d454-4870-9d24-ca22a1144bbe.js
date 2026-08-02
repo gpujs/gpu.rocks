@@ -975,7 +975,7 @@ render(paint.canvas);
               ctx.canvas.width === 64 && ctx.canvas.height === 64,
               `expected a 64×64 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels.length === 64 * 64 * 4, 'pixel buffer should hold 64×64 RGBA values');
           },
         },
@@ -985,7 +985,7 @@ render(paint.canvas);
             const paint = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(paint, 'no graphical kernel found');
             await paint(makeGrid(64, 0));
-            let pixels = paint.getPixels();
+            let pixels = await paint.getPixels();
             for (let i = 0; i < pixels.length; i += 331 * 4) {
               ctx.assertClose(pixels[i], 0, 3,
                 diagnose(pixels[i], 0, 3, paletteProbes(0, 0)) || `red at byte ${i} for v = 0`);
@@ -995,7 +995,7 @@ render(paint.canvas);
                 diagnose(pixels[i + 2], 0.25 * 255, 3, paletteProbes(0, 2)) || `blue at byte ${i} for v = 0`);
             }
             await paint(makeGrid(64, 0.2)); // t = 0.5
-            pixels = paint.getPixels();
+            pixels = await paint.getPixels();
             for (let i = 0; i < pixels.length; i += 331 * 4) {
               ctx.assertClose(pixels[i], 0.5 * 255, 3,
                 diagnose(pixels[i], 0.5 * 255, 3, paletteProbes(0.2, 0)) || `red at byte ${i} for v = 0.2`);
@@ -1016,7 +1016,7 @@ render(paint.canvas);
             const seed = makeSeedPair(64, 8);
             const [, refV] = gsRunRef(seed.u, seed.v, 200);
             await paint(refV);
-            const pixels = paint.getPixels();
+            const pixels = await paint.getPixels();
             let bright = 0;
             let dark = 0;
             for (let i = 0; i < pixels.length; i += 4) {
@@ -1043,14 +1043,14 @@ render(paint.canvas);
             const paint = ctx.kernels.find(k => k.kernel && k.kernel.graphical);
             ctx.assert(paint, 'no graphical kernel found');
             await paint(makeGrid(64, 0.6)); // t clamps to 1 → pure white
-            let pixels = paint.getPixels();
+            let pixels = await paint.getPixels();
             for (let i = 0; i < pixels.length; i += 449 * 4) {
               ctx.assertClose(pixels[i], 255, 3, `red at byte ${i} for v = 0.6`);
               ctx.assertClose(pixels[i + 1], 255, 3, `green at byte ${i} for v = 0.6`);
               ctx.assertClose(pixels[i + 2], 255, 3, `blue at byte ${i} for v = 0.6`);
             }
             await paint(makeGrid(64, 0.1)); // t = 0.25
-            pixels = paint.getPixels();
+            pixels = await paint.getPixels();
             for (let i = 0; i < pixels.length; i += 449 * 4) {
               ctx.assertClose(pixels[i], 0.25 * 255, 3,
                 diagnose(pixels[i], 0.25 * 255, 3, paletteProbes(0.1, 0)) || `red at byte ${i} for v = 0.1`);

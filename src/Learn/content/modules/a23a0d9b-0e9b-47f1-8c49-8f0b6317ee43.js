@@ -1754,7 +1754,7 @@ plot(costs, { title: 'energy of each seam removed', xLabel: 'removal' });
             const costs = plottedSeries(ctx);
             ctx.assert(costs, 'no plotted cost curve found');
             const finalWidth = W - costs.length;
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels && pixels.length === W * H * 4,
               'no painted canvas to read — did you render(paint.canvas)?');
             ctx.assert(columnIsFrame(pixels, finalWidth),
@@ -2077,7 +2077,7 @@ plot({ 'no mask': unmaskedCosts, 'face protected': costs },
         {
           name: 'the run still narrows the picture by 32 columns',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels && pixels.length === W * H * 4,
               'no painted canvas to read — did you render(paint.canvas)?');
             ctx.assert(columnIsFrame(pixels, W - SEAMS),

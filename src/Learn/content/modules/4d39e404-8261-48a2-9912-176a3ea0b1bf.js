@@ -1921,7 +1921,7 @@ render(compose.canvas);
             for (let i = 1; i < seq.length - 1; i++) model = await learn(seq[i], model);
             const live = seq[seq.length - 1];
             await compose(live, await feather(await mask(live, model)));
-            const pixels = compose.getPixels();
+            const pixels = await compose.getPixels();
             ctx.assert(pixels.length === 64 * 64 * 4, 'pixel buffer should hold 64×64 RGBA values');
 
             const soft = refBox3(refSoftMask(live, refModel(seq, ALPHA_MODEL, seq.length - 2), RAMP_LO, RAMP_HI));
@@ -1953,7 +1953,7 @@ render(compose.canvas);
             for (let i = 1; i < seq.length - 1; i++) model = await learn(seq[i], model);
             const live = seq[seq.length - 1];
             await compose(live, await feather(await mask(live, model)));
-            const pixels = compose.getPixels();
+            const pixels = await compose.getPixels();
             const soft = refBox3(refSoftMask(live, refModel(seq, ALPHA_MODEL, seq.length - 2), RAMP_LO, RAMP_HI));
             const ref = refCompose(live, soft, overBlurred);
             ctx.assert(
@@ -1986,7 +1986,7 @@ render(compose.canvas);
                 `that same scene the mask should be 0 nearly everywhere`
             );
             await compose(still, await feather(await mask(still, model)));
-            const pixels = compose.getPixels();
+            const pixels = await compose.getPixels();
             const soft = refBox3(refSoftMask(still, refModel(seq, ALPHA_MODEL, seq.length - 2), RAMP_LO, RAMP_HI));
             ctx.assert(
               canvasMatches(pixels, refCompose(still, soft, overBlurred), 5),

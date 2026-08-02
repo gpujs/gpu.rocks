@@ -237,13 +237,13 @@ render(gradient.canvas);
               ctx.canvas.width === 128 && ctx.canvas.height === 128,
               `expected a 128×128 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            ctx.assert(ctx.getPixels().length === 128 * 128 * 4, 'pixel buffer should hold 128×128 RGBA values');
+            ctx.assert((await ctx.getPixels()).length === 128 * 128 * 4, 'pixel buffer should hold 128×128 RGBA values');
           },
         },
         {
           name: 'red rises left to right: <code>this.thread.x / 128</code>',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // red depends only on x, so this check is row-order independent —
             // verify it on a row near each edge of the buffer.
             for (const row of [3, 64, 124]) {
@@ -264,7 +264,7 @@ render(gradient.canvas);
         {
           name: 'green rises with <code>this.thread.y</code>; blue holds at 0.5',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // Row order may be top-down or bottom-up — the green ramp just has
             // to span ~0 → ~252 from one edge of the buffer to the other.
             const g0 = pixels[at(128, 20, 0) + 1];
@@ -284,7 +284,7 @@ render(gradient.canvas);
         {
           name: 'private test #1',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // Detect buffer orientation from the green ramp, then check every
             // sampled pixel exactly in thread coordinates.
             const rowIsThreadY = pixels[at(128, 5, 0) + 1] < pixels[at(128, 5, 127) + 1];
@@ -380,7 +380,7 @@ render(board.canvas);
           name: 'every pixel is pure black or pure white',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels.length === 128 * 128 * 4, 'expected a 128×128 canvas');
             for (let i = 0; i < pixels.length; i += 4) {
               const r = pixels[i];
@@ -398,7 +398,7 @@ render(board.canvas);
         {
           name: 'cells are 16 pixels wide and alternate along x',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (const row of [8, 40, 100]) {
               const inCellA = pixels[at(128, 2, row)];
               const inCellB = pixels[at(128, 13, row)];
@@ -420,7 +420,7 @@ render(board.canvas);
         {
           name: 'cells alternate along y too — that\'s what makes it a checkerboard',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // 16-px row bands map onto 16-px row bands whichever way the
             // buffer is oriented, so these checks are row-order independent.
             for (const x of [8, 40, 100]) {
@@ -444,7 +444,7 @@ render(board.canvas);
         {
           name: 'private test #1',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // Full structural check, independent of row order and of which
             // corner is black: read the corner, then demand perfect parity.
             const base = pixels[0] >= 254 ? 255 : 0;
@@ -548,7 +548,7 @@ render(plot.canvas);
           name: 'a thin curve on a dark background',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels.length === 128 * 128 * 4, 'expected a 128×128 canvas');
             let lit = 0;
             for (let i = 0; i < pixels.length; i += 4) {
@@ -565,7 +565,7 @@ render(plot.canvas);
         {
           name: 'every column crosses the curve exactly once',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             for (let x = 0; x < 128; x += 4) {
               const rows = litRowsInColumn(pixels, 128, x);
               ctx.assert(rows.length >= 1, `column ${x} has no lit pixels`);
@@ -583,7 +583,7 @@ render(plot.canvas);
         {
           name: 'the curve follows <code>64 + 40·sin(2πx/128)</code>',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // Detect buffer orientation where the wave peaks (x=32 → y≈104),
             // then hold every sampled column to the formula.
             const peak = mean(litRowsInColumn(pixels, 128, 32));
@@ -607,7 +607,7 @@ render(plot.canvas);
         {
           name: 'private test #1',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             const peak = mean(litRowsInColumn(pixels, 128, 32));
             const up = Math.abs(peak - curveHeight(32)) <= 4;
             ctx.assert(
@@ -747,7 +747,7 @@ render(ripples.canvas);
           name: 'the picture is radially symmetric about the center',
           run: async ctx => {
             ctx.assert(ctx.kernels.length >= 1, 'no kernel was created — call gpu.createKernel()');
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels.length === 128 * 128 * 4, 'expected a 128×128 canvas');
             // A radius-only pattern must survive both mirror flips exactly —
             // and mirror checks are immune to row-order questions.
@@ -772,7 +772,7 @@ render(ripples.canvas);
           name: 'crests and troughs land where <code>cos(0.35r)</code> puts them',
           run: async ctx => {
             phaseGuard(ctx);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // Buffer row 63 maps to thread y 63 or 64 — either way |dy| = 0.5,
             // so the expected color is identical. x=64: bright center.
             // x=73 (r≈9.5): first trough. x=81 (r≈17.5): first ring.
@@ -795,7 +795,7 @@ render(ripples.canvas);
           name: 'blue tint and edge fade: <code>b &gt; g &gt; r</code>, corners dark',
           run: async ctx => {
             phaseGuard(ctx);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // On the first bright ring (x≈81 on the center row) the tint
             // ordering must hold, with the exact 0.4 / 0.75 ratios.
             const i = at(128, 81, 63);
@@ -831,7 +831,7 @@ render(ripples.canvas);
           name: 'private test #1',
           run: async ctx => {
             phaseGuard(ctx);
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // Full-grid check against the formula. rippleRGB depends only on
             // the distance to (63.5, 63.5), so it is flip-invariant and the
             // buffer row can stand in for thread y directly.

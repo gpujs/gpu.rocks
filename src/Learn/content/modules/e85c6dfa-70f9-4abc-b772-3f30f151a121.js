@@ -1683,14 +1683,14 @@ render(paintFlow.canvas);
               ctx.canvas.width === 64 && ctx.canvas.height === 64,
               `expected a 64×64 canvas, got ${ctx.canvas.width}×${ctx.canvas.height}`
             );
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             ctx.assert(pixels.length === 64 * 64 * 4, 'pixel buffer should hold 64×64 RGBA values');
           },
         },
         {
           name: 'the untrackable bands come out white',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // Columns 0-31 are exactly zero flow in every row, so this holds
             // whichever way round getPixels() hands back its rows.
             for (const row of [4, 20, 40, 60]) {
@@ -1709,7 +1709,7 @@ render(paintFlow.canvas);
         {
           name: 'the textured band paints the hue of a down-and-right motion',
           run: async ctx => {
-            const pixels = ctx.getPixels();
+            const pixels = await ctx.getPixels();
             // (1, 1) sits at hh = 3.75 — the blue side of the hexagon, with a
             // quarter of green and no red at all. Column position survives any
             // flip of the row order, so this is orientation-proof.
@@ -1737,7 +1737,7 @@ render(paintFlow.canvas);
             // the wheel.
             for (const [u, v, name] of [[1, 0, 'rightward'], [-1, 0, 'leftward'], [0, 1, 'downward']]) {
               await ctx.kernel(constantFlow(u, v));
-              const pixels = ctx.getPixels();
+              const pixels = await ctx.getPixels();
               const [er, eg, eb] = flowColour(u, v);
               for (let i = 0; i < pixels.length; i += 397 * 4) {
                 const rgb = `rgb(${pixels[i]}, ${pixels[i + 1]}, ${pixels[i + 2]})`;
@@ -1758,14 +1758,14 @@ render(paintFlow.canvas);
             // Saturation is a length, so it must not care about direction, and a
             // vector past maxFlow must clamp rather than wrap.
             await ctx.kernel(constantFlow(0, 0));
-            let pixels = ctx.getPixels();
+            let pixels = await ctx.getPixels();
             ctx.assert(
               pixels[0] === 255 && pixels[1] === 255 && pixels[2] === 255,
               `a zero flow field should be pure white, got rgb(${pixels[0]}, ${pixels[1]}, ${pixels[2]})`
             );
             for (const [u, v] of [[6, 6], [-6, 6], [0, -9]]) {
               await ctx.kernel(constantFlow(u, v));
-              pixels = ctx.getPixels();
+              pixels = await ctx.getPixels();
               const [er, eg, eb] = flowColour(u, v);
               const channels = [pixels[0], pixels[1], pixels[2]];
               ctx.assert(

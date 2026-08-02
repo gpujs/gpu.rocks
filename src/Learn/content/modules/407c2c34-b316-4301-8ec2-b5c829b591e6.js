@@ -829,7 +829,7 @@ render(paint.canvas);
             ctx.assert(graphical, 'no graphical paint kernel found');
             // Repaint the 8-ticks-later world so the readback is fresh.
             await graphical(refSteps(withCells(GLIDER), 8));
-            const pixels = graphical.getPixels();
+            const pixels = await graphical.getPixels();
             let lit = 0;
             for (let i = 0; i < pixels.length; i += 4) {
               const g = pixels[i + 1];
@@ -861,11 +861,11 @@ render(paint.canvas);
               return lit;
             };
             await graphical(await numeric(withCells(BLINKER)));
-            const blinkerLit = litCount(graphical.getPixels());
+            const blinkerLit = litCount(await graphical.getPixels());
             ctx.assert(blinkerLit === 3, litHint(blinkerLit, 3, 16 * 16) ||
               'stepped blinker should light 3 pixels');
             await graphical(withCells(BLOCK));
-            const blockLit = litCount(graphical.getPixels());
+            const blockLit = litCount(await graphical.getPixels());
             ctx.assert(blockLit === 4, litHint(blockLit, 4, 16 * 16) ||
               'block should light 4 pixels');
           },

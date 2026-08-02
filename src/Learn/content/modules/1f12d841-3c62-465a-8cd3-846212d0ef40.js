@@ -2186,7 +2186,7 @@ plot({ magnetisation: trace }, { title: 'magnetisation per sweep' });
               for (let x = 0; x < SIZE; x++) if ((x + 2 * y) % 4 === 0) s[y][x] = -1;
             }
             await graphical(s);
-            const pixels = graphical.getPixels();
+            const pixels = await graphical.getPixels();
             let warm = 0;
             let cool = 0;
             for (let i = 0; i < pixels.length; i += 4) {
