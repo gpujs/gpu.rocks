@@ -8,6 +8,7 @@
  *
  * Never hand-edited: a number in this directory has to have been measured.
  */
-import r0 from './2026-08-03-apple-m1-max.json';
+import r0 from './2026-08-03-rtx-5090-linux.json';
+import r1 from './2026-08-03-apple-m1-max.json';
 
-export default [r0];
+export default [r0, r1];

@@ -141,6 +141,60 @@ function CmdBlock({ children }) {
   );
 }
 
+/**
+ * The figures the essay quotes, computed from whichever table is on screen.
+ *
+ * They used to be constants written into the sentences, which was fine while
+ * there was one saved run and false the moment there were two: on an M1 Max the
+ * median is 53x and WebGL2 beats WebGPU on 7 rows; on an RTX 5090 it is 80x and
+ * 16 rows, and the fastest workload is a different one. A page that lets a
+ * reader change machines cannot hard-code the machine's conclusions.
+ */
+const usableCell = c => c && typeof c.ms === 'number' && c.ms > 0 && !c.wrong && !c.error;
+const medianOf = xs => {
+  const v = [...xs].sort((a, b) => a - b);
+  const m = v.length >> 1;
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+};
+
+function computeShape(results, nameOf) {
+  const gpu = [];
+  const tax = [];
+  const wasm = [];
+  const cpu = [];
+  let gl2Wins = 0;
+  for (const [id, cells] of Object.entries(results || {})) {
+    if (!cells || typeof cells !== 'object') continue;
+    const base = cells['bare-js'];
+    const wg = cells.webgpu;
+    if (!usableCell(base) || !usableCell(wg) || wg.fellBackTo) continue;
+    gpu.push({ id, factor: base.ms / wg.ms });
+    if (usableCell(cells['bare-webgpu'])) tax.push(wg.ms / cells['bare-webgpu'].ms);
+    if (usableCell(cells.webasm) && !cells.webasm.fellBackTo) wasm.push(base.ms / cells.webasm.ms);
+    if (usableCell(cells.cpu)) cpu.push(base.ms / cells.cpu.ms);
+    if (usableCell(cells.webgl2) && cells.webgl2.ms < wg.ms) gl2Wins += 1;
+  }
+  if (gpu.length < 5) return null;
+  gpu.sort((a, b) => a.factor - b.factor);
+  const lo = gpu[0];
+  const hi = gpu[gpu.length - 1];
+  return {
+    n: gpu.length,
+    median: medianOf(gpu.map(g => g.factor)),
+    lo: lo.factor,
+    loName: nameOf(lo.id),
+    hi: hi.factor,
+    hiName: nameOf(hi.id),
+    tax: tax.length ? medianOf(tax) : null,
+    gl2Wins,
+    wasm: wasm.length ? medianOf(wasm) : null,
+    wasmBest: wasm.length ? Math.max(...wasm) : null,
+    wasmN: wasm.length,
+    cpu: cpu.length ? medianOf(cpu) : null,
+    cpuWins: cpu.filter(v => v > 1).length,
+  };
+}
+
 function fmtMs(ms) {
   if (ms >= 1000) return `${(ms / 1000).toFixed(2)} s`;
   if (ms >= 10) return `${ms.toFixed(0)} ms`;
@@ -415,6 +469,21 @@ function BenchPage() {
 
   // What a reader should do about a bad cell: it is a gpu.js bug, not a page
   // bug, and the issue is worth more than the observation.
+  // The essay describes what is on screen. Live with nothing measured yet has
+  // nothing to describe, so it falls back to the newest saved run and says so
+  // rather than quoting figures for a table the reader cannot see.
+  const nameOf = useCallback(id => {
+    const w = workloads.find(x => x.id === id);
+    return w ? w.name : id;
+  }, []);
+  const shape = useMemo(() => {
+    const live = computeShape(results, nameOf);
+    if (live) return { ...live, from: readOnly && saved ? saved.label : 'this machine' };
+    const fallback = allRuns[0];
+    const s = fallback && computeShape(fallback.results, nameOf);
+    return s ? { ...s, from: fallback.label, borrowed: true } : null;
+  }, [results, readOnly, saved, allRuns, nameOf]);
+
   const trouble = useMemo(() => {
     const out = [];
     for (const [id, cells] of Object.entries(results || {})) {
@@ -925,41 +994,68 @@ docker compose run --rm bench --only __probe__`}</CmdBlock>
           </p>
 
           <h2>What the shape of the table says</h2>
-          <p>
-            <b>The GPU's win is enormous, and enormously uneven.</b> Across the gauntlet the best
-            GPU column beats plain JavaScript by a median of <b>~54×</b> — but the spread runs
-            from <b>1073×</b> down to <b>0.58×</b>. Three orders of magnitude separate the best
-            row from the worst. Any single number you have been quoted for “GPU speed-up” was a
-            choice of workload, and this table is the argument for asking which one.
-          </p>
-          <p>
-            <b>Convenience costs about half.</b> Where both run, gpu.js on WebGPU takes a median
-            of <b>2.1× longer</b> than the hand-written WebGPU doing the same work. That is the
-            price of writing a kernel as a JavaScript function instead of WGSL. Whether half the
-            speed is worth not writing shader code is a real decision — the point of measuring it
-            is that you get to make it deliberately.
-          </p>
-          <p>
-            <b>Newer is not automatically faster.</b> gpu.js on WebGL2 beats gpu.js on WebGPU in{' '}
-            <b>7 of {workloads.length} rows</b>, the transforms and the small image kernels among
-            them. The WebGPU backend is younger, and per-dispatch overhead still shows on work
-            that is many small passes rather than one large one.
-          </p>
-          <p>
-            <b>WebAssembly is a floor, not a ceiling.</b> It answers a different question from the
-            GPU columns: not “how fast can this get” but “what is left when there is{' '}
-            <em>no GPU at all</em>”. The answer is <b>single-digit multiples</b> of plain
-            JavaScript — up to <b>7×</b> here, against the GPU's hundreds. That is the right shape
-            for it. A compiled scalar loop with SIMD is still <em>one core doing one thing at a
-            time</em>, and the gap to a GPU is not a tuning gap, it is thousands of lanes.
-          </p>
-          <p>
-            <b>The CPU backend is slower than the JavaScript it replaces.</b> gpu.js's CPU mode
-            runs at a median <b>0.48×</b> of plain JS and is faster on only{' '}
-            <b>5 of {workloads.length}</b> rows. It exists so that a kernel written once still{' '}
-            <em>runs</em> where there is nothing to run it on — not so that it runs fast. Read it
-            as the fallback keeping its promise, not as a result.
-          </p>
+          {shape ? (
+            <>
+              <p className="alt">
+                {shape.borrowed
+                  ? `Figures below are from the saved run on ${shape.from} — press run and they follow your machine.`
+                  : `Figures below are computed from the table above: ${shape.from}, ${shape.n} workloads.`}
+              </p>
+              <p>
+                <b>The GPU's win is enormous, and enormously uneven.</b> Across the gauntlet
+                WebGPU through gpu.js beats plain JavaScript by a median of{' '}
+                <b>{fmtX(shape.median)}</b> — but the spread runs from{' '}
+                <b>{fmtX(shape.hi)}</b> on {shape.hiName} down to <b>{fmtX(shape.lo)}</b> on{' '}
+                {shape.loName}. Three orders of magnitude separate the best row from the worst.
+                Any single number you have been quoted for “GPU speed-up” was a choice of
+                workload, and this table is the argument for asking which one.
+              </p>
+              {shape.tax && (
+                <p>
+                  <b>Convenience costs about half.</b> Where both run, gpu.js on WebGPU takes a
+                  median of <b>{shape.tax.toFixed(1)}× longer</b> than the hand-written WebGPU
+                  doing the same work. That is the price of writing a kernel as a JavaScript
+                  function instead of WGSL. Whether that is worth not writing shader code is a
+                  real decision — the point of measuring it is that you get to make it
+                  deliberately.
+                </p>
+              )}
+              <p>
+                <b>Newer is not automatically faster.</b> gpu.js on WebGL2 beats gpu.js on WebGPU
+                in <b>{shape.gl2Wins} of {shape.n} rows</b> here. The WebGPU backend is younger,
+                and per-dispatch overhead still shows on work that is many small passes rather
+                than one large one — and how much it shows is a property of the machine, not
+                just of the library. Switch runs above and watch this number move.
+              </p>
+              {shape.wasm && (
+                <p>
+                  <b>WebAssembly is a floor, not a ceiling.</b> It answers a different question
+                  from the GPU columns: not “how fast can this get” but “what is left when there
+                  is <em>no GPU at all</em>”. The answer here is a median{' '}
+                  <b>{fmtX(shape.wasm)}</b> of plain JavaScript across {shape.wasmN} rows,
+                  reaching <b>{fmtX(shape.wasmBest)}</b> at best — single digits, against the
+                  GPU's hundreds. That is the right shape for it. A compiled scalar loop with
+                  SIMD is still <em>one core doing one thing at a time</em>, and the gap to a GPU
+                  is not a tuning gap, it is thousands of lanes.
+                </p>
+              )}
+              {shape.cpu && (
+                <p>
+                  <b>The CPU backend is slower than the JavaScript it replaces.</b> gpu.js's CPU
+                  mode runs at a median <b>{fmtX(shape.cpu)}</b> of plain JS and is faster on
+                  only <b>{shape.cpuWins} of {shape.n}</b> rows. It exists so that a kernel
+                  written once still <em>runs</em> where there is nothing to run it on — not so
+                  that it runs fast. Read it as the fallback keeping its promise, not as a
+                  result.
+                </p>
+              )}
+            </>
+          ) : (
+            <p>
+              Press <b>Run</b>, or pick a saved run, and this section fills in with the figures
+              that table supports — the medians, the spread, and what the library costs.
+            </p>
+          )}
 
           <h2>The whole table on one page</h2>
           <figure className="posterfig">

@@ -8,12 +8,12 @@
  * and the same fix on the module card art.
  */
 export default {
-  full: '/img/bench/gauntlet.png?v=1f634df3',
-  thumb: '/img/bench/gauntlet-thumb.png?v=d4e86b39',
+  full: '/img/bench/gauntlet.png?v=8345e637',
+  thumb: '/img/bench/gauntlet-thumb.png?v=fc610c5d',
   width: 1240,
   height: 1776,
   rows: 30,
-  machine: "apple metal-3 · Chrome 150",
+  machine: "nvidia blackwell · Chrome 151",
   gpujs: "2.22.0",
   date: "2026-08-03",
 };
