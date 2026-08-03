@@ -599,9 +599,13 @@ function BenchPage() {
             <label className="pick">
               <span className="lbl">Run</span>
               <select value={savedId} onChange={e => setSavedId(e.target.value)}>
+                {/* The library version is part of a run's identity, not a
+                    footnote to it: two tables from the same machine on either
+                    side of a gpu.js release are exactly what a reader wants to
+                    compare, and they are indistinguishable by label alone. */}
                 {allRuns.map(r => (
                   <option key={r.id} value={r.id}>
-                    {r.fromFile ? `${r.label} (opened)` : r.label}
+                    {`${r.label}${r.gpujs ? ` · gpu.js ${r.gpujs}` : ''}${r.fromFile ? ' (opened)' : ''}`}
                   </option>
                 ))}
               </select>
@@ -804,6 +808,18 @@ function BenchPage() {
             good at; a benchmark that forced the heap onto the GPU would be measuring a mistake
             nobody would make twice. What is held identical is the <em>problem</em> and the
             answer to it.
+          </p>
+          <p>
+            With one exception that is worth stating rather than hiding: <b>the four gpu.js
+            columns necessarily share a single kernel</b>. That is what gpu.js is — you write a
+            function once and a backend is chosen for you — so those columns cannot each pick
+            their platform's best algorithm, and the two hand-written columns can. On most rows
+            that costs nothing. On a problem that wants <em>scatter</em> — a histogram bumping a
+            shared counter, a compaction writing to an address it computes — it costs a great
+            deal, because a gpu.js thread may only write its own output cell on <b>every</b>
+            backend, CPU included. Those rows are not measuring a slow backend. They are pricing
+            a programming model against a problem shaped the wrong way for it, which is a real
+            thing to know before you choose one.
           </p>
           <p>
             Two of the columns are tinted amber, and they carry <b>no gpu.js at all</b>: one is
