@@ -14,6 +14,14 @@
              radial-gradient(900px 500px at 10% 10%, rgba(255, 121, 198, .08), transparent 60%);
   --surface: #ffffff;
   --surface-2: #eceef8;
+  // Controls that should read as lifted off the page: the source selector, the
+  // table header, the per-row run buttons. A shade LIGHTER than --bg in both
+  // themes, which is what "raised" means in the dark palette and had to be
+  // stated explicitly in the light one — there --surface-2 sits below --bg, so
+  // those controls were reading as recessed instead.
+  --control: #fcfcff;
+  // and their border carries the definition the fill no longer does
+  --control-line: rgba(38, 20, 90, .22);
   // Card art panel. Deliberately NOT --bg: that is the page colour, so a
   // letterboxed diagram sat on it looked like a hole in the card rather than a
   // panel. Barely off-white — lighter than the page, a shade under the card.
@@ -50,6 +58,8 @@
              radial-gradient(900px 500px at 10% 10%, rgba(32, 164, 243, .10), transparent 55%);
   --surface: #0e0a2c;
   --surface-2: #171040;
+  --control: #1c1454;
+  --control-line: rgba(158, 140, 220, .30);
   // Lifted a touch off --bg so the panel reads as a surface, not a void.
   --art-bg: #151038;
   --ink: #f6f7f8;

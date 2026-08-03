@@ -91,6 +91,55 @@ function BenchNav() {
   );
 }
 
+/**
+ * A command block you can take with you.
+ *
+ * navigator.clipboard is NOT always there: it needs a secure context, and this
+ * page is routinely read over plain http at a LAN address while someone tests
+ * on their phone — exactly the reader most likely to want to copy a docker
+ * command. So the modern API is tried first and the old execCommand path is
+ * the fallback, and if both fail the button says so instead of pretending.
+ */
+function CmdBlock({ children }) {
+  const [state, setState] = useState('idle');
+  const copy = async () => {
+    const text = String(children);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        // off-screen rather than hidden: a display:none textarea cannot be
+        // selected, and the copy silently does nothing
+        ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand && document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (!ok) throw new Error('execCommand refused');
+      }
+      setState('done');
+    } catch (e) {
+      setState('failed');
+    }
+    setTimeout(() => setState('idle'), 2000);
+  };
+  return (
+    <div className="cmdwrap">
+      <pre className="cmd"><code>{children}</code></pre>
+      <button
+        type="button"
+        className={`copybtn${state !== 'idle' ? ` ${state}` : ''}`}
+        onClick={copy}
+        aria-label="Copy these commands"
+      >
+        {state === 'done' ? 'Copied' : state === 'failed' ? 'Select it' : 'Copy'}
+      </button>
+    </div>
+  );
+}
+
 function fmtMs(ms) {
   if (ms >= 1000) return `${(ms / 1000).toFixed(2)} s`;
   if (ms >= 10) return `${ms.toFixed(0)} ms`;
@@ -794,10 +843,10 @@ function BenchPage() {
             container for that: it builds the page, drives real Chromium against a real GPU, and
             hands back a saved run you can drop into the picker above.
           </p>
-          <pre className="cmd"><code>{`docker build -t gpu-rocks-bench .
+          <CmdBlock>{`docker build -t gpu-rocks-bench .
 mkdir -p out
 docker run --rm --gpus all -v "$PWD/out:/out" \\
-  gpu-rocks-bench --label "RTX 4090 · Linux"`}</code></pre>
+  gpu-rocks-bench --label "RTX 4090 · Linux"`}</CmdBlock>
           <p>
             <b>Whether a container can see a GPU is entirely up to the host.</b> On Linux with
             NVIDIA it needs the container toolkit and <code>--gpus all</code>; on Intel or AMD,

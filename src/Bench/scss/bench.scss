@@ -96,9 +96,9 @@
   .btn:hover:not([disabled]) { border-color: var(--blue); }
   .btn.primary { background: var(--teal); border-color: transparent; color: #03211b; font-weight: 700; }
   .btn[disabled] { opacity: .45; cursor: not-allowed; }
-  .seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg { display: flex; border: 1px solid var(--control-line); border-radius: 8px; overflow: hidden; }
   .seg button {
-    border: 0; background: var(--surface-2); color: var(--muted); font: inherit;
+    border: 0; background: var(--control); color: var(--muted); font: inherit;
     font-size: .8rem; font-weight: 600; padding: .5rem .8rem; cursor: pointer; min-height: 40px;
   }
   .seg button[aria-pressed='true'] { background: var(--blue); color: #fff; }
@@ -108,7 +108,7 @@
   // WHICH machine a stored table came from, and to let a reader change it.
   .pick {
     display: flex; align-items: center; gap: .45rem; min-height: 40px;
-    border: 1px solid var(--line); background: var(--surface-2);
+    border: 1px solid var(--control-line); background: var(--control);
     border-radius: 8px; padding: 0 .6rem;
   }
   .pick .lbl {
@@ -140,7 +140,7 @@
   .scroll { overflow-x: auto; }
   table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1080px; }
   thead th {
-    position: sticky; top: 0; background: var(--surface-2); z-index: 10;
+    position: sticky; top: 0; background: var(--control); z-index: 10;
     font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; color: var(--muted);
     font-weight: 700; text-align: right; padding: .7rem .8rem;
     border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: bottom;
@@ -165,7 +165,7 @@
   }
   .run-one {
     grid-row: 1 / 3; width: 32px; height: 32px; display: grid; place-items: center;
-    border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2);
+    border-radius: 8px; border: 1px solid var(--control-line); background: var(--control);
     color: var(--teal); cursor: pointer;
   }
   .run-one:hover:not([disabled]) { border-color: var(--teal); }
@@ -387,6 +387,21 @@
 
   // Commands are meant to be copied, so they get room and a scrollbar of their
   // own rather than wrapping into something that will not paste correctly.
+  // The button sits over the block's top-right corner, and the block gets a
+  // little extra right padding on its first line so a long command never runs
+  // underneath it.
+  .cmdwrap { position: relative; }
+  .copybtn {
+    position: absolute; top: .5rem; right: .5rem;
+    border: 1px solid var(--control-line); background: var(--control); color: var(--muted);
+    border-radius: 7px; padding: .28rem .55rem; font: inherit; font-size: .72rem;
+    cursor: pointer; line-height: 1;
+  }
+  .copybtn:hover { color: var(--ink); border-color: var(--teal); }
+  .copybtn.done { color: var(--teal); border-color: var(--teal); }
+  .copybtn.failed { color: var(--pink); border-color: var(--pink); }
+  .cmdwrap .cmd { padding-right: 4.5rem; }
+
   .essay .cmd {
     background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
     padding: .75rem .9rem; margin: 0 0 1rem; overflow-x: auto;
