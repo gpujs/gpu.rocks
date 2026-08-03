@@ -92,9 +92,13 @@ for (const [id, cells] of Object.entries(run.results)) {
     id,
     name: (meta.get(id) || {}).name || id,
     tag: (meta.get(id) || {}).tag || '',
+    group: (meta.get(id) || {}).group || 'other',
+    baseMs: base.ms,
     best: best.factor,
     bare,
     webasm,
+    // what writing the kernel in JavaScript instead of WGSL cost on this row
+    tax: bare ? gp.ms / cells['bare-webgpu'].ms : null,
   });
 }
 rows.sort((a, b) => b.best - a.best);
@@ -131,9 +135,11 @@ const LABEL_W = 330;
 const ROW_H = 30;
 const HEAD_H = 250;
 const FOOT_H = 250;
+// the three panels below the main chart
+const PANEL_H = 300;
 const CHART_X = PAD + LABEL_W;
 const CHART_W = W - CHART_X - PAD - 70; // room for the value at the right
-const H = HEAD_H + rows.length * ROW_H + FOOT_H;
+const H = HEAD_H + rows.length * ROW_H + PANEL_H + FOOT_H;
 
 const allFactors = rows.flatMap(r => [r.best, r.bare, r.webasm].filter(Boolean));
 const lo = Math.min(0.5, Math.min(...allFactors) * 0.8);
@@ -172,6 +178,7 @@ const labelFor = row => {
   if (row.tag && nameW >= 120) return { name: fit(row.name, nameW, NAME_PX), tag: row.tag };
   return { name: fit(row.name, LABEL_W - 12, NAME_PX), tag: '' };
 };
+const fmtMs = ms => (ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms.toFixed(0)} ms`);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 // ── the drawing ────────────────────────────────────────────────────────────
@@ -257,6 +264,116 @@ rows.forEach((r, i) => {
   svg += `<text x="${(W - PAD).toFixed(1)}" y="${(y + 4).toFixed(1)}" fill="${win ? INK : PINK}" font-size="12.5" text-anchor="end" font-weight="700" font-family="ui-monospace, monospace">${fmtX(r.best)}×</text>`;
 });
 
+
+// ── three panels: the questions the main chart cannot answer ───────────────
+// It ranks workloads. It cannot say whether YOUR workload is big enough to
+// bother, what KIND of work the ranking reflects, or whether the single
+// library-tax figure in the footer is a constant or an average of extremes.
+const PANEL_Y = HEAD_H + rows.length * ROW_H + 92;
+const PANEL_W = (W - PAD * 2 - 64) / 3;
+const PANEL_BODY = 168;
+let panels = '';
+
+const panelHead = (px, title, sub) =>
+  `<text x="${px.toFixed(0)}" y="${PANEL_Y}" fill="${INK}" font-size="15" font-weight="800" font-family="'Montserrat',system-ui,sans-serif">${esc(title)}</text>` +
+  `<text x="${px.toFixed(0)}" y="${PANEL_Y + 20}" fill="${MUTED}" font-size="11.5" font-family="'Avenir Next',system-ui,sans-serif">${esc(sub)}</text>`;
+
+// ── A. is it worth it? duration against speed-up, both log ─────────────────
+{
+  const px = PAD;
+  const top = PANEL_Y + 40;
+  const pts = rows.map(r => ({ x: r.baseMs, y: r.best }));
+  const xs = pts.map(p => p.x); const ys = pts.map(p => p.y);
+  const xlo = Math.min(...xs) * 0.7, xhi = Math.max(...xs) * 1.4;
+  const ylo = Math.min(...ys) * 0.7, yhi = Math.max(...ys) * 1.4;
+  const sx = v => px + ((l10(v) - l10(xlo)) / (l10(xhi) - l10(xlo))) * PANEL_W;
+  const sy = v => top + PANEL_BODY - ((l10(v) - l10(ylo)) / (l10(yhi) - l10(ylo))) * PANEL_BODY;
+
+  // Pearson on the logs, which is what a straight line on a log-log plot means
+  const lx = xs.map(l10), ly = ys.map(l10);
+  const mx = lx.reduce((a, b) => a + b) / lx.length, my = ly.reduce((a, b) => a + b) / ly.length;
+  const cov = lx.map((v, i) => (v - mx) * (ly[i] - my)).reduce((a, b) => a + b);
+  const vx = lx.map(v => (v - mx) ** 2).reduce((a, b) => a + b);
+  const r = cov / Math.sqrt(vx * ly.map(v => (v - my) ** 2).reduce((a, b) => a + b));
+  const slope = cov / vx;
+  const fit = v => 10 ** (my + slope * (l10(v) - mx));
+
+  panels += panelHead(px, 'Is the work big enough?', `plain-JS duration against WebGPU speed-up · r = ${r.toFixed(2)}`);
+  panels += `<rect x="${px}" y="${top}" width="${PANEL_W}" height="${PANEL_BODY}" fill="rgba(158,140,220,.04)" rx="6"/>`;
+  panels += `<line x1="${sx(xlo).toFixed(1)}" y1="${sy(fit(xlo)).toFixed(1)}" x2="${sx(xhi).toFixed(1)}" y2="${sy(fit(xhi)).toFixed(1)}" stroke="${TEAL}" stroke-width="1.5" stroke-dasharray="5 4" opacity=".55"/>`;
+  panels += `<line x1="${px}" y1="${sy(1).toFixed(1)}" x2="${(px + PANEL_W).toFixed(1)}" y2="${sy(1).toFixed(1)}" stroke="${PINK}" stroke-width="1" opacity=".5"/>`;
+  for (const p of pts) {
+    panels += `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3.6" fill="${p.y >= 1 ? TEAL : PINK}" opacity=".85"/>`;
+  }
+  panels += `<text x="${px}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" font-family="ui-monospace,monospace">${fmtMs(xlo)}</text>`;
+  panels += `<text x="${(px + PANEL_W).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">${fmtMs(xhi)} of JavaScript →</text>`;
+  panels += `<text x="${px}" y="${top - 6}" fill="${MUTED}" font-size="10.5" font-family="ui-monospace,monospace">↑ ${fmtX(yhi)}×</text>`;
+}
+
+// ── B. what kind of work wins ──────────────────────────────────────────────
+{
+  const px = PAD + PANEL_W + 32;
+  const top = PANEL_Y + 40;
+  const byGroup = new Map();
+  for (const r of rows) {
+    if (!byGroup.has(r.group)) byGroup.set(r.group, []);
+    byGroup.get(r.group).push(r.best);
+  }
+  const fams = [...byGroup.entries()]
+    .map(([g, v]) => ({ g, v, med: median(v) }))
+    .sort((a, b) => b.med - a.med);
+  // Family names get a gutter of their own. Inside the plot they collided with
+  // any dot that landed near the left edge — which is exactly the interesting
+  // case, a family with a member the GPU lost at.
+  const GUT = 82;
+  const plotX = px + GUT;
+  const plotW = PANEL_W - GUT;
+  const lo2 = Math.min(...rows.map(r => r.best)) * 0.7;
+  const hi2 = Math.max(...rows.map(r => r.best)) * 1.4;
+  const sx2 = v => plotX + ((l10(v) - l10(lo2)) / (l10(hi2) - l10(lo2))) * plotW;
+  const step = PANEL_BODY / fams.length;
+
+  panels += panelHead(px, 'What kind of work wins', 'WebGPU speed-up by workload family, median marked');
+  panels += `<rect x="${plotX.toFixed(1)}" y="${top}" width="${plotW.toFixed(1)}" height="${PANEL_BODY}" fill="rgba(158,140,220,.04)" rx="6"/>`;
+  panels += `<line x1="${sx2(1).toFixed(1)}" y1="${top}" x2="${sx2(1).toFixed(1)}" y2="${(top + PANEL_BODY).toFixed(1)}" stroke="${PINK}" stroke-width="1" opacity=".5"/>`;
+  fams.forEach((f, i) => {
+    const y = top + i * step + step / 2;
+    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(y + 8).toFixed(1)}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">${esc(f.g)}</text>`;
+    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(y + 19).toFixed(1)}" fill="${MUTED}" font-size="9" text-anchor="end" opacity=".7" font-family="ui-monospace,monospace">n=${f.v.length}</text>`;
+    // every workload as a faint dot, so the family's SPREAD is visible and a
+    // median is not mistaken for a uniform result
+    for (const v of f.v) {
+      panels += `<circle cx="${sx2(v).toFixed(1)}" cy="${(y + 6).toFixed(1)}" r="3" fill="${v >= 1 ? TEAL : PINK}" opacity=".5"/>`;
+    }
+    panels += `<line x1="${sx2(f.med).toFixed(1)}" y1="${(y - 1).toFixed(1)}" x2="${sx2(f.med).toFixed(1)}" y2="${(y + 13).toFixed(1)}" stroke="${INK}" stroke-width="2"/>`;
+  });
+  panels += `<text x="${(px + PANEL_W).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">faster →</text>`;
+}
+
+// ── C. the tax, distributed ────────────────────────────────────────────────
+{
+  const px = PAD + (PANEL_W + 32) * 2;
+  const top = PANEL_Y + 40;
+  const taxes = rows.filter(r => r.tax).map(r => r.tax).sort((a, b) => a - b);
+  const lo3 = 1, hi3 = Math.max(...taxes) * 1.25;
+  const sx3 = v => px + ((l10(v) - l10(lo3)) / (l10(hi3) - l10(lo3))) * PANEL_W;
+  const medTax = median(taxes);
+
+  panels += panelHead(px, 'What the library costs', `every workload · median ${medTax.toFixed(1)}×, worst ${taxes.at(-1).toFixed(0)}×`);
+  panels += `<rect x="${px}" y="${top}" width="${PANEL_W}" height="${PANEL_BODY}" fill="rgba(158,140,220,.04)" rx="6"/>`;
+  // a beeswarm-ish column per workload: one bar each, sorted, so the shape of
+  // the distribution is the picture rather than a summary of it
+  const bw = PANEL_BODY / taxes.length;
+  taxes.forEach((t, i) => {
+    const y = top + i * bw;
+    panels += `<rect x="${sx3(lo3).toFixed(1)}" y="${(y + 1).toFixed(1)}" width="${Math.max(1.5, sx3(t) - sx3(lo3)).toFixed(1)}" height="${Math.max(1.5, bw - 2).toFixed(1)}" fill="${AMBER}" opacity="${t >= 3 ? '.95' : '.55'}" rx="1"/>`;
+  });
+  panels += `<line x1="${sx3(medTax).toFixed(1)}" y1="${top}" x2="${sx3(medTax).toFixed(1)}" y2="${(top + PANEL_BODY).toFixed(1)}" stroke="${INK}" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+  panels += `<text x="${(sx3(medTax) + 6).toFixed(1)}" y="${top + 14}" fill="${INK}" font-size="10.5" font-family="ui-monospace,monospace">median</text>`;
+  panels += `<text x="${px}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" font-family="ui-monospace,monospace">1× — free</text>`;
+  panels += `<text x="${(px + PANEL_W).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">${taxes.at(-1).toFixed(0)}× slower than WGSL →</text>`;
+}
+
 const html = `<div class="poster">
 <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -287,6 +404,8 @@ const html = `<div class="poster">
   <text x="${W - PAD - 118}" y="${HEAD_H - 74}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">hand-written WebGPU</text>
 
   ${svg}
+
+  ${panels}
 
   <line x1="${PAD}" y1="${H - FOOT_H + 46}" x2="${W - PAD}" y2="${H - FOOT_H + 46}" stroke="${GRID}"/>
 
