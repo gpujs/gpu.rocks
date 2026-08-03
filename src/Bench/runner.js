@@ -167,8 +167,20 @@ export async function runWorkload(workload, { GPU, onCell, signal, makeCanvas, c
       if (cell.value !== undefined && workload.reduce) {
         cell.check = workload.reduce(cell.value, size);
         delete cell.value;
-        if (col.id === BASELINE) baselineCheck = cell.check;
-        else if (baselineCheck != null && Number.isFinite(cell.check)) {
+        // A checksum that is not a number means the workload could not read its
+        // own output — and "we could not check this" is not "this is correct".
+        // Skipping it silently is how matmul shipped with five of its seven
+        // columns unverified: its reduce flattened with [].concat(...out),
+        // which does not spread Float32Array rows, so every 2-D gpu.js result
+        // reduced to NaN. NaN failed the isFinite test below, the comparison
+        // was skipped, and the cell rendered a time as though it had passed.
+        // JSON.stringify then wrote it out as `check: null`, which reads like
+        // "this column has no checksum" rather than "this column has no idea".
+        if (!Number.isFinite(cell.check)) {
+          cell.error = `checksum is not a finite number (${cell.check}) — reduce() could not read this output`;
+        } else if (col.id === BASELINE) {
+          baselineCheck = cell.check;
+        } else if (baselineCheck != null && Number.isFinite(baselineCheck)) {
           const scale = Math.max(Math.abs(baselineCheck), 1e-9);
           if (Math.abs(cell.check - baselineCheck) / scale > CHECK_EPS) cell.wrong = true;
         }
