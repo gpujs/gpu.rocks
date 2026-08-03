@@ -350,6 +350,23 @@
     .runwarn-actions .btn { flex: 1 1 auto; justify-content: center; }
   }
 
+  // ── the commentary under the table ───────────────────────────────────────
+  // Wider measure and larger type than the legend below it: this is prose to be
+  // read once, where the legend is reference to be glanced at. A single column
+  // capped near 70 characters, because these are arguments rather than labels.
+  .shape { margin-top: 2rem; }
+  .shape h2 {
+    font-size: 1.15rem; margin: 0 0 .9rem; letter-spacing: -.01em;
+  }
+  .shape-note {
+    border-left: 2px solid var(--line); padding: 0 0 0 .95rem; margin-bottom: 1.1rem;
+    max-width: 68ch;
+  }
+  .shape-note > b { display: block; font-size: .92rem; margin-bottom: .2rem; }
+  .shape-note p { margin: 0; font-size: .86rem; line-height: 1.6; color: var(--muted); }
+  // the figures are the point of each paragraph, so they take the ink
+  .shape-note p b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
   .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .8rem; margin-top: 1.2rem; }
   .legend > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .7rem .9rem; }
   .legend b { display: block; font-size: .78rem; margin-bottom: .15rem; }
@@ -358,6 +375,7 @@
 
   @media (max-width: 720px) {
     h1 { font-size: 1.7rem !important; }
+    .shape-note { padding-left: .7rem; }
     .wrap { padding: 1.2rem .7rem 3rem; }
     .toolbar { position: static; }
     .nav { gap: .6rem; position: relative; z-index: 70; }
