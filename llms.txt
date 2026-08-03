@@ -11,7 +11,7 @@ The whole course in one file: https://gpu.rocks/llms-full.txt
 ## Site
 
 - [GPU.js — GPU accelerated JavaScript](https://gpu.rocks/index.md): GPGPU operations using pure JavaScript. gpu.js compiles your JavaScript functions into shader code and runs them on your GPU — with a CPU fallback.
-- [Benchmark — GPU.js](https://gpu.rocks/benchmark.md): Run the GPU.js benchmark in your browser: matrix multiplication on your GPU vs CPU, charted against reference hardware results.
+- [Benchmark — GPU.js](https://gpu.rocks/benchmark.md): Thirty GPGPU workloads timed in your browser on every backend gpu.js can reach — WebGPU, WebGL2, WebGL, WebAssembly and CPU — against hand-written implementations with no gpu.js in them. Every answer is checked against a plain-JavaScript oracle before it is timed.
 - [Installation — GPU.js](https://gpu.rocks/install.md): Install GPU.js from npm, yarn, or a CDN script tag and write your first GPU-accelerated JavaScript kernel in the browser or Node.js.
 - [Examples — GPU.js](https://gpu.rocks/examples.md): GPU.js examples: matrix multiplication and more GPGPU snippets you can read, run, and benchmark on your own graphics card.
 - [Learn GPGPU in your browser — GPU.js Learn](https://gpu.rocks/learn.md): A free hands-on GPGPU course built on gpu.js: write real kernels in your browser, run them on your own GPU, and learn ideas that transfer to CUDA and WebGPU.
