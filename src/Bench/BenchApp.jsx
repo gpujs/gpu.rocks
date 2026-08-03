@@ -424,13 +424,11 @@ function BenchPage() {
         <p className="eyebrow">gpu.js</p>
         <h1>The Benchmark Gauntlet</h1>
         <p className="sub">
-          <b>{workloads.length} GPGPU workloads</b> run the gauntlet: every backend gpu.js can
-          reach, plus hand-written implementations with no gpu.js in them at all. The rightmost
-          column is <b>plain JavaScript</b> — every speed-up on this page is measured against it.
-          Each column runs <b>the best implementation for its platform</b>, not the same code six
-          times; what is held identical is the <em>problem</em>, and{' '}
-          <b>every answer is checked</b> against the same oracle. Nothing here is a claim we
-          could not make you watch.
+          <b>{workloads.length} GPGPU workloads</b> run the gauntlet on every backend gpu.js can
+          reach, and against hand-written implementations with no gpu.js in them at all. The
+          rightmost column is <b>plain JavaScript</b> — every speed-up on this page is measured
+          against it. Nothing here is a claim we cannot make you watch: press run, and the
+          numbers are yours, taken on your machine.
         </p>
 
         <div className="toolbar">
@@ -623,85 +621,91 @@ function BenchPage() {
           readOnly={readOnly}
         />
 
-        {/* Written from the recorded run rather than from received wisdom.
-            Every figure below is a median across the whole table and moves when
-            the table is re-recorded — see scripts/bench-cut.mjs. */}
-        <div className="shape">
+        {/* One continuous read: the instrument, then the two things that would
+            be misread, then what the numbers say. It was five commentary cards
+            over five legend cards, and the legend restated the lede — the
+            baseline column, best-implementation-per-platform, every answer
+            checked — while the commentary had already introduced the amber
+            columns the legend went on to explain. Prose forces the order to be
+            argued rather than tiled. Every figure below is a median over the
+            recorded run and moves when the table is re-recorded. */}
+        <div className="essay">
+          <h2>How the gauntlet is run</h2>
+          <p>
+            Each column runs <b>the best implementation for its platform</b>, not one algorithm
+            compiled six ways. Selecting the top 512 of a million numbers is a heap in plain
+            JavaScript and a threshold bisection on a GPU, because that is what each is actually
+            good at; a benchmark that forced the heap onto the GPU would be measuring a mistake
+            nobody would make twice. What is held identical is the <em>problem</em> and the
+            answer to it.
+          </p>
+          <p>
+            Two of the columns are tinted amber, and they carry <b>no gpu.js at all</b>: one is
+            WebGPU written by hand in WGSL, the other is the plain-JavaScript baseline. They are
+            there to keep two different claims apart. “The GPU is fast” is a fact about your
+            hardware; “gpu.js is fast” is a fact about this library. Only the amber columns can
+            tell you which one a number belongs to.
+          </p>
+          <p>
+            Every cell is a <b>median of at least three runs after two warm-ups</b>, because the
+            first call compiles a shader and would time the compiler instead of the kernel. Runs
+            are repeated until a cell has taken about a second, so a fast backend is measured
+            over enough work to mean something. And every column is checksummed against the same
+            plain-JavaScript oracle before its time is shown.
+          </p>
+
+          <div className="warnbox" role="note">
+            <h3>Two things that look like results and are not</h3>
+            <p>
+              <b>N/A is about your machine, not the workload.</b> Every workload here runs on
+              every backend. An N/A means the backend is not reachable from where you are
+              reading — no WebGPU adapter, or a page served over plain http, which does not
+              expose<code> navigator.gpu</code> at all. Hover the cell for the reason.
+            </p>
+            <p>
+              <b>WRONG is not a slow result. It is a wrong one.</b> When a column's checksum
+              misses the oracle by more than one part in ten thousand, the cell reports WRONG
+              instead of a time. A benchmark that prints a fast number for the wrong answer is
+              worse than no benchmark, so this page would rather show you a hole than a lie.
+            </p>
+          </div>
+
           <h2>What the shape of the table says</h2>
-
-          <div className="shape-note">
-            <b>The GPU's win is enormous, and enormously uneven.</b>
-            <p>Across the gauntlet the best GPU column beats plain JavaScript by a median of
-              <b> ~54×</b> — but the spread runs from <b>1073×</b> down to <b>0.58×</b>. Three
-              orders of magnitude separate the best row from the worst. Any single number you
-              have been quoted for “GPU speed-up” was a choice of workload.</p>
-          </div>
-
-          <div className="shape-note">
-            <b>Convenience costs about half.</b>
-            <p>Where both run, gpu.js on WebGPU takes a median of <b>2.1× longer</b> than the
-              hand-written WebGPU doing the same work. That is the price of writing a kernel as
-              a JavaScript function instead of WGSL — and it is the number the amber columns
-              exist to expose. Whether half the speed is worth not writing shader code is a real
-              decision, and it should be made against a measurement.</p>
-          </div>
-
-          <div className="shape-note">
-            <b>Newer is not automatically faster.</b>
-            <p>gpu.js on <b>WebGL2 beats gpu.js on WebGPU in 7 of {workloads.length} rows</b> —
-              the transforms and the small image kernels among them. The WebGPU backend is
-              younger, and per-dispatch overhead still shows on work that is many small passes
-              rather than one large one.</p>
-          </div>
-
-          <div className="shape-note">
-            <b>WebAssembly is a floor, not a ceiling.</b>
-            <p>It answers a different question from the GPU columns: not “how fast can this get”
-              but “what is left when there is <em>no GPU at all</em>”. The answer is
-              <b> single-digit multiples</b> of plain JavaScript — up to <b>7×</b> here, against
-              the GPU's hundreds. That is the right shape for it. A compiled scalar loop with
-              SIMD is still <em>one core doing one thing at a time</em>; the gap to a GPU is not
-              a tuning gap, it is thousands of lanes.</p>
-          </div>
-
-          <div className="shape-note">
-            <b>The CPU backend is slower than the JavaScript it replaces.</b>
-            <p>gpu.js's CPU mode runs at a median <b>0.48×</b> of plain JS and is faster on only
-              <b> 5 of {workloads.length}</b> rows. It exists so a kernel written once still
-              <em> runs</em> anywhere, not so it runs fast. Read it as the fallback's honesty,
-              not as a result.</p>
-          </div>
-        </div>
-
-        <div className="legend">
-          <div>
-            <b>The baseline is the last column</b>
-            <p><b>Plain JavaScript</b>, no gpu.js. Every × on the row is that column divided by
-              the cell.</p>
-          </div>
-          <div>
-            <b>Two columns have no gpu.js in them</b>
-            <p>Hand-written <b>WebGPU</b> and <b>plain JS</b>, tinted amber. They separate
-              “<b>the GPU is fast</b>” from “<b>gpu.js is fast</b>”.</p>
-          </div>
-          <div>
-            <b>N/A means this machine, not this workload</b>
-            <p>Every workload here runs on every backend. An N/A is about <b>where you are
-              reading from</b> — no WebGPU adapter, or a page served over plain http, which does
-              not expose<code> navigator.gpu</code> at all. Hover it for the reason.</p>
-          </div>
-          <div>
-            <b>Each column is the best that platform can do</b>
-            <p>Not one algorithm compiled six ways. Selecting the top 512 is <b>a heap in plain
-              JS</b> and <b>a threshold bisection on a GPU</b>, because that is what each is good
-              at. What is held identical is the <em>problem</em> and the answer — every column is
-              checksummed against the same oracle.</p>
-          </div>
-          <div>
-            <b>Median of ≥3, after 2 warm-ups</b>
-            <p>The first call compiles. Every column is also checksummed against the plain-JS
-              result, and a mismatch reads <b>WRONG</b> rather than fast.</p>
-          </div>
+          <p>
+            <b>The GPU's win is enormous, and enormously uneven.</b> Across the gauntlet the best
+            GPU column beats plain JavaScript by a median of <b>~54×</b> — but the spread runs
+            from <b>1073×</b> down to <b>0.58×</b>. Three orders of magnitude separate the best
+            row from the worst. Any single number you have been quoted for “GPU speed-up” was a
+            choice of workload, and this table is the argument for asking which one.
+          </p>
+          <p>
+            <b>Convenience costs about half.</b> Where both run, gpu.js on WebGPU takes a median
+            of <b>2.1× longer</b> than the hand-written WebGPU doing the same work. That is the
+            price of writing a kernel as a JavaScript function instead of WGSL. Whether half the
+            speed is worth not writing shader code is a real decision — the point of measuring it
+            is that you get to make it deliberately.
+          </p>
+          <p>
+            <b>Newer is not automatically faster.</b> gpu.js on WebGL2 beats gpu.js on WebGPU in{' '}
+            <b>7 of {workloads.length} rows</b>, the transforms and the small image kernels among
+            them. The WebGPU backend is younger, and per-dispatch overhead still shows on work
+            that is many small passes rather than one large one.
+          </p>
+          <p>
+            <b>WebAssembly is a floor, not a ceiling.</b> It answers a different question from the
+            GPU columns: not “how fast can this get” but “what is left when there is{' '}
+            <em>no GPU at all</em>”. The answer is <b>single-digit multiples</b> of plain
+            JavaScript — up to <b>7×</b> here, against the GPU's hundreds. That is the right shape
+            for it. A compiled scalar loop with SIMD is still <em>one core doing one thing at a
+            time</em>, and the gap to a GPU is not a tuning gap, it is thousands of lanes.
+          </p>
+          <p>
+            <b>The CPU backend is slower than the JavaScript it replaces.</b> gpu.js's CPU mode
+            runs at a median <b>0.48×</b> of plain JS and is faster on only{' '}
+            <b>5 of {workloads.length}</b> rows. It exists so that a kernel written once still{' '}
+            <em>runs</em> where there is nothing to run it on — not so that it runs fast. Read it
+            as the fallback keeping its promise, not as a result.
+          </p>
         </div>
       </div>
     </div>

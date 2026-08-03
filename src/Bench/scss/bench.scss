@@ -350,32 +350,46 @@
     .runwarn-actions .btn { flex: 1 1 auto; justify-content: center; }
   }
 
-  // ── the commentary under the table ───────────────────────────────────────
-  // Wider measure and larger type than the legend below it: this is prose to be
-  // read once, where the legend is reference to be glanced at. A single column
-  // capped near 70 characters, because these are arguments rather than labels.
-  .shape { margin-top: 2rem; }
-  .shape h2 {
-    font-size: 1.15rem; margin: 0 0 .9rem; letter-spacing: -.01em;
+  // ── the essay under the table ────────────────────────────────────────────
+  // One measure, one column, read top to bottom. This was two grids of cards
+  // and the cards let the same idea be stated twice without anyone noticing,
+  // because tiles have no order to violate. Prose does.
+  .essay {
+    margin-top: 2.2rem; max-width: 68ch;
   }
-  .shape-note {
-    border-left: 2px solid var(--line); padding: 0 0 0 .95rem; margin-bottom: 1.1rem;
-    max-width: 68ch;
+  .essay h2 {
+    font-size: 1.15rem; margin: 2rem 0 .7rem; letter-spacing: -.01em;
   }
-  .shape-note > b { display: block; font-size: .92rem; margin-bottom: .2rem; }
-  .shape-note p { margin: 0; font-size: .86rem; line-height: 1.6; color: var(--muted); }
-  // the figures are the point of each paragraph, so they take the ink
-  .shape-note p b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .essay h2:first-child { margin-top: 0; }
+  .essay p {
+    margin: 0 0 .9rem; font-size: .88rem; line-height: 1.65; color: var(--muted);
+  }
+  // the claim opening each paragraph, and the figures inside it, take the ink —
+  // a reader scanning for either finds them without reading the connective text
+  .essay p b { color: var(--ink); font-variant-numeric: tabular-nums; }
 
-  .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .8rem; margin-top: 1.2rem; }
-  .legend > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .7rem .9rem; }
-  .legend b { display: block; font-size: .78rem; margin-bottom: .15rem; }
-  .legend p { margin: 0; font-size: .78rem; color: var(--muted); }
+  // Not a card: a call-out. These two are the ways a reader could take a cell
+  // for a result when it is not one, which is a different kind of statement
+  // from the argument around it and should not look like part of it.
+  .warnbox {
+    border: 1px solid var(--amber);
+    border-left-width: 3px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--amber) 7%, transparent);
+    padding: .9rem 1.1rem .3rem;
+    margin: 1.4rem 0 1.8rem;
+  }
+  .warnbox h3 {
+    font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
+    margin: 0 0 .55rem; color: var(--amber);
+  }
+  .warnbox p { font-size: .84rem; margin-bottom: .7rem; }
+
   code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em; }
 
   @media (max-width: 720px) {
     h1 { font-size: 1.7rem !important; }
-    .shape-note { padding-left: .7rem; }
+    .essay { max-width: none; }
     .wrap { padding: 1.2rem .7rem 3rem; }
     .toolbar { position: static; }
     .nav { gap: .6rem; position: relative; z-index: 70; }
