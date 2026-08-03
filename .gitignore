@@ -25,3 +25,6 @@ yarn-error.log*
 
 # measurements kept aside when a --columns merge is refused
 .bench-pending/
+
+# generated posters and container output
+out/
