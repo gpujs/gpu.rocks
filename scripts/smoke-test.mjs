@@ -29,9 +29,39 @@ for (const route of ROUTES) {
   await page.goto(base + route, { waitUntil: 'networkidle2', timeout: 60000 });
   await new Promise(resolve => setTimeout(resolve, 1500));
 
+  // Walk the page before judging its images. Anything with loading="lazy"
+  // below the fold has not STARTED loading, and a check that treats "not
+  // loaded" as "broken" fails an image that is perfectly fine — while also
+  // never verifying it, since it was never fetched. Scrolling both triggers
+  // the fetch and makes the assertion mean something.
+  await page.evaluate(async () => {
+    const step = window.innerHeight * 0.8;
+    for (let y = 0; y < document.body.scrollHeight; y += step) {
+      window.scrollTo(0, y);
+      await new Promise(r => setTimeout(r, 120));
+    }
+    window.scrollTo(0, 0);
+    await Promise.all(
+      Array.from(document.images)
+        .filter(i => !i.complete)
+        .map(i => new Promise(res => {
+          const done = () => res();
+          i.addEventListener('load', done, { once: true });
+          i.addEventListener('error', done, { once: true });
+          setTimeout(done, 8000);
+        }))
+    );
+  });
+
   const rendered = await page.evaluate(() => ({
     nodes: document.querySelectorAll('#root *').length,
-    brokenImages: Array.from(document.images).filter(i => !i.complete || i.naturalWidth === 0).length,
+    // `complete && naturalWidth === 0` is what a FAILED load looks like. A
+    // still-in-flight image is `!complete`, which is not the same thing and
+    // used to be counted as a failure too.
+    brokenImages: Array.from(document.images)
+      .filter(i => i.complete && i.naturalWidth === 0)
+      .map(i => i.currentSrc || i.src),
+    stillLoading: Array.from(document.images).filter(i => !i.complete).length,
     excerpt: document.body.innerText.replace(/\s+/g, ' ').trim().slice(0, 90),
   }));
   await page.close();
@@ -39,7 +69,10 @@ for (const route of ROUTES) {
   const problems = [
     ...fatal,
     rendered.nodes < MIN_NODES ? `only ${rendered.nodes} nodes rendered` : null,
-    rendered.brokenImages ? `${rendered.brokenImages} broken images` : null,
+    rendered.brokenImages.length
+      ? `${rendered.brokenImages.length} broken images: ${rendered.brokenImages.map(u => u.split('/').pop()).join(', ')}`
+      : null,
+    rendered.stillLoading ? `${rendered.stillLoading} images never finished loading` : null,
   ].filter(Boolean);
 
   if (problems.length) failures++;
