@@ -70,6 +70,11 @@ function LearnNav() {
         {/* the API reference is a real static directory, not an SPA route */}
         <a href="/api/">API</a>
         <Link to="/examples">Examples</Link>
+        {/* was missing entirely: from the course there was no way to reach the
+            benchmark at all, and its absence was also what made this nav's
+            order differ from the other two. See HeaderLinks.jsx for the shared
+            order these three navs follow. */}
+        <Link to="/benchmark">Benchmark</Link>
         <a href="https://github.com/gpujs/gpu.js">GitHub</a>
         <a
           className="feedback"

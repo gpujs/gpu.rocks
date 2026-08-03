@@ -71,6 +71,8 @@ function BenchNav() {
         >
           <span aria-hidden="true">{open ? '✕' : '☰'}</span>
         </button>
+        {/* Home · Learn · API · Examples · Benchmark · GitHub — the order shared
+            with the main nav and the learn nav. See HeaderLinks.jsx. */}
         <div className="links" id="bench-menu" onClick={() => setOpen(false)}>
           <a href="/">Home</a>
           <a href="/learn/">Learn</a>
