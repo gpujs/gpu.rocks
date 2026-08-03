@@ -396,11 +396,22 @@ function BenchPage() {
       workerRef.current = spawnWorker();
     }
     if (pending) {
-      // keep whatever columns did land, drop the running marker
+      // Keep whatever columns did land; drop the row marker AND every cell that
+      // was still a {running:true} placeholder. Those placeholders are pushed
+      // by onCell before a column is measured, and normally get overwritten
+      // when the worker reports back — but the worker was just terminated, so
+      // nothing is coming. Left alone they animate forever on a stopped run.
+      // Removing the key entirely renders a dash, which is the truth: that
+      // cell was never measured.
       setLive(prev => {
-        const row = { ...(prev[pending.workloadId] || {}) };
-        delete row.__running;
-        return { ...prev, [pending.workloadId]: row };
+        const row = prev[pending.workloadId];
+        if (!row) return prev;
+        const kept = {};
+        for (const [col, cell] of Object.entries(row)) {
+          if (col === '__running' || (cell && cell.running)) continue;
+          kept[col] = cell;
+        }
+        return { ...prev, [pending.workloadId]: kept };
       });
       pending.resolve();
     }
