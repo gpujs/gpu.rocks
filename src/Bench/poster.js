@@ -8,10 +8,10 @@
  * and the same fix on the module card art.
  */
 export default {
-  full: '/img/bench/gauntlet.png?v=13a781c6',
-  thumb: '/img/bench/gauntlet-thumb.png?v=2dc788ce',
+  full: '/img/bench/gauntlet.png?v=1f634df3',
+  thumb: '/img/bench/gauntlet-thumb.png?v=d4e86b39',
   width: 1240,
-  height: 1740,
+  height: 1776,
   rows: 30,
   machine: "apple metal-3 · Chrome 150",
   gpujs: "2.22.0",

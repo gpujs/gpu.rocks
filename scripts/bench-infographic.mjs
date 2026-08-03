@@ -60,7 +60,15 @@ if (fileArg) {
   run = JSON.parse(readFileSync(join(SAVED, file), 'utf8'));
 }
 
-const { default: workloads } = await import(`${ROOT}/src/Bench/workloads/index.js`);
+const { default: workloads, GROUPS } = await import(`${ROOT}/src/Bench/workloads/index.js`);
+// The registry already exports display names for the groups, and the poster's
+// row labels already use display names. Panel B was printing the raw source
+// slug — "movement" for data-movement primitives, which reads as physics on
+// the one panel whose whole job is to say what kind of work wins.
+const GROUP_LABEL = new Map(GROUPS || []);
+// || f.g because a workload added without a group falls back to 'other', which
+// has no GROUPS entry and would otherwise print "undefined".
+const groupLabel = g => GROUP_LABEL.get(g) || g;
 const meta = new Map(workloads.map(w => [w.id, w]));
 
 const BASE = 'bare-js';
@@ -134,7 +142,13 @@ const W = 1240;
 const PAD = 64;
 const LABEL_W = 330;
 const ROW_H = 30;
-const HEAD_H = 250;
+// 286, not 250. Three things shared a 60px band: the deck's final period sat
+// tangent to the legend's first dot (at 4x it reads as one mark), the legend
+// floated on a baseline belonging to neither neighbour, and the first axis tick
+// sat 13px under the machine line with overlapping x. All three are relative to
+// HEAD_H, so one number opens all three gaps.
+const HEAD_H = 286;
+const LEGEND_Y = 218;
 const FOOT_H = 250;
 // the three panels below the main chart
 const PANEL_H = 340;
@@ -163,25 +177,6 @@ const fmtX = f => {
   return Number.isInteger(f) ? String(f) : f.toFixed(1);
 };
 
-// SVG text does not wrap or ellipsise, so the label column has to be budgeted
-// by hand. The name gets whatever the tag does not need, and when that leaves
-// too little to read, the tag is dropped rather than the name truncated into
-// uselessness — the workload's name is the thing a reader is looking for.
-const NAME_PX = 7.0;   // 'Avenir Next' at 13.5px, measured against the render
-const TAG_PX = 6.3;    // monospace at 10.5px
-const fit = (text, px, perChar) => {
-  const max = Math.floor(px / perChar);
-  return text.length <= max ? text : `${text.slice(0, Math.max(1, max - 1))}…`;
-};
-const labelFor = row => {
-  const tagW = row.tag ? row.tag.length * TAG_PX : 0;
-  const nameW = LABEL_W - tagW - 22;
-  if (row.tag && nameW >= 120) return { name: fit(row.name, nameW, NAME_PX), tag: row.tag };
-  return { name: fit(row.name, LABEL_W - 12, NAME_PX), tag: '' };
-};
-const fmtMs = ms => (ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms.toFixed(0)} ms`);
-const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 // ── the drawing ────────────────────────────────────────────────────────────
 const INK = '#f6f7f8';
 const MUTED = '#9b94c0';
@@ -190,6 +185,92 @@ const AMBER = '#e2b04a';
 const PINK = '#ff79c6';
 const BLUE = '#20a4f3';
 const GRID = 'rgba(158,140,220,.16)';
+
+// Three faces named once, because the file carried six literal stacks and two
+// of them omitted 'Avenir Next'. Montserrat is not installed here, so those two
+// fell through to system-ui (SF Pro) while the rest fell to Avenir Next — the
+// poster was set in three faces where it meant to use two, and the split ran
+// between a panel heading and the subtitle 20px under it.
+const DISPLAY = "'Montserrat','Avenir Next',system-ui,sans-serif";
+const TEXT = "'Avenir Next','Montserrat',system-ui,sans-serif";
+const MONO = 'ui-monospace, monospace';
+
+// SVG text does not wrap or ellipsise, so the label column has to be budgeted
+// by hand. The name gets whatever the tag does not need, and when that leaves
+// too little to read, the tag is dropped rather than the name truncated into
+// uselessness — the workload's name is the thing a reader is looking for.
+//
+// MEASURED, not estimated. This budgeted with a px-per-character constant of
+// 7.0, and a proportional face has no such constant: across these thirty names
+// the real figure runs 5.60 ("All-pairs gravity") to 7.06 ("Smith-Waterman
+// alignment"). Over-estimating truncated "Gray-Scott reaction-diffusion" with
+// 23px to spare; under-estimating is worse, because a name of capitals — an
+// "AMD MI300X GEMM (WMMA)" — measures 8.5 px/char, would be judged to fit, and
+// would silently overlap its tag. getComputedTextLength() on a real text node
+// is exact and honours letter-spacing, which a canvas measure would not.
+const browser = await launch();
+const page = await browser.newPage();
+await page.setContent(
+  '<style>html,body{margin:0}</style><svg id="m" width="10" height="10"></svg>',
+  { waitUntil: 'load' }
+);
+await page.evaluateHandle('document.fonts.ready');
+
+const measure = specs =>
+  page.evaluate(list => {
+    const svg = document.getElementById('m');
+    return list.map(([text, family, size, spacing]) => {
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('font-family', family);
+      t.setAttribute('font-size', String(size));
+      if (spacing) t.setAttribute('letter-spacing', String(spacing));
+      t.textContent = text;
+      svg.appendChild(t);
+      const w = t.getComputedTextLength();
+      t.remove();
+      return w;
+    });
+  }, specs);
+
+// Trimming happens in the browser too: the ellipsis has its own width, and
+// slicing by character count is the monospace assumption being removed.
+const fitAll = specs =>
+  page.evaluate(list => {
+    const svg = document.getElementById('m');
+    return list.map(({ text, budget, family, size }) => {
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('font-family', family);
+      t.setAttribute('font-size', String(size));
+      svg.appendChild(t);
+      const width = v => { t.textContent = v; return t.getComputedTextLength(); };
+      let out = text;
+      if (width(out) > budget) {
+        let n = text.length;
+        while (n > 1 && width(`${text.slice(0, n)}\u2026`) > budget) n--;
+        out = `${text.slice(0, n)}\u2026`;
+      }
+      t.remove();
+      return out;
+    });
+  }, specs);
+
+// 12px of air between a name and its tag. The old estimate's 8% over-prediction
+// had been acting as an accidental gutter; removing it without an explicit one
+// lets a fitted name butt right against the tag.
+const NAME_GUTTER = 12;
+const tagWidths = await measure(rows.map(r => [r.tag || '', MONO, 10.5]));
+const nameSpecs = rows.map((r, i) => {
+  const tagW = r.tag ? tagWidths[i] : 0;
+  const roomy = LABEL_W - tagW - NAME_GUTTER - 10;
+  const keepTag = Boolean(r.tag) && roomy >= 120;
+  return { text: r.name, budget: keepTag ? roomy : LABEL_W - 12, family: TEXT, size: 13.5, keepTag };
+});
+const fittedNames = await fitAll(nameSpecs.map(({ text, budget, family, size }) => ({ text, budget, family, size })));
+const LABELS = new Map(rows.map((r, i) => [r.id, { name: fittedNames[i], tag: nameSpecs[i].keepTag ? r.tag : '' }]));
+const labelFor = row => LABELS.get(row.id);
+const fmtMs = ms => (ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms.toFixed(0)} ms`);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 
 // The footer is generated rather than hand-placed, so a block can be added or
 // dropped without four x-coordinates needing to be recomputed by hand.
@@ -207,17 +288,53 @@ const foot = [
 let footBlocks = '';
 foot.forEach((f, i) => {
   const bx = PAD + (i * (W - PAD * 2)) / foot.length;
-  footBlocks += `<text x="${bx.toFixed(0)}" y="${H - FOOT_H + 92}" fill="${MUTED}" font-size="11" letter-spacing="2" font-family="ui-monospace, monospace">${esc(f.k)}</text>`;
-  footBlocks += `<text x="${bx.toFixed(0)}" y="${H - FOOT_H + 128}" fill="${f.c}" font-size="27" font-weight="800" font-family="'Montserrat',system-ui,sans-serif">${esc(f.v)}</text>`;
-  footBlocks += `<text x="${bx.toFixed(0)}" y="${H - FOOT_H + 152}" fill="${MUTED}" font-size="11.5" font-family="'Avenir Next',system-ui,sans-serif">${esc(f.s)}</text>`;
+  footBlocks += `<text x="${bx.toFixed(0)}" y="${H - FOOT_H + 92}" fill="${MUTED}" font-size="11" letter-spacing="2" font-family="${MONO}">${esc(f.k)}</text>`;
+  footBlocks += `<text x="${bx.toFixed(0)}" y="${H - FOOT_H + 128}" fill="${f.c}" font-size="27" font-weight="800" font-family="${DISPLAY}">${esc(f.v)}</text>`;
+  footBlocks += `<text x="${bx.toFixed(0)}" y="${H - FOOT_H + 152}" fill="${MUTED}" font-size="11.5" font-family="${TEXT}">${esc(f.s)}</text>`;
 });
+
+const groupLabelW = await measure(
+  [...new Set(rows.map(r => r.group))].map(g => [groupLabel(g), MONO, 10.5])
+);
+
+// ── the legend ─────────────────────────────────────────────────────────────
+// Generated rather than three hand-placed pairs, for three reasons. It sat on
+// no baseline of its own and collided with the deck's final period. It
+// advertised all three series unconditionally, where the footer already drops
+// its WebASM and library-cost blocks when those series are absent. And its
+// three x offsets were tuned by eye — two of the labels are both 19 characters
+// and differ by 4.5px, which no per-character estimate can see.
+const legendItems = [
+  { c: TEAL, shape: 'dot', label: 'WebGPU via gpu.js' },
+  wasmRows.length ? { c: BLUE, shape: 'diamond', label: 'WebAssembly, no GPU' } : null,
+  rows.some(r => r.bare) ? { c: AMBER, shape: 'ring', label: 'hand-written WebGPU' } : null,
+].filter(Boolean);
+
+const legendW = await measure(legendItems.map(i => [i.label, TEXT, 12]));
+let legendSvg = '';
+{
+  const GAP = 34;
+  // 17, not 12: the mark is centred at lx+5 with r=5, so at 12 the label began
+  // 2px from the mark's edge and read as attached to it.
+  const MARK = 17;
+  const total = legendW.reduce((a, w) => a + w + MARK, 0) + GAP * (legendItems.length - 1);
+  let lx = W - PAD - total;
+  legendItems.forEach((it, i) => {
+    const cy = LEGEND_Y - 4;
+    if (it.shape === 'dot') legendSvg += `<circle cx="${(lx + 5).toFixed(1)}" cy="${cy}" r="5" fill="${it.c}"/>`;
+    else if (it.shape === 'ring') legendSvg += `<circle cx="${(lx + 5).toFixed(1)}" cy="${cy}" r="4.5" fill="none" stroke="${it.c}" stroke-width="1.6"/>`;
+    else legendSvg += `<path d="M ${(lx + 5).toFixed(1)} ${cy - 4.6} L ${(lx + 9.6).toFixed(1)} ${cy} L ${(lx + 5).toFixed(1)} ${cy + 4.6} L ${(lx + 0.4).toFixed(1)} ${cy} Z" fill="${it.c}"/>`;
+    legendSvg += `<text x="${(lx + MARK).toFixed(1)}" y="${LEGEND_Y}" fill="${MUTED}" font-size="12" font-family="${TEXT}">${esc(it.label)}</text>`;
+    lx += MARK + legendW[i] + GAP;
+  });
+}
 
 let svg = '';
 
 // decade gridlines, drawn first so everything sits on top of them
 for (const t of ticks) {
   svg += `<line x1="${x(t).toFixed(1)}" y1="${HEAD_H - 22}" x2="${x(t).toFixed(1)}" y2="${HEAD_H + rows.length * ROW_H + 6}" stroke="${GRID}" stroke-width="1"/>`;
-  svg += `<text x="${x(t).toFixed(1)}" y="${HEAD_H - 32}" fill="${MUTED}" font-size="12" text-anchor="middle" font-family="ui-monospace, monospace">${fmtX(t)}×</text>`;
+  svg += `<text x="${x(t).toFixed(1)}" y="${HEAD_H - 32}" fill="${MUTED}" font-size="12" text-anchor="middle" font-family="${MONO}">${fmtX(t)}×</text>`;
 }
 
 // The spine: plain JavaScript. Everything is measured from here.
@@ -234,7 +351,7 @@ svg += `<line x1="${spine.toFixed(1)}" y1="${HEAD_H - 26}" x2="${spine.toFixed(1
 // hand-written ring can sit RIGHT of it on the very same row, which is exactly
 // what Smith-Waterman does. Saying the GPU lost there would blame the hardware
 // for something the programming model did.
-svg += `<text x="${(spine + 8).toFixed(1)}" y="${chartBottom + 28}" fill="${PINK}" font-size="12" font-weight="700" font-family="ui-monospace, monospace">1× — plain JavaScript. Left of this line gpu.js lost to it.</text>`;
+svg += `<text x="${(spine + 8).toFixed(1)}" y="${chartBottom + 28}" fill="${PINK}" font-size="12" font-weight="700" font-family="${MONO}">1× — plain JavaScript. Left of this line gpu.js lost to it.</text>`;
 
 rows.forEach((r, i) => {
   const y = HEAD_H + i * ROW_H + ROW_H / 2;
@@ -242,9 +359,9 @@ rows.forEach((r, i) => {
   const dot = win ? TEAL : PINK;
 
   const lab = labelFor(r);
-  svg += `<text x="${PAD}" y="${(y + 4).toFixed(1)}" fill="${INK}" font-size="13.5" font-family="'Avenir Next','Montserrat',system-ui,sans-serif">${esc(lab.name)}</text>`;
+  svg += `<text x="${PAD}" y="${(y + 4).toFixed(1)}" fill="${INK}" font-size="13.5" font-family="${TEXT}">${esc(lab.name)}</text>`;
   if (lab.tag) {
-    svg += `<text x="${PAD + LABEL_W - 22}" y="${(y + 4).toFixed(1)}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace, monospace">${esc(lab.tag)}</text>`;
+    svg += `<text x="${PAD + LABEL_W - 22}" y="${(y + 4).toFixed(1)}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="${MONO}">${esc(lab.tag)}</text>`;
   }
 
   // the connector runs from the baseline to the result, so its LENGTH is the
@@ -267,7 +384,7 @@ rows.forEach((r, i) => {
     svg += `<circle cx="${x(r.bare).toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="none" stroke="${AMBER}" stroke-width="1.6" opacity=".95"/>`;
   }
   svg += `<circle cx="${x(r.best).toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${dot}"/>`;
-  svg += `<text x="${(W - PAD).toFixed(1)}" y="${(y + 4).toFixed(1)}" fill="${win ? INK : PINK}" font-size="12.5" text-anchor="end" font-weight="700" font-family="ui-monospace, monospace">${fmtX(r.best)}×</text>`;
+  svg += `<text x="${(W - PAD).toFixed(1)}" y="${(y + 4).toFixed(1)}" fill="${win ? INK : PINK}" font-size="12.5" text-anchor="end" font-weight="700" font-family="${MONO}">${fmtX(r.best)}×</text>`;
 });
 
 
@@ -281,8 +398,8 @@ const PANEL_BODY = 205;
 let panels = '';
 
 const panelHead = (px, title, sub) =>
-  `<text x="${px.toFixed(0)}" y="${PANEL_Y}" fill="${INK}" font-size="15" font-weight="800" font-family="'Montserrat',system-ui,sans-serif">${esc(title)}</text>` +
-  `<text x="${px.toFixed(0)}" y="${PANEL_Y + 20}" fill="${MUTED}" font-size="11.5" font-family="'Avenir Next',system-ui,sans-serif">${esc(sub)}</text>`;
+  `<text x="${px.toFixed(0)}" y="${PANEL_Y}" fill="${INK}" font-size="15" font-weight="800" font-family="${DISPLAY}">${esc(title)}</text>` +
+  `<text x="${px.toFixed(0)}" y="${PANEL_Y + 20}" fill="${MUTED}" font-size="11.5" font-family="${TEXT}">${esc(sub)}</text>`;
 
 // ── A. is it worth it? duration against speed-up, both log ─────────────────
 {
@@ -290,8 +407,9 @@ const panelHead = (px, title, sub) =>
   const top = PANEL_Y + 40;
   const pts = rows.map(r => ({ x: r.baseMs, y: r.best }));
   const xs = pts.map(p => p.x); const ys = pts.map(p => p.y);
-  const xlo = Math.min(...xs) * 0.7, xhi = Math.max(...xs) * 1.4;
-  const ylo = Math.min(...ys) * 0.7, yhi = Math.max(...ys) * 1.4;
+  const xmin = Math.min(...xs), xmax = Math.max(...xs), ymax = Math.max(...ys);
+  const xlo = xmin * 0.7, xhi = xmax * 1.4;
+  const ylo = Math.min(...ys) * 0.7, yhi = ymax * 1.4;
   const sx = v => px + ((l10(v) - l10(xlo)) / (l10(xhi) - l10(xlo))) * PANEL_W;
   const sy = v => top + PANEL_BODY - ((l10(v) - l10(ylo)) / (l10(yhi) - l10(ylo))) * PANEL_BODY;
 
@@ -311,9 +429,20 @@ const panelHead = (px, title, sub) =>
   for (const p of pts) {
     panels += `<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3.6" fill="${p.y >= 1 ? TEAL : PINK}" opacity=".85"/>`;
   }
-  panels += `<text x="${px}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" font-family="ui-monospace,monospace">${fmtMs(xlo)}</text>`;
-  panels += `<text x="${(px + PANEL_W).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">${fmtMs(xhi)} of JavaScript →</text>`;
-  panels += `<text x="${px}" y="${top - 6}" fill="${MUTED}" font-size="10.5" font-family="ui-monospace,monospace">↑ ${fmtX(yhi)}×</text>`;
+  // The EXTREMES, not the bounds. These three captions printed xlo/xhi/yhi,
+  // which are min*0.7 and max*1.4 — breathing room — in the same muted mono as
+  // every measured figure on the sheet. On this run that meant 110 ms, 6.1 s
+  // and 1214x, none of which occurs anywhere in the data, and the 1214x
+  // contradicted the footer and the top row, both of which print 867x for the
+  // same quantity. On a poster closing with "every number here was measured",
+  // that is the one defect that costs a reader their trust in the other 30.
+  //
+  // The words matter as much as the values: the extremes are inset from the
+  // edges by the padding, so a bare "157 ms" in the corner would relabel the
+  // edge instead of the data. "shortest" and "longest" say what is being named.
+  panels += `<text x="${px}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" font-family="${MONO}">shortest ${fmtMs(xmin)}</text>`;
+  panels += `<text x="${(px + PANEL_W).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="${MONO}">longest ${fmtMs(xmax)} of JavaScript →</text>`;
+  panels += `<text x="${px}" y="${top - 6}" fill="${MUTED}" font-size="10.5" font-family="${MONO}">↑ WebGPU speed-up · max ${fmtX(ymax)}×</text>`;
 }
 
 // ── B. what kind of work wins ──────────────────────────────────────────────
@@ -337,7 +466,12 @@ const panelHead = (px, title, sub) =>
   // Family names get a gutter of their own. Inside the plot they collided with
   // any dot that landed near the left edge — which is exactly the interesting
   // case, a family with a member gpu.js lost on.
-  const GUT = 82;
+  // Measured, not 82. "Dense arithmetic" is 101px where the slug "dense" was
+  // 30, so a constant tuned to the old slugs would clip the new labels — and a
+  // constant tuned to today's GROUPS would be the same brittleness one list
+  // later. This costs panel B some plot width; the marks already fill 94% of
+  // it, so it is a real trade for bands that are not misread, not free space.
+  const GUT = Math.ceil(Math.max(...groupLabelW) + 18);
   const plotX = px + GUT;
   const plotW = PANEL_W - GUT;
   const all2 = rows.flatMap(r => [r.best, r.webasm].filter(Boolean));
@@ -353,8 +487,15 @@ const panelHead = (px, title, sub) =>
     const band = top + i * step;
     const yA = band + step * 0.33;
     const yB = band + step * 0.72;
-    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(band + step * 0.5 + 1).toFixed(1)}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">${esc(f.g)}</text>`;
-    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(band + step * 0.5 + 12).toFixed(1)}" fill="${MUTED}" font-size="9" text-anchor="end" opacity=".7" font-family="ui-monospace,monospace">n=${f.gpu.length}</text>`;
+    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(band + step * 0.5 + 1).toFixed(1)}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="${MONO}">${esc(groupLabel(f.g))}</text>`;
+    // .85, not .7: muted at .7 composites to rgb(110,104,142) on this ground,
+    // 3.92:1, the only text on the poster below AA — and it is the label
+    // carrying the sample-size caveat, at the smallest size on the sheet.
+    // .85 gives 5.38:1 and is still visibly subordinate.
+    //
+    // The offset is a fraction of the band rather than a flat 12px, which at
+    // nine or more families would have pushed this baseline into the next row.
+    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(band + step * 0.5 + Math.min(12, step * 0.35)).toFixed(1)}" fill="${MUTED}" font-size="9" text-anchor="end" opacity=".85" font-family="${MONO}">n=${f.gpu.length}</text>`;
     if (i) panels += `<line x1="${plotX.toFixed(1)}" y1="${band.toFixed(1)}" x2="${(plotX + plotW).toFixed(1)}" y2="${band.toFixed(1)}" stroke="${GRID}" stroke-width="1" opacity=".5"/>`;
 
     for (const v of f.gpu) {
@@ -370,8 +511,8 @@ const panelHead = (px, title, sub) =>
       panels += `<line x1="${sx2(median(f.wasm)).toFixed(1)}" y1="${(yB - 6).toFixed(1)}" x2="${sx2(median(f.wasm)).toFixed(1)}" y2="${(yB + 6).toFixed(1)}" stroke="${BLUE}" stroke-width="2.5"/>`;
     }
   });
-  panels += `<text x="${(plotX + plotW).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">faster →</text>`;
-  panels += `<text x="${plotX.toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" font-family="ui-monospace,monospace">← slower than plain JS</text>`;
+  panels += `<text x="${(plotX + plotW).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="${MONO}">faster →</text>`;
+  panels += `<text x="${plotX.toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" font-family="${MONO}">← slower than plain JS</text>`;
 }
 
 // ── C. the tax, distributed ────────────────────────────────────────────────
@@ -393,9 +534,9 @@ const panelHead = (px, title, sub) =>
     panels += `<rect x="${sx3(lo3).toFixed(1)}" y="${(y + 1).toFixed(1)}" width="${Math.max(1.5, sx3(t) - sx3(lo3)).toFixed(1)}" height="${Math.max(1.5, bw - 2).toFixed(1)}" fill="${AMBER}" opacity="${t >= 3 ? '.95' : '.55'}" rx="1"/>`;
   });
   panels += `<line x1="${sx3(medTax).toFixed(1)}" y1="${top}" x2="${sx3(medTax).toFixed(1)}" y2="${(top + PANEL_BODY).toFixed(1)}" stroke="${INK}" stroke-width="1.5" stroke-dasharray="3 3"/>`;
-  panels += `<text x="${(sx3(medTax) + 6).toFixed(1)}" y="${top + 14}" fill="${INK}" font-size="10.5" font-family="ui-monospace,monospace">median</text>`;
-  panels += `<text x="${px}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" font-family="ui-monospace,monospace">1× — free</text>`;
-  panels += `<text x="${(px + PANEL_W).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">${taxes.at(-1).toFixed(0)}× slower than WGSL →</text>`;
+  panels += `<text x="${(sx3(medTax) + 6).toFixed(1)}" y="${top + 14}" fill="${INK}" font-size="10.5" font-family="${MONO}">median</text>`;
+  panels += `<text x="${px}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" font-family="${MONO}">1× — free</text>`;
+  panels += `<text x="${(px + PANEL_W).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="${MONO}">${taxes.at(-1).toFixed(0)}× slower than WGSL →</text>`;
 }
 
 const html = `<div class="poster">
@@ -414,18 +555,12 @@ const html = `<div class="poster">
   <rect width="${W}" height="${H}" fill="url(#glow1)"/>
   <rect width="${W}" height="${H}" fill="url(#glow2)"/>
 
-  <text x="${PAD}" y="78" fill="${PINK}" font-size="13" font-weight="800" letter-spacing="3" font-family="ui-monospace, monospace">GPU.JS</text>
+  <text x="${PAD}" y="78" fill="${PINK}" font-size="13" font-weight="800" letter-spacing="3" font-family="${MONO}">GPU.JS</text>
   <text x="${PAD}" y="132" fill="${INK}" font-size="44" font-weight="800" letter-spacing="-1" font-family="'Montserrat','Avenir Next',system-ui,sans-serif">The Benchmark Gauntlet</text>
-  <text x="${PAD}" y="166" fill="${MUTED}" font-size="15" font-family="'Avenir Next','Montserrat',system-ui,sans-serif">${esc(rows.length)} GPGPU workloads, every one checked against a plain-JavaScript oracle before it was timed.</text>
-  <text x="${PAD}" y="192" fill="${MUTED}" font-size="13" font-family="ui-monospace, monospace">${esc(run.machine || '')}${run.date ? ` · ${esc(run.date)}` : ''} · gpu.js ${esc(run.gpujs || '?')}</text>
+  <text x="${PAD}" y="166" fill="${MUTED}" font-size="15" font-family="${TEXT}">${esc(rows.length)} GPGPU workloads, every one checked against a plain-JavaScript oracle before it was timed.</text>
+  <text x="${PAD}" y="192" fill="${MUTED}" font-size="13" font-family="${MONO}">${esc(run.machine || '')}${run.date ? ` · ${esc(run.date)}` : ''} · gpu.js ${esc(run.gpujs || '?')}</text>
 
-  <!-- legend, placed where the eye lands before the first row -->
-  <circle cx="${W - PAD - 470}" cy="${HEAD_H - 78}" r="5" fill="${TEAL}"/>
-  <text x="${W - PAD - 458}" y="${HEAD_H - 74}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">WebGPU via gpu.js</text>
-  <path d="M ${W - PAD - 300} ${HEAD_H - 82.6} L ${W - PAD - 295.4} ${HEAD_H - 78} L ${W - PAD - 300} ${HEAD_H - 73.4} L ${W - PAD - 304.6} ${HEAD_H - 78} Z" fill="${BLUE}"/>
-  <text x="${W - PAD - 288}" y="${HEAD_H - 74}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">WebAssembly, no GPU</text>
-  <circle cx="${W - PAD - 130}" cy="${HEAD_H - 78}" r="4.5" fill="none" stroke="${AMBER}" stroke-width="1.6"/>
-  <text x="${W - PAD - 118}" y="${HEAD_H - 74}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">hand-written WebGPU</text>
+  ${legendSvg}
 
   ${svg}
 
@@ -435,11 +570,11 @@ const html = `<div class="poster">
 
   ${footBlocks}
 
-  <text x="${PAD}" y="${H - 34}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">Every number here was measured in a browser and can be reproduced in one — gpu.rocks/benchmark</text>
+  <text x="${PAD}" y="${H - 34}" fill="${MUTED}" font-size="12" font-family="${TEXT}">Every number here was measured in a browser and can be reproduced in one — gpu.rocks/benchmark</text>
 </svg>
 </div>`;
 
-const page = `<style>
+const pageHtml = `<style>
   html, body { margin: 0; background: #050218; }
   .poster { width: ${W}px; }
   svg { display: block; }
@@ -450,12 +585,13 @@ ${html}`;
 const outArg = arg('--out') || join(ROOT, 'out', `gauntlet-${run.id || 'run'}.png`);
 mkdirSync(dirname(resolve(ROOT, outArg)), { recursive: true });
 const htmlPath = resolve(ROOT, outArg).replace(/\.png$/, '.html');
-writeFileSync(htmlPath, page);
+writeFileSync(htmlPath, pageHtml);
 
-const browser = await launch();
-const p = await browser.newPage();
+// the same page the measurements were taken on — a second browser would be a
+// second font environment, and the layout is now measured against this one
+const p = page;
 await p.setViewport({ width: W, height: Math.min(H, 4000), deviceScaleFactor: 2 });
-await p.setContent(page, { waitUntil: 'load' });
+await p.setContent(pageHtml, { waitUntil: 'load' });
 // let the font stack settle before the shot, or the first paint measures a
 // fallback face and the labels shift after capture
 await p.evaluateHandle('document.fonts.ready');
