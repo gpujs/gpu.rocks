@@ -136,7 +136,7 @@ const ROW_H = 30;
 const HEAD_H = 250;
 const FOOT_H = 250;
 // the three panels below the main chart
-const PANEL_H = 300;
+const PANEL_H = 340;
 const CHART_X = PAD + LABEL_W;
 const CHART_W = W - CHART_X - PAD - 70; // room for the value at the right
 const H = HEAD_H + rows.length * ROW_H + PANEL_H + FOOT_H;
@@ -276,7 +276,7 @@ rows.forEach((r, i) => {
 // library-tax figure in the footer is a constant or an average of extremes.
 const PANEL_Y = HEAD_H + rows.length * ROW_H + 92;
 const PANEL_W = (W - PAD * 2 - 64) / 3;
-const PANEL_BODY = 168;
+const PANEL_BODY = 205;
 let panels = '';
 
 const panelHead = (px, title, sub) =>
@@ -316,43 +316,61 @@ const panelHead = (px, title, sub) =>
 }
 
 // ── B. what kind of work wins ──────────────────────────────────────────────
+// Both gpu.js series per family, because the interesting thing is not either
+// curve alone but how differently they respond to the SAME axis: WebGPU swings
+// three orders of magnitude across families, WebAssembly barely leaves 1x. A
+// GPU cares enormously what shape the work is; one core mostly does not.
 {
   const px = PAD + PANEL_W + 32;
   const top = PANEL_Y + 40;
   const byGroup = new Map();
   for (const r of rows) {
-    if (!byGroup.has(r.group)) byGroup.set(r.group, []);
-    byGroup.get(r.group).push(r.best);
+    if (!byGroup.has(r.group)) byGroup.set(r.group, { gpu: [], wasm: [] });
+    byGroup.get(r.group).gpu.push(r.best);
+    if (r.webasm) byGroup.get(r.group).wasm.push(r.webasm);
   }
   const fams = [...byGroup.entries()]
-    .map(([g, v]) => ({ g, v, med: median(v) }))
+    .map(([g, v]) => ({ g, ...v, med: median(v.gpu) }))
     .sort((a, b) => b.med - a.med);
+
   // Family names get a gutter of their own. Inside the plot they collided with
   // any dot that landed near the left edge — which is exactly the interesting
   // case, a family with a member gpu.js lost on.
   const GUT = 82;
   const plotX = px + GUT;
   const plotW = PANEL_W - GUT;
-  const lo2 = Math.min(...rows.map(r => r.best)) * 0.7;
-  const hi2 = Math.max(...rows.map(r => r.best)) * 1.4;
+  const all2 = rows.flatMap(r => [r.best, r.webasm].filter(Boolean));
+  const lo2 = Math.min(...all2) * 0.7;
+  const hi2 = Math.max(...all2) * 1.4;
   const sx2 = v => plotX + ((l10(v) - l10(lo2)) / (l10(hi2) - l10(lo2))) * plotW;
   const step = PANEL_BODY / fams.length;
 
-  panels += panelHead(px, 'What kind of work wins', 'WebGPU speed-up by workload family, median marked');
+  panels += panelHead(px, 'What kind of work wins', 'by family · WebGPU above, WebAssembly below, medians marked');
   panels += `<rect x="${plotX.toFixed(1)}" y="${top}" width="${plotW.toFixed(1)}" height="${PANEL_BODY}" fill="rgba(158,140,220,.04)" rx="6"/>`;
   panels += `<line x1="${sx2(1).toFixed(1)}" y1="${top}" x2="${sx2(1).toFixed(1)}" y2="${(top + PANEL_BODY).toFixed(1)}" stroke="${PINK}" stroke-width="1" opacity=".5"/>`;
   fams.forEach((f, i) => {
-    const y = top + i * step + step / 2;
-    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(y + 8).toFixed(1)}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">${esc(f.g)}</text>`;
-    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(y + 19).toFixed(1)}" fill="${MUTED}" font-size="9" text-anchor="end" opacity=".7" font-family="ui-monospace,monospace">n=${f.v.length}</text>`;
-    // every workload as a faint dot, so the family's SPREAD is visible and a
-    // median is not mistaken for a uniform result
-    for (const v of f.v) {
-      panels += `<circle cx="${sx2(v).toFixed(1)}" cy="${(y + 6).toFixed(1)}" r="3" fill="${v >= 1 ? TEAL : PINK}" opacity=".5"/>`;
+    const band = top + i * step;
+    const yA = band + step * 0.33;
+    const yB = band + step * 0.72;
+    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(band + step * 0.5 + 1).toFixed(1)}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">${esc(f.g)}</text>`;
+    panels += `<text x="${(plotX - 10).toFixed(1)}" y="${(band + step * 0.5 + 12).toFixed(1)}" fill="${MUTED}" font-size="9" text-anchor="end" opacity=".7" font-family="ui-monospace,monospace">n=${f.gpu.length}</text>`;
+    if (i) panels += `<line x1="${plotX.toFixed(1)}" y1="${band.toFixed(1)}" x2="${(plotX + plotW).toFixed(1)}" y2="${band.toFixed(1)}" stroke="${GRID}" stroke-width="1" opacity=".5"/>`;
+
+    for (const v of f.gpu) {
+      panels += `<circle cx="${sx2(v).toFixed(1)}" cy="${yA.toFixed(1)}" r="2.8" fill="${v >= 1 ? TEAL : PINK}" opacity=".55"/>`;
     }
-    panels += `<line x1="${sx2(f.med).toFixed(1)}" y1="${(y - 1).toFixed(1)}" x2="${sx2(f.med).toFixed(1)}" y2="${(y + 13).toFixed(1)}" stroke="${INK}" stroke-width="2"/>`;
+    panels += `<line x1="${sx2(median(f.gpu)).toFixed(1)}" y1="${(yA - 6).toFixed(1)}" x2="${sx2(median(f.gpu)).toFixed(1)}" y2="${(yA + 6).toFixed(1)}" stroke="${TEAL}" stroke-width="2.5"/>`;
+
+    for (const v of f.wasm) {
+      const d = 2.9;
+      panels += `<path d="M ${sx2(v).toFixed(1)} ${(yB - d).toFixed(1)} L ${(sx2(v) + d).toFixed(1)} ${yB.toFixed(1)} L ${sx2(v).toFixed(1)} ${(yB + d).toFixed(1)} L ${(sx2(v) - d).toFixed(1)} ${yB.toFixed(1)} Z" fill="${BLUE}" opacity=".6"/>`;
+    }
+    if (f.wasm.length) {
+      panels += `<line x1="${sx2(median(f.wasm)).toFixed(1)}" y1="${(yB - 6).toFixed(1)}" x2="${sx2(median(f.wasm)).toFixed(1)}" y2="${(yB + 6).toFixed(1)}" stroke="${BLUE}" stroke-width="2.5"/>`;
+    }
   });
-  panels += `<text x="${(px + PANEL_W).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">faster →</text>`;
+  panels += `<text x="${(plotX + plotW).toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" text-anchor="end" font-family="ui-monospace,monospace">faster →</text>`;
+  panels += `<text x="${plotX.toFixed(0)}" y="${top + PANEL_BODY + 16}" fill="${MUTED}" font-size="10.5" font-family="ui-monospace,monospace">← slower than plain JS</text>`;
 }
 
 // ── C. the tax, distributed ────────────────────────────────────────────────
