@@ -9,6 +9,5 @@
  * Never hand-edited: a number in this directory has to have been measured.
  */
 import r0 from './2026-08-02-apple-m1-max.json';
-import r1 from './.pending-2026-08-02-apple-m1-max.json';
 
-export default [r0, r1];
+export default [r0];

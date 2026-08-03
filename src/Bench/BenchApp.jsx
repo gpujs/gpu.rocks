@@ -309,9 +309,73 @@ function BenchPage() {
     };
   }, []);
 
-  const saved = useMemo(() => savedRuns.find(r => r.id === savedId), [savedId]);
+  // Runs opened from a file live alongside the ones this repo ships. They are
+  // not persisted anywhere: a reload drops them, which is the honest lifetime
+  // for a file someone handed the page once.
+  const [loadedRuns, setLoadedRuns] = useState([]);
+  const [loadError, setLoadError] = useState('');
+  const allRuns = useMemo(() => [...loadedRuns, ...savedRuns], [loadedRuns]);
+  const saved = useMemo(() => allRuns.find(r => r.id === savedId), [allRuns, savedId]);
   const readOnly = source === 'saved';
   const results = readOnly ? (saved ? saved.results : {}) : live;
+
+  // A saved run is JSON someone else produced, so it is checked before it is
+  // trusted enough to render. Not for safety — React escapes what it prints —
+  // but because a malformed file should say what is wrong with it rather than
+  // rendering as an empty table and looking like a bug in the page.
+  const openRunFile = async file => {
+    setLoadError('');
+    if (!file) return;
+    let parsed;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch (e) {
+      setLoadError(`${file.name} is not valid JSON`);
+      return;
+    }
+    if (!parsed || typeof parsed !== 'object' || !parsed.results || typeof parsed.results !== 'object') {
+      setLoadError(`${file.name} has no results — is it a saved run?`);
+      return;
+    }
+    const known = Object.keys(parsed.results).filter(id => workloads.some(w => w.id === id));
+    if (!known.length) {
+      setLoadError(`${file.name} has no workloads this page knows about`);
+      return;
+    }
+    const run = {
+      ...parsed,
+      // fall back rather than render undefined: an older or hand-made file may
+      // be missing the descriptive fields without being useless
+      id: String(parsed.id || file.name.replace(/\.json$/, '')),
+      label: String(parsed.label || file.name),
+      machine: String(parsed.machine || 'unknown machine'),
+      date: String(parsed.date || ''),
+      gpujs: String(parsed.gpujs || '?'),
+      fromFile: true,
+    };
+    setLoadedRuns(prev => [run, ...prev.filter(r => r.id !== run.id)]);
+    setSavedId(run.id);
+    setSource('saved');
+    if (known.length < Object.keys(parsed.results).length) {
+      setLoadError(
+        `Loaded ${known.length} of ${Object.keys(parsed.results).length} rows — the rest are workloads this page no longer has.`
+      );
+    }
+  };
+
+  // What a reader should do about a bad cell: it is a gpu.js bug, not a page
+  // bug, and the issue is worth more than the observation.
+  const trouble = useMemo(() => {
+    const out = [];
+    for (const [id, cells] of Object.entries(results || {})) {
+      if (!cells || typeof cells !== 'object') continue;
+      for (const [col, cell] of Object.entries(cells)) {
+        if (cell && cell.wrong) out.push(`${id} · ${col} · WRONG`);
+        else if (cell && cell.error) out.push(`${id} · ${col} · error`);
+      }
+    }
+    return out;
+  }, [results]);
 
   // One workload at a time, in the worker. Serial on purpose: two workloads
   // measured at once would be measuring each other.
@@ -486,12 +550,32 @@ function BenchPage() {
             <label className="pick">
               <span className="lbl">Run</span>
               <select value={savedId} onChange={e => setSavedId(e.target.value)}>
-                {savedRuns.map(r => (
+                {allRuns.map(r => (
                   <option key={r.id} value={r.id}>
-                    {r.label}
+                    {r.fromFile ? `${r.label} (opened)` : r.label}
                   </option>
                 ))}
               </select>
+            </label>
+          )}
+          {/* Only alongside the picker it feeds. In Live mode the button had
+              nothing to do with what the page was showing, and offering it
+              there implied opening a file was a way to start measuring.
+
+              A label wrapping a hidden input, not a button calling .click() on
+              one: this way the keyboard and the file picker behave the way the
+              platform intends without any of it being reimplemented. */}
+          {readOnly && (
+            <label className="btn openrun">
+              <input
+                type="file"
+                accept="application/json,.json"
+                onChange={e => {
+                  openRunFile(e.target.files && e.target.files[0]);
+                  e.target.value = '';
+                }}
+              />
+              Open a run…
             </label>
           )}
           <span className="grow" />
@@ -548,9 +632,42 @@ function BenchPage() {
           <div className="ro">
             <b>Read-only.</b>
             <span>
-              Showing a saved run — <code>{saved.machine}</code>, {saved.date}. Running is disabled
-              so a stored result can never be half-overwritten by this machine.
+              Showing {saved.fromFile ? 'a run opened from a file' : 'a saved run'} —{' '}
+              <code>{saved.machine}</code>{saved.date ? `, ${saved.date}` : ''}, gpu.js{' '}
+              {saved.gpujs}. Running is disabled so a stored result can never be
+              half-overwritten by this machine.
             </span>
+          </div>
+        )}
+
+        {loadError && (
+          <div className="loaderr" role="alert">
+            <span>{loadError}</span>
+            <button type="button" onClick={() => setLoadError('')} aria-label="Dismiss">✕</button>
+          </div>
+        )}
+
+        {/* Only when there is something to report. A standing invitation to file
+            bugs on a clean table is noise; the same words next to an actual
+            WRONG are a next step. */}
+        {trouble.length > 0 && (
+          <div className="warnbox inline" role="note">
+            <h3>{trouble.length} cell{trouble.length === 1 ? '' : 's'} did not pass its check</h3>
+            <p>
+              A cell reading <b>WRONG</b> or <b>error</b> is a gpu.js bug, not a property of your
+              machine — the same kernel produced the right answer on the other backends. These
+              are worth reporting, and a report with the workload name and your adapter in it is
+              worth several without:
+            </p>
+            <ul className="troublelist">
+              {trouble.slice(0, 8).map(t => <li key={t}><code>{t}</code></li>)}
+              {trouble.length > 8 && <li>…and {trouble.length - 8} more</li>}
+            </ul>
+            <p>
+              <a href="https://github.com/gpujs/gpu.js/issues/new" target="_blank" rel="noreferrer">
+                Raise an issue on gpu.js →
+              </a>
+            </p>
           </div>
         )}
 
@@ -707,6 +824,19 @@ docker run --rm --gpus all -v "$PWD/out:/out" \\
               <code>docker/README.md</code>.
             </p>
           </div>
+
+          <p>
+            <b>If you run it, send the result back.</b> A saved run from hardware nobody here
+            owns is the most useful thing this page can be given — a different vendor, an older
+            card, a phone. Open a pull request against{' '}
+            <a href="https://github.com/gpujs/gpu.rocks" target="_blank" rel="noreferrer">gpu.rocks</a>{' '}
+            with the JSON dropped into <code>src/Bench/saved/</code>, and it joins the picker
+            above. And if any cell comes back <b>WRONG</b> or <b>error</b>, that is a gpu.js bug
+            worth an{' '}
+            <a href="https://github.com/gpujs/gpu.js/issues/new" target="_blank" rel="noreferrer">issue</a>{' '}
+            rather than a shrug: the same kernel got the right answer on the other backends, so
+            the disagreement is real and reproducible.
+          </p>
 
           <h2>What the shape of the table says</h2>
           <p>
