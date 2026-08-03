@@ -5,6 +5,7 @@ import workloads, { GROUPS } from './workloads/index.js';
 import savedRuns from './saved/index.js';
 import { BASELINE, COLUMNS, runWorkload, webgpuStatus } from './runner.js';
 import { SIGNATURE_IDS } from './signature.js';
+import poster from './poster.js';
 import './scss/bench.scss';
 
 // The benchmark page. Same visual language as the course — same tokens, same
@@ -939,6 +940,36 @@ docker run --rm --gpus all -v "$PWD/out:/out" \\
             <em>runs</em> where there is nothing to run it on — not so that it runs fast. Read it
             as the fallback keeping its promise, not as a result.
           </p>
+
+          <h2>The whole table on one page</h2>
+          <figure className="posterfig">
+            <a href={poster.full} target="_blank" rel="noreferrer" aria-label="Open the full-size poster">
+              <img
+                src={poster.thumb}
+                width={Math.round(poster.width * 0.36)}
+                height={Math.round(poster.height * 0.36)}
+                alt={`Poster of the Benchmark Gauntlet: ${poster.rows} workloads ranked by WebGPU speed-up on a log axis, with WebAssembly and hand-written WebGPU marked, measured on ${poster.machine}`}
+                loading="lazy"
+              />
+            </a>
+            <figcaption>
+              <p>
+                Every row above, ranked on one log axis, with the <b>1× baseline drawn as a
+                spine</b> so the workloads gpu.js loses at sit to its left rather than being left
+                out. Three marks per row — WebGPU and WebAssembly through gpu.js, and
+                hand-written WebGPU — so the distance between the first and the last is the cost
+                of the abstraction, shown rather than asserted. Below it, three questions the
+                ranking cannot answer on its own: whether a workload is <em>big enough</em> to be
+                worth a GPU, what <em>kind</em> of work the ranking reflects, and whether that
+                single library-tax figure is a constant or an average of extremes.
+              </p>
+              <p className="alt">
+                Generated from the saved run, never drawn by hand — regenerate it for any machine
+                with <code>node scripts/bench-infographic.mjs --site</code>.{' '}
+                <a href={poster.full} target="_blank" rel="noreferrer">Open the full size →</a>
+              </p>
+            </figcaption>
+          </figure>
         </div>
       </div>
     </div>

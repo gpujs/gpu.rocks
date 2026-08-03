@@ -442,6 +442,37 @@
 
   .essay a { color: var(--teal); }
 
+  // Preview, not the poster. At full size it is 1240 x 1740 and would bury the
+  // page it is summarising; the thumbnail is a separate, smaller raster rather
+  // than a CSS-scaled copy, so a phone downloads 107 KB instead of 1.2 MB.
+  .posterfig {
+    margin: 0 0 1.2rem; display: grid; grid-template-columns: auto 1fr; gap: 1.1rem;
+    align-items: start;
+  }
+  // DIRECT child only. This is the thumbnail's wrapper, and it needs
+  // line-height:0 so the anchor does not add a descender's worth of space under
+  // the image — but as `.posterfig a` it also caught the text link inside the
+  // caption, collapsing that link's line box to zero height so it rendered on
+  // top of the line above it.
+  .posterfig > a { display: block; line-height: 0; }
+  .posterfig img {
+    width: 240px; height: auto; border-radius: 10px;
+    border: 1px solid var(--control-line); background: var(--surface-2);
+  }
+  .posterfig > a:hover img, .posterfig > a:focus-visible img { border-color: var(--teal); }
+  .posterfig figcaption a { color: var(--teal); }
+  .posterfig figcaption p { margin: 0 0 .7rem; font-size: .86rem; line-height: 1.6; color: var(--muted); }
+  .posterfig figcaption p b { color: var(--ink); }
+  .posterfig figcaption .alt { font-size: .8rem; }
+
+  @media (max-width: 720px) {
+    .posterfig { grid-template-columns: 1fr; }
+    // smaller than the desktop thumbnail, not larger: at 320px it dominated the
+    // phone screen while still being far too small to read, which is the worst
+    // of both — a preview should say "there is a poster" and get out of the way
+    .posterfig img { width: 100%; max-width: 220px; }
+  }
+
   .essay p code {
     background: var(--surface-2); border-radius: 4px; padding: .06em .35em;
     color: var(--ink);
