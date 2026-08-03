@@ -63,12 +63,14 @@ const { default: workloads } = await import(`${ROOT}/src/Bench/workloads/index.j
 const meta = new Map(workloads.map(w => [w.id, w]));
 
 const BASE = 'bare-js';
-const GPUJS = [
-  { id: 'webgpu', label: 'WebGPU' },
-  { id: 'webgl2', label: 'WebGL2' },
-  { id: 'webgl', label: 'WebGL' },
-  { id: 'webasm', label: 'WebASM' },
-];
+// Three NAMED series, not a best-of. A "best available backend" mark is a
+// number without an author: two rows sitting side by side could be WebGPU and
+// WebGL2 and the poster would not say so, and the reader cannot tell which
+// backend to reach for. Naming them costs nothing and answers that.
+//
+//   WebGPU via gpu.js   — the backend you would actually target today
+//   WebASM via gpu.js   — the same kernel with no GPU underneath it at all
+//   WebGPU hand-written — the same hardware without the library
 
 const usable = c => c && typeof c.ms === 'number' && c.ms > 0 && !c.wrong && !c.error;
 
@@ -76,24 +78,23 @@ const rows = [];
 for (const [id, cells] of Object.entries(run.results)) {
   const base = cells[BASE];
   if (!usable(base)) continue;
-  let best = null;
-  for (const col of GPUJS) {
-    const c = cells[col.id];
-    if (!usable(c)) continue;
-    // a backend that quietly degraded is not that backend's result
-    if (c.fellBackTo) continue;
-    const factor = base.ms / c.ms;
-    if (!best || factor > best.factor) best = { factor, label: col.label };
-  }
-  if (!best) continue;
+  // a backend that quietly degraded is not that backend's result
+  const gp = cells.webgpu;
+  if (!usable(gp) || gp.fellBackTo) continue;
+  const best = { factor: base.ms / gp.ms };
   const bare = usable(cells['bare-webgpu']) ? base.ms / cells['bare-webgpu'].ms : null;
+  // Only where WebAssembly actually compiled the kernel. A degraded cell holds
+  // the cpu backend's time, and plotting that as a WebASM result would credit
+  // the mark for work it did not do.
+  const wa = cells.webasm;
+  const webasm = usable(wa) && !wa.fellBackTo ? base.ms / wa.ms : null;
   rows.push({
     id,
     name: (meta.get(id) || {}).name || id,
     tag: (meta.get(id) || {}).tag || '',
     best: best.factor,
-    bestLabel: best.label,
     bare,
+    webasm,
   });
 }
 rows.sort((a, b) => b.best - a.best);
@@ -109,9 +110,13 @@ const median = xs => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 const tax = rows.filter(r => r.bare).map(r => r.bare / r.best);
+const wasmRows = rows.filter(r => r.webasm);
 const stats = {
-  medianBest: median(rows.map(r => r.best)),
+  medianGpu: median(rows.map(r => r.best)),
   medianTax: tax.length ? median(tax) : null,
+  medianWasm: wasmRows.length ? median(wasmRows.map(r => r.webasm)) : null,
+  wasmBest: wasmRows.length ? Math.max(...wasmRows.map(r => r.webasm)) : null,
+  wasmCount: wasmRows.length,
   top: rows[0],
   bottom: rows[rows.length - 1],
   losses: rows.filter(r => r.best < 1).length,
@@ -130,7 +135,7 @@ const CHART_X = PAD + LABEL_W;
 const CHART_W = W - CHART_X - PAD - 70; // room for the value at the right
 const H = HEAD_H + rows.length * ROW_H + FOOT_H;
 
-const allFactors = rows.flatMap(r => [r.best, r.bare].filter(Boolean));
+const allFactors = rows.flatMap(r => [r.best, r.bare, r.webasm].filter(Boolean));
 const lo = Math.min(0.5, Math.min(...allFactors) * 0.8);
 const hi = Math.max(...allFactors) * 1.35;
 const l10 = Math.log10;
@@ -175,7 +180,29 @@ const MUTED = '#9b94c0';
 const TEAL = '#18bc9c';
 const AMBER = '#e2b04a';
 const PINK = '#ff79c6';
+const BLUE = '#20a4f3';
 const GRID = 'rgba(158,140,220,.16)';
+
+// The footer is generated rather than hand-placed, so a block can be added or
+// dropped without four x-coordinates needing to be recomputed by hand.
+const foot = [
+  { k: 'WEBGPU VIA GPU.JS', v: `${fmtX(stats.medianGpu)}×`, c: TEAL, s: 'median over plain JavaScript' },
+  { k: 'SPREAD', v: `${fmtX(stats.bottom.best)}×–${fmtX(stats.top.best)}×`, c: INK, s: `${stats.bottom.name} → ${stats.top.name}` },
+  stats.medianWasm
+    ? { k: 'WEBASM VIA GPU.JS', v: `${fmtX(stats.medianWasm)}×`, c: BLUE, s: `median with no GPU · best ${fmtX(stats.wasmBest)}×` }
+    : null,
+  stats.medianTax
+    ? { k: 'COST OF THE LIBRARY', v: `${stats.medianTax.toFixed(1)}×`, c: AMBER, s: 'hand-written WebGPU over gpu.js' }
+    : null,
+].filter(Boolean);
+
+let footBlocks = '';
+foot.forEach((f, i) => {
+  const bx = PAD + (i * (W - PAD * 2)) / foot.length;
+  footBlocks += `<text x="${bx.toFixed(0)}" y="${H - FOOT_H + 92}" fill="${MUTED}" font-size="11" letter-spacing="2" font-family="ui-monospace, monospace">${esc(f.k)}</text>`;
+  footBlocks += `<text x="${bx.toFixed(0)}" y="${H - FOOT_H + 128}" fill="${f.c}" font-size="27" font-weight="800" font-family="'Montserrat',system-ui,sans-serif">${esc(f.v)}</text>`;
+  footBlocks += `<text x="${bx.toFixed(0)}" y="${H - FOOT_H + 152}" fill="${MUTED}" font-size="11.5" font-family="'Avenir Next',system-ui,sans-serif">${esc(f.s)}</text>`;
+});
 
 let svg = '';
 
@@ -213,6 +240,15 @@ rows.forEach((r, i) => {
   const to = Math.max(spine, x(r.best));
   svg += `<line x1="${from.toFixed(1)}" y1="${y.toFixed(1)}" x2="${to.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${dot}" stroke-width="2" opacity=".35"/>`;
 
+  // WebAssembly: the same kernel with no GPU underneath it at all. A diamond
+  // rather than a third circle — the marks should be told apart by shape as
+  // well as by hue, which also survives being printed or read by someone who
+  // does not separate teal from blue.
+  if (r.webasm) {
+    const wx = x(r.webasm);
+    svg += `<path d="M ${(wx).toFixed(1)} ${(y - 4.6).toFixed(1)} L ${(wx + 4.6).toFixed(1)} ${y.toFixed(1)} L ${(wx).toFixed(1)} ${(y + 4.6).toFixed(1)} L ${(wx - 4.6).toFixed(1)} ${y.toFixed(1)} Z" fill="${BLUE}" opacity=".95"/>`;
+  }
+
   // hand-written WebGPU: the same hardware without the library
   if (r.bare) {
     svg += `<circle cx="${x(r.bare).toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="none" stroke="${AMBER}" stroke-width="1.6" opacity=".95"/>`;
@@ -243,30 +279,18 @@ const html = `<div class="poster">
   <text x="${PAD}" y="192" fill="${MUTED}" font-size="13" font-family="ui-monospace, monospace">${esc(run.machine || '')}${run.date ? ` · ${esc(run.date)}` : ''} · gpu.js ${esc(run.gpujs || '?')}</text>
 
   <!-- legend, placed where the eye lands before the first row -->
-  <circle cx="${W - PAD - 250}" cy="${HEAD_H - 78}" r="5" fill="${TEAL}"/>
-  <text x="${W - PAD - 238}" y="${HEAD_H - 74}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">best via gpu.js</text>
-  <circle cx="${W - PAD - 120}" cy="${HEAD_H - 78}" r="4.5" fill="none" stroke="${AMBER}" stroke-width="1.6"/>
-  <text x="${W - PAD - 108}" y="${HEAD_H - 74}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">hand-written WebGPU</text>
+  <circle cx="${W - PAD - 470}" cy="${HEAD_H - 78}" r="5" fill="${TEAL}"/>
+  <text x="${W - PAD - 458}" y="${HEAD_H - 74}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">WebGPU via gpu.js</text>
+  <path d="M ${W - PAD - 300} ${HEAD_H - 82.6} L ${W - PAD - 295.4} ${HEAD_H - 78} L ${W - PAD - 300} ${HEAD_H - 73.4} L ${W - PAD - 304.6} ${HEAD_H - 78} Z" fill="${BLUE}"/>
+  <text x="${W - PAD - 288}" y="${HEAD_H - 74}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">WebAssembly, no GPU</text>
+  <circle cx="${W - PAD - 130}" cy="${HEAD_H - 78}" r="4.5" fill="none" stroke="${AMBER}" stroke-width="1.6"/>
+  <text x="${W - PAD - 118}" y="${HEAD_H - 74}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">hand-written WebGPU</text>
 
   ${svg}
 
   <line x1="${PAD}" y1="${H - FOOT_H + 46}" x2="${W - PAD}" y2="${H - FOOT_H + 46}" stroke="${GRID}"/>
 
-  <text x="${PAD}" y="${H - FOOT_H + 92}" fill="${MUTED}" font-size="11" letter-spacing="2" font-family="ui-monospace, monospace">MEDIAN BEST</text>
-  <text x="${PAD}" y="${H - FOOT_H + 128}" fill="${TEAL}" font-size="30" font-weight="800" font-family="'Montserrat',system-ui,sans-serif">${fmtX(stats.medianBest)}×</text>
-  <text x="${PAD}" y="${H - FOOT_H + 152}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">over plain JavaScript</text>
-
-  <text x="${PAD + 260}" y="${H - FOOT_H + 92}" fill="${MUTED}" font-size="11" letter-spacing="2" font-family="ui-monospace, monospace">SPREAD</text>
-  <text x="${PAD + 260}" y="${H - FOOT_H + 128}" fill="${INK}" font-size="30" font-weight="800" font-family="'Montserrat',system-ui,sans-serif">${fmtX(stats.bottom.best)}×–${fmtX(stats.top.best)}×</text>
-  <text x="${PAD + 260}" y="${H - FOOT_H + 152}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">${esc(stats.bottom.name)} → ${esc(stats.top.name)}</text>
-
-  ${stats.medianTax ? `<text x="${PAD + 620}" y="${H - FOOT_H + 92}" fill="${MUTED}" font-size="11" letter-spacing="2" font-family="ui-monospace, monospace">COST OF THE LIBRARY</text>
-  <text x="${PAD + 620}" y="${H - FOOT_H + 128}" fill="${AMBER}" font-size="30" font-weight="800" font-family="'Montserrat',system-ui,sans-serif">${stats.medianTax.toFixed(1)}×</text>
-  <text x="${PAD + 620}" y="${H - FOOT_H + 152}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">hand-written WebGPU over gpu.js, median</text>` : ''}
-
-  <text x="${PAD + 940}" y="${H - FOOT_H + 92}" fill="${MUTED}" font-size="11" letter-spacing="2" font-family="ui-monospace, monospace">GPU LOSES</text>
-  <text x="${PAD + 940}" y="${H - FOOT_H + 128}" fill="${PINK}" font-size="30" font-weight="800" font-family="'Montserrat',system-ui,sans-serif">${stats.losses}</text>
-  <text x="${PAD + 940}" y="${H - FOOT_H + 152}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">of ${rows.length} workloads</text>
+  ${footBlocks}
 
   <text x="${PAD}" y="${H - 34}" fill="${MUTED}" font-size="12" font-family="'Avenir Next',system-ui,sans-serif">Every number here was measured in a browser and can be reproduced in one — gpu.rocks/benchmark</text>
 </svg>
@@ -298,4 +322,5 @@ await browser.close();
 
 console.log(`bench-infographic: ${resolve(ROOT, outArg)}  (${W}×${H} at 2x)`);
 console.log(`                   ${htmlPath}  — edit and re-render`);
-console.log(`  ${rows.length} rows · median ${fmtX(stats.medianBest)}× · spread ${fmtX(stats.bottom.best)}×–${fmtX(stats.top.best)}×${stats.medianTax ? ` · library costs ${stats.medianTax.toFixed(1)}×` : ''}`);
+console.log(`  ${rows.length} rows · WebGPU median ${fmtX(stats.medianGpu)}× · spread ${fmtX(stats.bottom.best)}×–${fmtX(stats.top.best)}×`);
+console.log(`  WebASM on ${stats.wasmCount} of ${rows.length} rows${stats.medianWasm ? `, median ${fmtX(stats.medianWasm)}×` : ''}${stats.medianTax ? ` · library costs ${stats.medianTax.toFixed(1)}×` : ''}`);
