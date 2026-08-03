@@ -860,10 +860,11 @@ function BenchPage() {
             container for that: it builds the page, drives real Chromium against a real GPU, and
             hands back a saved run you can drop into the picker above.
           </p>
-          <CmdBlock>{`docker build -t gpu-rocks-bench .
-mkdir -p out
-docker run --rm --gpus all -v "$PWD/out:/out" \\
-  gpu-rocks-bench --label "RTX 4090 · Linux"`}</CmdBlock>
+          <CmdBlock>{`mkdir -p out
+docker compose run --rm bench --label "RTX 4090 · Linux"
+
+# check it can reach the GPU first — about forty seconds
+docker compose run --rm bench --only __probe__`}</CmdBlock>
           <p>
             <b>Whether a container can see a GPU is entirely up to the host.</b> On Linux with
             NVIDIA it needs the container toolkit and <code>--gpus all</code>; on Intel or AMD,
@@ -874,9 +875,21 @@ docker run --rm --gpus all -v "$PWD/out:/out" \\
           </p>
           <p>
             Headless Chromium also does not use a GPU on Linux unless told to, and which flags
-            work depends on the driver underneath. The image defaults to ANGLE over Vulkan, which
-            is the combination that works on NVIDIA; override{' '}
-            <code>CHROME_FLAGS</code> for anything else.
+            work depends on the driver underneath. The image ships a default that works on
+            NVIDIA through the container toolkit; override <code>CHROME_FLAGS</code> for other
+            stacks — Mesa generally wants ANGLE over GL rather than Vulkan.
+          </p>
+          <p>
+            One flag in that default is worth knowing about, because its absence fails in the
+            most expensive way available. <b>Without{' '}
+            <code>--disable-vulkan-surface</code>, WebGL reaches the card and WebGPU quietly does
+            not.</b> Asking for a Vulkan backend creates an instance with presentation-surface
+            extensions, which do not exist in a container with no display; the GPU process
+            abandons Vulkan and falls back to software without saying why, while WebGL — which
+            never needed that instance — keeps working and makes everything look fine. Nothing
+            here ever presents to a screen, so the requirement is pure cost. It was measured on
+            an RTX 5090: with the flag, <code>nvidia blackwell</code>; without it,{' '}
+            <code>google swiftshader</code> and no run can be saved at all.
           </p>
 
           <div className="warnbox" role="note">
@@ -886,7 +899,14 @@ docker run --rm --gpus all -v "$PWD/out:/out" \\
               renderer, and <b>refuses to write a run if either is software</b>. A container with
               no GPU reports <code>google swiftshader</code> and stops there. That is not the
               image failing — it is the image declining to hand you a CPU wearing a GPU's label,
-              which is the one number this page cannot afford to publish. Full notes in{' '}
+              which is the one number this page cannot afford to publish.
+            </p>
+            <p>
+              <b><code>vulkaninfo</code> showing your card does not mean the run will work.</b>{' '}
+              It talks to the Vulkan loader directly, and Chromium's GPU process has requirements
+              on top of it that fail separately — an RTX 5090 listed perfectly there in exactly
+              the configuration where WebGPU was still SwiftShader. Trust the probe above
+              instead: it reports the two strings the recorder actually gates on. Full notes in{' '}
               <code>docker/README.md</code>.
             </p>
           </div>

@@ -1,0 +1,59 @@
+# Recording a saved run in a container, with the working flags filled in.
+#
+#   mkdir -p out
+#   docker compose run --rm bench --label "RTX 4090 · Linux"
+#
+# `run`, not `up`. The recorder is one-shot and its exit code is how it tells
+# you the container never reached the GPU — `up` would swallow that.
+#
+# Anything after the service name goes to scripts/bench-record.mjs, so the
+# forty-second probe is:
+#
+#   docker compose run --rm bench --only __probe__
+#
+# Two hardware strings in that output mean a full run will save. See
+# docker/README.md for what to do when they are not.
+services:
+  bench:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gpu-rocks-bench
+    # Where the run lands. Create it first — a bind mount to a missing
+    # directory is created root-owned by the daemon, and then the recorder
+    # cannot write the file it spent a quarter of an hour earning.
+    volumes:
+      - ./out:/out
+
+    # ── NVIDIA, via the container toolkit ────────────────────────────────────
+    # The compose spelling of `--gpus all`.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # ── AMD / Intel ─────────────────────────────────────────────────────────
+    # Comment out the `deploy:` block above, uncomment these two lines, and set
+    # CHROME_FLAGS to the ANGLE-over-GL line below — Mesa stacks generally do
+    # not want the Vulkan path.
+    # devices:
+    #   - /dev/dri:/dev/dri
+
+    # The image already ships this exact default; it is repeated here because a
+    # compose file that hides the flags is a compose file you cannot debug.
+    #
+    # --disable-vulkan-surface is load-bearing on NVIDIA. Without it WebGL
+    # reaches the card and WebGPU quietly does not, and the recorder refuses
+    # the run — which is the correct outcome, but the flag is why.
+    environment:
+      CHROME_FLAGS: >-
+        --use-angle=vulkan
+        --enable-features=Vulkan
+        --disable-vulkan-surface
+        --enable-unsafe-webgpu
+        --no-sandbox
+      # AMD / Intel via Mesa:
+      # CHROME_FLAGS: "--use-angle=gl --enable-unsafe-webgpu --no-sandbox"

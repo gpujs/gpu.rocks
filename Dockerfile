@@ -56,11 +56,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV CHROME_PATH=/usr/bin/chromium
 
 # Headless Chromium on Linux does not use the GPU by default, and which flags
-# turn it on depends on the driver stack. This default asks for ANGLE over
-# Vulkan and turns on WebGPU, which is the combination that works on NVIDIA
-# through the container toolkit. Override the whole variable for other stacks:
+# turn it on depends on the driver stack. This default targets NVIDIA through
+# the container toolkit. Override the whole variable for other stacks:
 #   docker run -e CHROME_FLAGS='--use-angle=gl --enable-unsafe-webgpu' ...
-ENV CHROME_FLAGS="--use-angle=vulkan --enable-features=Vulkan --enable-unsafe-webgpu --no-sandbox"
+#
+# --disable-vulkan-surface is NOT optional here, and its absence fails in the
+# most expensive way available: WebGL reaches the card and WebGPU silently does
+# not. --enable-features=Vulkan asks the GPU process for its own Vulkan
+# backend, which WebGPU needs; that instance is created with presentation
+# -surface extensions, which do not exist in a container with no display, so
+# vkCreateInstance fails with -7 (VK_ERROR_EXTENSION_NOT_PRESENT), the GPU
+# process abandons Vulkan, and Dawn falls back to SwiftShader without saying
+# why. Nothing in this image ever presents to a screen, so the requirement is
+# pure cost. Measured on an RTX 5090 / driver 580.159.03 / Chromium 151:
+# without it the recorder refuses every run on NVIDIA. See docker/README.md.
+ENV CHROME_FLAGS="--use-angle=vulkan --enable-features=Vulkan --disable-vulkan-surface --enable-unsafe-webgpu --no-sandbox"
 
 WORKDIR /app
 
