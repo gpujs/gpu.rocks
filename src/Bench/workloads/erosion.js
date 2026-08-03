@@ -28,6 +28,16 @@
  * each reads the previous stage's output at its NEIGHBOURS, so the whole grid
  * has to finish before the next one starts.
  *
+ * The gpu.js column hands the whole tick loop to gpu.createPipeline, which is a
+ * statement about DISPATCH and not about arithmetic. The four kernel bodies are
+ * untouched and all 4 × 128 of them still run, in that order, each one waiting
+ * for the whole grid of the one before it — the plan is a recording of those
+ * dispatches, not a merging of them. What it removes is the JS sitting between
+ * them, which is exactly what the hand-written cell below removes by recording
+ * every dispatch into a single command encoder. The two GPU columns now answer
+ * the same question, and the plain-JS baseline still runs the same four passes
+ * per tick that it always did.
+ *
  * ── HONESTY ABOUT THE MODEL ────────────────────────────────────────────────
  *
  * This is a simplified diffusive erosion model, not the Mei-style virtual-pipes
@@ -249,12 +259,20 @@ export default {
       maxExchange: MAX_EXCHANGE,
       sdiff: SEDIMENT_DIFF,
     };
+    // No setPipeline(true) here any more. Keeping the three fields resident
+    // between the stages is the plan's business, and it does it on private
+    // copies of these instances rather than on the ones built here. Precision
+    // stays, because that is a statement about the arithmetic — fp32 fields,
+    // the same numbers the other two columns compute — and not about where the
+    // intermediates happen to live.
     const build = fn =>
-      gpu.createKernel(fn).setConstants(constants).setPipeline(true).setPrecision('single').setOutput([n, n]);
+      gpu.createKernel(fn).setConstants(constants).setPrecision('single').setOutput([n, n]);
 
-    // Stage 1. Two copies, because a pipelined mutable kernel reuses one output
-    // texture: the even tick's flow kernel must not be the odd tick's, or it
-    // would be asked to read the texture it is about to overwrite.
+    // Stage 1. ONE instance, where the hand-rolled loop needed an even/odd
+    // pair. Inside the traced orchestration `w = flow(h, w)` is recorded rather
+    // than executed, so the plan can see statically that the buffer this step
+    // reads is not the one it writes, and it allocates the two alternating
+    // buffers itself behind the single kernel.
     const flowFn = function (h, w) {
       // `dim`, not `n`: a kernel-local named after one of the kernel's own
       // constants collides with the CPU backend's generated `constants_n`.
@@ -279,11 +297,10 @@ export default {
       if (next > 0) return next;
       return 0;
     };
-    const flowEven = build(flowFn);
-    const flowOdd = build(flowFn);
+    const flow = build(flowFn);
 
-    // Stage 2. Only one copy is needed: it writes the velocity field, which is
-    // never one of its own inputs, so there is nothing to ping-pong.
+    // Stage 2. It writes the velocity field, which is never one of its own
+    // inputs, so there was nothing to ping-pong here even before the plan.
     const speed = build(function (h, w) {
       const dim = this.constants.n;
       const x = this.thread.x;
@@ -315,8 +332,7 @@ export default {
       if (next > 0) return next;
       return 0;
     };
-    const erodeEven = build(erodeFn);
-    const erodeOdd = build(erodeFn);
+    const erode = build(erodeFn);
 
     // Stage 4. Takes both the old and the new terrain, so the amount the
     // terrain moved is a difference rather than a recomputation.
@@ -339,54 +355,84 @@ export default {
       if (next > 0) return next;
       return 0;
     };
-    const transportEven = build(transportFn);
-    const transportOdd = build(transportFn);
+    const transport = build(transportFn);
 
-    // Uploads the initial fields once per run, and keeps the step kernels'
-    // argument types constant — a plain array on tick 0 and a Texture
-    // afterwards would make gpu.js recompile inside the timed region.
+    // Still here, even though the plan could take the three fields as pipeline
+    // arguments and skip them, and for the same reason as before: they keep
+    // every step kernel's argument types constant. A stage 1 that read a plain
+    // array on tick 0 and a resident buffer on every tick after it is two
+    // compiled kernels, and the switch between them would land inside the
+    // timed region on every run. Reading them through a copy kernel means the
+    // four stages only ever see a step output.
     const copy = () =>
       gpu
         .createKernel(function (a) {
           return a[this.thread.y][this.thread.x];
         })
-        .setPipeline(true)
         .setPrecision('single')
         .setOutput([n, n]);
     const seedH = copy();
     const seedW = copy();
     const seedS = copy();
 
-    const kernels = [
-      flowEven, flowOdd, speed, erodeEven, erodeOdd,
-      transportEven, transportOdd, seedH, seedW, seedS,
-    ];
+    // The tick loop, traced once at build and executed as a static plan after
+    // that. The JS `for` is gone by the time anything runs: 128 ticks × 4
+    // stages unroll into 512 steps, 515 with the seeds, over seven kernel
+    // instances and five buffers. Those five are the whole point of dropping
+    // the even/odd pairs — the plan reads the ping-pong out of the steps' own
+    // reads and writes, and reuses a slot the moment its last reader has run,
+    // which is the book-keeping that used to be done by hand and by owning a
+    // texture per kernel instance.
+    //
+    // `ticks` is a trace-time fact, so it goes in as a pipeline constant. The
+    // three fields are pipeline arguments rather than closed-over values
+    // because they are uploaded per call, which is what gives every repetition
+    // the same pristine landscape to chew on: a run that carried the eroded
+    // terrain forward would do different work each time and the median would
+    // mean nothing.
+    const tick = gpu.createPipeline(function (h0, w0, s0) {
+      let h = seedH(h0);
+      let w = seedW(w0);
+      let s = seedS(s0);
+      for (let t = 0; t < this.constants.ticks; t++) {
+        const wNext = flow(h, w);
+        const v = speed(h, wNext);
+        const hNext = erode(h, s, v);
+        const sNext = transport(s, h, hNext);
+        h = hNext;
+        w = wNext;
+        s = sNext;
+      }
+      return { h, w, s };
+    }, { constants: { ticks } });
+
+    const kernels = [flow, speed, erode, transport, seedH, seedW, seedS];
 
     return {
+      // One call and one await for the whole 512-dispatch loop. The three
+      // fields are read back once, at the end, which is still the only proof
+      // that the dispatches ran rather than merely being queued.
       async run() {
-        let h = await seedH(hRows);
-        let w = await seedW(wRows);
-        let s = await seedS(sRows);
-        for (let t = 0; t < ticks; t++) {
-          const even = t % 2 === 0;
-          const wNext = await (even ? flowEven : flowOdd)(h, w);
-          const v = await speed(h, wNext);
-          const hNext = await (even ? erodeEven : erodeOdd)(h, s, v);
-          const sNext = await (even ? transportEven : transportOdd)(s, h, hNext);
-          h = hNext;
-          w = wNext;
-          s = sNext;
-        }
-        // The read-backs, which are the only proof that the four dispatches per
-        // tick ran rather than merely being queued.
-        return {
-          h: h.toArray ? await h.toArray() : h,
-          w: w.toArray ? await w.toArray() : w,
-          s: s.toArray ? await s.toArray() : s,
-        };
+        return tick(hRows, wRows, sRows);
       },
-      backend: () => flowEven.kernel && flowEven.kernel.constructor.mode,
+      // What actually ran, not what was asked for. The kernels built here are
+      // never executed directly — the plan builds private copies of them — so
+      // a GL kernel that failed to compile and was quietly replaced by a CPU
+      // one shows up on the copy and nowhere else. Before the first call there
+      // is no plan to ask, so fall back to the instance's own mode.
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend: () => tick.backend,
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => tick.executorKind,
       destroy() {
+        tick.destroy();
         kernels.forEach(k => k.destroy && k.destroy());
       },
     };

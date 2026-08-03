@@ -10,6 +10,27 @@
  * says the GPU is worth n×, this row says what n× survives contact with a
  * pipeline.
  *
+ * ── WHY THE gpu.js COLUMN IS ONE CALL ──────────────────────────────────────
+ *
+ * All 30 of those passes are still there. The gpu.js column hands the round
+ * trip to `gpu.createPipeline`, which traces the orchestration once at build
+ * time and records every dispatch into a static plan; it does not merge two
+ * stages into one shader, and it could not — a stage reads the whole of the
+ * one before it. The passes, their order, and the memory traffic between them
+ * are exactly what they were, which is the point: this row prices moving a
+ * spectrum through 30 dependent round trips, and a plan does not remove one
+ * byte of that. Dispatch cost is `launch-overhead`'s subject, on a row built
+ * to isolate it, and this is not that row.
+ *
+ * What the plan does remove is the host sitting between the passes. The 32
+ * awaits become one call; on a backend with a fused executor that is literally
+ * one submission, which is the shape the hand-written cell below has always
+ * had, with all 32 of its dispatches in a single command encoder, and on the
+ * rest it is at least the JS between the passes that goes. Until this existed
+ * no gpu.js column could reach that shape, so some of the gap between the two
+ * GPU columns was scheduling rather than the thing the row is asking about.
+ * What is left between them is the memory layout, which is where it belongs.
+ *
  * The filter is a Gaussian low-pass with an integer group delay, so the kernel
  * spectrum is a genuine complex number per bin — a real-valued spectrum would
  * reduce the middle pass to a scale and would not be a convolution worth the
@@ -181,7 +202,15 @@ export default {
     // [n, 2 * batch]: x walks one signal and the height carries the batch, so
     // row 2b is signal b's real part and 2b+1 its imaginary part. The stage
     // arithmetic works on x and is therefore untouched by batching.
-    const pipe = k => k.setPipeline(true).setImmutable(true).setPrecision('single').setOutput([n, 2 * batch]);
+    //
+    // No setPipeline/setImmutable here any more. Where a spectrum lives between
+    // two of the 32 dispatches is the plan's business — it executes private
+    // clones of these kernels with both flags forced on, and assigns their
+    // buffers from static liveness — so the flags on these instances would only
+    // describe a direct call that no longer happens. setPrecision stays,
+    // because that is a statement about the arithmetic, the fp32 the header
+    // measured at 4.9e-8, and not about where the intermediates sit.
+    const pipe = k => k.setPrecision('single').setOutput([n, 2 * batch]);
 
     // Row 0 real, row 1 imaginary. The signal is real, so row 1 starts at zero.
     const bitrevIn = pipe(
@@ -284,31 +313,73 @@ export default {
       .setPrecision('single')
       .setOutput([n, batch]);
 
-    return {
-      async run() {
-        const sweep = async (cur, sign) => {
-          for (let s = 0; s < bits; s++) {
+    // The whole round trip, traced once at the first call and executed as a
+    // static plan on every call after that. The sweep loop is the same JS it
+    // always was, but it now runs at TRACE time and not per run: `bits` is a
+    // trace-time fact, so the fourteen stage calls in a sweep unroll into
+    // fourteen steps, each with its own len/halfLen/step/sign frozen in. That
+    // is precisely what the bare column does when it writes its 2 × bits
+    // uniform slots at build — the parameters of a dispatch cannot change once
+    // the submission is recorded, in either column.
+    //
+    // ONE `stage` instance still serves all 28 stage steps, and there is no
+    // ping-pong book-keeping left here: `cur = stage(cur, ...)` is recorded
+    // rather than executed, so the plan can see statically that the buffer a
+    // step reads is not the one it writes, and alternates two behind the single
+    // kernel. The deletes went with it — a slot is reused the moment its last
+    // reader has run, which is the same liveness the hand-written cell works
+    // out for itself when it builds its bind groups.
+    const filter = gpu.createPipeline(
+      function (x) {
+        const sweep = (cur, sign) => {
+          for (let s = 0; s < this.constants.bits; s++) {
             const len = 2 << s;
-            const next = await stage(cur, len, 1 << s, n / len, sign);
-            if (cur.delete) cur.delete();
-            cur = next;
+            cur = stage(cur, len, 1 << s, this.constants.n / len, sign);
           }
           return cur;
         };
-        let cur = await bitrevIn(signal);
-        cur = await sweep(cur, 1);
-        let next = await multiply(cur);
-        if (cur.delete) cur.delete();
-        cur = next;
-        next = await bitrevTex(cur);
-        if (cur.delete) cur.delete();
-        cur = await sweep(next, -1);
-        const out = await extract(cur);
-        if (cur.delete) cur.delete();
-        return out;
+        // Forward transform, filter, re-permute, inverse transform, scale.
+        // Handles all the way down: nothing in here is allowed to look at a
+        // number, and nothing here needs to.
+        let cur = sweep(bitrevIn(x), 1);
+        cur = bitrevTex(multiply(cur));
+        return extract(sweep(cur, -1));
       },
-      backend: () => stage.kernel && stage.kernel.constructor.mode,
+      { constants: { n, bits }  }
+    );
+
+    return {
+      // One call, 32 dispatches. The batch goes in as a pipeline ARGUMENT
+      // rather than being closed over, because a captured array freezes into
+      // the plan at trace and would then be uploaded once for the whole
+      // benchmark: the bare column writes its input buffer on every run, and a
+      // column that quietly stopped uploading would be measuring something
+      // else. The promise does not settle until extract's output has been read
+      // back, which is still the only thing separating a queued plan from a
+      // finished one.
+      async run() {
+        return filter(signal);
+      },
+      // Ask the plan's own kernel rather than the instance built above. gpu.js
+      // answers a kernel it cannot compile by swapping in a CPU one, and it is
+      // the plan's private clones that get built, so a fallback would show up
+      // on the clone and nowhere else. Before the first call there is no plan
+      // to ask.
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend: () => filter.backend,
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => filter.executorKind,
       destroy: () => {
+        // The plan first: it owns the clones and their buffers, and its release
+        // queues behind any call still in flight.
+        filter.destroy();
         [bitrevIn, bitrevTex, stage, multiply, extract].forEach(k => k.destroy && k.destroy());
       },
     };
@@ -316,9 +387,11 @@ export default {
 
   /**
    * Hand-written WGSL. The whole round trip is recorded into ONE command
-   * encoder — 44 dispatches, one submit, one readback — which is the shape a
-   * real pipeline has and the shape gpu.js cannot quite reach, because every
-   * gpu.js kernel call is its own submit.
+   * encoder — 32 dispatches, one submit, one readback — which is the shape a
+   * real pipeline has. The column to the left now reaches the same shape, by
+   * handing its orchestration to createPipeline instead of awaiting a submit
+   * per kernel call; what still separates the two cells is 8 bytes a complex
+   * number against gpu.js's 32.
    */
   async webgpu(device, { n, bits, batch }, { signal, twRe, twIm, kernRe, kernIm }) {
     // Flat and batch-major. 8 bytes a complex number against gpu.js's 32.

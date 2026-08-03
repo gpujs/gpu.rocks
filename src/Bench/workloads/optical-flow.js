@@ -232,20 +232,25 @@ export default {
 
   gpujs(gpu, { w, h, r, win, lambda, wm1, hm1, wmr, hmr }, { aRows, bRows }) {
     const consts = { r, win, lambda, wm1, hm1, wmr, hmr };
-    const mk = (fn, pipeline) =>
+    const mk = fn =>
       gpu
         .createKernel(fn)
         .setConstants(consts)
-        .setPipeline(pipeline)
         .setPrecision('single')
         // Explicit, because the default tactic picks a GLSL precision qualifier
         // from the texture size and a `lowp` structure tensor would be noise.
         .setTactic('precision')
         .setOutput([w, h]);
 
-    // Three derivative planes, computed once and left resident as pipeline
-    // textures. Sending them to the host and back would be 12 MB of traffic per
-    // run for values the next kernel is about to read anyway.
+    // Three derivative planes, computed once and left resident. Sending them to
+    // the host and back would be 12 MB of traffic per run for values the next
+    // kernel is about to read anyway.
+    //
+    // None of the four kernels asks for `setPipeline(true)` any more. The plan
+    // assembled below runs its own clones with residency forced on, so where an
+    // intermediate lives is decided by the plan and not by a flag set here —
+    // which is the right place for it, because the last stage's flag was never
+    // a property of the kernel so much as of its position in the chain.
     const kIx = mk(function (a) {
       const x = this.thread.x;
       let xl = x - 1;
@@ -253,7 +258,7 @@ export default {
       let xr = x + 1;
       if (xr > this.constants.wm1) xr = this.constants.wm1;
       return (a[this.thread.y][xr] - a[this.thread.y][xl]) * 0.5;
-    }, true);
+    });
 
     const kIy = mk(function (a) {
       const y = this.thread.y;
@@ -262,14 +267,14 @@ export default {
       let yd = y + 1;
       if (yd > this.constants.hm1) yd = this.constants.hm1;
       return (a[yd][this.thread.x] - a[yu][this.thread.x]) * 0.5;
-    }, true);
+    });
 
     const kIt = mk(function (a, b) {
       return b[this.thread.y][this.thread.x] - a[this.thread.y][this.thread.x];
-    }, true);
+    });
 
-    // The solve. Not pipelined: it is the last stage, so `run` resolves on a
-    // real array rather than on a handle to work that may still be queued.
+    // The solve. The last stage of the plan, so this is the one whose output
+    // the pipeline reads back; the three above never materialise on the host.
     const kFlow = mk(function (ix, iy, it) {
       const x = this.thread.x;
       const y = this.thread.y;
@@ -303,17 +308,53 @@ export default {
       const td = syy + this.constants.lambda;
       const det = ta * td - sxy * sxy;
       return [(sxy * syt - td * sxt) / det, (sxy * sxt - ta * syt) / det];
-    }, false);
+    });
+
+    // Traced once, then replayed as a static four-step plan. This is the same
+    // dependency graph the four awaited calls used to spell out by hand — three
+    // derivative planes off frame A (and B), then the solve reading all three —
+    // but it is now handed over whole instead of dispatched a stage at a time,
+    // which is exactly the shape the hand-written WebGPU column below already
+    // had: four dispatches, one pass, one readback. Two columns that describe
+    // the same work the same way are two columns whose numbers mean the same
+    // thing, and this row's whole argument for existing is that its checksum
+    // catches disagreement between them.
+    //
+    // What it does NOT do is move the row's subject. The three derivative
+    // passes are one read and one subtract per pixel; the solve is 867 reads
+    // and a 2 x 2 system per pixel, some three orders more work. Collapsing
+    // four launches into one cannot flatter a number that is 99-point-something
+    // percent the solve — which is the test for whether fusing a row is honest,
+    // and the reason it is honest here and would not be on `launch-overhead`.
+    //
+    // The frames are closed over rather than passed as pipeline arguments,
+    // which is the one deviation from the API's usual shape and is deliberate.
+    // Pipeline arguments are snapshotted on every call, and aRows/bRows are
+    // 8 MB of Float32Array views: taking that copy per run would bill this row
+    // for a host-side memcpy that has nothing to do with optical flow, on the
+    // gpu.js column only. Closed over, they freeze into the plan at trace time
+    // — legitimate here precisely because make() builds them once and every
+    // column is handed the same immutable bytes — and each run then uploads
+    // exactly what it uploaded before: frame A three times, frame B once.
+    const flow = gpu.createPipeline(function () {
+      return kFlow(kIx(aRows), kIy(aRows), kIt(aRows, bRows));
+    });
 
     return {
-      async run() {
-        const tx = await kIx(aRows);
-        const ty = await kIy(aRows);
-        const tt = await kIt(aRows, bRows);
-        return await kFlow(tx, ty, tt);
-      },
-      backend: () => kFlow.kernel && kFlow.kernel.constructor.mode,
+      run: () => flow(),
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend: () => flow.backend,
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => flow.executorKind,
       destroy() {
+        flow.destroy();
         [kIx, kIy, kIt, kFlow].forEach(k => k.destroy && k.destroy());
       },
     };

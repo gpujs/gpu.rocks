@@ -71,7 +71,38 @@
  * 512 block sums to find its block, the 256 tile counts inside that block to
  * find its tile, then that tile's 64 elements. 832 reads per thread, 512
  * threads, no prefix sum and no scatter. Both GPU columns do exactly this, so
- * what the bare column measures on this row is dispatch cost and nothing else.
+ * nothing in the algorithm separates them; what is left between those two cells
+ * is only how each gets its dispatches onto the device, which is the next
+ * section.
+ *
+ * ── ONE LAUNCH, AND WHY THAT IS NOT WHAT THIS ROW PRICES ───────────────────
+ *
+ * A round is 73 dispatches: the tile-maximum pass, the bracket init, twenty-
+ * three count-and-fold pairs, the twenty-two refinements between them, then
+ * gather, rank and invert. Twenty-four rounds is 1,752, and most of them are
+ * minute — `refine` is a TWO-THREAD kernel dispatched 528 times per run to
+ * write eight bytes. The bare column has always recorded all 1,752 into one
+ * compute pass and submitted once. The gpu.js column used to hand them to the
+ * host one at a time and await each, so most of the gap between those two cells
+ * was scheduling: 1,752 round trips against none, which says nothing about
+ * either backend's ability to count.
+ *
+ * `gpu.createPipeline` traces the orchestration once — the rounds loop and the
+ * bisection loop unroll into a static plan of 1,753 steps — and executes the
+ * whole plan as one launch, which puts the two columns in the same shape. What
+ * it deliberately does NOT change: the same 22 halvings, the same 23 counting
+ * passes per round, the same prune, the same 7.8 passes' worth of traffic, the
+ * same 832-read gather and the same 512-element sort. Not one element is read
+ * fewer times and no kernel body moved, so the CPU-versus-GPU finding above is
+ * exactly the number it was. This row prices selection; `launch-overhead` is
+ * where dispatch cost is the subject, and this is not it.
+ *
+ * The trace is also why the bracket now needs ONE refinement kernel rather than
+ * two. A resident gpu.js kernel owns its output texture, so `bnd = refine(bs,
+ * bnd)` used to need two instances alternating by hand, because no instance can
+ * read the two floats it is in the middle of overwriting. The plan assigns
+ * buffers from static liveness and compiles that one line onto two alternating
+ * slots behind a single kernel — the same ping-pong, no longer hand-rolled.
  *
  * ── EVERY NUMBER IN THIS ROW IS EXACT IN fp32 ──────────────────────────────
  *
@@ -194,16 +225,23 @@ export default {
   },
 
   gpujs(gpu, { n, k, g, t, blk, nb, steps, bias, rounds }, { a }) {
-    // One upload per run, then the 16 MB never leaves the GPU. Without this the
+    // One upload per run, then the 32 MB never leaves the GPU. Without this the
     // tile-maximum kernel would take the raw array as an argument and gpu.js
-    // would re-upload it 32 times per run — a fine measurement of an upload
-    // path and a useless one of a selection.
+    // would re-upload it on every call that names it — 25 per round, 600 per
+    // run — a fine measurement of an upload path and a useless one of a
+    // selection. A plan sets the same trap with a raw array ARGUMENT, which
+    // every step naming it re-reads from the host, so the upload is the plan's
+    // first step and those 600 steps read its resident output instead.
+    //
+    // None of the kernels below say `pipeline: true` any more. Residency is the
+    // plan's business — it runs private clones with pipeline and immutable
+    // forced on — and the flag on the user's kernel would only describe a direct
+    // call that never happens.
     const upload = gpu
       .createKernel(function (x) {
         return x[this.thread.x];
       })
-      .setOutput([n])
-      .setPipeline(true);
+      .setOutput([n]);
 
     // Tiles are STRIDE classes — tile j owns j, j+T, j+2T, ... — so
     // neighbouring threads read neighbouring addresses. A tile of 64 contiguous
@@ -220,8 +258,7 @@ export default {
         return m;
       })
       .setConstants({ g, t })
-      .setOutput([t])
-      .setPipeline(true);
+      .setOutput([t]);
 
     // The counting pass, and the prune that makes twenty-two of them tolerable:
     // a tile whose maximum is below the threshold contributes nothing and is
@@ -239,8 +276,7 @@ export default {
         return c;
       })
       .setConstants({ g, t })
-      .setOutput([t])
-      .setPipeline(true);
+      .setOutput([t]);
 
     // 131,072 tile counts folded to 512 block sums. Contiguous, not strided:
     // the gather walks blocks and then tiles-within-a-block, and a strided fold
@@ -254,8 +290,7 @@ export default {
         return s;
       })
       .setConstants({ blk })
-      .setOutput([nb])
-      .setPipeline(true);
+      .setOutput([nb]);
 
     // The bracket, as two GPU-resident floats. It starts at [b, 1+b), which
     // brackets the data by construction: every key is >= b and every key < 1+b.
@@ -264,8 +299,7 @@ export default {
         if (this.thread.x < 0.5) return b;
         return b + 1;
       })
-      .setOutput([2])
-      .setPipeline(true);
+      .setOutput([2]);
 
     /**
      * One halving, and the only place the count is ever compared against k. Two
@@ -273,30 +307,29 @@ export default {
      * of them re-add the 512 block sums, which is 512 wasted adds against the
      * cost of a whole extra kernel in the chain to compute the total once.
      *
-     * Two instances because a gpu.js pipeline kernel owns one output texture and
-     * cannot read the bracket it is about to overwrite; they alternate.
+     * ONE instance, where this used to be a hand-alternated pair. A resident
+     * kernel still owns a single output and still cannot read the bracket it is
+     * overwriting; the difference is that the plan sees `bnd = refine(bs, bnd)`
+     * has a reader AT the writing step and hands the 528 refinements two
+     * alternating slots by itself.
      */
-    const mkRefine = () =>
-      gpu
-        .createKernel(function (bs, bnd) {
-          let total = 0;
-          for (let i = 0; i < this.constants.nb; i++) total += bs[i];
-          const lo = bnd[0];
-          const hi = bnd[1];
-          const mid = (lo + hi) * 0.5;
-          // count(x >= mid) >= k keeps the answer in the upper half.
-          if (this.thread.x < 0.5) {
-            if (total >= this.constants.k) return mid;
-            return lo;
-          }
-          if (total >= this.constants.k) return hi;
-          return mid;
-        })
-        .setConstants({ nb, k })
-        .setOutput([2])
-        .setPipeline(true);
-    const refineA = mkRefine();
-    const refineB = mkRefine();
+    const refine = gpu
+      .createKernel(function (bs, bnd) {
+        let total = 0;
+        for (let i = 0; i < this.constants.nb; i++) total += bs[i];
+        const lo = bnd[0];
+        const hi = bnd[1];
+        const mid = (lo + hi) * 0.5;
+        // count(x >= mid) >= k keeps the answer in the upper half.
+        if (this.thread.x < 0.5) {
+          if (total >= this.constants.k) return mid;
+          return lo;
+        }
+        if (total >= this.constants.k) return hi;
+        return mid;
+      })
+      .setConstants({ nb, k })
+      .setOutput([2]);
 
     /**
      * Pull the survivors into a dense 512-slot buffer. Thread j wants the j-th
@@ -357,8 +390,7 @@ export default {
         return v;
       })
       .setConstants({ nb, blk, g, t })
-      .setOutput([k])
-      .setPipeline(true);
+      .setOutput([k]);
 
     // Sort the 512. A rank matrix is the gather-only way to sort, and at k=512
     // it is 262,144 reads — one thirty-second of a single pass over the input,
@@ -377,11 +409,13 @@ export default {
         return r;
       })
       .setConstants({ k })
-      .setOutput([k])
-      .setPipeline(true);
+      .setOutput([k]);
 
-    // Not a pipeline kernel: this is the run's result, so its resolution is
-    // what proves every dispatch behind it finished.
+    // The last step of the last round is the plan's result, so the plan reads
+    // it back, and that single readback is what proves all 1,752 dispatches
+    // behind it finished. The other twenty-three rounds' inverts are computed
+    // and dropped, exactly as they were before — the plan executes every step
+    // it recorded, and never asks whether anybody reads one.
     const invert = gpu
       .createKernel(function (c, rk) {
         let v = 0;
@@ -393,43 +427,87 @@ export default {
       .setConstants({ k })
       .setOutput([k]);
 
-    return {
-      async run() {
-        const keys = await upload(a);
+    /**
+     * Traced once, at the first call, against opaque handles: both loops unroll
+     * into a static plan of 1,753 steps that later calls execute as one launch.
+     * The orchestration is the same code that used to sit in `run()` with an
+     * `await` on every line — the awaits are gone because nothing here is a
+     * value. `m`, `bnd`, `c`, `bs` and `cand` are handles, and the rules of the
+     * trace forbid looking at one, which is a stricter statement of what this
+     * chain always needed to be true: the host must never see an intermediate
+     * count, or the bisection is not on the GPU at all.
+     *
+     * Unrolling is why `r * bias` may be an ordinary number here — it is a
+     * trace-time fact frozen into its step, the same thing the bare column does
+     * with its `rounds` prebuilt uniform slices, and for the same reason: the
+     * bias cannot change between dispatches of one submission.
+     */
+    const solve = gpu.createPipeline(
+      function (x) {
+        const keys = upload(x);
         let out = null;
-        for (let r = 0; r < rounds; r++) {
-          const b = r * bias;
-          // eslint-disable-next-line no-await-in-loop
-          const m = await tileMax(keys, b);
-          // eslint-disable-next-line no-await-in-loop
-          let bnd = await initBounds(b);
-          for (let s = 0; s < steps; s++) {
-            // eslint-disable-next-line no-await-in-loop
-            const c = await tileCount(keys, m, bnd, b);
-            // eslint-disable-next-line no-await-in-loop
-            const bs = await blockSum(c);
-            // eslint-disable-next-line no-await-in-loop
-            bnd = await (s % 2 === 0 ? refineA : refineB)(bs, bnd);
+        for (let r = 0; r < this.constants.rounds; r++) {
+          const b = r * this.constants.bias;
+          const m = tileMax(keys, b);
+          let bnd = initBounds(b);
+          for (let s = 0; s < this.constants.steps; s++) {
+            const c = tileCount(keys, m, bnd, b);
+            const bs = blockSum(c);
+            // The plan's double-buffering, and the only reason one `refine`
+            // suffices where two used to alternate by hand.
+            bnd = refine(bs, bnd);
           }
           // The bracket is now [t*, t* + 2^-22), so this last count uses the
           // midpoint t* + 2^-23 and therefore counts x > t* strictly — which is
           // exactly the set the gather wants.
-          // eslint-disable-next-line no-await-in-loop
-          const c = await tileCount(keys, m, bnd, b);
-          // eslint-disable-next-line no-await-in-loop
-          const bs = await blockSum(c);
-          // eslint-disable-next-line no-await-in-loop
-          const cand = await gather(keys, c, bs, bnd, b);
-          // eslint-disable-next-line no-await-in-loop
-          const rk = await rank(cand);
-          // eslint-disable-next-line no-await-in-loop
-          out = await invert(cand, rk);
+          const c = tileCount(keys, m, bnd, b);
+          const bs = blockSum(c);
+          const cand = gather(keys, c, bs, bnd, b);
+          const rk = rank(cand);
+          out = invert(cand, rk);
         }
+        // A handle, not a value: the last round's sorted 512, read back once
+        // when the plan finishes.
         return out;
       },
-      backend: () => tileCount.kernel && tileCount.kernel.constructor.mode,
+      { constants: { rounds, steps, bias }  }
+    );
+
+    return {
+      async run() {
+        // `a` is an argument rather than something the orchestration closes
+        // over, because a captured array freezes into the plan and would be
+        // uploaded once for the whole benchmark. The bare column writes its
+        // key buffer on every run; a column that quietly stopped doing so would
+        // be measuring a different thing. The price of that honesty is that the
+        // pipeline samples its arguments at the call, so the 32 MB is copied
+        // host-side once per run on top of the upload — the one cost this shape
+        // adds that the bare column does not pay.
+        return solve(a);
+      },
+      // Ask the plan's own kernel, not the one created up there. gpu.js answers
+      // a kernel it cannot compile by swapping in a CPU one, and it is the
+      // plan's private clones that get built and so the clones that would be
+      // swapped — the user-facing objects here are never run directly and would
+      // still be reporting the backend they were asked for.
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend() {
+        return solve.backend;
+      },
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => solve.executorKind,
       destroy() {
-        [upload, tileMax, tileCount, blockSum, initBounds, refineA, refineB, gather, rank, invert].forEach(
+        // The pipeline first: it owns the clones and their buffers, and its
+        // release queues behind any call still in flight.
+        if (solve.destroy) solve.destroy();
+        [upload, tileMax, tileCount, blockSum, initBounds, refine, gather, rank, invert].forEach(
           x => x.destroy && x.destroy()
         );
       },
@@ -438,16 +516,20 @@ export default {
 
   /**
    * Hand-written WebGPU. Identical algorithm, identical tile layout, identical
-   * arithmetic — the only difference is that all 24 rounds' worth of dispatches
-   * (1,752 of them) are recorded into ONE compute pass and submitted once, and
-   * the bracket lives in a storage buffer that the host never reads. WebGPU
-   * orders dispatches within a pass and inserts the barrier itself, so the
-   * counting kernel genuinely sees the refinement kernel's write from the
-   * dispatch before it.
+   * arithmetic. All 24 rounds' worth of dispatches (1,752 of them) are recorded
+   * into ONE compute pass and submitted once, and the bracket lives in a
+   * storage buffer that the host never reads. WebGPU orders dispatches within a
+   * pass and inserts the barrier itself, so the counting kernel genuinely sees
+   * the refinement kernel's write from the dispatch before it.
    *
-   * On a row with this many small dispatches that single fact is most of what
-   * separates this cell from the gpu.js WebGPU cell beside it, which is exactly
-   * what the bare column is here to isolate.
+   * On a row with this many small dispatches that single fact used to be most
+   * of what separated this cell from the gpu.js WebGPU cell beside it. It is
+   * not any more: the gpu.js column traces the same orchestration into one plan
+   * and launches it once, so both cells now submit their 1,752 dispatches the
+   * same way. What is left between them is what the bare column should have
+   * been showing all along — a workgroup width chosen for this problem, storage
+   * buffers rather than gpu.js's per-step machinery, and a bind group per round
+   * built once at setup for zero per-run cost.
    */
   async webgpu(device, { n, k, g, t, blk, nb, steps, bias, rounds }, { a }) {
     const S = GPUBufferUsage.STORAGE;

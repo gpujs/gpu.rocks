@@ -31,6 +31,23 @@
  * gather model will cost you a log factor" — which tells you something you can
  * act on, and which is true of every gather-only abstraction, not just this one.
  *
+ * WHY THE gpu.js COLUMNS ARE A PIPELINE. That reading only survives if the two
+ * sides are submitted the same way, and for a while they were not. The bare
+ * column puts all 24 rounds — 216 dispatches — into one command buffer with one
+ * submit and reads 16 MB back once at the end. The gpu.js column used to hand
+ * its 216 dispatches over one at a time and await each, and worse, the search
+ * kernel was the one kernel in the chain that was not resident, so every round
+ * dragged its whole 16 MB output back to the host: 384 MB of read-back that the
+ * bare column never pays and that has nothing to do with gather or scatter.
+ * `gpu.createPipeline` traces the orchestration once and runs the whole plan as
+ * one launch with one read-back, which puts the columns in the same shape and
+ * leaves the log factor as very nearly the only thing between them. What it
+ * deliberately does NOT change: the same kernels, the same block width, the
+ * same tree, the same 22-probe search over the same 16 MB, four million times a
+ * round. Fusing removes scheduling and read-back, and this row has never been
+ * about either — it is about what the gather model costs when the problem wants
+ * a scatter, and every one of those probes is still there.
+ *
  * EXACTNESS. The values are multiples of 2^-12 and the thresholds are odd
  * multiples of 2^-13, so no input can ever sit exactly on a threshold and the
  * comparison is identical in fp32 and fp64. That matters more here than
@@ -105,12 +122,20 @@ export default {
     const levels = levelsOf(n, b);
     const L = levels.length;
 
+    // The 16 MB lands on the device once and every round reads it from there.
+    // Inside a plan the trap this avoids is a raw array ARGUMENT: `flags` and
+    // `gather` both name the input, and a step naming the argument re-reads it
+    // from the host — 48 times a run. So the upload is the plan's first step,
+    // and the two steps per round that want the input read its resident output.
+    //
+    // None of the kernels below say `pipeline: true` any more. Residency is the
+    // plan's business — it runs private clones with the flag forced on — and on
+    // the user's kernel it would only describe a direct call that never happens.
     const upload = gpu
       .createKernel(function (x) {
         return x[this.thread.x];
       })
-      .setOutput([n])
-      .setPipeline(true);
+      .setOutput([n]);
 
     // flag → scan → place. Materialising the flags costs one pass over 16 MB
     // and buys a scan that is exactly the textbook one, with the predicate in
@@ -119,8 +144,7 @@ export default {
       .createKernel(function (x, t) {
         return x[this.thread.x] >= t ? 1 : 0;
       })
-      .setOutput([n])
-      .setPipeline(true);
+      .setOutput([n]);
 
     const up = levels.slice(1).map(m =>
       gpu
@@ -132,7 +156,6 @@ export default {
         })
         .setConstants({ b })
         .setOutput([m])
-        .setPipeline(true)
     );
 
     const top = gpu
@@ -144,8 +167,7 @@ export default {
         return s;
       })
       .setConstants({ m: levels[L - 1] })
-      .setOutput([levels[L - 1]])
-      .setPipeline(true);
+      .setOutput([levels[L - 1]]);
 
     // Levels above 0 want the exclusive scan; level 0 wants the INCLUSIVE one,
     // because incl[i] is "how many survivors up to and including i", which is
@@ -174,8 +196,7 @@ export default {
               }
         )
         .setConstants({ b, invb: 1 / b })
-        .setOutput([m])
-        .setPipeline(true);
+        .setOutput([m]);
     const down = levels.map((m, i) => mkDown(m, i === 0));
 
     /**
@@ -203,31 +224,74 @@ export default {
       .setConstants({ n, steps, nm1: n - 1 })
       .setOutput([n]);
 
+    /**
+     * Traced once, at the first call, against opaque handles: the rounds loop
+     * unrolls into a static plan of 217 steps that later calls execute as one
+     * launch. Unrolling is why `threshold(r)` may be an ordinary number here —
+     * it is a trace-time fact frozen into its step, which is exactly what the
+     * bare column does with its `rounds` prebuilt uniform buffers, and for the
+     * same reason: the threshold cannot change between dispatches of one
+     * submission.
+     *
+     * `lvl` and `scan` hold handles, never values. Nothing in here reads one,
+     * indexes one, or branches on one — the trip counts are all trace-time
+     * facts (`this.constants.rounds`, and the tree's depth, which is a property
+     * of the sizes and not of the data), so the plan is a fixed DAG.
+     */
+    const solve = gpu.createPipeline(
+      function (x) {
+        const resident = upload(x);
+        let out = null;
+        for (let r = 0; r < this.constants.rounds; r++) {
+          const lvl = [flags(resident, threshold(r))];
+          for (let i = 0; i < up.length; i++) lvl.push(up[i](lvl[i]));
+          let scan = top(lvl[L - 1]);
+          for (let i = L - 2; i >= 0; i--) scan = down[i](lvl[i], scan);
+          out = gather(resident, scan);
+        }
+        // The last round's survivors, and only those: 23 rounds of `out` die
+        // where they are reassigned, so liveness gives the search kernel one
+        // slot to write into for the whole plan rather than 24.
+        return out;
+      },
+      { constants: { rounds }  }
+    );
+
     return {
       async run() {
-        const resident = await upload(a);
-        let out = null;
-        for (let r = 0; r < rounds; r++) {
-          // eslint-disable-next-line no-await-in-loop
-          const f = await flags(resident, threshold(r));
-          const lvl = [f];
-          for (let i = 0; i < up.length; i++) {
-            // eslint-disable-next-line no-await-in-loop
-            lvl.push(await up[i](lvl[i]));
-          }
-          // eslint-disable-next-line no-await-in-loop
-          let scan = await top(lvl[L - 1]);
-          for (let i = L - 2; i >= 0; i--) {
-            // eslint-disable-next-line no-await-in-loop
-            scan = await down[i](lvl[i], scan);
-          }
-          // eslint-disable-next-line no-await-in-loop
-          out = await gather(resident, scan);
-        }
-        return out.toArray ? await out.toArray() : out;
+        // `a` is an argument rather than something the orchestration closes
+        // over, because a captured array freezes into the plan and would be
+        // uploaded once for the whole benchmark. The bare column writes its
+        // input buffer on every run; a column that quietly stopped doing so
+        // would be measuring a different thing.
+        //
+        // What resolves is the padded 2^22 output already read back — the plan
+        // finished before this promise did, and there is no handle left to
+        // convert.
+        return solve(a);
       },
-      backend: () => gather.kernel && gather.kernel.constructor.mode,
+      // Ask the plan's own kernel, not the one created up there. gpu.js answers
+      // a kernel it cannot compile by swapping in a CPU one, and it is the
+      // plan's private clones that get built and so the clones that would be
+      // swapped — the user-facing objects here are never run directly and would
+      // still be reporting the backend they were asked for.
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend() {
+        return solve.backend;
+      },
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => solve.executorKind,
       destroy() {
+        // The pipeline first: it owns the clones and their buffers, and its
+        // release queues behind any call still in flight.
+        if (solve.destroy) solve.destroy();
         [upload, flags, top, gather, ...up, ...down].forEach(k => k.destroy && k.destroy());
       },
     };

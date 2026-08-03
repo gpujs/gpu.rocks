@@ -42,6 +42,36 @@
  * plane; the thirtieth output comes home, and its arrival is the only evidence
  * that the other twenty-nine were ever computed.
  *
+ * ── WHY THIS ROW IS NOT A TRACED PIPELINE ──────────────────────────────────
+ *
+ * `gpu.createPipeline` traces an orchestration once and runs the whole chain as
+ * a single launch, and most rows in this table have been rewritten that way.
+ * This one has not, and the reason is the subject above rather than any trouble
+ * tracing it. By the trace rules it would unroll cleanly: the ten dilations are
+ * plain numbers at trace time, so they record as literal arguments, and nothing
+ * in the loop reads, indexes or branches on an intermediate.
+ *
+ * A traced plan would keep all twenty-nine intermediates resident — that is the
+ * plan's business, and its contract is explicit that inner kernels need not ask
+ * for residency at all. Which is precisely the problem. This row exists to price
+ * residency as a CHOICE: something a caller makes with `.setPipeline(true)`, and
+ * can just as easily fail to make, in which case the run still works, still
+ * returns the right answer, and moves 540 MiB instead of 18. Under a traced
+ * pipeline that choice is not in the file to be priced, and a row whose whole
+ * header is about one boolean would no longer contain it. Every other row now
+ * assumes residency more quietly than it used to; this is where the assumption
+ * is written down and paid for, and it is the last row where it still is.
+ *
+ * The number would move, too, and not for a reason belonging to this row.
+ * Fusing changes nothing this row measures — the traffic stays 18 MiB, the
+ * arithmetic is untouched, the thirty steps still run — and removes twenty-nine
+ * host round trips, which is dispatch cost, already owned by launch-overhead.js
+ * and jacobi.js. The cell would become a ratio compounded of residency and
+ * dispatch elimination, and read against the runs recorded before it would show
+ * residency getting cheaper, which is not what would have happened. Compare the
+ * note at the top of heat.js, which is the same trade made in the other
+ * direction on a row whose subject — bandwidth — survived it.
+ *
  * ── WHY TEN ROUNDS, AND WHY THEY CANNOT BE SKIPPED ─────────────────────────
  *
  * One three-stage chain over this grid is 28 ms of plain JavaScript, under the

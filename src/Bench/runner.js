@@ -253,6 +253,18 @@ async function runColumn(workload, col, { GPU, size, inputs, makeCanvas }) {
     const expected = { webgpu: 'webgpu', webgl2: 'gpu', webgl: 'gpu', webasm: 'webasm', cpu: 'cpu' }[col.mode];
     const actual = built.backend && built.backend();
     if (actual && expected && actual !== expected) out.fellBackTo = actual;
+
+    // Which lowering ran. A pipelined row can reach a fused executor, or fall
+    // back to the generic one, or reach fused-sync where fused-threaded was
+    // possible — and those are different products with the same name. The
+    // table shows what gpu.js gives you by DEFAULT rather than pinning it to
+    // the slowest common denominator, so the cell has to say when the default
+    // it got was not the best one available. Same reasoning as fellBackTo:
+    // disclose, do not suppress.
+    if (built.executor) {
+      const kind = built.executor();
+      if (kind && kind !== 'fused-threaded' && kind !== 'fused-encoder') out.executor = kind;
+    }
     return out;
   } finally {
     if (built && built.destroy) built.destroy();

@@ -9,9 +9,39 @@
  *
  * Put beside `sobel` — one stencil of about the same cost as this row's second
  * stage — it says something the single-kernel rows cannot. If a five-stage
- * chain is not roughly five times a one-stage row, the difference is dispatch
- * and residency, and this table exists to make that visible rather than
- * arguable.
+ * chain is not roughly five times a one-stage row, the difference is what the
+ * chain did not have to carry back and forth, and this table exists to make
+ * that visible rather than arguable.
+ *
+ * ── THE GPU.JS COLUMN IS ONE PLAN, NOT TWELVE AWAITS ───────────────────────
+ *
+ * The hand-written cell below has always recorded all twelve dispatches — four
+ * stages plus eight hysteresis passes — into ONE compute pass and submitted
+ * once. The gpu.js column used to hand them to the host one at a time and await
+ * each, so twelve host round trips were charged to a row about the shape of a
+ * chain. That is a cost `launch-overhead` exists to price, on a row built to
+ * isolate it, and layering it here made the two GPU cells answer different
+ * questions — and made the comparison with `sobel` above quietly dishonest,
+ * since sobel pays exactly one round trip and canny was paying twelve.
+ *
+ * `gpu.createPipeline` traces the orchestration once, at build time, against
+ * opaque handles — the hysteresis loop unrolls there and then — and every later
+ * call executes the recorded plan as a single launch. It is a RECORDING of
+ * those twelve dispatches, not a merging of them. All twelve still run, in that
+ * order, each waiting for the whole 4.2 M-pixel plane of the one before it,
+ * because every stage reads its predecessor's output at its NEIGHBOURS and no
+ * two stages here could be fused even by hand. No kernel body changed, no pixel
+ * is read a different number of times, and the plain-JS baseline still walks
+ * the same five passes and eight sweeps it always did. What went away is the JS
+ * sitting between the dispatches. Both GPU cells now pay one round trip, as
+ * sobel does, and what is left between this row and sobel is the arithmetic and
+ * the residency it was always supposed to be.
+ *
+ * The source image stays a pipeline ARGUMENT rather than something the
+ * orchestration closes over. A captured array freezes into the plan at trace
+ * time and would be uploaded once for the whole benchmark; the column has
+ * always paid to upload the plane on every run, and a column that quietly
+ * stopped doing so would be reporting a speed-up it had not earned.
  *
  * ── EVERY NUMBER IN THIS PIPELINE IS AN EXACT INTEGER, ON PURPOSE ───────────
  *
@@ -57,8 +87,11 @@
  * do. Eight passes, always, in every column: an edge is joined across up to
  * eight pixels of weak chain, every backend does exactly the same work, and the
  * answer is a function of the input alone. Eight rather than two also because
- * the passes are nearly free on the CPU and are eight more dispatches on the
- * GPU, which is precisely the asymmetry this row is here to price.
+ * the passes are nearly free on the CPU and are eight more whole-plane
+ * dispatches on the GPU, which is precisely the asymmetry this row is here to
+ * price. Handing the chain to a plan did not change that count: it is still
+ * eight dependent passes over 4.2 M pixels in every GPU column, they are simply
+ * no longer eight separate conversations with the host.
  *
  * ── THE BLUR IS NOT SEPARATED ──────────────────────────────────────────────
  *
@@ -323,11 +356,15 @@ export default {
 
   gpujs(gpu, { n, nm1, hi, lo, hyst }, { rows }) {
     const consts = { nm1, hi, lo };
-    const mk = (fn, pipeline) =>
+    // No `setPipeline` anywhere below. Residency is the plan's business: it
+    // runs private clones configured for pipeline use, so the four 16 MB
+    // intermediates stay on the device whether or not the instances created
+    // here say so, and the last stage's result is read back by the plan rather
+    // than by an instance that had to be left unpipelined to do it.
+    const mk = fn =>
       gpu
         .createKernel(fn)
         .setConstants(consts)
-        .setPipeline(pipeline)
         .setPrecision('single')
         // The default tactic picks a GLSL precision qualifier from the texture
         // size, and `lowp` would destroy magnitudes that run to six figures.
@@ -355,7 +392,7 @@ export default {
         }
       }
       return acc;
-    }, true);
+    });
 
     const kGrad = mk(function (a) {
       const x = this.thread.x;
@@ -389,7 +426,7 @@ export default {
       else if (2 * ax < ay) sector = 2;
       else if (gx * gy < 0) sector = 1;
       return (ax + ay) * 4 + sector;
-    }, true);
+    });
 
     const kNms = mk(function (a) {
       const x = this.thread.x;
@@ -430,7 +467,7 @@ export default {
       let out = 0;
       if (m >= ma && m >= mb) out = m;
       return out;
-    }, true);
+    });
 
     const kThresh = mk(function (a) {
       const v = a[this.thread.y][this.thread.x];
@@ -438,7 +475,7 @@ export default {
       if (v > this.constants.lo) out = 1;
       if (v > this.constants.hi) out = 2;
       return out;
-    }, true);
+    });
 
     const hystBody = function (a) {
       const x = this.thread.x;
@@ -462,27 +499,77 @@ export default {
       }
       return out;
     };
-    // Two pipelined instances to ping-pong, plus one unpipelined so the last
-    // pass resolves on a real array rather than a handle to queued work.
-    const kHystA = mk(hystBody, true);
-    const kHystB = mk(hystBody, true);
-    const kHystLast = mk(hystBody, false);
+    // ONE instance for all eight passes. `t = kHyst(t)` used to need two of
+    // them alternating by hand — a resident kernel owns its output texture and
+    // cannot read the plane it is halfway through overwriting — plus a third,
+    // unpipelined, so the last pass landed on a real array rather than a handle
+    // to queued work. The plan works the ping-pong out of the steps' own reads
+    // and writes and assigns two alternating buffer slots behind this single
+    // kernel, and it reads the final plane back itself.
+    const kHyst = mk(hystBody);
 
-    const all = [kBlur, kGrad, kNms, kThresh, kHystA, kHystB, kHystLast];
+    const all = [kBlur, kGrad, kNms, kThresh, kHyst];
+
+    // The whole chain, traced once at build time against opaque handles. The
+    // `for` below is gone by the time anything runs: four stages and eight
+    // hysteresis passes unroll into a twelve-step plan over five kernels and
+    // the handful of buffers static liveness says it needs, and every later
+    // call replays it as one launch.
+    //
+    // `hyst` goes in through `this.constants` rather than the closure because
+    // that is what it is — a trace-time fact. The closed-over `hyst` would be
+    // frozen into the plan just as silently and far less legibly, and changing
+    // it means re-tracing, not re-running, which is where the tracer looks.
+    const detect = gpu.createPipeline(
+      function (src) {
+        let t = kBlur(src);
+        t = kGrad(t);
+        t = kNms(t);
+        t = kThresh(t);
+        for (let p = 0; p < this.constants.hyst; p++) t = kHyst(t);
+        // A handle, never a value. Nothing in here is allowed to look at a
+        // pixel; the plan reads this one back once, when the last pass lands.
+        return t;
+      },
+      { constants: { hyst }  }
+    );
 
     return {
+      // One call, one read-back. Nothing between the first dispatch and the
+      // last touches the host: the four 16 MB intermediates stay resident and
+      // only the edge map comes back. Awaiting the pipeline is still what
+      // proves all twelve passes ran rather than merely being queued — the
+      // promise does not settle until the plan's last step has landed and its
+      // result has come home — but it proves it once instead of twelve times
+      // at host prices. The first call also traces and compiles, which the
+      // runner's warm-ups absorb exactly as they already absorbed kernel
+      // compilation.
       async run() {
-        // Nothing between these lines touches the host. Four 16 MB
-        // intermediates stay resident; only the edge map comes back.
-        let t = await kBlur(rows);
-        t = await kGrad(t);
-        t = await kNms(t);
-        t = await kThresh(t);
-        for (let p = 0; p < hyst - 1; p++) t = await (p % 2 === 0 ? kHystA : kHystB)(t);
-        return await kHystLast(t);
+        return detect(rows);
       },
-      backend: () => kBlur.kernel && kBlur.kernel.constructor.mode,
+      // Ask the plan's own kernel, not the one created up here. gpu.js answers
+      // a kernel it cannot compile by swapping in a CPU one, and it is the
+      // plan's private clones that get built — the instances above are never
+      // run directly and would still be reporting the backend they were asked
+      // for. Before the first call there is no plan, so fall back to kBlur.
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend() {
+        return detect.backend;
+      },
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => detect.executorKind,
       destroy() {
+        // The pipeline first: it owns the clones and the plan's buffers, and
+        // releasing it after the kernels it cloned from are already gone is a
+        // teardown order nobody should have to think about.
+        if (detect.destroy) detect.destroy();
         all.forEach(k => k.destroy && k.destroy());
       },
     };

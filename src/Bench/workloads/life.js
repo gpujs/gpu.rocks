@@ -12,8 +12,35 @@
  * exists next to matmul. Matmul is one dispatch of enormous arithmetic
  * intensity; this is a hundred dispatches of nine loads and a compare, with a
  * dependency between every pair of them. Per byte moved there is almost
- * nothing to compute, so the row measures memory bandwidth and dispatch
- * overhead, which is what most real simulation kernels actually run into.
+ * nothing to compute, so the row measures memory bandwidth and the cost of a
+ * dependent dispatch chain, which is what most real simulation kernels
+ * actually run into.
+ *
+ * WHICH DISPATCH COST, AND WHY THE gpu.js COLUMN IS NOW FUSED. There are two
+ * different prices hiding in the phrase "dispatch overhead", and this row only
+ * ever wanted one of them. The first is the HOST-side cost of asking: a
+ * runtime validating arguments, rebinding textures and resolving a promise in
+ * JavaScript, 96 times. The second is what the device charges to run 96
+ * dependent passes back to back — the barrier between each pair, and the fact
+ * that no generation can start until the last one's 16 MB has landed. Only the
+ * second is a property of the simulation; the first is a property of whichever
+ * runtime you happened to call.
+ *
+ * The bare-WebGPU column has never paid the first — it has always recorded all
+ * 96 dispatches into ONE command buffer (see its header) — so for as long as
+ * the gpu.js column awaited each generation separately, the gap between the
+ * two columns was a gpu.js call-overhead measurement wearing a stencil as a
+ * hat. The gpu.js column now traces the whole simulation with
+ * `gpu.createPipeline`, which records the 96 generations into one plan and
+ * launches it once, so both GPU columns are finally answering the same
+ * question and the row is left measuring bandwidth and the dependency chain.
+ *
+ * NOTHING ABOUT THE WORK CHANGED. Same kernel body, same nine loads, same 96
+ * generations, same two buffers alternating, same single read-back at the end.
+ * The plan is a static unroll of the loop that was already there, not a
+ * cleverer Life. If you want the host-side per-call price on its own it is
+ * launch-overhead.js, which exists for exactly that and must never be fused —
+ * one add per thread has nothing left in it once the launches are free.
  *
  * The keeping-honest details:
  *
@@ -111,83 +138,131 @@ export default {
   },
 
   gpujs(gpu, { n, gens }, { rows }) {
-    // Two identical kernels, not one called twice. Each pipelined kernel owns
-    // one output texture and reuses it, so `even` reads `odd`'s texture and
-    // writes its own and vice versa — a ping-pong with no allocation per
-    // generation. One kernel called twice would be asked to read the texture it
-    // was about to overwrite, which gpu.js refuses (correctly).
-    const step = () =>
-      gpu
-        .createKernel(function (a) {
-          // `side`, not `n`. The CPU backend translates every identifier that
-          // MATCHES A CONSTANT'S NAME into `constants_<name>`, kernel locals
-          // included, so a local called `n` would be emitted as
-          // `const constants_n = …` and shadow the real constant for the rest
-          // of the thread body — silently, and only on that one column.
-          //
-          // Naming the local `dim` is not enough on its own, because the local
-          // names in the shipped bundle are the MINIFIER's, not ours, and a
-          // one-character constant is exactly what a minifier hands out. (This
-          // is not hypothetical: it is what went wrong in nbody.js, where a
-          // local minified to `g` collided with the constant `g`.) A constant
-          // whose name is longer than two characters cannot be collided with.
-          const dim = this.constants.side;
-          const x = this.thread.x;
-          const y = this.thread.y;
+    // ONE step kernel, where this row used to carry two.
+    //
+    // The two existed for a real reason: a pipelined kernel owns one output
+    // texture and reuses it, so calling a single kernel twice in a row asks it
+    // to read the texture it is about to overwrite, which gpu.js refuses
+    // (correctly). Alternating between two instances was the ping-pong.
+    //
+    // Inside a traced pipeline that hand-rolling is not just unnecessary, it is
+    // the wrong shape. The tracer sees `state = step(state)` 96 times, works out
+    // statically that each generation's output dies as soon as the next has read
+    // it, and assigns two alternating plan buffers to one kernel. That is the
+    // same ping-pong — two buffers, no allocation per generation — decided by
+    // liveness analysis rather than by us remembering to say `g % 2`.
+    //
+    // No `.setPipeline(true)` either. That flag is how a kernel keeps its result
+    // on the device when YOU are chaining the calls; inside a plan, residency of
+    // every intermediate is the pipeline's job, and the executor configures its
+    // own clones. Setting it here would be a claim that the hand-rolled
+    // residency management is still load-bearing, and it is not.
+    const step = gpu
+      .createKernel(function (a) {
+        // `side`, not `n`. The CPU backend translates every identifier that
+        // MATCHES A CONSTANT'S NAME into `constants_<name>`, kernel locals
+        // included, so a local called `n` would be emitted as
+        // `const constants_n = …` and shadow the real constant for the rest
+        // of the thread body — silently, and only on that one column.
+        //
+        // Naming the local `dim` is not enough on its own, because the local
+        // names in the shipped bundle are the MINIFIER's, not ours, and a
+        // one-character constant is exactly what a minifier hands out. (This
+        // is not hypothetical: it is what went wrong in nbody.js, where a
+        // local minified to `g` collided with the constant `g`.) A constant
+        // whose name is longer than two characters cannot be collided with.
+        const dim = this.constants.side;
+        const x = this.thread.x;
+        const y = this.thread.y;
 
-          let left = x - 1;
-          if (left < 0) left = dim - 1;
-          let right = x + 1;
-          if (right >= dim) right = 0;
-          let up = y - 1;
-          if (up < 0) up = dim - 1;
-          let down = y + 1;
-          if (down >= dim) down = 0;
+        let left = x - 1;
+        if (left < 0) left = dim - 1;
+        let right = x + 1;
+        if (right >= dim) right = 0;
+        let up = y - 1;
+        if (up < 0) up = dim - 1;
+        let down = y + 1;
+        if (down >= dim) down = 0;
 
-          const live =
-            a[up][left] + a[up][x] + a[up][right] +
-            a[y][left] + a[y][right] +
-            a[down][left] + a[down][x] + a[down][right];
+        const live =
+          a[up][left] + a[up][x] + a[up][right] +
+          a[y][left] + a[y][right] +
+          a[down][left] + a[down][x] + a[down][right];
 
-          // live is a whole number, so these equality tests are exact even
-          // though the backend is carrying it in a float.
-          if (live === 3) return 1;
-          if (live === 2) return a[y][x];
-          return 0;
-        })
-        .setConstants({ side: n })
-        .setPipeline(true)
-        .setPrecision('single')
-        .setOutput([n, n]);
+        // live is a whole number, so these equality tests are exact even
+        // though the backend is carrying it in a float.
+        if (live === 3) return 1;
+        if (live === 2) return a[y][x];
+        return 0;
+      })
+      .setConstants({ side: n })
+      .setPrecision('single')
+      .setOutput([n, n]);
 
-    const even = step();
-    const odd = step();
-
-    // Uploads the soup into a texture once per run. Its real job is to keep the
-    // two step kernels' argument type constant: handing them a plain array on
-    // generation 0 and a Texture afterwards makes gpu.js recompile, and the row
-    // would be timing a shader compiler.
+    // Copies the soup into a plan buffer as the plan's first step. It no longer
+    // exists for the reason it used to — keeping the step kernels' argument type
+    // constant so gpu.js would not recompile between generation 0 and
+    // generation 1 — because a plan is traced once at build and every step's
+    // argument shape is fixed there; there is no mid-run compiler left to time.
+    //
+    // It stays because of what it does to the RUN. The soup is what makes each
+    // repetition identical, and this is the step that re-lays it down: without
+    // it, generation 0 would read the uploaded pipeline argument and the reset
+    // would move outside the plan. Keeping it also makes all 96 generations
+    // literally the same step reading the same kind of buffer, which is what
+    // lets the tracer collapse them onto one kernel, and it matches the
+    // bare-WebGPU column beat for beat — its run() opens with a device-side
+    // copyBufferToBuffer from the pristine soup for exactly this reason.
     const seed = gpu
       .createKernel(function (a) {
         return a[this.thread.y][this.thread.x];
       })
-      .setPipeline(true)
       .setPrecision('single')
       .setOutput([n, n]);
 
+    // The whole simulation as one traced plan. This function runs ONCE, at the
+    // first call, against an opaque handle; the loop is unrolled at trace time
+    // into 96 recorded steps, and every later call replays the plan in a single
+    // launch with the state never leaving the device.
+    //
+    // `gens` comes through `this.constants` rather than the closure to say what
+    // is true: it is a trace-time fact. Changing it means re-tracing, not
+    // re-running, and the constant is where the tracer looks.
+    const simulate = gpu.createPipeline(
+      function (soup) {
+        let state = seed(soup);
+        for (let g = 0; g < this.constants.gens; g++) state = step(state);
+        return state;
+      },
+      { constants: { gens }  }
+    );
+
     return {
       async run() {
-        let state = await seed(rows);
-        for (let g = 0; g < gens; g++) {
-          state = await (g % 2 === 0 ? even : odd)(state);
-        }
-        // The read-back, which is the only thing that proves every generation
-        // actually ran rather than merely being queued.
-        return state.toArray ? await state.toArray() : state;
+        // One call, one read-back. Awaiting the pipeline is still the thing
+        // that proves every generation actually ran rather than merely being
+        // queued — the promise resolves only after the plan's last step has
+        // landed and its result has come home. What is gone is the 96 separate
+        // awaits, which proved the same thing 96 times over at host prices.
+        return await simulate(rows);
       },
-      backend: () => even.kernel && even.kernel.constructor.mode,
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend: () => simulate.backend,
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => simulate.executorKind,
       destroy() {
-        [even, odd, seed].forEach(k => k.destroy && k.destroy());
+        // The pipeline first: it owns cloned kernel instances and the plan
+        // buffers, and releasing it while the kernels it cloned from are
+        // already gone is a teardown order nobody should have to think about.
+        if (simulate.destroy) simulate.destroy();
+        [step, seed].forEach(k => k.destroy && k.destroy());
       },
     };
   },

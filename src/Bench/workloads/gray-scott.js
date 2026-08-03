@@ -15,6 +15,16 @@
  * between those two cells is a straightforward statement of what the runtime's
  * one-output-per-kernel model costs on a coupled system.
  *
+ * For that statement to be true, the two cells have to differ in that ONE
+ * respect. The bare column records all of its dispatches into a single command
+ * buffer and submits once, so a gpu.js column that awaited each of its 768
+ * dispatches would be reporting host round-trips — a cost launch-overhead
+ * already prices, on a row built to isolate it — layered on top of the model
+ * cost this row is asking about. So the gpu.js column is a `createPipeline`
+ * plan: the step loop is traced once at build time and executed as one launch,
+ * matching the bare column's submission shape. What is left between them is
+ * two kernels against one, and the second read of the same neighbourhood.
+ *
  * ── WHY THIS ROW IS STILL CHECKABLE AFTER THOUSANDS OF STEPS ────────────────
  *
  * An iterated float simulation is the easiest way to make a benchmark row that
@@ -151,108 +161,125 @@ export default {
   gpujs(gpu, { n, steps }, { uRows, vRows }) {
     const constants = { n, du: DU, dv: DV, feed: FEED, kill: KILL, dt: DT };
 
-    // Two kernels per field, not one each. A pipelined mutable kernel reuses a
-    // single output texture, so the even step's u kernel and the odd step's u
-    // kernel must be different objects — otherwise a kernel would be asked to
-    // write the texture it is reading. Four kernels, alternating in pairs, is
-    // the ping-pong for a coupled pair.
-    const uStep = () =>
-      gpu
-        .createKernel(function (u, v) {
-          // `dim`, not `n`: a kernel-local named after one of the kernel's own
-          // constants collides with the CPU backend's generated `constants_n`.
-          const dim = this.constants.n;
-          const x = this.thread.x;
-          const y = this.thread.y;
-          let left = x - 1;
-          if (left < 0) left = dim - 1;
-          let right = x + 1;
-          if (right >= dim) right = 0;
-          let up = y - 1;
-          if (up < 0) up = dim - 1;
-          let down = y + 1;
-          if (down >= dim) down = 0;
+    // ONE kernel per field. The four-textures-alternating-in-pairs ping-pong
+    // is still what runs, but it is no longer hand-rolled: the pipeline traces
+    // the orchestration below, unrolls the step loop, and runs static liveness
+    // over the result. Both fields of step s are still being read while step
+    // s+1 writes, so no slot can be recycled until its last reader has run, and
+    // the assignment that falls out is precisely four buffers used in pairs —
+    // the same schedule the four kernel objects used to spell out by hand, with
+    // the two kernels that only existed to avoid writing the texture they were
+    // reading no longer needed. (Verified on the plan: 768 steps, 2 kernels,
+    // 4 buffers, slots 0,1,2,3,0,1,2,3,…)
+    //
+    // No setPipeline(true) either. Residency between plan steps is the
+    // pipeline's business — it runs private clones with it forced on — and
+    // asking for it here would only change how these two objects behave if
+    // something outside the plan ever called them, which nothing does.
+    const uStep = gpu
+      .createKernel(function (u, v) {
+        // `dim`, not `n`: a kernel-local named after one of the kernel's own
+        // constants collides with the CPU backend's generated `constants_n`.
+        const dim = this.constants.n;
+        const x = this.thread.x;
+        const y = this.thread.y;
+        let left = x - 1;
+        if (left < 0) left = dim - 1;
+        let right = x + 1;
+        if (right >= dim) right = 0;
+        let up = y - 1;
+        if (up < 0) up = dim - 1;
+        let down = y + 1;
+        if (down >= dim) down = 0;
 
-          const a = u[y][x];
-          const b = v[y][x];
-          const lap = u[up][x] + u[down][x] + u[y][left] + u[y][right] - 4 * a;
-          return a + this.constants.dt * (this.constants.du * lap - a * b * b + this.constants.feed * (1 - a));
-        })
-        .setConstants(constants)
-        .setPipeline(true)
-        .setPrecision('single')
-        .setOutput([n, n]);
+        const a = u[y][x];
+        const b = v[y][x];
+        const lap = u[up][x] + u[down][x] + u[y][left] + u[y][right] - 4 * a;
+        return a + this.constants.dt * (this.constants.du * lap - a * b * b + this.constants.feed * (1 - a));
+      })
+      .setConstants(constants)
+      .setPrecision('single')
+      .setOutput([n, n]);
 
-    const vStep = () =>
-      gpu
-        .createKernel(function (u, v) {
-          const dim = this.constants.n;
-          const x = this.thread.x;
-          const y = this.thread.y;
-          let left = x - 1;
-          if (left < 0) left = dim - 1;
-          let right = x + 1;
-          if (right >= dim) right = 0;
-          let up = y - 1;
-          if (up < 0) up = dim - 1;
-          let down = y + 1;
-          if (down >= dim) down = 0;
+    const vStep = gpu
+      .createKernel(function (u, v) {
+        const dim = this.constants.n;
+        const x = this.thread.x;
+        const y = this.thread.y;
+        let left = x - 1;
+        if (left < 0) left = dim - 1;
+        let right = x + 1;
+        if (right >= dim) right = 0;
+        let up = y - 1;
+        if (up < 0) up = dim - 1;
+        let down = y + 1;
+        if (down >= dim) down = 0;
 
-          const a = u[y][x];
-          const b = v[y][x];
-          const lap = v[up][x] + v[down][x] + v[y][left] + v[y][right] - 4 * b;
-          return (
-            b +
-            this.constants.dt *
-              (this.constants.dv * lap + a * b * b - (this.constants.feed + this.constants.kill) * b)
-          );
-        })
-        .setConstants(constants)
-        .setPipeline(true)
-        .setPrecision('single')
-        .setOutput([n, n]);
+        const a = u[y][x];
+        const b = v[y][x];
+        const lap = v[up][x] + v[down][x] + v[y][left] + v[y][right] - 4 * b;
+        return (
+          b +
+          this.constants.dt *
+            (this.constants.dv * lap + a * b * b - (this.constants.feed + this.constants.kill) * b)
+        );
+      })
+      .setConstants(constants)
+      .setPrecision('single')
+      .setOutput([n, n]);
 
-    const uEven = uStep();
-    const uOdd = uStep();
-    const vEven = vStep();
-    const vOdd = vStep();
-
-    // Uploads the initial fields once per run. Its real job is to keep the step
-    // kernels' argument types constant — a plain array on step 0 and a Texture
-    // afterwards would make gpu.js recompile inside the timed region.
-    const copy = () =>
-      gpu
-        .createKernel(function (a) {
-          return a[this.thread.y][this.thread.x];
-        })
-        .setPipeline(true)
-        .setPrecision('single')
-        .setOutput([n, n]);
-    const seedU = copy();
-    const seedV = copy();
-
-    return {
-      async run() {
-        let u = await seedU(uRows);
-        let v = await seedV(vRows);
-        for (let s = 0; s < steps; s++) {
-          const even = s % 2 === 0;
+    // The whole simulation, as a plan. The orchestration function runs exactly
+    // once, at build time, against opaque handles: the loop below is unrolled
+    // there and then, so `steps` is a trace-time fact — hence this.constants
+    // rather than the closed-over `steps`, which the trace would freeze into
+    // the plan just as silently but far less legibly.
+    const march = gpu.createPipeline(
+      function (u, v) {
+        for (let s = 0; s < this.constants.steps; s++) {
           // Both reads happen against the OLD pair, which is why the new u is
-          // not assigned until the new v has been dispatched.
-          const nu = await (even ? uEven : uOdd)(u, v);
-          const nv = await (even ? vEven : vOdd)(u, v);
+          // not assigned until the new v has been recorded: assigning u first
+          // would bind the v step's first argument to the new u, and the plan
+          // would then be a half-step-stale simulation that still runs.
+          const nu = uStep(u, v);
+          const nv = vStep(u, v);
           u = nu;
           v = nv;
         }
-        // The read-backs. Until these resolve, the dispatches are only queued.
-        return {
-          u: u.toArray ? await u.toArray() : u,
-          v: v.toArray ? await v.toArray() : v,
-        };
+        return { u, v };
       },
-      backend: () => uEven.kernel && uEven.kernel.constructor.mode,
+      { constants: { steps }  }
+    );
+
+    return {
+      async run() {
+        // The initial fields go up as pipeline arguments, uploaded once per
+        // call — the same once-per-run seeding the copy kernels used to do,
+        // and the same reset the bare column pays with a device-side copy.
+        //
+        // A pipeline call is always a Promise and it does not settle until
+        // both final fields have been read back, which is the property the
+        // timing protocol needs: a queued plan is not a finished one. The
+        // first call also traces and compiles — including the two argument
+        // signatures the plan needs, a plain array in the seat fed by the
+        // pipeline's own argument and a resident buffer everywhere else — and
+        // the runner's two warm-ups absorb that, as they already absorbed
+        // kernel compilation.
+        return march(uRows, vRows);
+      },
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend: () => march.backend,
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => march.executorKind,
       destroy() {
-        [uEven, uOdd, vEven, vOdd, seedU, seedV].forEach(k => k.destroy && k.destroy());
+        march.destroy();
+        [uStep, vStep].forEach(k => k.destroy && k.destroy());
       },
     };
   },

@@ -32,6 +32,34 @@
  * honestly; this row shows the case where you have already decided to keep the
  * image on the GPU. Both are true and they are not the same number.
  *
+ * ── WHY THE gpu.js COLUMN IS ONE LAUNCH ────────────────────────────────────
+ *
+ * Sixteen passes used to mean sixteen trips back out to the host: gpu.js
+ * checked the arguments, rebound the texture and resolved a promise between
+ * every pair of them. The bare-WebGPU column beside it has never paid any of
+ * that — it records all sixteen dispatches into ONE compute pass (see its
+ * header) — so for as long as that asymmetry stood, part of the gap between the
+ * two GPU cells was a gpu.js call-overhead measurement wearing a stencil as a
+ * hat. That is not what a row about arithmetic intensity is for.
+ *
+ * The gpu.js column now hands the whole sweep to `gpu.createPipeline`. The
+ * orchestration in `gpujs` is traced ONCE, at build, against an opaque handle;
+ * the pass loop unrolls there into sixteen recorded steps over two alternating
+ * buffers, and a later call executes that plan as a unit — every step in one
+ * command encoder on WebGPU, every step back to back over one wasm memory the
+ * plane never leaves on WebASM. Both GPU cells now submit the sweep the same
+ * way, so what is left between them is what the runtime costs rather than a
+ * difference in how the work was handed to the device.
+ *
+ * NOTHING ABOUT THE WORK CHANGED, which is the only thing that makes this
+ * legitimate on a row that already has numbers recorded against it. Same kernel
+ * body, same sixteen passes, same two planes alternating, same 16 MB up at the
+ * start and the same 16 MB back at the end — `run` says why the upload stays
+ * inside the timed region rather than sliding out to build time now that it
+ * could. What went away is the host-side orchestration between the passes, and
+ * a reader who wants THAT number on its own should read `launch-overhead`,
+ * which exists for it and must never be fused.
+ *
  * ── WHY THE 1/8 ────────────────────────────────────────────────────────────
  *
  * The Sobel kernel estimates the derivative scaled by 8 (a unit ramp gives
@@ -146,11 +174,11 @@ export default {
   gpujs(gpu, { n, passes, scale, nm1 }, { rows }) {
     const consts = { nm1, scale };
 
-    // One body, three instances. `even` and `odd` each own a pipeline texture
-    // and reuse it, so one reads the other's while writing its own — a
-    // ping-pong with no allocation per pass. Handing a single kernel its own
-    // output to read would be asking it to sample the texture it is about to
-    // overwrite, which gpu.js correctly refuses.
+    // The body is untouched, deliberately: same nine loads, same twelve adds,
+    // same four multiplies, same sqrt, in the same order. This cell's number is
+    // comparable with the ones already recorded for it, and with the two
+    // columns beside it, only for as long as every one of them computes the
+    // same arithmetic per pixel.
     const body = function (a) {
       const x = this.thread.x;
       const y = this.thread.y;
@@ -177,37 +205,97 @@ export default {
       return Math.sqrt(gx * gx + gy * gy) * this.constants.scale;
     };
 
-    const mk = pipeline =>
-      gpu
-        .createKernel(body)
-        .setConstants(consts)
-        .setPipeline(pipeline)
-        .setPrecision('single')
-        .setTactic('precision')
-        .setOutput([n, n]);
+    // ONE instance, where this used to need four, and every one of the other
+    // three was book-keeping the plan now does for itself:
+    //
+    //   - `even`/`odd` were hand-rolled ping-pong. A kernel owning the texture
+    //     it renders into cannot be handed its own output to read, so the two
+    //     alternated. The plan reads that alternation out of the steps' own
+    //     reads and writes — `state = sweep(state)` compiles from static
+    //     liveness onto two plan buffers driven by ONE kernel — and keeping the
+    //     pair would only trace two kernels where one is correct.
+    //   - `first` was separate because the pass that reads the uploaded image
+    //     sees an Array where every later pass sees a texture, and changing an
+    //     argument's type between calls made gpu.js recompile. A plan knows both
+    //     seats statically and compiles one program per argument signature — two
+    //     shaders, built once and thereafter chosen, not rebuilt. That is the
+    //     same protection the pair of instances bought, made by the plan.
+    //   - `last` dropped `pipeline` so that `run` resolved on real values
+    //     rather than a handle to work that might still be queued. The plan
+    //     reads its results back exactly once, at the end, which is the same
+    //     guarantee made by the executor instead of by hand.
+    //
+    // `pipeline` is gone from the kernel for the same reason: intermediate
+    // residency is the plan's business now, not something the kernel is told.
+    const sweep = gpu
+      .createKernel(body)
+      .setConstants(consts)
+      .setPrecision('single')
+      .setTactic('precision')
+      .setOutput([n, n]);
 
-    // The first pass takes the plain 2-D array; every later pass takes a
-    // texture. They have to be different kernel objects, because changing an
-    // argument's type between calls makes gpu.js recompile and the row would be
-    // timing a shader compiler.
-    const first = mk(true);
-    const even = mk(true);
-    const odd = mk(true);
-    // The last pass is not pipelined, so `run` resolves on a real array rather
-    // than a handle to work that may still be queued.
-    const last = mk(false);
+    // The sweep as one traced plan. This function runs ONCE, at the first call,
+    // against an opaque handle standing in for the image; the loop is unrolled
+    // there into sixteen recorded steps, and every later call replays the plan
+    // in a single launch with the plane never leaving the device.
+    //
+    // `passes` comes through `this.constants` rather than the closure to say
+    // what is true about it: it is a trace-time fact. Changing it means
+    // re-tracing, not re-running, and the constants are where the tracer looks.
+    const solve = gpu.createPipeline(
+      function (img) {
+        let state = img;
+        for (let p = 0; p < this.constants.passes; p++) state = sweep(state);
+        return state;
+      },
+      { constants: { passes }  }
+    );
 
     return {
+      // The image goes in as a pipeline ARGUMENT rather than as a value the
+      // orchestration closes over, and the difference is entirely about where
+      // the 16 MB upload lands. A captured array is snapshotted at trace and
+      // written to its buffer once, which would take the upload out of the
+      // timed region for good; an argument is uploaded on every call, which is
+      // what this cell has always paid and what the caveat at the top of the
+      // file — sixteen passes amortising the upload and the read-back — is
+      // describing. Fusing was allowed here because it removes host chatter
+      // between the passes; quietly deleting a transfer the row prices would be
+      // a different row. The cost of that choice is honest: `rows` is sampled
+      // at the call, so a plan argument is copied once on the host before it is
+      // uploaded, where the old `first(rows)` flattened it straight into the
+      // texture.
+      //
+      // The single await is the read-back, and it is still the only thing that
+      // proves all sixteen passes ran rather than merely being queued — what is
+      // gone is the fifteen other awaits, which proved the same thing over and
+      // over at host prices.
       async run() {
-        let state = await first(rows);
-        for (let p = 1; p < passes - 1; p++) {
-          state = await (p % 2 === 1 ? even : odd)(state);
-        }
-        return await last(state);
+        return await solve(rows);
       },
-      backend: () => first.kernel && first.kernel.constructor.mode,
+      // Ask the instance that actually ran. The plan executes a private clone
+      // of the kernel above, and it is the clone that would have been swapped
+      // for a CPU one had the real backend declined to build it; the
+      // user-facing kernel may never be built at all now that nothing calls it
+      // directly. Before the first call there is no plan to ask.
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend() {
+        return solve.backend;
+      },
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => solve.executorKind,
       destroy() {
-        [first, even, odd, last].forEach(k => k.destroy && k.destroy());
+        // The pipeline first: it owns the plan buffers and the cloned kernel,
+        // and releasing it after the kernel it cloned from is already gone is a
+        // teardown order nobody should have to think about.
+        [solve, sweep].forEach(k => k.destroy && k.destroy());
       },
     };
   },
@@ -217,8 +305,15 @@ export default {
    * the untouched source and two scratch planes — and all sixteen dispatches
    * recorded into ONE compute pass, because WebGPU orders dispatches within a
    * pass and makes each one's writes visible to the next. That is one submit
-   * and one read-back for the whole sweep; the difference between this cell and
-   * the WebGPU cell to its left is what the runtime costs.
+   * and one read-back for the whole sweep — which is now also what the traced
+   * plan in the cell to its left does, so the difference between the two is the
+   * runtime's price for the same submission rather than the submission itself.
+   *
+   * One thing this cell still does that the gpu.js one deliberately does not:
+   * the source plane is uploaded here at build and never again, so a run costs
+   * no host-to-device transfer at all. The gpu.js column keeps its upload
+   * inside the timed region because that is what it has always measured; see
+   * its `run`.
    */
   async webgpu(device, { n, passes, scale, nm1 }, { src }) {
     const bytes = n * n * 4;

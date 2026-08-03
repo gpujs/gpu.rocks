@@ -26,6 +26,25 @@
  * registers-worth of GPU-resident buffers, and there is no read-back until the
  * end. It loses on structure.
  *
+ * "Nothing here is handicapped" is a claim this file has to keep earning, and
+ * it used to be only three-quarters true. The bare-WebGPU cell has always put
+ * every dispatch into ONE compute pass, on the stated grounds that a submit per
+ * diagonal would make the row measure the queue; the gpu.js column, meanwhile,
+ * awaited each diagonal separately, so part of the gap between the two was the
+ * host round trip and not the dependency chain. The gpu.js column now hands the
+ * whole sweep to `gpu.createPipeline`, which traces the diagonal loop once at
+ * build time and replays it as a single launch with the rotating diagonals
+ * never leaving the device.
+ *
+ * The chain itself is untouched, and could not have been: the passes are still
+ * dependent, still in order, each still waiting on the one before it, because
+ * no amount of fusing lets cell (i, j) start before its predecessors finish.
+ * What is gone is the per-diagonal host round trip, which was never what this
+ * row is about — `launch-overhead` is the row that prices dispatch, and it is
+ * deliberately left un-fused so that it still can. This row prices structure,
+ * and it now does so against a column that is being slowed down by nothing
+ * except the structure.
+ *
  * ── THE LAYOUT ─────────────────────────────────────────────────────────────
  *
  * Diagonal d holds the cells with i + j = d; lane k on that diagonal is cell
@@ -169,10 +188,15 @@ export default {
     const width = 2 * n; // [0, n) scores, [n, 2n) accumulators
     const diagonals = 2 * n; // 2n-1 real diagonals, plus one pass to flush the accumulator
 
-    // One kernel body, three kernel objects. A pipelined mutable kernel reuses
-    // one output texture, and this recurrence needs the two PREVIOUS diagonals
-    // live while it writes the current one — so the three rotate, and no kernel
-    // is ever asked to write a texture it is reading.
+    // One kernel body, and now one kernel object. The recurrence still needs
+    // the two PREVIOUS diagonals live while it writes the current one, so three
+    // buffers still have to rotate — but rotating them is no longer this
+    // column's problem. The trace sees, statically, that a diagonal's output is
+    // last read two steps after it is written, and the plan's slot allocator
+    // turns that liveness into three alternating buffers driven by a single
+    // kernel. The trio of kernel objects that used to take turns is gone; what
+    // it was working around (a mutable pipelined kernel overwriting the texture
+    // it is reading) is precisely what the allocator exists to prevent.
     const body = function (prev1, prev2, d) {
       // `dim`, not `n`: a kernel-local named after one of the kernel's own
       // constants collides with the CPU backend's generated `constants_n`.
@@ -223,38 +247,74 @@ export default {
       gap: GAP,
       period: PERIOD,
     };
-    const build = () =>
-      gpu.createKernel(body).setConstants(constants).setPipeline(true).setPrecision('single').setOutput([width]);
-    const rotation = [build(), build(), build()];
+    // No `setPipeline(true)` on either kernel any more. Keeping an intermediate
+    // resident between steps is the plan's business, not the kernel's, and the
+    // pipeline runs its own clones with residency forced on regardless.
+    // `setPrecision('single')` stays: it is about the values, not the plumbing,
+    // and a half-float diagonal would not carry these accumulators.
+    const step = gpu.createKernel(body).setConstants(constants).setPrecision('single').setOutput([width]);
 
-    // Diagonals -1 and -2 are all zeros. One kernel, called once per run, and
-    // its single texture can serve as both because they are only ever read.
+    // Diagonals -1 and -2 are all zeros. One kernel, recorded as the plan's
+    // first step, and its single output can serve as both because they are only
+    // ever read.
     const zeros = gpu
       .createKernel(function () {
         return 0;
       })
-      .setPipeline(true)
       .setPrecision('single')
       .setOutput([width]);
 
-    return {
-      async run() {
-        const zero = await zeros();
+    // The whole sweep as one traced plan. This function runs ONCE, at the first
+    // call, against opaque handles standing in for diagonals it is never
+    // allowed to look inside; the loop unrolls at trace time into one recorded
+    // step per diagonal, and every later call replays them in a single launch.
+    //
+    // `diagonals` comes through `this.constants` rather than the closure
+    // because that is what it is — a trace-time fact. Changing it means
+    // re-tracing the plan, not re-running it, and the constant is where the
+    // tracer looks.
+    const sweep = gpu.createPipeline(
+      function () {
+        const zero = zeros();
         let prev1 = zero;
         let prev2 = zero;
-        for (let d = 0; d < diagonals; d++) {
-          const cur = await rotation[d % 3](prev1, prev2, d);
+        for (let d = 0; d < this.constants.diagonals; d++) {
+          const cur = step(prev1, prev2, d);
           prev2 = prev1;
           prev1 = cur;
         }
-        // The read-back. Without it this would return with 8192 dispatches
-        // still queued and the row would report the cost of queueing them.
-        const flat = prev1.toArray ? await prev1.toArray() : prev1;
+        return prev1;
+      },
+      { constants: { diagonals }  }
+    );
+
+    return {
+      async run() {
+        // One await, and it still carries the whole weight the per-diagonal
+        // awaits used to carry: the promise resolves only once the last step
+        // has landed and its result has come home, so this cannot return with
+        // dispatches still queued and report the cost of queueing them. It just
+        // proves it once instead of 12288 times, at host prices.
+        const flat = await sweep();
         return flat.slice(n); // the accumulator half
       },
-      backend: () => rotation[0].kernel && rotation[0].kernel.constructor.mode,
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend: () => sweep.backend,
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => sweep.executorKind,
       destroy() {
-        [...rotation, zeros].forEach(k => k.destroy && k.destroy());
+        // The pipeline first: it owns the plan buffers and cloned kernel
+        // instances, and releasing it after the kernels it cloned from are gone
+        // is a teardown order nobody should have to think about.
+        if (sweep.destroy) sweep.destroy();
+        [step, zeros].forEach(k => k.destroy && k.destroy());
       },
     };
   },
@@ -262,15 +322,20 @@ export default {
   /**
    * Hand-written WebGPU, borrowing nothing from gpu.js.
    *
-   * Two things this cell can do that the gpu.js column cannot:
+   * Two things this cell does that the gpu.js column used to have no way of
+   * doing. It reaches both of them now, from the other end, which is the more
+   * interesting comparison — the same two structural requirements, one written
+   * out by hand and one derived by a tracer:
    *
    *   - the three rotating diagonals live in ONE storage buffer at three
-   *     offsets, so rotating them is arithmetic on an index rather than three
-   *     kernel objects taking turns.
+   *     offsets, so rotating them is arithmetic on an index inside the shader.
+   *     The gpu.js column no longer rotates three kernel objects instead; its
+   *     plan gets to the same three-buffer rotation out of static liveness.
    *   - all 8192 dispatches go into a single compute pass, with the diagonal
    *     index read through a dynamic uniform offset out of a pre-filled buffer.
    *     Rewriting a uniform between dispatches would force a submit per
-   *     diagonal, and the row would be measuring the queue.
+   *     diagonal, and the row would be measuring the queue. The traced plan
+   *     avoids that trap by construction: one launch for the whole sweep.
    *
    * Scores are i32 here rather than f32. WGSL has real integers and this
    * recurrence is integer arithmetic; the values are small enough that f32

@@ -240,6 +240,9 @@
   td .dash { color: var(--muted); opacity: .5; font-family: ui-monospace, monospace; font-size: .78rem; }
   td.err .dash { color: var(--pink); opacity: .9; }
   .fell { display: block; font-size: .6rem; color: var(--pink); font-weight: 700; }
+  // a reduced lowering is not a wrong answer, so it is muted rather than pink:
+  // the reader should notice it without reading it as a failure
+  .fell.exec { color: var(--muted); font-weight: 600; }
   // Which cell is being measured right now. A dash cannot distinguish "not
   // started" from "has been running for twelve seconds", and the plain-JS
   // baseline routinely takes that long.

@@ -28,6 +28,19 @@
  * than by the hardware. Separating that from "the GPU is fast" is the whole
  * reason the bare column exists.
  *
+ * WHY THE gpu.js COLUMNS ARE A PIPELINE. That comparison only says what it
+ * claims to say if the two sides are submitted the same way. The bare column
+ * puts all 32 rounds — 192 dispatches — into one command buffer and one submit;
+ * the gpu.js column used to issue those same 192 dispatches one call at a time
+ * and await each, so part of the gap it showed was scheduling rather than
+ * bandwidth. `gpu.createPipeline` traces the orchestration once and executes
+ * the whole plan as one launch, which puts the two columns in the same shape
+ * and leaves the doubled read as very nearly the only thing between them. What
+ * it deliberately does NOT change: the same two trees, the same kernels, the
+ * same 256:1 fold, the same 64 MB read twice per round. This row prices moving
+ * memory, not dispatching, and fusing does not remove one byte of the traffic —
+ * `launch-overhead` is where dispatch cost is the subject, and this is not it.
+ *
  * PRECISION. Summing 16.7 million fp32 values in fp32 order is a classic way to
  * lose four digits, so every level here averages rather than sums: each thread
  * divides by its own group size, and because the groups are equal the mean of
@@ -103,13 +116,24 @@ export default {
     // level-1 kernels would take the raw 64 MB array as an argument and gpu.js
     // would re-upload it on every call — twice per round, 64 times per run.
     // That would be a perfectly good measurement of an upload path, and a
-    // useless one of a reduction.
+    // useless one of a reduction. Inside a plan the same trap is set by a raw
+    // array ARGUMENT: the generic executor hands the argument itself to every
+    // step that names it, and 64 of them do. So the upload is the plan's first
+    // step and the 64 head steps read its resident output. A fused executor
+    // stages an argument once per call and would not have needed that, which
+    // costs it one extra 64 MB copy per run — cheap next to the 4 GB the tree
+    // reads, and the price of the backends that cannot fuse not re-uploading
+    // 64 MB sixty-four times.
+    //
+    // None of the kernels below say `pipeline: true` any more. Residency is the
+    // plan's business — it runs private clones with pipeline and immutable
+    // forced on — and the flag on the user's kernel would only describe a
+    // direct call that never happens.
     const upload = gpu
       .createKernel(function (x) {
         return x[this.thread.x];
       })
-      .setOutput([n])
-      .setPipeline(true);
+      .setOutput([n]);
 
     // Level 1 reads the raw values; `square` decides which of the two trees this
     // is. Thread j takes src[j], src[j + m], src[j + 2m], ... so neighbouring
@@ -136,13 +160,12 @@ export default {
               }
         )
         .setConstants({ g: group, m: levels[0], invg })
-        .setOutput([levels[0]])
-        .setPipeline(true);
+        .setOutput([levels[0]]);
 
     // Every level after the first is the same fold, so it is the same code with
     // a different output size.
-    const fold = (m, last) => {
-      const k = gpu
+    const fold = m =>
+      gpu
         .createKernel(function (x) {
           let s = 0;
           for (let t = 0; t < this.constants.g; t++) {
@@ -152,44 +175,90 @@ export default {
         })
         .setConstants({ g: group, m, invg })
         .setOutput([m]);
-      return last ? k : k.setPipeline(true);
-    };
 
-    // Two independent trees — see the header. They cannot share a kernel object
-    // because a pipeline kernel owns one output texture, and the second call
-    // would overwrite the first tree's result before it was read.
-    const build = square => [head(square), ...levels.slice(1).map((m, i) => fold(m, i === levels.length - 2))];
-    const sumTree = build(false);
-    const sqTree = build(true);
+    // Two independent trees — see the header — but only their bottom level is
+    // two kernels, because only down there does one square and the other not.
+    // Level for level, the folds above are the same code at the same size, and
+    // ONE instance serves both trees. What used to force a second copy was that
+    // a resident kernel owns its output texture, so the sq tree's fold would
+    // overwrite the sum tree's answer before anyone read it; the plan assigns
+    // buffers from static liveness instead, which reuses a slot the moment its
+    // last reader has run and hands the two final folds separate slots
+    // precisely because both of those are still live when the plan ends.
+    const sumHead = head(false);
+    const sqHead = head(true);
+    const folds = levels.slice(1).map(fold);
 
-    const runTree = async (tree, resident, b) => {
-      let cur = await tree[0](resident, b);
-      for (let i = 1; i < tree.length; i++) {
-        // eslint-disable-next-line no-await-in-loop
-        cur = await tree[i](cur);
-      }
+    const climb = (headKernel, resident, b) => {
+      let cur = headKernel(resident, b);
+      for (let i = 0; i < folds.length; i++) cur = folds[i](cur);
       return cur;
     };
 
-    return {
-      async run() {
-        const resident = await upload(a);
+    // Traced once, at the first call, against opaque handles: the rounds loop
+    // unrolls into a static plan — 193 steps at these constants — that every
+    // later call executes as one launch, and the warm-up runs the runner does
+    // before it starts timing are what keep that trace out of the numbers.
+    // Unrolling is why `r * bias` may be an ordinary number here — it is
+    // a trace-time fact frozen into its step, which is the same thing the bare
+    // column does with its `rounds` prebuilt uniform buffers, and for the same
+    // reason: the bias cannot change between dispatches of one submission.
+    const solve = gpu.createPipeline(
+      function (x) {
+        const resident = upload(x);
         let mean = null;
         let meansq = null;
-        for (let r = 0; r < rounds; r++) {
-          const b = r * bias;
-          // eslint-disable-next-line no-await-in-loop
-          mean = await runTree(sumTree, resident, b);
-          // eslint-disable-next-line no-await-in-loop
-          meansq = await runTree(sqTree, resident, b);
+        for (let r = 0; r < this.constants.rounds; r++) {
+          const b = r * this.constants.bias;
+          mean = climb(sumHead, resident, b);
+          meansq = climb(sqHead, resident, b);
         }
-        // The last level is not a pipeline kernel, so these are already arrays:
-        // the work is finished by the time this returns.
+        // Handles, not values — nothing in here is allowed to look at a number.
+        // The two that survive the loop are the plan's results, and they are
+        // read back once, together, when it finishes.
+        return [mean, meansq];
+      },
+      { constants: { rounds, bias }  }
+    );
+
+    return {
+      async run() {
+        // `a` is an argument rather than something the orchestration closes
+        // over, because a captured array freezes into the plan and would be
+        // uploaded once for the whole benchmark. The bare column writes its
+        // input buffer on every run; a column that quietly stopped doing so
+        // would be measuring a different thing. The price of that honesty is
+        // that the pipeline samples its arguments at the call, so the 64 MB is
+        // copied host-side once per run on top of the upload — the one cost
+        // this shape adds that the bare column does not pay.
+        const [mean, meansq] = await solve(a);
+        // Results, not handles: the plan has finished and read them back by the
+        // time this resolves.
         return new Float32Array([mean[0], Math.sqrt(meansq[0])]);
       },
-      backend: () => sumTree[0].kernel && sumTree[0].kernel.constructor.mode,
+      // Ask the plan's own kernel, not the one created up there. gpu.js answers
+      // a kernel it cannot compile by swapping in a CPU one, and it is the
+      // plan's private clones that get built and so the clones that would be
+      // swapped — the user-facing objects here are never run directly and would
+      // still be reporting the backend they were asked for.
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend() {
+        return solve.backend;
+      },
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => solve.executorKind,
       destroy() {
-        [upload, ...sumTree, ...sqTree].forEach(k => k.destroy && k.destroy());
+        // The pipeline first: it owns the clones and their buffers, and its
+        // release queues behind any call still in flight.
+        if (solve.destroy) solve.destroy();
+        [upload, sumHead, sqHead, ...folds].forEach(k => k.destroy && k.destroy());
       },
     };
   },

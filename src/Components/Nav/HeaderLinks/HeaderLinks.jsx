@@ -45,9 +45,16 @@ const HeaderLinks = () => {
       </li>
 
       <li>
-        <NavLink to="/benchmark">
+        {/* A PLAIN anchor, not a client-side Link. Cross-origin isolation is a
+            property of the DOCUMENT: a SPA route change reuses the current one,
+            so navigating here client-side from a non-isolated page would leave
+            the benchmark without SharedArrayBuffer while a direct load has it —
+            the same row would report threaded or single-core depending on how
+            you arrived. A full load costs a moment and makes the column mean one
+            thing. See the COOP/COEP rule in docker/README.md. */}
+        <a href="/benchmark">
           Benchmark
-        </NavLink>
+        </a>
       </li>
 
       {/* acquisition, grouped: this site's own additions to the shared order */}

@@ -238,6 +238,18 @@ function Cell({ cell, base, isBaseline, bare }) {
       </span>
       <span className="t">{fmtMs(cell.ms)}</span>
       {cell.fellBackTo && <span className="fell" title={`gpu.js actually ran this on ${cell.fellBackTo}`}>↘{cell.fellBackTo}</span>}
+      {!cell.fellBackTo && cell.executor && (
+        <span
+          className="fell exec"
+          title={
+            cell.executor === 'fused-sync'
+              ? 'ran the fused path single-threaded — the worker pool needs SharedArrayBuffer, which needs a cross-origin-isolated page'
+              : `ran the ${cell.executor} executor rather than a fused one`
+          }
+        >
+          ↘{cell.executor === 'fused-sync' ? '1 core' : cell.executor}
+        </span>
+      )}
     </td>
   );
 }

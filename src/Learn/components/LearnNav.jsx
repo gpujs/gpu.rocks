@@ -74,7 +74,14 @@ function LearnNav() {
             benchmark at all, and its absence was also what made this nav's
             order differ from the other two. See HeaderLinks.jsx for the shared
             order these three navs follow. */}
-        <Link to="/benchmark">Benchmark</Link>
+        {/* A PLAIN anchor, not a client-side Link. Cross-origin isolation is a
+            property of the DOCUMENT: a SPA route change reuses the current one,
+            so navigating here client-side from a non-isolated page would leave
+            the benchmark without SharedArrayBuffer while a direct load has it —
+            the same row would report threaded or single-core depending on how
+            you arrived. A full load costs a moment and makes the column mean one
+            thing. See the COOP/COEP rule in docker/README.md. */}
+        <a href="/benchmark">Benchmark</a>
         <a href="https://github.com/gpujs/gpu.js">GitHub</a>
         <a
           className="feedback"

@@ -22,6 +22,27 @@
  * price of "one output per kernel", measured rather than asserted, and this is
  * the workload where that price is most obviously worth knowing.
  *
+ * ── WHY THE gpu.js COLUMN IS ONE LAUNCH NOW, AND WHY THAT IS STILL THIS ROW ──
+ *
+ * The eight passes are traced into a `gpu.createPipeline` plan and submitted as
+ * a unit. That is the same thing the hand-written column below has always done
+ * by recording all eight dispatches into one compute pass, and aligning them is
+ * what makes the gap above legible rather than merely large. It was supposed to
+ * be the price of "one output per kernel"; while the gpu.js side was also paying
+ * for eight separate submissions it was two prices added together, with no way
+ * to say from the table which one you were looking at.
+ *
+ * WHAT FUSING CANNOT REMOVE HERE IS THE PING-PONG, and that is precisely why
+ * this row survives being fused when some rows would not. A plan step still
+ * reads a whole previous image and writes a whole new one, because a gpu.js
+ * kernel still returns one fresh value per thread; the plan picks the two
+ * buffers and alternates them by static liveness, but it does not and cannot
+ * rewrite `prev[y][x] + total` into `acc[i] += total`. Every one of the 8
+ * image-sized reads and 8 image-sized writes named above is still there after
+ * the rewrite, still moving a number that never left the pixel. This row prices
+ * an OUTPUT RULE, not a dispatch count — the dispatch count is what
+ * launch-overhead is for — and the output rule is untouched.
+ *
  * The tracer itself is deliberately the plain one: brute force, no light
  * sampling, no Russian roulette, no importance sampling beyond a cosine lobe. It
  * is monochrome — surfaces have a scalar reflectance — because a gpu.js kernel
@@ -408,7 +429,13 @@ export default {
     /**
      * One accumulation pass: read the running image, add this pass's samples,
      * return the new image. That copy of `prev` through the kernel is the thing
-     * the WGSL column does not have to do, and it is why there are two of these.
+     * the WGSL column does not have to do, and it is the whole subject of this
+     * row — it is still here, unchanged, now that the passes are fused.
+     *
+     * The body is untouched by the pipeline rewrite, deliberately. This cell's
+     * number is only comparable with the ones already recorded for it, and with
+     * the two columns beside it, if all of them trace the same rays through the
+     * same intersections in the same order and draw the same random numbers.
      *
      * Every constant is read through `this.constants.` at its use site. A local
      * named after one of the kernel's own constants collides with the generated
@@ -605,46 +632,88 @@ export default {
       return prev[this.thread.y][this.thread.x] + total;
     };
 
-    // Two of them, ping-ponged. A pipelined mutable kernel owns one output
-    // texture and reuses it, so a single kernel would be asked to write the
-    // texture it is reading.
-    const mk = () =>
-      gpu
-        .createKernel(bodyFn)
-        .setConstants(constants)
-        .setPipeline(true)
-        // Radiance runs past 1, well outside what gpu.js's default 'unsigned'
-        // RGBA8 encoding can carry, and the generator needs exact integers up to
-        // 2^24. 'single' asks for float32 and fails loudly if it cannot have it.
-        .setPrecision('single')
-        .setOutput([w, h]);
-    const even = mk();
-    const odd = mk();
+    // ONE instance, not the even/odd pair this used to keep. That pair was
+    // hand-rolled ping-pong: a pipelined mutable kernel owns one output texture
+    // and reuses it, so a single kernel called in a JS loop would have been
+    // asked to write the texture it was reading. The plan does the ping-pong
+    // itself — `img = body(img, pass)` unrolls, and static liveness turns it
+    // into two alternating plan buffers driven by ONE kernel — so keeping the
+    // pair would trace two kernels where one is correct, and would tell the
+    // reader something about this row that is no longer true.
+    //
+    // `pipeline: true` is gone for the same reason: intermediate residency is
+    // the plan's business now, not something a kernel is told. `single` is not,
+    // and must not be — radiance runs past 1, well outside what gpu.js's default
+    // 'unsigned' RGBA8 encoding can carry, and the generator needs exact
+    // integers up to 2^24. 'single' asks for float32 and fails loudly if it
+    // cannot have it. The clone the plan actually runs inherits it.
+    const body = gpu
+      .createKernel(bodyFn)
+      .setConstants(constants)
+      .setPrecision('single')
+      .setOutput([w, h]);
 
-    // Produces the zeroed accumulator. Its real job is to keep the pass
-    // kernels' argument type constant: a plain array on pass 0 and a Texture
-    // afterwards would make gpu.js recompile inside the timed region.
+    // Produces the zeroed accumulator, and it stays a KERNEL rather than
+    // becoming a captured array of zeros. Its old job — keeping the pass
+    // kernels' argument type constant so gpu.js could not recompile inside the
+    // timed region — is the plan's problem now and no longer a reason for it to
+    // exist. This is: a captured zero image would be uploaded once when the plan
+    // compiles, and the run would stop paying for clearing the accumulator at
+    // all. Both of the other columns pay for it inside the timed region — the
+    // oracle allocates a fresh zeroed Float32Array per run, the WGSL column
+    // copies its zero buffer over `acc` inside the same encoder — so dropping it
+    // here would hand this column an image-sized write the others still make.
     const clear = gpu
       .createKernel(function () {
         return 0;
       })
-      .setPipeline(true)
       .setPrecision('single')
       .setOutput([w, h]);
 
-    return {
-      async run() {
-        let img = await clear();
-        for (let pass = 0; pass < passes; pass++) {
-          img = await (pass % 2 === 0 ? even : odd)(img, pass);
-        }
-        // The read-back. Until this resolves the passes are only queued, and
-        // the row would be reporting the cost of filling a command buffer.
-        return img.toArray ? await img.toArray() : img;
+    // The trace runs this once, at build time, against an opaque handle for the
+    // image; the JS `for` unrolls there and then into 8 plan steps. `passes`
+    // therefore has to be a TRACE-TIME fact, which is what a pipeline's
+    // constants are — and `pass` reaches each step as a frozen literal argument,
+    // exactly as the WGSL column reads its pass index out of a pre-filled
+    // uniform rather than rewriting one between dispatches.
+    const render = gpu.createPipeline(
+      function () {
+        let img = clear();
+        for (let pass = 0; pass < this.constants.passes; pass++) img = body(img, pass);
+        return img;
       },
-      backend: () => even.kernel && even.kernel.constructor.mode,
+      { constants: { passes }  }
+    );
+
+    return {
+      // One await for the whole render rather than one per pass. It is still the
+      // read-back, and it is still the only thing that proves the passes ran
+      // rather than merely queued — a pipeline call always returns a Promise and
+      // resolves to plain results, so there is no separate toArray() left to
+      // forget.
+      async run() {
+        return await render();
+      },
+      // Ask the instance that actually ran, and ask the right one: the plan
+      // holds a clone per traced kernel, `clear` traces first, and a trivial
+      // `return 0` is not what a backend would decline to build. The tracing
+      // kernel is the one whose fallback would make a "WebGL" column a lie.
+      // The pipeline's OWN backend, not a kernel's. Under a plan the user's
+      // kernel shortcut is not what executes, so asking it reports the mode we
+      // requested no matter what ran — which silently disables this suite's
+      // guard against gpu.js degrading to CPU. Reading plan internals was no
+      // better: an accessor built on plan.kernels[0].clone went stale one
+      // commit later without erroring. `pipeline.backend` is supported API and
+      // derives from the executor that actually ran (gpujs/gpu.js#871).
+      backend() {
+        return render.backend;
+      },
+      // which lowering actually ran, so a cell that could not reach the
+      // fused or threaded path says so instead of being read as one that did
+      executor: () => render.executorKind,
       destroy() {
-        [even, odd, clear].forEach(k => k.destroy && k.destroy());
+        // The pipeline first: it owns the plan buffers and the cloned kernels.
+        [render, body, clear].forEach(k => k.destroy && k.destroy());
       },
     };
   },
@@ -652,18 +721,24 @@ export default {
   /**
    * Hand-written WGSL, with nothing borrowed from gpu.js.
    *
-   * Two differences from the column to its left, and both are the runtime's
-   * doing rather than the algorithm's:
+   * ONE difference from the column to its left, and it is the runtime's doing
+   * rather than the algorithm's: the accumulator is updated IN PLACE.
+   * `acc[i] = acc[i] + total` needs no second image and no copy, because the
+   * invocation that reads a pixel is the only one that writes it. That is the
+   * whole point of this row, and it is now the only thing left in the gap.
    *
-   *   - the accumulator is updated IN PLACE. `acc[i] = acc[i] + total` needs no
-   *     second image and no copy, because the invocation that reads a pixel is
-   *     the only one that writes it. That is the whole point of this row.
-   *   - all 8 passes go into ONE compute pass. Dispatches inside a pass are
-   *     ordered and each one's writes are visible to the next, so there is one
-   *     submit for the whole render rather than one per pass. The pass index
-   *     arrives through a pre-filled uniform read at a dynamic offset; rewriting
-   *     a uniform between dispatches would force a submit each time and the row
-   *     would be measuring the queue.
+   * It used to be two. All 8 passes going into ONE compute pass — dispatches
+   * inside a pass are ordered and each one's writes are visible to the next, so
+   * there is one submit for the whole render rather than one per pass — was the
+   * other, and it separated the two cells for reasons that had nothing to do
+   * with accumulation. It does not any more: the gpu.js column traces its eight
+   * passes into one plan and submits them as a unit, so both cells now batch the
+   * same way and what is left between them is the price of the output rule.
+   *
+   * The batching here is still written the careful way, because it has to keep
+   * being true. The pass index arrives through a pre-filled uniform read at a
+   * dynamic offset; rewriting a uniform between dispatches would force a submit
+   * each time and this column would go back to measuring the queue.
    *
    * The tracing is line-for-line the gpu.js kernel — same rejection loop, same
    * basis, same intersection order, so the two cells differ by the runtime and
