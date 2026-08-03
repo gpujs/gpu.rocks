@@ -20,6 +20,12 @@ import { launch } from './browser.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
 const SAVED = join(ROOT, 'src/Bench/saved');
+// --out sends the recorded run somewhere other than the repo, which is how the
+// container hands its result back through a mounted volume. Writing outside
+// src/Bench/saved deliberately does NOT regenerate the index: that file is a
+// manifest of the runs this repo ships, and a run measured on someone else's
+// machine is not one of them until a human puts it there.
+const outDirArgIndex = process.argv.indexOf('--out');
 
 const argv = process.argv.slice(2);
 const arg = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null; };
@@ -327,7 +333,13 @@ if (columnsOnly.length) {
   if (fellBack.length) console.log(`bench-record: note — ${fellBack.length} did not run natively: ${fellBack.join(', ')}`);
 }
 
-writeFileSync(join(SAVED, `${outId}.json`), `${JSON.stringify(run, null, 2)}\n`);
+const outDir = outDirArgIndex >= 0 ? process.argv[outDirArgIndex + 1] : SAVED;
+const outPath = join(outDir, `${outId}.json`);
+writeFileSync(outPath, `${JSON.stringify(run, null, 2)}\n`);
+if (outDir !== SAVED) {
+  console.log(`bench-record: wrote ${outPath} (${Object.keys(run.results).length} rows)`);
+  process.exit(0);
+}
 
 // regenerate the index from whatever is on disk, newest first
 const files = readdirSync(SAVED).filter(f => f.endsWith('.json')).sort().reverse();

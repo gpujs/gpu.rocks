@@ -670,6 +670,44 @@ function BenchPage() {
             </p>
           </div>
 
+          <h2>Running it on a machine that is not this one</h2>
+          <p>
+            The most useful row in this table is the one from <em>your</em> hardware, and the
+            hardware worth measuring is usually not the laptop you are reading on. There is a
+            container for that: it builds the page, drives real Chromium against a real GPU, and
+            hands back a saved run you can drop into the picker above.
+          </p>
+          <pre className="cmd"><code>{`docker build -t gpu-rocks-bench .
+mkdir -p out
+docker run --rm --gpus all -v "$PWD/out:/out" \\
+  gpu-rocks-bench --label "RTX 4090 · Linux"`}</code></pre>
+          <p>
+            <b>Whether a container can see a GPU is entirely up to the host.</b> On Linux with
+            NVIDIA it needs the container toolkit and <code>--gpus all</code>; on Intel or AMD,
+            pass the render node with <code>--device /dev/dri</code>. On <b>Docker Desktop for
+            macOS there is no GPU passthrough at all</b> — Docker runs Linux in a VM that cannot
+            reach the Apple GPU, so run the recorder natively there instead
+            (<code>node scripts/bench-record.mjs</code>) and skip the container entirely.
+          </p>
+          <p>
+            Headless Chromium also does not use a GPU on Linux unless told to, and which flags
+            work depends on the driver underneath. The image defaults to ANGLE over Vulkan, which
+            is the combination that works on NVIDIA; override{' '}
+            <code>CHROME_FLAGS</code> for anything else.
+          </p>
+
+          <div className="warnbox" role="note">
+            <h3>If it refuses to save, believe it</h3>
+            <p>
+              Before spending fifteen minutes the recorder reads the WebGPU adapter and the WebGL
+              renderer, and <b>refuses to write a run if either is software</b>. A container with
+              no GPU reports <code>google swiftshader</code> and stops there. That is not the
+              image failing — it is the image declining to hand you a CPU wearing a GPU's label,
+              which is the one number this page cannot afford to publish. Full notes in{' '}
+              <code>docker/README.md</code>.
+            </p>
+          </div>
+
           <h2>What the shape of the table says</h2>
           <p>
             <b>The GPU's win is enormous, and enormously uneven.</b> Across the gauntlet the best

@@ -53,6 +53,12 @@ export function launch({ real = false, headed = false } = {}) {
           // so the benchmark page still renders
           '--enable-unsafe-swiftshader',
         ]),
+      // CHROME_FLAGS is how a container says how to reach its GPU. Getting
+      // hardware rendering out of headless Chromium on Linux takes flags that
+      // depend on the driver stack underneath it — Vulkan through ANGLE for
+      // NVIDIA, something else for Intel or AMD — and hard-coding one vendor's
+      // answer here would be wrong everywhere else. See docker/README.md.
+      ...(process.env.CHROME_FLAGS ? process.env.CHROME_FLAGS.split(/\s+/).filter(Boolean) : []),
     ],
   });
 }

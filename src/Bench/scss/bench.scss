@@ -385,6 +385,21 @@
   }
   .warnbox p { font-size: .84rem; margin-bottom: .7rem; }
 
+  // Commands are meant to be copied, so they get room and a scrollbar of their
+  // own rather than wrapping into something that will not paste correctly.
+  .essay .cmd {
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: .75rem .9rem; margin: 0 0 1rem; overflow-x: auto;
+  }
+  .essay .cmd code {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .78rem;
+    line-height: 1.6; color: var(--ink); white-space: pre;
+  }
+  .essay p code {
+    background: var(--surface-2); border-radius: 4px; padding: .06em .35em;
+    color: var(--ink);
+  }
+
   code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em; }
 
   @media (max-width: 720px) {
