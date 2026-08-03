@@ -86,6 +86,11 @@ RUN yarn build
 
 # /out is where the run lands. Declared so `docker run` without -v still has
 # somewhere to write rather than failing at the last step of a long benchmark.
+# The recorder serves the page with production's COOP/COEP headers itself, so
+# cross-origin isolation — and with it SharedArrayBuffer and gpu.js's threaded
+# WebAssembly path — works inside the container without anything set here. What
+# DOES matter here is cores: --cpus caps navigator.hardwareConcurrency, and the
+# WebASM column scales with it. The recorder stores the count it saw.
 VOLUME /out
 
 # Arguments pass straight through, so any recorder flag works:

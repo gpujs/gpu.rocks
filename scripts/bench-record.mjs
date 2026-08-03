@@ -57,11 +57,27 @@ if (!existsSync(join(DIST, 'benchmark', 'index.html')) && !existsSync(join(DIST,
 }
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
+// The recorder must serve the page the way PRODUCTION serves it, or it measures
+// a configuration nobody visits. gpu.rocks sets COOP/COEP on /benchmark through
+// a Cloudflare response-header rule, which is what makes the document
+// cross-origin isolated and SharedArrayBuffer available — and without it the
+// WebASM column silently runs single-core. Measured on this machine: heat's
+// webasm cell is 3995 ms unisolated and 1074 ms isolated. A saved run taken
+// against a plain static server would under-report that column by 3-4x and
+// nothing in the file would say why.
+//
+// The second header is not optional either. A dedicated worker's SCRIPT
+// response must carry a compatible COEP or the browser blocks it, and the
+// benchmark then falls back to running on the main thread — which is a
+// different measurement, not just a slower page.
+const ISOLATE = { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' };
 const srv = http.createServer((q, r) => {
   const u = decodeURIComponent(q.url.split('?')[0]);
   for (const p of [join(DIST, u), join(DIST, `${u}.html`), join(DIST, u, 'index.html')]) {
     if (existsSync(p) && statSync(p).isFile()) {
-      r.writeHead(200, { 'content-type': TYPES[extname(p)] || 'application/octet-stream' });
+      const headers = { 'content-type': TYPES[extname(p)] || 'application/octet-stream' };
+      if (u === '/benchmark' || u.startsWith('/assets/')) Object.assign(headers, ISOLATE);
+      r.writeHead(200, headers);
       return r.end(readFileSync(p));
     }
   }
@@ -107,6 +123,22 @@ const rendering = await page.evaluate(async () => {
 });
 console.log(`bench-record: WebGPU ${rendering.adapter}`);
 console.log(`bench-record: WebGL  ${rendering.webgl}`);
+
+// Not a refusal like the software-renderer guard: an unisolated run is a real
+// configuration that real visitors get (Safari, or any host without the
+// header). It is simply a DIFFERENT one, so it goes in the file rather than
+// being left for a reader to infer from a suspiciously slow WebASM column.
+const isolation = await page.evaluate(() => ({
+  crossOriginIsolated: Boolean(self.crossOriginIsolated),
+  sharedArrayBuffer: typeof SharedArrayBuffer !== 'undefined',
+  cores: navigator.hardwareConcurrency || null,
+}));
+console.log(
+  `bench-record: isolated ${isolation.crossOriginIsolated}` +
+    ` · SharedArrayBuffer ${isolation.sharedArrayBuffer}` +
+    ` · ${isolation.cores} cores` +
+    (isolation.crossOriginIsolated ? '' : '  <-- WebASM will be single-core')
+);
 const software = /swiftshader|llvmpipe|software|angle \(google/i;
 if (!argv.includes('--allow-software')) {
   const bad = Object.entries(rendering).filter(([, v]) => software.test(v));
@@ -220,7 +252,7 @@ const machine = `${adapter}${chrome ? ` · Chrome ${chrome}` : ''}`;
 const gpujs = JSON.parse(readFileSync(join(ROOT, 'node_modules/gpu.js/package.json'), 'utf8')).version;
 
 let outId = id;
-let run = { id, label, machine, date: stamp, gpujs, results };
+let run = { id, label, machine, date: stamp, gpujs, isolation, results };
 let driftReport = null;
 const outIdGuess = (readdirSync(SAVED).filter(f => f.endsWith('.json') && !f.startsWith('.')).sort().reverse()[0] || 'run').replace(/\.json$/, '');
 

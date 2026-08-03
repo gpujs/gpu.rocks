@@ -48,6 +48,31 @@ whole table meaningless.
 `--allow-software` overrides it, and is only ever the right call if you are
 deliberately measuring software rendering and will label it as such.
 
+## The WebASM column needs cores, and the recorder needs headers
+
+`scripts/bench-record.mjs` serves the built page with the same
+`Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` headers that
+gpu.rocks sets in production, on `/benchmark` and on `/assets/*`. That is what
+makes the document cross-origin isolated, which is what makes
+`SharedArrayBuffer` — and therefore gpu.js's threaded WebAssembly path —
+available at all. Without it the WebASM column silently runs single-core: on an
+M1 Max the `heat` row measures 3995 ms unisolated and 1074 ms isolated.
+
+Both headers matter. A dedicated worker's *script* response must carry a
+compatible COEP or the browser blocks it, and the benchmark then falls back to
+running on the main thread — a different measurement, not merely a slower page.
+
+Two consequences for the container:
+
+- **Do not cap CPUs unless you mean to.** `--cpus=2` is a real setting for the
+  WebASM column; the recorder reports `navigator.hardwareConcurrency` and stores
+  it in the run, so a threaded number can always be read against the core count
+  that produced it.
+- Every saved run carries an `isolation` block — `crossOriginIsolated`,
+  `sharedArrayBuffer`, `cores`. An unisolated run is a legitimate configuration
+  (it is what Safari and any unconfigured host get), so the recorder records it
+  rather than refusing. Read the WebASM column against it.
+
 ## Host support
 
 | host | GPU reachable | what you need |
