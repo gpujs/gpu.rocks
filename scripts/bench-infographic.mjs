@@ -228,7 +228,12 @@ for (const t of ticks) {
 const spine = x(1);
 const chartBottom = HEAD_H + rows.length * ROW_H;
 svg += `<line x1="${spine.toFixed(1)}" y1="${HEAD_H - 26}" x2="${spine.toFixed(1)}" y2="${chartBottom + 10}" stroke="${PINK}" stroke-width="1.5" stroke-dasharray="3 4" opacity=".75"/>`;
-svg += `<text x="${(spine + 8).toFixed(1)}" y="${chartBottom + 28}" fill="${PINK}" font-size="12" font-weight="700" font-family="ui-monospace, monospace">1× — plain JavaScript. Left of this line the GPU lost.</text>`;
+// "gpu.js lost", not "the GPU lost". The two marks that can fall left of this
+// line are both gpu.js — the WebGPU dot and the WebASM diamond — and the
+// hand-written ring can sit RIGHT of it on the very same row, which is exactly
+// what Smith-Waterman does. Saying the GPU lost there would blame the hardware
+// for something the programming model did.
+svg += `<text x="${(spine + 8).toFixed(1)}" y="${chartBottom + 28}" fill="${PINK}" font-size="12" font-weight="700" font-family="ui-monospace, monospace">1× — plain JavaScript. Left of this line gpu.js lost to it.</text>`;
 
 rows.forEach((r, i) => {
   const y = HEAD_H + i * ROW_H + ROW_H / 2;
@@ -324,7 +329,7 @@ const panelHead = (px, title, sub) =>
     .sort((a, b) => b.med - a.med);
   // Family names get a gutter of their own. Inside the plot they collided with
   // any dot that landed near the left edge — which is exactly the interesting
-  // case, a family with a member the GPU lost at.
+  // case, a family with a member gpu.js lost on.
   const GUT = 82;
   const plotX = px + GUT;
   const plotW = PANEL_W - GUT;
