@@ -29,6 +29,14 @@ const label = arg('--label') || 'unlabelled run';
 // only honest while the rest of the table still describes the same machine and
 // the same library, so both are checked below and a mismatch refuses.
 const only = (arg('--only') || '').split(',').map(x => x.trim()).filter(Boolean);
+// --columns is the other axis: measure named COLUMNS across every row and
+// merge just those cells. Adding a backend to the table needs 30 new cells,
+// not 30 re-measured rows. The plain-JS baseline is measured alongside no
+// matter what — the runner needs it for the checksum comparison that decides
+// whether a new column is right, not merely fast — but it is not merged; it is
+// compared against the stored one, and a large drift means the machine is not
+// the machine the rest of the table came from.
+const columnsOnly = (arg('--columns') || '').split(',').map(x => x.trim()).filter(Boolean);
 const stamp = arg('--date') || new Date().toISOString().slice(0, 10);
 const id = arg('--id') || `${stamp}-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
 
@@ -55,6 +63,15 @@ const base = `http://localhost:${srv.address().port}`;
 const browser = await launch({ real: true, headed: argv.includes('--headed') });
 const page = await browser.newPage();
 page.on('pageerror', e => console.log('  page error:', String(e.message).slice(0, 120)));
+// A renderer that dies mid-run leaves puppeteer talking to a detached frame,
+// and the stack for that says nothing about what was being measured. Record
+// the last known status so a crash names the workload it happened on.
+let lastStatus = '(before the first row)';
+let crashed = null;
+page.on('error', e => {
+  crashed = String((e && e.message) || e);
+  console.error(`bench-record: RENDERER CRASH during "${lastStatus}" — ${crashed}`);
+});
 await page.setViewport({ width: 1400, height: 1000 });
 await page.goto(`${base}/benchmark`, { waitUntil: 'networkidle2' });
 await new Promise(r => setTimeout(r, 1200));
@@ -102,6 +119,26 @@ await page.evaluate(() => {
   set(document.querySelector('.opt.brief input'), false);
   document.querySelectorAll('.opt.cols input').forEach(i => set(i, true));
 });
+if (columnsOnly.length) {
+  const found = await page.evaluate(wanted => {
+    const boxes = [...document.querySelectorAll('.opt.cols input')];
+    const seen = [];
+    boxes.forEach(i => {
+      const id = i.getAttribute('data-col');
+      if (!id) return;
+      seen.push(id);
+      const want = wanted.includes(id);
+      if (!i.disabled && i.checked !== want) i.click();
+    });
+    return seen;
+  }, columnsOnly);
+  const missing = columnsOnly.filter(c => !found.includes(c));
+  if (missing.length) {
+    console.error(`bench-record: no such column(s): ${missing.join(', ')} (have: ${found.join(', ')})`);
+    process.exit(1);
+  }
+  console.log(`bench-record: columns ${columnsOnly.join(', ')} (+ baseline) across every row`);
+}
 await new Promise(r => setTimeout(r, 200));
 
 if (only.length) {
@@ -136,13 +173,28 @@ for (let i = 0; !done; i++) {
   if (Date.now() > deadline) break;
   // eslint-disable-next-line no-await-in-loop
   await new Promise(r => setTimeout(r, 3000));
-  // eslint-disable-next-line no-await-in-loop
-  const s = await page.evaluate(() => window.__benchStatus || '');
-  if (/^done|^stopped/.test(s)) done = true;
-  else if (i % 20 === 0) console.log(`  [${new Date().toTimeString().slice(0, 5)}] ${s}`);
+  if (crashed) break;
+  let s;
+  try {
+    // eslint-disable-next-line no-await-in-loop
+    s = await page.evaluate(() => {
+      const m = performance.memory;
+      return `${window.__benchStatus || ''}\u0000${m ? Math.round(m.usedJSHeapSize / 1048576) : -1}`;
+    });
+  } catch (e) {
+    // the frame went away between polls — the crash handler above has the why
+    crashed = crashed || String((e && e.message) || e);
+    break;
+  }
+  const [statusText, heapMb] = s.split('\u0000');
+  lastStatus = statusText;
+  if (/^done|^stopped/.test(statusText)) done = true;
+  else if (i % 20 === 0) console.log(`  [${new Date().toTimeString().slice(0, 5)}] ${statusText}  heap ${heapMb}MB`);
 }
 if (!done) {
-  console.error('bench-record: timed out; nothing written');
+  console.error(crashed
+    ? `bench-record: renderer died during "${lastStatus}"; nothing written`
+    : 'bench-record: timed out; nothing written');
   process.exit(1);
 }
 
@@ -158,6 +210,8 @@ const gpujs = JSON.parse(readFileSync(join(ROOT, 'node_modules/gpu.js/package.js
 
 let outId = id;
 let run = { id, label, machine, date: stamp, gpujs, results };
+let driftReport = null;
+const outIdGuess = (readdirSync(SAVED).filter(f => f.endsWith('.json')).sort().reverse()[0] || 'run').replace(/\.json$/, '');
 
 if (only.length) {
   const existing = readdirSync(SAVED).filter(f => f.endsWith('.json')).sort().reverse()[0];
@@ -189,6 +243,88 @@ if (only.length) {
     patched: [...(prev.patched || []), { rows: only, date: stamp }],
   };
   console.log(`bench-record: merged ${only.join(', ')} into ${prev.id}`);
+}
+
+if (columnsOnly.length) {
+  const existing = readdirSync(SAVED).filter(f => f.endsWith('.json')).sort().reverse()[0];
+  if (!existing) {
+    console.error('bench-record: --columns needs a saved run to merge into; record a full one first');
+    process.exit(1);
+  }
+  const prev = JSON.parse(readFileSync(join(SAVED, existing), 'utf8'));
+  if (prev.machine !== machine) {
+    console.error('bench-record: refusing to merge a column measured on other hardware');
+    console.error(`  saved:   ${prev.machine}`);
+    console.error(`  current: ${machine}`);
+    process.exit(1);
+  }
+
+  // The baseline was re-measured on this pass. It is not merged, but a big
+  // move in it means the machine is busier or slower than when the rest of the
+  // table was taken, and the new column would be unfairly scaled against
+  // numbers it never ran beside.
+  const drift = [];
+  for (const [id, cells] of Object.entries(results)) {
+    const before = prev.results[id] && prev.results[id]['bare-js'];
+    const after = cells['bare-js'];
+    if (before && after && before.ms > 0 && after.ms > 0) {
+      drift.push({ id, pct: (100 * (after.ms - before.ms)) / before.ms });
+    }
+  }
+  drift.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+
+  // A refused merge must not cost the measurement. Anything that came back is
+  // written aside first, so the decision can be reviewed without re-running.
+  const pendingPath = join(SAVED, `.pending-${outIdGuess}.json`);
+  writeFileSync(pendingPath, `${JSON.stringify({ machine, gpujs, date: stamp, columns: columnsOnly, results }, null, 2)}\n`);
+
+  if (drift.length) {
+    // MEDIAN, not mean: the mean is dragged by a single anomalous row, and one
+    // row behaving differently is a fact about that row, not evidence the
+    // machine changed underneath the whole table. The median says whether
+    // conditions moved; the outlier list says which rows to distrust.
+    const sortedAbs = drift.map(d => Math.abs(d.pct)).sort((a, b) => a - b);
+    const mid = sortedAbs.length >> 1;
+    const median = sortedAbs.length % 2 ? sortedAbs[mid] : (sortedAbs[mid - 1] + sortedAbs[mid]) / 2;
+    const outliers = drift.filter(d => Math.abs(d.pct) > 50);
+    console.log(`bench-record: baseline drift — median ${median.toFixed(1)}%, worst ${drift[0].id} ${drift[0].pct.toFixed(1)}%`);
+    if (outliers.length) {
+      console.log(`bench-record: ${outliers.length} row(s) over 50%: ${outliers.map(d => `${d.id} ${d.pct.toFixed(0)}%`).join(', ')}`);
+    }
+    if (median > 15 && !argv.includes('--force')) {
+      console.error('bench-record: the machine itself moved; the merge would compare numbers taken under different conditions');
+      console.error(`  fresh results kept at ${pendingPath} — --force to merge anyway`);
+      process.exit(1);
+    }
+    driftReport = { median: +median.toFixed(1), outliers: outliers.map(d => ({ id: d.id, pct: +d.pct.toFixed(0) })) };
+  }
+
+  const merged = { ...prev.results };
+  let cellCount = 0;
+  const fellBack = [];
+  for (const [id, cells] of Object.entries(results)) {
+    if (!merged[id]) continue; // measured a row this table does not carry
+    const add = {};
+    for (const c of columnsOnly) {
+      if (!cells[c]) continue;
+      add[c] = cells[c];
+      cellCount++;
+      if (cells[c].fellBackTo) fellBack.push(`${id}->${cells[c].fellBackTo}`);
+      if (cells[c].wrong) fellBack.push(`${id}:WRONG`);
+    }
+    merged[id] = { ...merged[id], ...add };
+  }
+  outId = prev.id;
+  run = {
+    ...prev,
+    results: merged,
+    // gpujs is stamped per patch: this column came from a branch build, and a
+    // reader comparing it against the rest of the table should be able to see
+    // that from the file rather than from a commit message.
+    patched: [...(prev.patched || []), { columns: columnsOnly, date: stamp, gpujs, baselineDrift: driftReport }],
+  };
+  console.log(`bench-record: merged ${cellCount} cell(s) of ${columnsOnly.join(', ')} into ${prev.id}`);
+  if (fellBack.length) console.log(`bench-record: note — ${fellBack.length} did not run natively: ${fellBack.join(', ')}`);
 }
 
 writeFileSync(join(SAVED, `${outId}.json`), `${JSON.stringify(run, null, 2)}\n`);

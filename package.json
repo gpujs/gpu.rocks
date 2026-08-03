@@ -13,7 +13,7 @@
     "@nivo/line": "^0.99.0",
     "@uiw/react-codemirror": "^4.25.11",
     "canvas-confetti": "^1.9.4",
-    "gpu.js": "^2.21.0",
+    "gpu.js": "gpujs/gpu.js#feature/webasm-backend",
     "material-icons": "^0.3.1",
     "materialize-css": "^1.0.0-rc.2",
     "prop-types": "^15.8.1",

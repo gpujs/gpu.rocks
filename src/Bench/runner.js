@@ -48,6 +48,11 @@ export const COLUMNS = [
   { id: 'webgpu', label: 'WebGPU', sub: 'via gpu.js', kind: 'gpujs', mode: 'webgpu' },
   { id: 'webgl2', label: 'WebGL2', sub: 'via gpu.js', kind: 'gpujs', mode: 'webgl2' },
   { id: 'webgl', label: 'WebGL', sub: 'via gpu.js', kind: 'gpujs', mode: 'webgl' },
+  // Between WebGL and CPU because that is where it sits in gpu.js's own
+  // kernelOrder: any working GL backend outranks it, and it outranks the CPU
+  // fallback. The column answers "what do you get when there is no GPU at all
+  // but you still want the kernel compiled rather than interpreted".
+  { id: 'webasm', label: 'WebASM', sub: 'via gpu.js', kind: 'gpujs', mode: 'webasm' },
   { id: 'cpu', label: 'CPU', sub: 'via gpu.js', kind: 'gpujs', mode: 'cpu' },
   { id: 'bare-webgpu', label: 'WebGPU', sub: 'no gpu.js runtime', kind: 'webgpu', bare: true },
   { id: 'bare-js', label: 'CPU', sub: 'no gpu.js · baseline', kind: 'js', bare: true, baseline: true },
@@ -204,6 +209,15 @@ async function runColumn(workload, col, { GPU, size, inputs, makeCanvas }) {
     const status = await webgpuStatus();
     if (!status.ok) return { na: true, reason: status.reason };
   }
+  // WebAssembly is everywhere a modern browser is, but the column should say
+  // so rather than throw if it ever is not — and an old gpu.js without the
+  // backend registered would otherwise fail with a bare "unknown mode".
+  if (col.mode === 'webasm') {
+    const supported = typeof GPU.isWebAssemblySupported === 'boolean'
+      ? GPU.isWebAssemblySupported
+      : typeof WebAssembly !== 'undefined';
+    if (!supported) return { na: true, reason: 'this browser has no WebAssembly' };
+  }
   if (workload.declines && workload.declines.includes(col.mode)) {
     return { na: true, reason: workload.declinesReason || 'this kernel cannot run on that backend' };
   }
@@ -224,7 +238,7 @@ async function runColumn(workload, col, { GPU, size, inputs, makeCanvas }) {
     // when WebGL2 is unsupported (gpu.js only downgrades for mode 'gpu'), so a
     // GL column cannot quietly become the other one. What it can become is CPU,
     // and that is exactly what this catches.
-    const expected = { webgpu: 'webgpu', webgl2: 'gpu', webgl: 'gpu', cpu: 'cpu' }[col.mode];
+    const expected = { webgpu: 'webgpu', webgl2: 'gpu', webgl: 'gpu', webasm: 'webasm', cpu: 'cpu' }[col.mode];
     const actual = built.backend && built.backend();
     if (actual && expected && actual !== expected) out.fellBackTo = actual;
     return out;

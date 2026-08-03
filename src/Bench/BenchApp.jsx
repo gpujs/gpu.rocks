@@ -507,6 +507,9 @@ function BenchPage() {
                   <label key={c.id} className={c.bare ? 'bare' : undefined}>
                     <input
                       type="checkbox"
+                      // addressable by column id, so tooling can select a
+                      // column without matching on its label
+                      data-col={c.id}
                       checked={cols.has(c.id) || isBase}
                       disabled={isBase}
                       title={isBase ? 'the baseline every speed-up divides by — always measured' : undefined}

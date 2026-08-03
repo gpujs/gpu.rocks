@@ -2018,10 +2018,9 @@ gpu-mock.js@^1.4.1:
   resolved "https://registry.yarnpkg.com/gpu-mock.js/-/gpu-mock.js-1.4.1.tgz#390f9d22667f9e3e73416d4e1f3f1261d0906a0a"
   integrity sha512-LhCznlFsadwIJCYysx9OJZ4TXluvnKyBHZXt0F3Dbh5ENWbZsCm7TIyrOY2Dh/4DvaOfK67rAmDLYHFqBZ6B1Q==
 
-gpu.js@^2.21.0:
+gpu.js@gpujs/gpu.js#feature/webasm-backend:
   version "2.21.0"
-  resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.21.0.tgz#3f1bc672bfcd7fe99bbac2dbce7be262ad55fa2d"
-  integrity sha512-A/n+Ephh8YYton3UFqg2jGfN43ENYRVVXGjCqd3puXfZp/O+gK/joZYm69rAKeLQcrVbBSsGwyZqI2i68Pp3Iw==
+  resolved "https://codeload.github.com/gpujs/gpu.js/tar.gz/11b4c0ef5dac006717a04c25626325f4b48aa16a"
   dependencies:
     acorn "8.14.0"
     gl "8.1.6"
