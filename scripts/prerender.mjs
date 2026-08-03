@@ -45,6 +45,7 @@ import {
   moduleMeta,
   moduleTaskMeta,
 } from '../src/routeMeta.js';
+import poster from '../src/Bench/poster.js';
 import { loadContent } from './contentLoader.mjs';
 import {
   STATIC_STYLE,
@@ -82,7 +83,23 @@ const OG_LEARN = {
     'Computer Vision, Signal Processing and Computational Graphics.',
 };
 
+// A third card, for the benchmark. Unlike the other two it is GENERATED — by
+// scripts/bench-infographic.mjs, from the saved run — so it cannot drift from
+// the numbers the page reports. Its ?v= is a content hash for the same reason
+// the poster's is: the URL is stable while the bytes change, and the deploy
+// purges HTML rather than assets.
+const OG_BENCH = {
+  url: `${ORIGIN}${poster.og}`,
+  width: poster.ogWidth,
+  height: poster.ogHeight,
+  alt:
+    'The Benchmark Gauntlet — the ten fastest of thirty GPGPU workloads, each ' +
+    'as a bar showing how many times faster WebGPU through gpu.js runs it than ' +
+    `plain JavaScript, measured on ${poster.machine}.`,
+};
+
 function ogImageFor(page) {
+  if (page.path === '/benchmark') return OG_BENCH;
   return page.content && page.content.kind !== 'site' ? OG_LEARN : OG_SITE;
 }
 const SITE_NAME = 'GPU.js';

@@ -32,8 +32,10 @@ export const SITE_ROUTES = [
     path: '/benchmark',
     title: 'Benchmark — GPU.js',
     description:
-      'Run the GPU.js benchmark in your browser: matrix multiplication on your ' +
-      'GPU vs CPU, charted against reference hardware results.',
+      'Thirty GPGPU workloads timed in your browser on every backend gpu.js can ' +
+      'reach — WebGPU, WebGL2, WebGL, WebAssembly and CPU — against hand-written ' +
+      'implementations with no gpu.js in them. Every answer is checked against a ' +
+      'plain-JavaScript oracle before it is timed.',
   },
   {
     path: '/install',

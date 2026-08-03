@@ -8,12 +8,15 @@
  * and the same fix on the module card art.
  */
 export default {
-  full: '/img/bench/gauntlet.png?v=338e0e41',
-  thumb: '/img/bench/gauntlet-thumb.png?v=8de10a4a',
+  full: '/img/bench/gauntlet.png?v=d3c8ec7b',
+  thumb: '/img/bench/gauntlet-thumb.png?v=6ed54588',
+  og: '/img/bench/ogbench.png?v=be067b82',
+  ogWidth: 1200,
+  ogHeight: 630,
   width: 1240,
   height: 1776,
   rows: 30,
-  machine: "apple metal-3 · Chrome 150",
+  machine: "nvidia blackwell · Chrome 151",
   gpujs: "2.23.0",
   date: "2026-08-03",
 };

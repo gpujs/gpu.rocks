@@ -581,6 +581,105 @@ const pageHtml = `<style>
 </style>
 ${html}`;
 
+// ── the link-preview card ──────────────────────────────────────────────────
+// Read at about 300px wide in a feed, so it cannot be a shrunken poster — the
+// thirty labels and four panels become texture. It gets one idea, and it is
+// the page's thesis rather than its best number: how UNEVEN the win is.
+//
+// Two treatments, --og-style=top (default) and =stair. The top variant labels
+// the ten biggest rows, each with its own bar and figure, trading the overall
+// shape for names a reader might recognise. The stair variant draws all thirty
+// from the 1x baseline so the silhouette itself carries the unevenness. Both
+// are generated from the run rather than drawn.
+const OG_W = 1200;
+const OG_H = 630;
+const OG_STYLE = arg('--og-style') || 'top';
+
+function ogHead() {
+  return `<rect width="${OG_W}" height="${OG_H}" fill="#050218"/>
+  <rect width="${OG_W}" height="${OG_H}" fill="url(#g1)"/>
+  <rect width="${OG_W}" height="${OG_H}" fill="url(#g2)"/>
+  <text x="72" y="88" fill="${PINK}" font-size="18" font-weight="800" letter-spacing="5" font-family="${MONO}">GPU.JS</text>
+  <text x="72" y="152" fill="${INK}" font-size="58" font-weight="800" letter-spacing="-1.4" font-family="${DISPLAY}">The Benchmark Gauntlet</text>`;
+}
+const OG_DEFS = `<defs>
+    <radialGradient id="g1" cx="84%" cy="0%" r="72%">
+      <stop offset="0%" stop-color="#2e0741" stop-opacity=".95"/><stop offset="62%" stop-color="#2e0741" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="4%" cy="98%" r="62%">
+      <stop offset="0%" stop-color="#20a4f3" stop-opacity=".16"/><stop offset="60%" stop-color="#20a4f3" stop-opacity="0"/>
+    </radialGradient>
+  </defs>`;
+
+function ogStair() {
+  const sorted = [...rows].sort((a, b) => b.best - a.best);
+  const lo = Math.min(...sorted.map(r => r.best)) * 0.75;
+  const hi = Math.max(...sorted.map(r => r.best)) * 1.15;
+  const x0 = 72;
+  const x1 = OG_W - 250;
+  const sx = v => x0 + ((l10(v) - l10(lo)) / (l10(hi) - l10(lo))) * (x1 - x0);
+  const top = 232;
+  const rowH = (OG_H - top - 96) / sorted.length;
+  const spine = sx(1);
+
+  let g = '';
+  for (let e = Math.ceil(l10(lo)); e <= Math.floor(l10(hi)); e++) {
+    const v = 10 ** e;
+    g += `<line x1="${sx(v).toFixed(1)}" y1="${top - 12}" x2="${sx(v).toFixed(1)}" y2="${OG_H - 84}" stroke="rgba(158,140,220,.14)"/>`;
+    g += `<text x="${sx(v).toFixed(1)}" y="${OG_H - 62}" fill="${MUTED}" font-size="15" text-anchor="middle" font-family="${MONO}">${fmtX(v)}×</text>`;
+  }
+  sorted.forEach((r, i) => {
+    const y = top + i * rowH + rowH / 2;
+    const win = r.best >= 1;
+    const a = Math.min(spine, sx(r.best));
+    const b = Math.max(spine, sx(r.best));
+    g += `<rect x="${a.toFixed(1)}" y="${(y - rowH * 0.34).toFixed(1)}" width="${Math.max(2, b - a).toFixed(1)}" height="${(rowH * 0.68).toFixed(1)}" rx="${(rowH * 0.34).toFixed(1)}" fill="${win ? TEAL : PINK}" opacity=".92"/>`;
+  });
+  g += `<line x1="${spine.toFixed(1)}" y1="${top - 26}" x2="${spine.toFixed(1)}" y2="${OG_H - 84}" stroke="${PINK}" stroke-width="2" stroke-dasharray="4 5"/>`;
+  g += `<text x="${(spine - 8).toFixed(1)}" y="${top - 34}" fill="${PINK}" font-size="15" font-weight="700" text-anchor="end" font-family="${MONO}">plain JavaScript</text>`;
+
+  return `<svg width="${OG_W}" height="${OG_H}" viewBox="0 0 ${OG_W} ${OG_H}" xmlns="http://www.w3.org/2000/svg">
+  ${OG_DEFS}
+  ${ogHead()}
+  <text x="72" y="196" fill="${MUTED}" font-size="21" font-family="${TEXT}">${rows.length} GPGPU workloads, every answer checked before it was timed.</text>
+  ${g}
+  <text x="${OG_W - 200}" y="${top + 78}" fill="${INK}" font-size="52" font-weight="800" font-family="${DISPLAY}">${fmtX(sorted[0].best)}×</text>
+  <text x="${OG_W - 200}" y="${top + 108}" fill="${MUTED}" font-size="17" font-family="${TEXT}">fastest row</text>
+  <text x="${OG_W - 200}" y="${top + 186}" fill="${INK}" font-size="52" font-weight="800" font-family="${DISPLAY}">${fmtX(stats.medianGpu)}×</text>
+  <text x="${OG_W - 200}" y="${top + 216}" fill="${MUTED}" font-size="17" font-family="${TEXT}">median</text>
+  <text x="${OG_W - 200}" y="${top + 294}" fill="${PINK}" font-size="52" font-weight="800" font-family="${DISPLAY}">${fmtX(sorted[sorted.length - 1].best)}×</text>
+  <text x="${OG_W - 200}" y="${top + 324}" fill="${MUTED}" font-size="17" font-family="${TEXT}">slowest row</text>
+  <text x="72" y="${OG_H - 26}" fill="${MUTED}" font-size="18" font-family="${MONO}">gpu.rocks/benchmark</text>
+</svg>`;
+}
+
+function ogTop() {
+  const top10 = [...rows].sort((a, b) => b.best - a.best).slice(0, 10);
+  const lo = 1;
+  const hi = Math.max(...top10.map(r => r.best)) * 1.5;
+  const x0 = 430;
+  const x1 = OG_W - 150;
+  const sx = v => x0 + ((l10(v) - l10(lo)) / (l10(hi) - l10(lo))) * (x1 - x0);
+  const top = 224;
+  const rowH = (OG_H - top - 70) / top10.length;
+  let g = '';
+  top10.forEach((r, i) => {
+    const y = top + i * rowH + rowH / 2;
+    g += `<text x="${x0 - 16}" y="${(y + 5).toFixed(1)}" fill="${MUTED}" font-size="16" text-anchor="end" font-family="${TEXT}">${esc(r.name.length > 26 ? `${r.name.slice(0, 25)}…` : r.name)}</text>`;
+    g += `<rect x="${x0}" y="${(y - rowH * 0.3).toFixed(1)}" width="${Math.max(3, sx(r.best) - x0).toFixed(1)}" height="${(rowH * 0.6).toFixed(1)}" rx="${(rowH * 0.3).toFixed(1)}" fill="${TEAL}" opacity=".9"/>`;
+    g += `<text x="${(sx(r.best) + 12).toFixed(1)}" y="${(y + 5).toFixed(1)}" fill="${INK}" font-size="16" font-weight="700" font-family="${MONO}">${fmtX(r.best)}×</text>`;
+  });
+  return `<svg width="${OG_W}" height="${OG_H}" viewBox="0 0 ${OG_W} ${OG_H}" xmlns="http://www.w3.org/2000/svg">
+  ${OG_DEFS}
+  ${ogHead()}
+  <text x="72" y="196" fill="${MUTED}" font-size="21" font-family="${TEXT}">WebGPU through gpu.js, against plain JavaScript. ${rows.length} workloads, every answer checked.</text>
+  ${g}
+  <text x="72" y="${OG_H - 26}" fill="${MUTED}" font-size="18" font-family="${MONO}">gpu.rocks/benchmark</text>
+</svg>`;
+}
+
+const ogCard = () => (OG_STYLE === 'top' ? ogTop() : ogStair());
+
 // ── render ─────────────────────────────────────────────────────────────────
 const outArg = arg('--out') || join(ROOT, 'out', `gauntlet-${run.id || 'run'}.png`);
 mkdirSync(dirname(resolve(ROOT, outArg)), { recursive: true });
@@ -616,6 +715,12 @@ if (argv.includes('--site')) {
   await p.evaluateHandle('document.fonts.ready');
   await (await p.$('.poster')).screenshot({ path: join(IMG, 'gauntlet-thumb.png') });
 
+  // the link-preview card, same data, its own aspect ratio
+  await p.setViewport({ width: OG_W, height: OG_H, deviceScaleFactor: 1 });
+  await p.setContent(`<style>html,body{margin:0}</style>${ogCard()}`, { waitUntil: 'load' });
+  await p.evaluateHandle('document.fonts.ready');
+  await p.screenshot({ path: join(IMG, 'ogbench.png'), clip: { x: 0, y: 0, width: OG_W, height: OG_H } });
+
   const hash = f => createHash('sha256').update(readFileSync(join(IMG, f))).digest('hex').slice(0, 8);
   writeFileSync(join(ROOT, 'src/Bench/poster.js'),
 `/**
@@ -630,6 +735,9 @@ if (argv.includes('--site')) {
 export default {
   full: '/img/bench/gauntlet.png?v=${hash('gauntlet.png')}',
   thumb: '/img/bench/gauntlet-thumb.png?v=${hash('gauntlet-thumb.png')}',
+  og: '/img/bench/ogbench.png?v=${hash('ogbench.png')}',
+  ogWidth: ${OG_W},
+  ogHeight: ${OG_H},
   width: ${W},
   height: ${H},
   rows: ${rows.length},
