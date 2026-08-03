@@ -58,7 +58,7 @@ function BenchNav() {
       <nav className={open ? 'nav open' : 'nav'} ref={navRef}>
         <a className="brand" href="/" aria-label="GPU.js Benchmark Gauntlet — home">
           <Jelly />
-          <span className="brand-word">GPU.js</span> <span className="tag-pill">gauntlet</span>
+          <span className="brand-word">GPU.js</span> <span className="tag-pill">benchmark</span>
         </a>
         <button
           type="button"
@@ -75,7 +75,7 @@ function BenchNav() {
           <a href="/learn/">Learn</a>
           <a href="/api/">API</a>
           <a href="/examples">Examples</a>
-          <a href="/benchmark" className="active">Gauntlet</a>
+          <a href="/benchmark" className="active">Benchmark</a>
           <a href="https://github.com/gpujs/gpu.js">GitHub</a>
         </div>
         <button
