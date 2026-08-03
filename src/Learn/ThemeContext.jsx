@@ -55,6 +55,23 @@ export function ThemeProvider({ children }) {
 
   const theme = pref === 'auto' ? system : pref;
 
+  // Mirror the resolved theme onto <html>. The tokens are scoped to
+  // .bench-root / .learn-root, but the element whose background paints the
+  // CANVAS — the area a rubber-band overscroll reveals, and what the browser
+  // samples for its own chrome — is <html>, which those scopes never reach. In
+  // light mode the canvas stayed at the legacy #020024, so overscrolling on a
+  // phone showed a dark band under a light page and made a working auto mode
+  // look broken. Removed on unmount so the unthemed pages keep their own.
+  useEffect(() => {
+    const el = document.documentElement;
+    const previous = el.getAttribute('data-theme');
+    el.setAttribute('data-theme', theme);
+    return () => {
+      if (previous === null) el.removeAttribute('data-theme');
+      else el.setAttribute('data-theme', previous);
+    };
+  }, [theme]);
+
   return (
     <ThemeContext.Provider value={{ pref, theme, setPref, cycleTheme }}>
       {children}

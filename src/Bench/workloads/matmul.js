@@ -170,7 +170,16 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // it by luck, and scaled down so the sum of a million floats stays in a range
   // where fp32 and fp64 still agree to the tolerance the runner applies.
   reduce(out, { n }) {
-    const flat = ArrayBuffer.isView(out) ? out : Float32Array.from([].concat(...out));
+    // Flatten row by row. Not [].concat(...out): concat only spreads real
+    // Arrays, so Float32Array rows (what gpu.js returns for a 2-D kernel) ride
+    // through as single elements and Float32Array.from turns each into NaN.
+    let flat;
+    if (ArrayBuffer.isView(out)) {
+      flat = out;
+    } else {
+      flat = new Float32Array(out.length * out[0].length);
+      for (let i = 0; i < out.length; i++) flat.set(out[i], i * out[0].length);
+    }
     let acc = 0;
     for (let i = 0; i < flat.length; i++) acc += flat[i] * (1 + (i % 17));
     return acc / flat.length;

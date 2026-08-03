@@ -1,12 +1,21 @@
 @use 'colors' as *;
 
+// Only present while a themed app (learn, benchmark) is mounted; the legacy
+// pages never carry the attribute and keep $body-background below.
+html[data-theme='light'] { background: #f6f6fb; }
+html[data-theme='dark'] { background: #050218; }
+
 body {
   background-color: $background;
   min-height: 100vh;
   scroll-behavior: smooth;
   overflow-x: hidden;
+  // transparent when a theme is active, so the html rules above paint the
+  // canvas; the hardcoded legacy colour still applies everywhere else
   background: $body-background;
   color: $brand-white;
+
+  html[data-theme] & { background: transparent; }
   font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
