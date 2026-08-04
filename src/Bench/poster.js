@@ -8,9 +8,9 @@
  * and the same fix on the module card art.
  */
 export default {
-  full: '/img/bench/gauntlet.png?v=d3c8ec7b',
-  thumb: '/img/bench/gauntlet-thumb.png?v=6ed54588',
-  og: '/img/bench/ogbench.png?v=be067b82',
+  full: '/img/bench/gauntlet.png?v=f84b113e',
+  thumb: '/img/bench/gauntlet-thumb.png?v=3a386d43',
+  og: '/img/bench/ogbench.png?v=cdd1d926',
   ogWidth: 1200,
   ogHeight: 630,
   width: 1240,
@@ -18,5 +18,5 @@ export default {
   rows: 30,
   machine: "nvidia blackwell · Chrome 151",
   gpujs: "2.23.0",
-  date: "2026-08-03",
+  date: "2026-08-04",
 };
