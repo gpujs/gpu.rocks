@@ -239,6 +239,33 @@ async function runColumn(workload, col, { GPU, size, inputs, makeCanvas }) {
   try {
     // a worker has no document for gpu.js to take a canvas from
     gpu = new GPU(makeCanvas ? { mode: col.mode, canvas: makeCanvas() } : { mode: col.mode });
+    // ASYNC EVERYWHERE, because gpu.js 3 makes it the default. A table that
+    // measures a configuration the next major version will not ship is a table
+    // that goes stale on release day, so every column is built the way v3 will
+    // build it rather than the way v2's constructor happens to.
+    //
+    // It is also the only way the WebAssembly column reaches more than one
+    // core: _threadable() is `asyncMode === true && cells >= 4096`, and a bare
+    // `new GPU({ mode })` leaves it false, so every row built from createKernel
+    // was running single-threaded. The pipelined rows reach threads through
+    // their own executor and never had this problem, which is exactly why only
+    // those rows moved between 2.22 and 2.23. Measured on sdf-march: 387 ms on
+    // one core against 68 ms on ten, same SIMD walk, same checksum.
+    //
+    // The setter goes on the KERNEL rather than the shortcut (which does not
+    // proxy it) and per kernel rather than per GPU, because asyncMode lives on
+    // the kernel and is read at call time. It switches the return value to a
+    // Promise on the backends that were synchronous — GL and CPU — which is
+    // safe here only because every workload already awaits every call and every
+    // toArray(); WebGPU required that years ago. Watch launch-overhead when
+    // this changes: it exists to price a per-call cost, and it is the row a
+    // stray microtask per call would show up in first.
+    const createKernel = gpu.createKernel.bind(gpu);
+    gpu.createKernel = (source, settings) => {
+      const shortcut = createKernel(source, settings);
+      if (shortcut.kernel && shortcut.kernel.setAsyncMode) shortcut.kernel.setAsyncMode(true);
+      return shortcut;
+    };
     built = await workload.gpujs(gpu, size, inputs);
     const out = await timeIt(() => built.run());
     // gpu.js swaps in a CPU kernel rather than failing when a kernel will not

@@ -900,7 +900,7 @@ function BenchPage() {
             their platform's best algorithm, and the two hand-written columns can. On most rows
             that costs nothing. On a problem that wants <em>scatter</em> — a histogram bumping a
             shared counter, a compaction writing to an address it computes — it costs a great
-            deal, because a gpu.js thread may only write its own output cell on <b>every</b>
+            deal, because a gpu.js thread may only write its own output cell on <b>every</b>{' '}
             backend, CPU included. Those rows are not measuring a slow backend. They are pricing
             a programming model against a problem shaped the wrong way for it, which is a real
             thing to know before you choose one.
@@ -1048,9 +1048,9 @@ docker compose run --rm bench --only __probe__`}</CmdBlock>
                   is <em>no GPU at all</em>”. The answer here is a median{' '}
                   <b>{fmtX(shape.wasm)}</b> of plain JavaScript across {shape.wasmN} rows,
                   reaching <b>{fmtX(shape.wasmBest)}</b> at best — single digits, against the
-                  GPU's hundreds. That is the right shape for it. A compiled scalar loop with
-                  SIMD is still <em>one core doing one thing at a time</em>, and the gap to a GPU
-                  is not a tuning gap, it is thousands of lanes.
+                  GPU's hundreds. That is the right shape for it, and it is not a threading
+                  gap: this column is <em>four-wide SIMD on as many cores as the grid can
+                  fill</em>. The distance to a GPU is thousands of lanes, not a tuning problem.
                 </p>
               )}
               {shape.cpu && (

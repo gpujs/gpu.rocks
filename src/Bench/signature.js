@@ -9,22 +9,22 @@
  * matmul is pinned first. Every GPU claim starts there and a reader already has
  * an intuition for it, so it anchors the rows below it.
  *
- * Derived from: RTX 5090 · Linux · nvidia blackwell · Chrome 151 · gpu.js 2.23.0 (2026-08-03)
+ * Derived from: Apple M1 Max · apple metal-3 · Chrome 150 · gpu.js 2.23.0 (2026-08-04)
  *
  * Never hand-edited. To change what brief mode shows, change what the numbers
  * say — or the rule in the generator.
  */
 const SIGNATURE = [
-  ['matmul', '278x on webgl2'],
-  ['ode-rk4', '470x on webgl2'],
-  ['ncc-template', '469x on webgpu'],
-  ['nbody', '458x on webgl2'],
-  ['path-trace', '446x on webgpu'],
-  ['sdf-march', '273x on webgl2'],
-  ['dft-naive', '223x on webgpu'],
-  ['heat', '212x on webgpu'],
-  ['gradient-descent', '168x on webgl2'],
-  ['gray-scott', '156x on webgpu'],
+  ['matmul', '95.8x on webgpu'],
+  ['ode-rk4', '681x on webgpu'],
+  ['path-trace', '534x on webgpu'],
+  ['monte-carlo', '496x on webgpu'],
+  ['sdf-march', '417x on webgpu'],
+  ['gradient-descent', '256x on webgl2'],
+  ['ncc-template', '199x on webgpu'],
+  ['nbody', '154x on webgpu'],
+  ['heat', '94.5x on webgpu'],
+  ['life', '90.7x on webgpu'],
 ];
 
 export const SIGNATURE_IDS = SIGNATURE.map(([id]) => id);

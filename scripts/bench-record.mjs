@@ -46,6 +46,38 @@ function cmpSemver(a, b) {
   return 0;
 }
 
+/**
+ * The saved runs, newest first, by the same rule the index uses.
+ *
+ * `readdirSync(...).sort().reverse()[0]` is NOT that rule, which is what both
+ * merge paths used to do: a lexical filename sort ranks rtx-5090 above
+ * apple-m1-max and 2.9.0 above 2.23.0, so a merge on this laptop chose the
+ * other machine's table and refused itself after measuring.
+ */
+function savedRuns() {
+  return readdirSync(SAVED)
+    .filter(f => f.endsWith('.json') && !f.startsWith('.'))
+    .map(f => ({ f, run: JSON.parse(readFileSync(join(SAVED, f), 'utf8')) }))
+    .sort(
+      (a, b) =>
+        String(b.run.date || '').localeCompare(String(a.run.date || '')) ||
+        cmpSemver(b.run.gpujs, a.run.gpujs) ||
+        a.f.localeCompare(b.f)
+    );
+}
+
+/**
+ * A column or a row may only ever be patched into a table measured on THIS
+ * machine, so pick by machine first and recency second. Returns null when this
+ * machine has no table yet — the caller reports that before measuring rather
+ * than after, which is the whole point of resolving it up front.
+ */
+function mergeTarget(machineName, requireGpujs) {
+  return savedRuns().find(
+    e => e.run.machine === machineName && (!requireGpujs || e.run.gpujs === requireGpujs)
+  ) || null;
+}
+
 function writeIndex() {
   const files = readdirSync(SAVED)
     .filter(f => f.endsWith('.json') && !f.startsWith('.'))
@@ -208,6 +240,33 @@ if (!argv.includes('--allow-software')) {
   }
 }
 
+const ua = await page.evaluate(() => navigator.userAgent);
+const chrome = (ua.match(/Chrome\/(\d+)/) || [])[1];
+const machine = `${rendering.adapter}${chrome ? ` · Chrome ${chrome}` : ''}`;
+const gpujs = gpujsVersion;
+
+// Resolved HERE, next to the software guard, for that guard's reason: a merge
+// that cannot succeed should cost seconds, not the measurements. Both merge
+// paths used to look up their target after the run and exit(1) on a mismatch,
+// which threw away every cell just measured.
+let mergeInto = null;
+if (only.length || columnsOnly.length) {
+  // --only patches whole rows, so the gpu.js version has to match too: a row
+  // measured on a different library beside rows that were not is a table whose
+  // numbers never coexisted. --columns is checked against the version below,
+  // after the drift guard has had its say.
+  mergeInto = mergeTarget(machine, only.length ? gpujs : null);
+  if (!mergeInto) {
+    const runs = savedRuns();
+    console.error(`bench-record: no saved run to merge into for this machine`);
+    console.error(`  this machine: ${machine}${only.length ? ` · gpu.js ${gpujs}` : ''}`);
+    console.error(runs.length ? '  saved runs:' : '  saved runs: none — record a full one first');
+    for (const e of runs) console.error(`    ${e.run.machine} · gpu.js ${e.run.gpujs}`);
+    process.exit(1);
+  }
+  console.log(`bench-record: will merge into ${mergeInto.run.id}`);
+}
+
 // A saved run is a WHOLE table — every workload, every column — so the two run
 // options the page offers a visitor are both turned off here: brief mode would
 // store ten rows, and an unchecked column would store a hole. The full-run
@@ -301,40 +360,35 @@ if (!done) {
 }
 
 const results = await page.evaluate(() => window.__benchResults);
-const ua = await page.evaluate(() => navigator.userAgent);
-const adapter = rendering.adapter;
 await browser.close();
 srv.close();
-
-const chrome = (ua.match(/Chrome\/(\d+)/) || [])[1];
-const machine = `${adapter}${chrome ? ` · Chrome ${chrome}` : ''}`;
-const gpujs = gpujsVersion;
 
 let outId = id;
 let run = { id, label, machine, date: stamp, gpujs, isolation, results };
 let driftReport = null;
-const outIdGuess = (readdirSync(SAVED).filter(f => f.endsWith('.json') && !f.startsWith('.')).sort().reverse()[0] || 'run').replace(/\.json$/, '');
+// Only names the file a refused merge is kept aside under. It follows the
+// merge target when there is one so the two are obviously the same table, and
+// otherwise the newest run by the index's rule — not by filename, which is the
+// sort that sent the last merge at the wrong machine's table.
+const outIdGuess = (mergeInto && mergeInto.run.id) || (savedRuns()[0] || {}).f?.replace(/\.json$/, '') || 'run';
+
+// Measurements are never discarded by a refusal. Whatever just came back gets
+// written aside first, so the answer to "it refused" is always "the numbers are
+// at this path", not "run it again".
+function keepAside(why) {
+  mkdirSync(PENDING, { recursive: true });
+  const p = join(PENDING, `${outIdGuess}.json`);
+  writeFileSync(p, `${JSON.stringify({ machine, gpujs, date: stamp, why, results }, null, 2)}\n`);
+  return p;
+}
 
 if (only.length) {
-  const existing = readdirSync(SAVED).filter(f => f.endsWith('.json') && !f.startsWith('.')).sort().reverse()[0];
-  if (!existing) {
-    console.error('bench-record: --only needs a saved run to merge into; record a full one first');
-    process.exit(1);
-  }
-  const prev = JSON.parse(readFileSync(join(SAVED, existing), 'utf8'));
-  // A saved run is one table from one machine. Patching a row into a table
-  // measured on different hardware or a different gpu.js would produce a
-  // column of numbers that never coexisted.
-  if (prev.machine !== machine || prev.gpujs !== gpujs) {
-    console.error('bench-record: refusing to merge into a run from elsewhere');
-    console.error(`  saved:   ${prev.machine} · gpu.js ${prev.gpujs}`);
-    console.error(`  current: ${machine} · gpu.js ${gpujs}`);
-    process.exit(1);
-  }
+  const prev = mergeInto.run;
   const measured = Object.fromEntries(only.filter(k => results[k]).map(k => [k, results[k]]));
   const absent = only.filter(k => !results[k]);
   if (absent.length) {
-    console.error(`bench-record: no results came back for ${absent.join(', ')}; nothing written`);
+    console.error(`bench-record: no results came back for ${absent.join(', ')}`);
+    console.error(`  what did come back is at ${keepAside('rows missing')}`);
     process.exit(1);
   }
   outId = prev.id;
@@ -348,18 +402,7 @@ if (only.length) {
 }
 
 if (columnsOnly.length) {
-  const existing = readdirSync(SAVED).filter(f => f.endsWith('.json') && !f.startsWith('.')).sort().reverse()[0];
-  if (!existing) {
-    console.error('bench-record: --columns needs a saved run to merge into; record a full one first');
-    process.exit(1);
-  }
-  const prev = JSON.parse(readFileSync(join(SAVED, existing), 'utf8'));
-  if (prev.machine !== machine) {
-    console.error('bench-record: refusing to merge a column measured on other hardware');
-    console.error(`  saved:   ${prev.machine}`);
-    console.error(`  current: ${machine}`);
-    process.exit(1);
-  }
+  const prev = mergeInto.run;
 
   // The baseline was re-measured on this pass. It is not merged, but a big
   // move in it means the machine is busier or slower than when the rest of the
@@ -431,6 +474,12 @@ if (columnsOnly.length) {
 }
 
 const outDir = outDirArgIndex >= 0 ? process.argv[outDirArgIndex + 1] : SAVED;
+// Created rather than assumed. writeFileSync does not make parents, and this is
+// the LAST line of a run that took a quarter of an hour — an ENOENT here throws
+// away every measurement rather than the two seconds a mkdir would have cost.
+// docker/README.md warns the reader to create the mount first, which is the
+// same failure told to the wrong person: the tool can just do it.
+mkdirSync(outDir, { recursive: true });
 const outPath = join(outDir, `${outId}.json`);
 writeFileSync(outPath, `${JSON.stringify(run, null, 2)}\n`);
 if (outDir !== SAVED) {
