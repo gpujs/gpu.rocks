@@ -11,9 +11,10 @@
  *
  * Never hand-edited: a number in this directory has to have been measured.
  */
-import r0 from './2026-08-04-apple-m1-max-gpujs2.23.0.json';
-import r1 from './2026-08-04-rtx-5090-linux-gpujs2.23.0.json';
-import r2 from './2026-08-03-apple-m1-max-gpujs2.22.0.json';
-import r3 from './2026-08-03-rtx-5090-linux-gpujs2.22.0.json';
+import r0 from './2026-08-05-m3-ultra-chromium-gpujs2.23.0.json';
+import r1 from './2026-08-04-apple-m1-max-gpujs2.23.0.json';
+import r2 from './2026-08-04-rtx-5090-linux-gpujs2.23.0.json';
+import r3 from './2026-08-03-apple-m1-max-gpujs2.22.0.json';
+import r4 from './2026-08-03-rtx-5090-linux-gpujs2.22.0.json';
 
-export default [r0, r1, r2, r3];
+export default [r0, r1, r2, r3, r4];
