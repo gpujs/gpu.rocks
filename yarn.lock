@@ -2018,15 +2018,16 @@ gpu-mock.js@^1.4.1:
   resolved "https://registry.yarnpkg.com/gpu-mock.js/-/gpu-mock.js-1.4.1.tgz#390f9d22667f9e3e73416d4e1f3f1261d0906a0a"
   integrity sha512-LhCznlFsadwIJCYysx9OJZ4TXluvnKyBHZXt0F3Dbh5ENWbZsCm7TIyrOY2Dh/4DvaOfK67rAmDLYHFqBZ6B1Q==
 
-gpu.js@^2.23.0:
-  version "2.23.0"
-  resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.23.0.tgz#ea43cef0b90a01ff2de9ffad78b5be0e5bf5f8c9"
-  integrity sha512-rfcIBKVxlUS/yIY2bfVlq9b20+NqeJiE++icF+2trTGfphOMglOg3Ede2aZjZExF/xxXnI0k00KKElgogJbTIw==
+gpu.js@^2.24.0:
+  version "2.24.0"
+  resolved "https://registry.yarnpkg.com/gpu.js/-/gpu.js-2.24.0.tgz#9127fe9c75e73ab151a74b5aa0ca4b8669476652"
+  integrity sha512-Fmn8PT1oiVf3NavfJAn/KBodNeEPXYZYTX5yjxjoH0xEyjM+LjVIaJ4Gn7ykSSD241P1Gx5o+WKR5jmRpNxbaA==
   dependencies:
     acorn "8.14.0"
-    gl "8.1.6"
     gpu-mock.js "^1.4.1"
     webgpu "0.2.9"
+  optionalDependencies:
+    gl "8.1.6"
 
 graceful-fs@^4.1.6, graceful-fs@^4.2.0, graceful-fs@^4.2.6:
   version "4.2.11"

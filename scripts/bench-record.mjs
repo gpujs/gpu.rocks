@@ -132,8 +132,29 @@ const stamp = arg('--date') || new Date().toISOString().slice(0, 10);
 // The gpu.js version is part of a run's identity. Without it, re-recording one
 // machine after a library upgrade overwrites the table a reader most wants to
 // compare against.
-const gpujsVersion = JSON.parse(readFileSync(join(ROOT, 'node_modules/gpu.js/package.json'), 'utf8')).version;
+// A branch build reports the version of whatever release it was cut from — an
+// unreleased tree installed from git still says "2.23.0" — so taking that
+// number at face value files a table under a released version it was never
+// measured on. When the dependency is a git URL, the ref and the short commit
+// go in the name: 2.23.0-compiler-optimizations+12d83cd. semver() parses the
+// leading numbers and ignores the rest, so ordering is unaffected.
+function resolveGpujsVersion() {
+  const version = JSON.parse(readFileSync(join(ROOT, 'node_modules/gpu.js/package.json'), 'utf8')).version;
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  const spec = (pkg.dependencies && pkg.dependencies['gpu.js']) || '';
+  if (!/^(https?:|git\+|github:)/.test(spec)) return version;
+  const ref = (spec.split('#')[1] || 'git').replace(/^feature\//, '');
+  let commit = '';
+  try {
+    const lock = readFileSync(join(ROOT, 'yarn.lock'), 'utf8');
+    const entry = lock.split(/\n(?=\S)/).find(b => b.startsWith(`"gpu.js@${spec}"`));
+    const sha = entry && (entry.match(/resolved "[^"]*#([0-9a-f]{7,40})"/) || [])[1];
+    if (sha) commit = `+${sha.slice(0, 7)}`;
+  } catch (e) { /* a name without the commit still beats a wrong version */ }
+  return `${version}-${slug(ref)}${commit}`;
+}
 const slug = t => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const gpujsVersion = resolveGpujsVersion();
 const id = arg('--id') || `${stamp}-${slug(label)}-gpujs${gpujsVersion}`;
 
 if (argv.includes('--index')) {
