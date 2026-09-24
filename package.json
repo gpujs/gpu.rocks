@@ -60,6 +60,6 @@
     "node-fetch": "^2.6.7",
     "node-gyp": "^11.5.0",
     "prismjs": "^1.30.0",
-    "brace-expansion": "^2.1.2"
+    "brace-expansion": "^2.1.4"
   }
 }
